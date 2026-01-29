@@ -3103,3 +3103,6 @@
 [submodule "external/skills_repos/bkircher-skills"]
 	path = external/skills_repos/bkircher-skills
 	url = https://github.com/bkircher/skills
+[submodule "vibeship-spawner-skills"]
+	path = vibeship-spawner-skills
+	url = https://github.com/vibeforge1111/vibeship-spawner-skills

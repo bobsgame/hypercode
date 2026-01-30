@@ -1,5 +1,5 @@
 // Background Service Worker for Borg Director Link
-console.log("aios Browser Extension Background Service Worker Starting...");
+console.log("Borg Browser Extension Background Service Worker Starting...");
 
 let socket: WebSocket | null = null;
 let requestIdCounter = 0;

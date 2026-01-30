@@ -26,7 +26,7 @@ export class Router {
 
         const client = new Client(
             {
-                name: "aios-router",
+                name: "borg-router",
                 version: "0.1.0",
             },
             {

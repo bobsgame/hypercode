@@ -1,17 +1,17 @@
-console.log("aios Browser Extension Content Script Loaded");
+console.log("Borg Browser Extension Content Script Loaded");
 
 // 1. Inject the Bridge Script into the Page Context
 const script = document.createElement('script');
 script.textContent = `
 (function() {
-    window.aios = {
+    window.borg = {
         callTool: function(name, args) {
             return new Promise((resolve, reject) => {
                 const id = Math.random().toString(36).substring(7);
                 
                 // Handler for Response
                 const handler = (event) => {
-                    if (event.source !== window || !event.data || event.data.type !== 'AIOS_MCP_RESPONSE') return;
+                    if (event.source !== window || !event.data || event.data.type !== 'BORG_MCP_RESPONSE') return;
                     if (event.data.payload.id !== id) return;
                     
                     window.removeEventListener('message', handler);
@@ -27,7 +27,7 @@ script.textContent = `
                 
                 // Send Request
                 window.postMessage({
-                    type: 'AIOS_MCP_CALL',
+                    type: 'BORG_MCP_CALL',
                     payload: {
                         jsonrpc: '2.0',
                         method: 'tools/call',
@@ -42,7 +42,7 @@ script.textContent = `
              return new Promise((resolve, reject) => {
                 const id = Math.random().toString(36).substring(7);
                 const handler = (event) => {
-                    if (event.source !== window || !event.data || event.data.type !== 'AIOS_MCP_RESPONSE') return;
+                    if (event.source !== window || !event.data || event.data.type !== 'BORG_MCP_RESPONSE') return;
                     if (event.data.payload.id !== id) return;
                     window.removeEventListener('message', handler);
                     if (event.data.payload.error) reject(event.data.payload.error);
@@ -50,13 +50,13 @@ script.textContent = `
                 };
                 window.addEventListener('message', handler);
                 window.postMessage({
-                    type: 'AIOS_MCP_CALL',
+                    type: 'BORG_MCP_CALL',
                     payload: { jsonrpc: '2.0', method: 'tools/list', id }
                 }, '*');
             });
         }
     };
-    console.log("✅ window.aios injected");
+    console.log("✅ window.borg injected");
 })();
 `;
 (document.head || document.documentElement).appendChild(script);
@@ -66,14 +66,14 @@ script.remove();
 window.addEventListener('message', (event) => {
     if (event.source !== window || !event.data) return;
 
-    if (event.data.type === 'AIOS_MCP_CALL') {
+    if (event.data.type === 'BORG_MCP_CALL') {
         const payload = event.data.payload;
 
         // Forward to Background
         chrome.runtime.sendMessage({ type: "MCP_REQUEST", payload }, (response) => {
             // Forward Response back to Page
             window.postMessage({
-                type: 'AIOS_MCP_RESPONSE',
+                type: 'BORG_MCP_RESPONSE',
                 payload: response
             }, '*');
         });

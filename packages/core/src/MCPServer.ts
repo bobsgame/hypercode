@@ -68,6 +68,7 @@ import { UndoCommand, DiffCommand, StashCommand } from "./commands/lib/WorkflowC
 console.log("[MCPServer] ✓ Commands");
 
 import { ContextManager } from "./context/ContextManager.js";
+import { SymbolPinService } from "./services/SymbolPinService.js";
 
 
 import { PermissionManager, AutonomyLevel } from "./security/PermissionManager.js";
@@ -123,6 +124,7 @@ export class MCPServer {
     public squadService: SquadService;
     public commandRegistry: CommandRegistry;
     public contextManager: ContextManager;
+    public symbolPinService: SymbolPinService;
     private activeAgents: Map<string, AgentAdapter> = new Map();
     public directorConfig = {
         taskCooldownMs: 10000,
@@ -173,6 +175,7 @@ export class MCPServer {
 
         // Context Manager
         this.contextManager = new ContextManager();
+        this.symbolPinService = new SymbolPinService();
         this.shellService = new ShellService(); // Added this line
         this.commandRegistry = new CommandRegistry(); // Corrected typo from instruction
         this.commandRegistry.register(new GitCommand());

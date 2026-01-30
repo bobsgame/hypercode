@@ -156,3 +156,59 @@ export class StashCommand implements ICommand {
         }
     }
 }
+
+/**
+ * /fix - Start Auto-Dev Loops (Fix until Pass)
+ */
+import { AutoDevService } from "../../services/AutoDevService.js";
+
+export class FixCommand implements ICommand {
+    name = "fix";
+    description = "Start Auto-Dev Loop. Usage: /fix <test|lint|build|status|cancel> [target]";
+
+    constructor(private autoDevGetter: () => AutoDevService | undefined) { }
+
+    async execute(args: string[]): Promise<CommandResult> {
+        const autoDev = this.autoDevGetter();
+        if (!autoDev) return { handled: true, output: "❌ AutoDevService not initialized." };
+
+        const subcommand = args[0];
+        const target = args.slice(1).join(' ');
+
+        if (['test', 'lint', 'build'].includes(subcommand)) {
+            // Start Loop
+            const id = await autoDev.startLoop({
+                type: subcommand as 'test' | 'lint' | 'build',
+                maxAttempts: 5,
+                target: target || undefined
+            });
+            return { handled: true, output: `🔄 **Auto-Dev Loop Started**\nID: \`${id}\`\nType: ${subcommand}\nTarget: ${target || 'All'}\n\nRunning in background... Check status with \`/fix status\`.` };
+        }
+
+        if (subcommand === 'status') {
+            const loops = autoDev.getLoops();
+            if (loops.length === 0) return { handled: true, output: "✅ No active auto-dev loops." };
+
+            let output = "🔄 **Active Loops**\n\n";
+            for (const loop of loops) {
+                output += `- **${loop.id}**: ${loop.config.type} ${loop.config.target ? `(${loop.config.target})` : ''}\n`;
+                output += `  - Status: ${loop.status.toUpperCase()}\n`;
+                output += `  - Attempt: ${loop.currentAttempt}/${loop.config.maxAttempts}\n`;
+            }
+            return { handled: true, output };
+        }
+
+        if (subcommand === 'cancel') {
+            const id = args[1];
+            if (!id) return { handled: true, output: "❌ Usage: /fix cancel <loop-id>" };
+
+            const success = autoDev.cancelLoop(id);
+            return {
+                handled: true,
+                output: success ? `🛑 Loop \`${id}\` cancelled.` : `❌ Loop \`${id}\` not found or not running.`
+            };
+        }
+
+        return { handled: true, output: "❌ Usage: /fix <test|lint|build|status|cancel> [target]" };
+    }
+}

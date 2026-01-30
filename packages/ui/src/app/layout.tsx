@@ -1,5 +1,6 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Sidebar } from '@/components/Sidebar';
+import { MobileNav } from '@/components/MobileNav';
 import { Web3Provider } from '@/components/providers/web3-provider';
 import { WalletConnect } from '@/components/wallet-connect';
 import './globals.css';
@@ -9,6 +10,13 @@ import { Toaster } from 'sonner';
 export const metadata: Metadata = {
   title: 'aios',
   description: 'The Ultimate Meta-Orchestrator for the Model Context Protocol',
+};
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
 };
 
 export default function RootLayout({
@@ -21,8 +29,11 @@ export default function RootLayout({
       <body>
         <Web3Provider>
           <div className="flex h-screen bg-gray-900 text-gray-100">
-            <Sidebar />
-            <main className="flex-1 overflow-auto bg-gray-900 p-8">
+            <div className="hidden md:block">
+              <Sidebar />
+            </div>
+            <MobileNav />
+            <main className="flex-1 overflow-auto bg-gray-900 p-4 md:p-8 pb-20 md:pb-8">
               <div className="flex justify-end mb-6">
                 <WalletConnect />
               </div>

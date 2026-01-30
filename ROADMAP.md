@@ -33,6 +33,13 @@
 - [ ] **Absorb:** Re-implement key features into Borg Core.
 - [ ] **Submodules:** Add all relevant repos as upstream references.
 
+## Phase 15.5: Universal Standards & Parity (Feature Injection)
+**Goal:** Adopt best-in-class standards found during research.
+- [ ] **GEARS Syntax:** Adopt `sublang.xyz` spec for implementation plans.
+- [ ] **Memory Parity:** Study and replicate Jan.ai's local memory/connector architecture.
+- [ ] **Skills Parity:** Integrate skills from `dotfiles/claude-code`.
+- [ ] **Roo Control:** Enhance MobileNav to match `docs.roocode.com/roomote`.
+
 ## Phase 20: Borg Core Implementation (New)
 **Goal:** Build the "Director + Swarm" Orchestrator.
 - [x] **Scaffolding:** Monorepo (Turborepo), Next.js Dashboard, Core Package initialized.
@@ -61,21 +68,21 @@
 ### Core Engine
 - [x] **Unified CLI Runner:** Create `borg cli` wrapper to transparently invoke any integrated CLI (`superai-cli/`).
 - [x] **Unified TUI/WebUI:** Ensure 100% feature parity between terminal and web interfaces.
-- [ ] **Mobile Remote Control:** Responsive mobile UI for monitoring and intervening in agent sessions.
-- [ ] **Shell Integration:** Deep shell history integration and context awareness (Warp-style).
+- [x] **Mobile Remote Control:** Responsive mobile UI for monitoring and intervening in agent sessions.
+- [x] **Shell Integration:** Deep shell history integration and context awareness (Warp-style).
 
 ### Advanced Coding Features
-- [ ] **Multi-File Context:** "Add to Context" logic similar to Aider/Claude Code.
-- [ ] **In-Chat Commands:** Slash commands for git operations, diff reviews, and undo steps.
-- [ ] **Symbol Pinning:** UI to manually prioritize specific code symbols.
-- [ ] **Auto-Dev Loops:** "Fix until Pass" modes for tests and linters.
+- [x] **Multi-File Context:** "Add to Context" logic similar to Aider/Claude Code.
+- [x] **In-Chat Commands:** Slash commands for git operations, diff reviews, and undo steps.
+- [x] **Symbol Pinning:** UI to manually prioritize specific code symbols.
+- [x] **Auto-Dev Loops:** "Fix until Pass" modes for tests and linters.
 
 ## Phase 16: The SuperAI Browser Extension
 **Goal:** Bridge local context into web-based AI models (ChatGPT, Gemini, Claude.ai).
 
 ### Functionality Injection
-- [ ] **MCP Injection:** Expose local MCP tools (FS, Git, Terminal) to web chats via browser extension.
-- [ ] **Context Export:** One-click export of web chats into Borg long-term memory.
+- [x] **MCP Injection:** Expose local MCP tools (FS, Git, Terminal) to web chats via browser extension.
+- [x] **Context Export:** One-click export of web chats into Borg long-term memory.
 - [ ] **Memory Recording:** Background recording of browsing research into the Vector Store.
 
 ### Browser Capabilities (via MCP)

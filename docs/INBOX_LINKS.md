@@ -13,28 +13,20 @@
 - [x] https://github.com/punkpeye/awesome-mcp-servers?tab=readme-ov-file#finance--fintech (Added as submodule `external/awesome-mcp-servers`)
 - [x] https://github.com/appcypher/awesome-mcp-servers (Added as submodule `external/awesome-mcp-servers-appcypher`)
 - [x] https://github.com/wong2/awesome-mcp-servers (Added as submodule `external/awesome-mcp-servers-wong2`)
-- https://www.pulsemcp.com/servers
-- https://playbooks.com/mcp/
-- [x] https://github.com/Jacck/mcp-reasoner (Added as submodule `external/mcp-servers/Jacck-mcp-reasoner`)
-- [x] https://github.com/KeaBase/kea-research (Added as submodule `external/research/kea-research`)
-- [x] https://github.com/toolsdk-ai/toolsdk-mcp-registry (Added as submodule `external/toolsdk-mcp-registry`)
-- [x] https://github.com/lobehub/lobehub (Added as submodule `external/chat/lobehub`)
-- [x] https://github.com/tensorchord/Awesome-LLMOps (Added as submodule `external/awesome/Awesome-LLMOps`)
-- [x] https://github.com/NevaMind-AI/memU (Added as submodule `external/memory/memU`)
-- [x] https://github.com/openclaw/openclaw (Added as submodule `external/misc/openclaw`)
-- [x] https://github.com/Shubhamsaboo/awesome-llm-apps (Added as submodule `external/awesome/awesome-llm-apps`)
-- https://hub.docker.com/mcp...
-- https://github.com/mcp
-- https://enact.tools/
+- [x] https://www.pulsemcp.com/servers (Indexed in RESOURCE_INDEX.md)
+- [x] https://playbooks.com/mcp/ (Indexed in RESOURCE_INDEX.md)
+- [x] https://hub.docker.com/mcp... (Indexed in RESOURCE_INDEX.md)
+- [x] https://github.com/mcp (Indexed in RESOURCE_INDEX.md)
+- [x] https://enact.tools/ (Indexed in RESOURCE_INDEX.md)
 - [x] https://github.com/Arindam200/awesome-ai-apps (Added as submodule `external/awesome-ai-apps`)
 - [x] https://github.com/robertpelloni/metamcp (Added as submodule `external/mcp-directories/metamcp`)
-- https://docs.roocode.com/roo-code-cloud/roomote-control
-- https://github.com/The-Pocket/PocketFlow-Tutorial-Cursor/blob/main/blog.md
-- https://github.com/mcp/
+- [x] https://docs.roocode.com/roo-code-cloud/roomote-control (Indexed in RESOURCE_INDEX.md)
+- [x] https://github.com/The-Pocket/PocketFlow-Tutorial-Cursor/blob/main/blog.md (Indexed in RESOURCE_INDEX.md)
+- [x] https://github.com/mcp/ (Indexed in RESOURCE_INDEX.md)
 - [x] https://github.com/modelcontextprotocol/ (Added `servers` repo as `external/mcp-servers-official`)
 
 ### Skills & Coding
-- https://github.com/TheNoeTrevino/dotfiles/tree/main/claude-code/skills
+- [x] https://github.com/TheNoeTrevino/dotfiles/tree/main/claude-code/skills (Added as submodule `external/skills_repos/TheNoeTrevino-dotfiles`)
 - https://developers.openai.com/codex/skills/
 - [x] https://github.com/anthropics/skills (Added as submodule `external/skills_repos/anthropic-skills`)
 - [x] https://github.com/openai/skills (Added as submodule `external/skills_repos/openai-skills`)
@@ -47,11 +39,11 @@
 - [x] https://github.com/puemos/lareview
 
 ### New & Interesting (To Review)
-- https://github.com/google-gemini/gemini-cli/issues/16728
-- https://sublang.xyz/ref/gears-ai-ready-spec-syntax/
-- https://www.jan.ai/
-- https://chartgen.ai/
-- https://vibefarm.ai/
+- [x] https://github.com/google-gemini/gemini-cli/issues/16728 (Indexed in RESOURCE_INDEX.md)
+- [x] https://sublang.xyz/ref/gears-ai-ready-spec-syntax/ (Indexed in RESOURCE_INDEX.md)
+- [x] https://www.jan.ai/ (Indexed in RESOURCE_INDEX.md)
+- [x] https://chartgen.ai/ (Indexed in RESOURCE_INDEX.md)
+- [x] https://vibefarm.ai/ (Indexed in RESOURCE_INDEX.md)
 - https://biblexica.com/
 - [x] https://github.com/blader/humanizer (Added as submodule `external/skills_repos/humanizer`)
 - https://blog.palantir.com/securing-agents-in-production-agentic-runtime-1-5191a0715240

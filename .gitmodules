@@ -3163,3 +3163,6 @@
 [submodule "external/awesome/awesome-llm-apps"]
 	path = external/awesome/awesome-llm-apps
 	url = https://github.com/Shubhamsaboo/awesome-llm-apps
+[submodule "external/skills_repos/TheNoeTrevino-dotfiles"]
+	path = external/skills_repos/TheNoeTrevino-dotfiles
+	url = https://github.com/TheNoeTrevino/dotfiles

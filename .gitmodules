@@ -3106,3 +3106,45 @@
 [submodule "vibeship-spawner-skills"]
 	path = vibeship-spawner-skills
 	url = https://github.com/vibeforge1111/vibeship-spawner-skills
+[submodule "external/skills/ykdojo-claude-code-tips"]
+	path = external/skills/ykdojo-claude-code-tips
+	url = https://github.com/ykdojo/claude-code-tips
+[submodule "external/skills/joel-jeremy-emissary"]
+	path = external/skills/joel-jeremy-emissary
+	url = https://github.com/joel-jeremy/emissary
+[submodule "external/skills/microsoft-dcp"]
+	path = external/skills/microsoft-dcp
+	url = https://github.com/microsoft/dcp
+[submodule "external/skills/jkfran-killport"]
+	path = external/skills/jkfran-killport
+	url = https://github.com/jkfran/killport
+[submodule "external/skills/puemos-lareview"]
+	path = external/skills/puemos-lareview
+	url = https://github.com/puemos/lareview
+[submodule "external/misc/MaorBril-clauder"]
+	path = external/misc/MaorBril-clauder
+	url = https://github.com/MaorBril/clauder
+[submodule "external/misc/distcc-distcc"]
+	path = external/misc/distcc-distcc
+	url = https://github.com/distcc/distcc
+[submodule "external/misc/nuwainfo-ffl-mcp"]
+	path = external/misc/nuwainfo-ffl-mcp
+	url = https://github.com/nuwainfo/ffl-mcp
+[submodule "external/misc/sugaiketadao-sicore"]
+	path = external/misc/sugaiketadao-sicore
+	url = https://github.com/sugaiketadao/sicore
+[submodule "external/misc/tchebb-openwv"]
+	path = external/misc/tchebb-openwv
+	url = https://github.com/tchebb/openwv
+[submodule "external/misc/sivanhavkin-Entelgia"]
+	path = external/misc/sivanhavkin-Entelgia
+	url = https://github.com/sivanhavkin/Entelgia
+[submodule "external/misc/mikekelly-claude-sneakpeek"]
+	path = external/misc/mikekelly-claude-sneakpeek
+	url = https://github.com/mikekelly/claude-sneakpeek
+[submodule "external/mcp-servers/Jacck-mcp-reasoner"]
+	path = external/mcp-servers/Jacck-mcp-reasoner
+	url = https://github.com/Jacck/mcp-reasoner
+[submodule "external/research/kea-research"]
+	path = external/research/kea-research
+	url = https://github.com/KeaBase/kea-research

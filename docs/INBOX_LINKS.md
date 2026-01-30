@@ -15,6 +15,8 @@
 - [x] https://github.com/wong2/awesome-mcp-servers (Added as submodule `external/awesome-mcp-servers-wong2`)
 - https://www.pulsemcp.com/servers
 - https://playbooks.com/mcp/
+- [x] https://github.com/Jacck/mcp-reasoner (Added as submodule `external/mcp-servers/Jacck-mcp-reasoner`)
+- [x] https://github.com/KeaBase/kea-research (Added as submodule `external/research/kea-research`)
 - [x] https://github.com/toolsdk-ai/toolsdk-mcp-registry (Added as submodule `external/toolsdk-mcp-registry`)
 - https://hub.docker.com/mcp...
 - https://github.com/mcp
@@ -33,11 +35,11 @@
 - [x] https://github.com/openai/skills (Added as submodule `external/skills_repos/openai-skills`)
 - [x] https://github.com/stared/gemini-claude-skills (Added as submodule `external/skills_repos/gemini-claude-skills`)
 - [x] https://github.com/bkircher/skills (Added as submodule `external/skills_repos/bkircher-skills`)
-- https://github.com/ykdojo/claude-code-tips
-- https://github.com/joel-jeremy/emissary
-- https://github.com/microsoft/dcp
-- https://github.com/jkfran/killport
-- https://github.com/puemos/lareview
+- [x] https://github.com/ykdojo/claude-code-tips
+- [x] https://github.com/joel-jeremy/emissary
+- [x] https://github.com/microsoft/dcp
+- [x] https://github.com/jkfran/killport
+- [x] https://github.com/puemos/lareview
 
 ### New & Interesting (To Review)
 - https://github.com/google-gemini/gemini-cli/issues/16728
@@ -54,10 +56,10 @@
 - https://docs.gopromptless.ai/blog/technical/i-must-scream
 - https://steveklabnik.com/writing/agentic-development-basics/
 - https://pablituuu.space/video-editor
-- https://github.com/MaorBril/clauder
+- [x] https://github.com/MaorBril/clauder
 - https://www.mintlify.com/blog/skill-md
 - https://minifiniti.com/pages/startup-tarot-cards
-- https://github.com/distcc/distcc
+- [x] https://github.com/distcc/distcc
 - https://sibylline.dev/articles/2026-01-22-scribe-swebench-benchmark/
 - https://nexphone.com/blog/the-tale-of-nexphone-one-phone-every-computer
 - https://chromewebstore.google.com/detail/send-check-for-gmail/jnlgfolocbbfhmgaljkgfobdgdlgbnkn
@@ -66,18 +68,18 @@
 - https://json-render.dev/
 - https://chat-capsule.com/
 - https://quesma.com/blog/ghidra-mcp-unlimited-lives/
-- https://github.com/nuwainfo/ffl-mcp
+- [x] https://github.com/nuwainfo/ffl-mcp
 - https://shittycodingagent.ai/
 - https://agentset.ai/rag-prompts
 - https://usegitai.com/
-- https://github.com/sugaiketadao/sicore
-- https://github.com/tchebb/openwv
+- [x] https://github.com/sugaiketadao/sicore
+- [x] https://github.com/tchebb/openwv
 - https://faresbakhit.github.io/e/cpp-modules/
 - https://gist.github.com/joelkuiper/d52cc0e5ff06d12c85e492e4295ca890
 - https://mydeveloperplanet.com/2026/01/19/open-notebook-a-secure-alternative-to-google-notebook-lm/
 - https://arxiv.org/abs/2601.16175
 - https://codingismycraft.blog/index.php/2026/01/23/the-ai-revolution-in-coding-why-im-ignoring-the-prophets-of-doom/
-- https://github.com/sivanhavkin/Entelgia
+- [x] https://github.com/sivanhavkin/Entelgia
 - https://robertpelloni.com/
 - https://store.minisforum.com/products/minisforum-ai-x1-pro
 - https://simonwillison.net/2026/Jan/23/fastrender/
@@ -358,7 +360,7 @@
 - https://www.reddit.com/r/codex/comments/1qn4bzw/cant_find_the_plan_mode_released_in_090/
 - https://www.reddit.com/r/mcp/comments/1qng6se/is_anyone_using_mcps_in_production_to_solve_a/
 - https://qwen.ai/blog?id=qwen3-max-thinking
-- https://github.com/mikekelly/claude-sneakpeek
+- [x] https://github.com/mikekelly/claude-sneakpeek
 - https://lmarena.ai/leaderboard
 - https://dashboard.safe.ai/
 - https://clocks.brianmoore.com/

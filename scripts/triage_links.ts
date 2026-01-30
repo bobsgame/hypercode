@@ -1,9 +1,43 @@
 
 import fs from 'fs';
 import path from 'path';
-import https from 'https';
+import { execSync } from 'child_process';
 
 const INBOX_PATH = path.join(process.cwd(), 'docs', 'INBOX_LINKS.md');
+const REPORT_PATH = path.join(process.cwd(), 'docs', 'TRIAGE_REPORT.md');
+
+interface LinkItem {
+    line: number;
+    url: string;
+    checked: boolean;
+    domain: string;
+    section: string;
+    context: string;
+    alive?: boolean;
+    title?: string;
+    repoStats?: string;
+}
+
+async function checkUrl(url: string): Promise<{ alive: boolean, title?: string }> {
+    try {
+        const controller = new AbortController();
+        const id = setTimeout(() => controller.abort(), 5000);
+
+        const res = await fetch(url, { method: 'GET', signal: controller.signal });
+        clearTimeout(id);
+
+        let title = '';
+        if (res.ok) {
+            const text = await res.text();
+            const titleMatch = text.match(/<title>(.*?)<\/title>/i);
+            if (titleMatch) title = titleMatch[1].trim();
+        }
+
+        return { alive: res.ok, title };
+    } catch (e) {
+        return { alive: false };
+    }
+}
 
 async function main() {
     console.log("📂 Reading INBOX_LINKS.md...");
@@ -15,61 +49,91 @@ async function main() {
     const content = fs.readFileSync(INBOX_PATH, 'utf-8');
     const lines = content.split('\n');
 
-    const links: { line: number, url: string, checked: boolean, domain: string }[] = [];
+    const links: LinkItem[] = [];
     const urlRegex = /(https?:\/\/[^\s\)]+)/g;
+    let currentSection = "Uncategorized";
 
     lines.forEach((line, index) => {
+        if (line.startsWith('#')) {
+            currentSection = line.replace(/#+\s*/, '').trim();
+        }
+
         const match = line.match(urlRegex);
         if (match) {
-            const url = match[0];
+            let url = match[0];
+            // cleanup markdown parens if any
+            if (url.endsWith(')')) url = url.slice(0, -1);
+
             const checked = line.trim().startsWith('- [x]');
+
+            // Extract extra context from the line (e.g. user comments)
+            const context = line.replace(url, '').replace('- [ ]', '').replace('- [x]', '').trim();
+
             try {
                 const domain = new URL(url).hostname;
-                links.push({ line: index + 1, url, checked, domain });
-            } catch (e) {
-                // Invalid URL
-            }
+                links.push({ line: index + 1, url, checked, domain, section: currentSection, context });
+            } catch (e) { }
         }
     });
 
-    let report = "# Inbox Triage Report\n\n";
-    report += `🔍 Found ${links.length} total links.\n`;
+    console.log(`🔍 Found ${links.length} total links. Checking live status for unchecked items...`);
     const unchecked = links.filter(l => !l.checked);
-    report += `📝 ${unchecked.length} unchecked items.\n\n`;
 
-    // Group by Domain
-    const domainCounts: Record<string, number> = {};
-    unchecked.forEach(l => {
-        const domain = l.domain || 'unknown';
-        domainCounts[domain] = (domainCounts[domain] || 0) + 1;
+    // Check availability in parallel batches
+    const BATCH_SIZE = 5;
+    for (let i = 0; i < unchecked.length; i += BATCH_SIZE) {
+        const batch = unchecked.slice(i, i + BATCH_SIZE);
+        await Promise.all(batch.map(async (l) => {
+            process.stdout.write('.');
+            const status = await checkUrl(l.url);
+            l.alive = status.alive;
+            l.title = status.title;
+        }));
+    }
+    console.log("\n✅ Status checks complete.");
+
+    // Generate Report
+    let report = "# Inbox Triage Report\n\n";
+    report += `Generated: ${new Date().toISOString()}\n\n`;
+    report += `| Total | Unchecked | Dead/Private |\n`;
+    report += `|---|---|---|\n`;
+    report += `| ${links.length} | ${unchecked.length} | ${unchecked.filter(l => l.alive === false).length} |\n\n`;
+
+    report += "## Actionable Items (Unchecked & Alive)\n";
+
+    // Group by Section
+    const bySection: Record<string, LinkItem[]> = {};
+    unchecked.filter(l => l.alive !== false).forEach(l => {
+        if (!bySection[l.section]) bySection[l.section] = [];
+        bySection[l.section].push(l);
     });
 
-    report += "## Top Domains (Unchecked)\n";
-    Object.entries(domainCounts)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 15)
-        .forEach(([domain, count]) => report += `- **${domain}**: ${count}\n`);
+    for (const [section, items] of Object.entries(bySection)) {
+        report += `### ${section}\n`;
+        items.forEach(l => {
+            const title = l.title ? `_(${l.title})_` : '';
+            if (l.domain === 'github.com') {
+                // Format as git submodule candidate
+                const parts = l.url.split('github.com/')[1]?.split('/');
+                if (parts && parts.length >= 2) {
+                    report += `- [ ] **Submodule**: [${parts[0]}/${parts[1]}](${l.url}) ${title} ${l.context}\n`;
+                } else {
+                    report += `- [ ] [GitHub](${l.url}) ${title} ${l.context}\n`;
+                }
+            } else {
+                report += `- [ ] [Web](${l.url}) ${title} ${l.context}\n`;
+            }
+        });
+        report += '\n';
+    }
 
-    report += "\n## GitHub Repositories (Potential Submodules)\n";
-    const githubLinks = unchecked.filter(l => l.domain === 'github.com');
-    githubLinks.forEach(l => {
-        // Extract user/repo
-        const parts = l.url.split('github.com/')[1]?.split('/');
-        if (parts && parts.length >= 2) {
-            report += `- [ ] [${parts[0]}/${parts[1]}](${l.url})\n`;
-        } else {
-            report += `- [ ] ${l.url}\n`;
-        }
+    report += "## Dead or Inaccessible Links\n";
+    unchecked.filter(l => l.alive === false).forEach(l => {
+        report += `- [ ] ❌ ${l.url} (Failed to fetch)\n`;
     });
 
-    report += "\n## Other Links\n";
-    unchecked.filter(l => l.domain !== 'github.com').forEach(l => {
-        report += `- [ ] ${l.url}\n`;
-    });
-
-    const reportPath = path.join(process.cwd(), 'docs', 'TRIAGE_REPORT.md');
-    fs.writeFileSync(reportPath, report);
-    console.log(`✅ Report generated at ${reportPath}`);
+    fs.writeFileSync(REPORT_PATH, report);
+    console.log(`✅ Report saved to ${REPORT_PATH}`);
 }
 
 main().catch(console.error);

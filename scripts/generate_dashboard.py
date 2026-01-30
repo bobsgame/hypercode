@@ -99,7 +99,19 @@ def generate_dashboard():
         top_dir = parts[0]
         
         # Special handling for deeply nested categories if needed
-        category = category_map.get(top_dir, "Other / Uncategorized")
+        if top_dir == "external":
+            sub_dir = parts[1] if len(parts) > 1 else "misc"
+            # Normalize common names
+            if sub_dir == "mcp-agents": category = "External: MCP Agents"
+            elif sub_dir == "mcp-servers": category = "External: MCP Servers" 
+            elif sub_dir == "skills": category = "External: Skills"
+            elif sub_dir == "clis": category = "External: CLIs"
+            elif sub_dir == "financial": category = "External: Financial Tools"
+            elif sub_dir == "orchestration": category = "External: Agents & Orchestration"
+            elif sub_dir == "memory": category = "External: Memory"
+            else: category = f"External: {sub_dir.capitalize()}"
+        else:
+            category = category_map.get(top_dir, "Other / Uncategorized")
         
         if category not in dashboard_data:
             dashboard_data[category] = []

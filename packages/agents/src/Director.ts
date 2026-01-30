@@ -52,7 +52,15 @@ export class Director {
         customInstructions: "", // User-defined hints/themes
 
         // Advanced Controls
+        enableChatPaste: true, // Output to Chat Window
+        enableCouncil: true, // Autonomous Decision Making
         autoSubmitChat: false, // If true, Director submits its own messages immediately
+        chatPrefix: "[Director]:", // Prefix for chat messages
+        // Message Type Prefixes
+        directorActionPrefix: "🎬 **Director Action**:",
+        councilPrefix: "🏛️ [Council]:",
+        statusPrefix: "📊 [Director Status]:",
+
         lmStudioTimeoutMs: 30000, // Timeout for LLM requests
         stopDirector: false, // Emergency Stop (Software Toggle)
         verboseLogging: false
@@ -63,6 +71,7 @@ export class Director {
     }
 
     public updateConfig(newConfig: Partial<typeof this.config>) {
+        console.log(`[Director] Updating Config:`, JSON.stringify(newConfig));
         this.config = { ...this.config, ...newConfig };
         // Trigger any side effects (e.g. restarting timers) if necessary
         if (this.monitor) {
@@ -85,7 +94,7 @@ export class Director {
     /**
      * Executes a single goal using the Director's reasoning loop.
      */
-    async executeTask(goal: string, maxSteps: number = 10): Promise<string> {
+    async executeTask(goal: string, maxSteps: number = 10, origin: 'user' | 'council' = 'user'): Promise<string> {
         // Prevent Spam: If exact same goal as last time and finished recently, skip.
         if (this.activeGoal === goal || (this.history.length > 0 && this.lastGoal === goal && Date.now() - this.lastGoalTime < 60000)) {
             console.error(`[Director] 🚫 Skipping duplicate goal: "${goal}"`);
@@ -106,7 +115,12 @@ export class Director {
         };
 
         console.error(`[Director] Starting task: "${goal}" (Limit: ${maxSteps} steps)`);
-        await this.broadcast(`🎬 **Director Action**: ${goal}`);
+
+        const actionPrefix = origin === 'council'
+            ? (this.config.councilPrefix || "🏛️ [Council]:")
+            : (this.config.directorActionPrefix || "🎬 **Director Action**:");
+
+        await this.broadcast(`${actionPrefix} ${goal}`);
 
         for (let step = 1; step <= maxSteps; step++) {
             this.currentStep = step;
@@ -228,12 +242,13 @@ export class Director {
             // SILENCING BROADCAST TO STOP LOOP
             // @ts-ignore
             const config = this.config;
-            if (!config.stopDirector) {
+            if (!config.stopDirector && (config.enableChatPaste !== false)) {
                 // BLOCKING: Wait for paste delay to prevent spam
                 const delay = config.pasteToSubmitDelayMs || 1000;
 
+                const prefix = config.chatPrefix !== undefined ? config.chatPrefix : '[Director]:';
                 await this.server.executeTool('chat_reply', {
-                    text: `[Director]: ${message}`,
+                    text: `${prefix} ${message}`,
                     submit: config.autoSubmitChat || false
                 });
 
@@ -450,7 +465,8 @@ class ConversationMonitor {
             this.lastSummary = summary;
 
             // Broadcast to chat with Alt-Enter submit
-            await this.server.executeTool('chat_reply', { text: `📊 [Director Status]: ${summary}`, submit: false });
+            const statusPrefix = config.statusPrefix || "📊 [Director Status]:";
+            await this.server.executeTool('chat_reply', { text: `${statusPrefix} ${summary}`, submit: false });
             // await new Promise(r => setTimeout(r, 500));
             // await this.server.executeTool('vscode_submit_chat', {});
 
@@ -573,11 +589,13 @@ class ConversationMonitor {
     private async runCouncilLoop() {
         this.isRunningTask = true;
         try {
+            // @ts-ignore
+            const config = this.director.getConfig();
+
             // 0. EMERGENCY KILL SWITCH
             const fs = await import('fs');
             const path = await import('path');
-            // @ts-ignore
-            if (fs.existsSync(path.join(process.cwd(), 'STOP_DIRECTOR')) || this.config.stopDirector) {
+            if (fs.existsSync(path.join(process.cwd(), 'STOP_DIRECTOR')) || config.stopDirector) {
                 console.error("[Director] 🛑 Stop Signal Detected. Autonomy halted.");
                 this.stop();
                 return;
@@ -585,12 +603,22 @@ class ConversationMonitor {
 
             console.error(`[Director] 🤖 Convening Council (Consensus Session)...`);
 
+            if (config.enableCouncil === false) {
+                console.error("[Director] ⏸️ Council Paused by Config.");
+                return;
+            }
+
             // @ts-ignore
             const activeCouncil = this.server.council || (this.director as any).council;
 
             if (activeCouncil) {
-                const previousContext = this.lastDirective ? `Previous Directive was: "${this.lastDirective}". The Director just finished this or is IDLE.` : "";
-                const prompt = `The agent is IDLE. ${previousContext} Review state. If the previous directive was just completed or failed, provide a NEW directive. If no work is needed, reply 'DIRECTIVE: STANDBY'.`;
+                const previousContext = this.lastDirective ? `Previous Directive was: "${this.lastDirective}". The Director just finished this cycle.` : "";
+                const focus = config.defaultTopic ? `\n\nCURRENT FOCUS: "${config.defaultTopic}"\n(You MUST verify this focus is being addressed)` : "";
+
+                // IMPORTANT: Append a note about repitition
+                const antiRepetition = `\n\nCRITICAL: Do NOT issue the same directive again. If the previous directive was "${this.lastDirective}", assume it is DONE or FAILED. Choose the NEXT step.`;
+
+                const prompt = `The agent is IDLE. ${previousContext}${focus}${antiRepetition} Review state. Provide a NEW directive. If no work is needed, reply 'DIRECTIVE: STANDBY'.`;
 
                 const directive = await activeCouncil.runConsensusSession(prompt);
                 console.error(`[Director] 📜 Council Directive: ${directive.summary}`);
@@ -635,7 +663,7 @@ class ConversationMonitor {
                         try { (await import('fs')).appendFileSync(liveFeedPath, `\n### Council Directive\n${directive.summary}\n`); } catch (e) { }
 
                         // Execute
-                        await this.director.executeTask(directive.summary, 10);
+                        await this.director.executeTask(directive.summary, 10, 'council');
 
                         // Report Back
                         await this.server.executeTool('chat_reply', { text: `🏛️ [Council]: ${directive.summary}`, submit: false });

@@ -116,3 +116,20 @@ SUCCESS: https://github.com/moazbuilds/CodeMachine-CLI -> cli-harnesses\CodeMach
 SUCCESS: https://github.com/openai/codex -> cli-harnesses\codex
 SUCCESS: https://github.com/MoonshotAI/kimi-cli -> cli-harnesses\kimi-cli-MoonshotAI
 SUCCESS: https://github.com/block/goose -> cli-harnesses\goose-block
+FAILED: https://github.com/The-Pocket/PocketFlow-Tutorial-Cursor/blob/main/blog.md -> Error: Command failed: git submodule add --force https://github.com/The-Pocket/PocketFlow-Tutorial-Cursor/blob/main/blog.md external\mcp-agents\The-Pocket-PocketFlow-Tutorial-Cursor
+FAILED: https://github.com/mcp/ -> Error: Command failed: git submodule add --force https://github.com/mcp/ external\mcp-agents\mcp-
+FAILED: https://github.com/TheNoeTrevino/dotfiles/tree/main/claude-code/skills -> Error: Command failed: git submodule add --force https://github.com/TheNoeTrevino/dotfiles/tree/main/claude-code/skills external\skills\TheNoeTrevino-dotfiles
+SUCCESS: https://github.com/ykdojo/claude-code-tips -> external\skills\ykdojo-claude-code-tips
+SUCCESS: https://github.com/joel-jeremy/emissary -> external\skills\joel-jeremy-emissary
+SUCCESS: https://github.com/microsoft/dcp -> external\skills\microsoft-dcp
+SUCCESS: https://github.com/jkfran/killport -> external\skills\jkfran-killport
+SUCCESS: https://github.com/puemos/lareview -> external\skills\puemos-lareview
+FAILED: https://github.com/google-gemini/gemini-cli/issues/16728 -> Error: Command failed: git submodule add --force https://github.com/google-gemini/gemini-cli/issues/16728 external\misc\google-gemini-gemini-cli
+FAILED: https://github.com/vllm-project/vllm/issues/32733 -> Error: Command failed: git submodule add --force https://github.com/vllm-project/vllm/issues/32733 external\misc\vllm-project-vllm
+SUCCESS: https://github.com/MaorBril/clauder -> external\misc\MaorBril-clauder
+SUCCESS: https://github.com/distcc/distcc -> external\misc\distcc-distcc
+SUCCESS: https://github.com/nuwainfo/ffl-mcp -> external\misc\nuwainfo-ffl-mcp
+SUCCESS: https://github.com/sugaiketadao/sicore -> external\misc\sugaiketadao-sicore
+SUCCESS: https://github.com/tchebb/openwv -> external\misc\tchebb-openwv
+SUCCESS: https://github.com/sivanhavkin/Entelgia -> external\misc\sivanhavkin-Entelgia
+SUCCESS: https://github.com/mikekelly/claude-sneakpeek -> external\misc\mikekelly-claude-sneakpeek

@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import './logger-patch.js';
 
 console.log("[CLI] Bare Metal Startup..."); // Debug log
 

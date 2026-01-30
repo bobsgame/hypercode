@@ -219,7 +219,18 @@ export const appRouter = t.router({
             // Personalization & Council
             persona: z.enum(['default', 'homie', 'professional', 'chaos']).optional(),
             customInstructions: z.string().optional(),
-            council: z.any().optional()
+            council: z.any().optional(),
+            // New Controls
+            autoSubmitChat: z.boolean().optional(),
+            enableChatPaste: z.boolean().optional(),
+            enableCouncil: z.boolean().optional(),
+            stopDirector: z.boolean().optional(),
+            chatPrefix: z.string().optional(),
+            directorActionPrefix: z.string().optional(),
+            councilPrefix: z.string().optional(),
+            statusPrefix: z.string().optional(),
+            lmStudioTimeoutMs: z.number().optional(),
+            verboseLogging: z.boolean().optional()
         })).mutation(({ input }) => {
             // @ts-ignore
             if (global.mcpServerInstance && global.mcpServerInstance.director) {

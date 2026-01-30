@@ -17,8 +17,14 @@
 - [x] **Dashboard Config:** Added `DirectorStatusWidget` and consolidated UI.
 - [x] **Documentation:** Sync all docs with actual codebase state.
 - [x] **Roadmap Sync:** Verify `ROADMAP.md` is the source of truth.
-- [ ] **Backlog Processing:** Automate triage of `INBOX_LINKS.md` (300+ items).
-- [ ] **Dashboard Polish:** Unify styling and layout for "Mission Control".
+- [x] **Backlog Processing:** Automate triage of `INBOX_LINKS.md` (300+ items).
+- [x] **Dashboard Polish:** Unify styling and layout for "Mission Control" (Completed as Phase 22).
+
+## Phase 22: Director & Dashboard 2.0 (COMPLETED)
+- [x] **Director Control Panel:** Full configuration UI.
+- [x] **Autonomy & Safety:** Kill switch, loop prevention, auto-submit.
+- [x] **Draggable Dashboard:** `dnd-kit` grid layout with persistence.
+- [x] **Configurable Persona:** Custom prefixes and behavior settings.
 
 ## Phase 15: Deep Research & Absorption (Continuous)
 **Goal:** Achieve feature parity with the "Definitive Borg Resource Index".

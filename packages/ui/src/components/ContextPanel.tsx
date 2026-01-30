@@ -1,0 +1,124 @@
+'use client';
+
+import React, { useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Badge } from '@/components/ui/badge';
+import { X, Plus, Trash2, FileText, Pin } from 'lucide-react';
+import { trpc } from '../utils/trpc';
+
+export function ContextPanel() {
+    const [newFile, setNewFile] = useState('');
+
+    const { data: pinnedFiles = [], refetch } = trpc.context.list.useQuery(undefined, {
+        refetchInterval: 5000,
+    });
+
+    const addMutation = trpc.context.add.useMutation({
+        onSuccess: () => {
+            setNewFile('');
+            refetch();
+        }
+    });
+
+    const removeMutation = trpc.context.remove.useMutation({
+        onSuccess: () => refetch()
+    });
+
+    const clearMutation = trpc.context.clear.useMutation({
+        onSuccess: () => refetch()
+    });
+
+    const handleAdd = () => {
+        if (newFile.trim()) {
+            addMutation.mutate({ filePath: newFile.trim() });
+        }
+    };
+
+    const handleRemove = (filePath: string) => {
+        removeMutation.mutate({ filePath });
+    };
+
+    const handleClear = () => {
+        clearMutation.mutate();
+    };
+
+    return (
+        <Card className="h-full flex flex-col">
+            <CardHeader className="pb-2">
+                <div className="flex items-center justify-between">
+                    <CardTitle className="text-sm font-medium flex items-center gap-2">
+                        <Pin className="w-4 h-4" />
+                        Pinned Context
+                    </CardTitle>
+                    <Badge variant="secondary" className="text-xs">
+                        {pinnedFiles.length} files
+                    </Badge>
+                </div>
+            </CardHeader>
+            <CardContent className="flex-1 flex flex-col gap-2 overflow-hidden">
+                {/* Add file input */}
+                <div className="flex gap-2">
+                    <Input
+                        placeholder="Add file path..."
+                        value={newFile}
+                        onChange={(e) => setNewFile(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
+                        className="flex-1 h-8 text-xs"
+                    />
+                    <Button size="sm" onClick={handleAdd} disabled={!newFile.trim()}>
+                        <Plus className="w-3 h-3" />
+                    </Button>
+                </div>
+
+                {/* Pinned files list */}
+                <ScrollArea className="flex-1">
+                    <div className="space-y-1">
+                        {pinnedFiles.length === 0 ? (
+                            <p className="text-xs text-muted-foreground text-center py-4">
+                                No files pinned. Add files to include them in context.
+                            </p>
+                        ) : (
+                            pinnedFiles.map((file: string) => (
+                                <div
+                                    key={file}
+                                    className="flex items-center justify-between p-2 bg-muted/50 rounded-md group"
+                                >
+                                    <div className="flex items-center gap-2 overflow-hidden">
+                                        <FileText className="w-3 h-3 shrink-0 text-muted-foreground" />
+                                        <span className="text-xs truncate" title={file}>
+                                            {file.split(/[/\\]/).pop()}
+                                        </span>
+                                    </div>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                                        onClick={() => handleRemove(file)}
+                                    >
+                                        <X className="w-3 h-3" />
+                                    </Button>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                </ScrollArea>
+
+                {/* Clear all button */}
+                {pinnedFiles.length > 0 && (
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full"
+                        onClick={handleClear}
+                    >
+                        <Trash2 className="w-3 h-3 mr-1" />
+                        Clear All
+                    </Button>
+                )}
+            </CardContent>
+        </Card>
+    );
+}

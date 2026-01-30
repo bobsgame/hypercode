@@ -3,11 +3,17 @@ import { t, publicProcedure, adminProcedure } from './lib/trpc-core.js';
 import { suggestionsRouter } from './routers/suggestionsRouter.js';
 import { squadRouter } from './routers/squadRouter.js';
 import { councilRouter } from './routers/councilRouter.js';
+import { graphRouter } from './routers/graphRouter.js';
+import { testsRouter } from './routers/testsRouter.js';
+import { contextRouter } from './routers/contextRouter.js';
 
 // Re-export core definitions for other files that might rely on them
 export { t, publicProcedure, adminProcedure };
 
 export const appRouter = t.router({
+    graph: graphRouter,
+    tests: testsRouter,
+    context: contextRouter,
     health: publicProcedure.query(() => {
         return { status: 'running', service: '@borg/core' };
     }),
@@ -460,17 +466,6 @@ export const appRouter = t.router({
             };
         })
     }),
-    graph: t.router({
-        getGraph: t.procedure.query(async () => {
-            // @ts-ignore
-            if (global.mcpServerInstance && global.mcpServerInstance.autoTestService) {
-                // @ts-ignore
-                const graph = global.mcpServerInstance.autoTestService.repoGraph;
-                return graph.toJSON();
-            }
-            return { nodes: [], links: [] };
-        })
-    }),
     sandbox: t.router({
         execute: t.procedure.input(z.object({
             language: z.enum(['python', 'node']),
@@ -492,40 +487,6 @@ export const appRouter = t.router({
                 return global.mcpServerInstance.auditService.getLogs(input.limit || 50);
             }
             return [];
-        })
-    }),
-    context: t.router({
-        list: t.procedure.query(() => {
-            // @ts-ignore
-            if (global.mcpServerInstance && global.mcpServerInstance.contextManager) {
-                // @ts-ignore
-                return global.mcpServerInstance.contextManager.list();
-            }
-            return [];
-        }),
-        add: t.procedure.input(z.object({ path: z.string() })).mutation(({ input }) => {
-            // @ts-ignore
-            if (global.mcpServerInstance && global.mcpServerInstance.contextManager) {
-                // @ts-ignore
-                return global.mcpServerInstance.contextManager.add(input.path);
-            }
-            throw new Error("ContextManager not found");
-        }),
-        remove: t.procedure.input(z.object({ path: z.string() })).mutation(({ input }) => {
-            // @ts-ignore
-            if (global.mcpServerInstance && global.mcpServerInstance.contextManager) {
-                // @ts-ignore
-                return global.mcpServerInstance.contextManager.remove(input.path);
-            }
-            throw new Error("ContextManager not found");
-        }),
-        clear: t.procedure.mutation(() => {
-            // @ts-ignore
-            if (global.mcpServerInstance && global.mcpServerInstance.contextManager) {
-                // @ts-ignore
-                return global.mcpServerInstance.contextManager.clear();
-            }
-            throw new Error("ContextManager not found");
         })
     }),
     roadmap: t.router({

@@ -44,19 +44,19 @@
 - [x] https://www.jan.ai/ (Indexed in RESOURCE_INDEX.md)
 - [x] https://chartgen.ai/ (Indexed in RESOURCE_INDEX.md)
 - [x] https://vibefarm.ai/ (Indexed in RESOURCE_INDEX.md)
-- https://biblexica.com/
+- [x] https://biblexica.com/ (Indexed in RESOURCE_INDEX.md)
 - [x] https://github.com/blader/humanizer (Added as submodule `external/skills_repos/humanizer`)
-- https://blog.palantir.com/securing-agents-in-production-agentic-runtime-1-5191a0715240
-- https://desktop-2fa.lukasz-perek.workers.dev/
-- https://github.com/vllm-project/vllm/issues/32733
-- https://oldweb.today/
-- https://docs.gopromptless.ai/blog/technical/i-must-scream
-- https://steveklabnik.com/writing/agentic-development-basics/
-- https://pablituuu.space/video-editor
-- [x] https://github.com/MaorBril/clauder
-- https://www.mintlify.com/blog/skill-md
-- https://minifiniti.com/pages/startup-tarot-cards
-- [x] https://github.com/distcc/distcc
+- [x] https://blog.palantir.com/securing-agents-in-production-agentic-runtime-1-5191a0715240 (Indexed in RESOURCE_INDEX.md)
+- [x] https://desktop-2fa.lukasz-perek.workers.dev/ (Indexed in RESOURCE_INDEX.md - Found Repo: https://github.com/wrogistefan/desktop-2fa)
+- [x] https://github.com/vllm-project/vllm/issues/32733 (Skipped by User)
+- [x] https://oldweb.today/ (Skipped by User)
+- [x] https://docs.gopromptless.ai/blog/technical/i-must-scream (Skipped by User)
+- [ ] https://steveklabnik.com/writing/agentic-development-basics/
+- [x] https://pablituuu.space/video-editor (Skipped by User)
+- [x] https://github.com/MaorBril/clauder (Indexed in RESOURCE_INDEX.md)
+- [x] https://www.mintlify.com/blog/skill-md (Indexed in RESOURCE_INDEX.md - Important for Skills Parity)
+- [x] https://minifiniti.com/pages/startup-tarot-cards (Skipped by User)
+- [x] https://github.com/distcc/distcc (Skipped by User)
 - https://sibylline.dev/articles/2026-01-22-scribe-swebench-benchmark/
 - https://nexphone.com/blog/the-tale-of-nexphone-one-phone-every-computer
 - https://chromewebstore.google.com/detail/send-check-for-gmail/jnlgfolocbbfhmgaljkgfobdgdlgbnkn

@@ -13,4 +13,10 @@
 | ✅ | GEARS (Sublang) | Spec | 8 | AI-Ready Spec Syntax. | Adopt for Implementation Plans. |
 | ✅ | VibeFarm | Tool | 6 | Prompt Composition (VibeCards). | Consider for Prompt Config. |
 | ✅ | ChartGen.ai | Tool | 5 | AI Chart Generator. | Feature Idea (Chart Skill). |
+| ✅ | Biblexica | Tool | 7 | AI Bible translator from Hebrew/Greek. | Reference. |
+| ✅ | Palantir Agentic Runtime | Security | 9 | Framework for secure agent deployment. | Study "Guardrails" implementation. |
+| ✅ | Desktop 2FA | Tool | 8 | Offline, local-first 2FA authenticator. | Consider for "Secure Access" module. |
+| ✅ | Agentic Dev Basics (Klabnik) | Article | 9 | "Stop writing code", use Version Control, avoid Compaction. | Add to "Best Practices". |
+| ✅ | Clauder | Tool | 8 | Connects isolated Claude instances (CLI/Web). | Study "A2A" protocol logic. |
+| ✅ | Skill.md (Mintlify) | Spec | 9 | Open standard for documenting agent skills. | **Adopt this format for Borg Skills.** |
 | ✅ | Gemini CLI #16728 | Issue | 3 | JetBrains detection logic. | Reference only. |

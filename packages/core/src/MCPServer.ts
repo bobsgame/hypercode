@@ -530,6 +530,48 @@ export class MCPServer {
                     });
                 }
             }
+            else if (name === "memorize_page") {
+                if (!this.wssInstance || this.wssInstance.clients.size === 0) {
+                    result = { content: [{ type: "text", text: "Error: No Browser Extension connected." }] };
+                } else {
+                    result = await new Promise((resolve) => {
+                        const requestId = `req_${Date.now()}_${Math.random()}`;
+                        const timeout = setTimeout(() => {
+                            this.pendingRequests.delete(requestId);
+                            resolve({ content: [{ type: "text", text: "Error: Browser timed out." }] });
+                        }, 8000); // 8s timeout for memorization
+
+                        this.pendingRequests.set(requestId, async (data: any) => {
+                            clearTimeout(timeout);
+                            // Data: { url, title, content }
+                            if (!data.content) {
+                                resolve({ content: [{ type: "text", text: "Error: No content received from browser." }] });
+                                return;
+                            }
+
+                            try {
+                                const ctxId = await this.memoryManager.saveContext(
+                                    `URL: ${data.url}\n\n${data.content}`, // Content
+                                    { // Metadata
+                                        title: data.title || "Web Page",
+                                        source: data.url || "browser"
+                                    }
+                                );
+                                resolve({ content: [{ type: "text", text: `✅ Memorized page: "${data.title}" (ID: ${ctxId})` }] });
+                            } catch (e: any) {
+                                resolve({ content: [{ type: "text", text: `Error saving context: ${e.message}` }] });
+                            }
+                        });
+
+                        this.wssInstance.clients.forEach((client: any) => {
+                            if (client.readyState === 1) {
+                                // Reuse 'read_page' event type as it returns the data we need
+                                client.send(JSON.stringify({ type: 'read_page', requestId }));
+                            }
+                        });
+                    });
+                }
+            }
             else if (name === "use_agent") {
                 const agentName = args.name as string;
                 const prompt = args.prompt as string;
@@ -793,6 +835,11 @@ export class MCPServer {
                 {
                     name: "system_status",
                     description: "Get current system metrics (CPU, Memory, Uptime)",
+                    inputSchema: { type: "object", properties: {} },
+                },
+                {
+                    name: "memorize_page",
+                    description: "Save the current browser page content to long-term memory",
                     inputSchema: { type: "object", properties: {} },
                 },
                 {

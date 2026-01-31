@@ -1,92 +1,124 @@
 
+import vm from 'vm';
 import { spawn } from 'child_process';
-import fs from 'fs';
-import path from 'path';
-import os from 'os';
+import { v4 as uuidv4 } from 'uuid';
 
 export class SandboxService {
-    private tempDir: string;
 
     constructor() {
-        this.tempDir = path.join(os.tmpdir(), 'borg-sandbox');
-        if (!fs.existsSync(this.tempDir)) {
-            fs.mkdirSync(this.tempDir, { recursive: true });
+        console.log("[SandboxService] Initialized (Mode: Process Isolation)");
+    }
+
+    /**
+     * Execute code in a sandboxed environment.
+     * @param language 'node' | 'python'
+     * @param code The code to execute
+     * @param timeoutMs Max execution time (default 5000ms)
+     */
+    public async execute(language: 'node' | 'python', code: string, timeoutMs: number = 5000): Promise<{ output: string, error?: string }> {
+        if (language === 'node' || language === 'javascript') {
+            return this.executeNode(code, timeoutMs);
+        } else if (language === 'python') {
+            return this.executePython(code, timeoutMs);
+        } else {
+            return { output: '', error: `Unsupported language: ${language}` };
         }
     }
 
-    async execute(language: 'python' | 'node', code: string, timeoutMs: number = 5000): Promise<{ output: string; error?: string }> {
-        const fileExt = language === 'python' ? 'py' : 'js';
-        const fileName = `exec_${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
-        const hostPath = path.resolve(this.tempDir, fileName);
+    private async executeNode(code: string, timeoutMs: number): Promise<{ output: string, error?: string }> {
+        // Capture console.log
+        let outputBuffer = "";
+        const sandbox = {
+            console: {
+                log: (...args: any[]) => { outputBuffer += args.map(a => String(a)).join(' ') + "\n"; },
+                error: (...args: any[]) => { outputBuffer += "[ERR] " + args.map(a => String(a)).join(' ') + "\n"; },
+                warn: (...args: any[]) => { outputBuffer += "[WARN] " + args.map(a => String(a)).join(' ') + "\n"; },
+            },
+            setTimeout,
+            clearTimeout,
+            setInterval,
+            clearInterval,
+            Buffer,
+            module: {},
+            exports: {},
+            require: (name: string) => {
+                // Whitelist simple packages if needed? For now, strict no-require for safety.
+                throw new Error(`require('${name}') is blocked in sandbox.`);
+            }
+        };
 
-        // Ensure temp dir exists (just in case)
-        if (!fs.existsSync(this.tempDir)) fs.mkdirSync(this.tempDir, { recursive: true });
+        const context = vm.createContext(sandbox);
 
-        fs.writeFileSync(hostPath, code);
+        try {
+            const script = new vm.Script(code);
 
-        // Docker Image Selection
-        // Use lightweight alpine images.
-        // Node: node:18-alpine
-        // Python: python:3.10-alpine
-        const containerImage = language === 'python' ? 'python:3.10-alpine' : 'node:18-alpine';
+            // Execute with timeout
+            // Run inside a promise race to handle async code if user writes promises?
+            // vm.runInContext is synchronous unless the code itself returns a promise.
+            // But if user writes "while(true)", runInContext blocks the event loop unless 'timeout' option is passed.
+            // The 'timeout' option in vm.Script only interrupts synchronous execution.
 
-        // Command construction
-        // logic: Mount host temp dir to /app. Set workdir /app. Run file.
-        // We use path.resolve for host path. Windows paths need handling? 
-        // Docker for Windows usually handles c:\... fine.
-        const runCmd = language === 'python' ? ['python', `/app/${fileName}`] : ['node', `/app/${fileName}`];
-
-        console.log(`[Sandbox] Executing in ${containerImage}...`);
-
-        return new Promise((resolve) => {
-            const args = [
-                'run', '--rm',
-                // Network isolation: none (uncomment to enable internet)
-                // '--network', 'none', 
-                // Memory limit
-                '--memory', '128m',
-                // CPU share
-                '--cpus', '0.5',
-                '-v', `${this.tempDir}:/app`,
-                '-w', '/app',
-                containerImage,
-                ...runCmd
-            ];
-
-            const proc = spawn('docker', args);
-            let stdout = '';
-            let stderr = '';
-            let timedOut = false;
-
-            // Timeout Logic
-            const timer = setTimeout(() => {
-                timedOut = true;
-                console.error(`[Sandbox] Timeout! Killing process...`);
-                proc.kill(); // SIGTERM
-                // Force kill if needed
-                setTimeout(() => { if (!proc.killed) proc.kill('SIGKILL'); }, 1000);
-            }, timeoutMs);
-
-            proc.stdout.on('data', (d) => stdout += d.toString());
-            proc.stderr.on('data', (d) => stderr += d.toString());
-
-            proc.on('close', (code) => {
-                clearTimeout(timer);
-                // Cleanup file
-                try { fs.unlinkSync(hostPath); } catch (e) { }
-
-                if (timedOut) {
-                    resolve({ output: stdout.trim(), error: `Execution Timeout (${timeoutMs}ms exceeded)` });
-                } else if (code === 0) {
-                    resolve({ output: stdout.trim() });
-                } else {
-                    resolve({ output: stdout.trim(), error: stderr.trim() || `Exited with code ${code}` });
-                }
+            const result = script.runInContext(context, {
+                timeout: timeoutMs,
+                displayErrors: true
             });
 
-            proc.on('error', (err) => {
+            // If the result is a Promise (async code), wait for it with timeout
+            if (result instanceof Promise) {
+                await Promise.race([
+                    result,
+                    new Promise((_, reject) => setTimeout(() => reject(new Error("Execution timed out (Async)")), timeoutMs))
+                ]);
+            }
+
+            return { output: outputBuffer.trim() };
+
+        } catch (e: any) {
+            return {
+                output: outputBuffer.trim(),
+                error: e.message || "Unknown Sandbox Error"
+            };
+        }
+    }
+
+    private executePython(code: string, timeoutMs: number): Promise<{ output: string, error?: string }> {
+        return new Promise((resolve) => {
+            const child = spawn('python', ['-c', code], {
+                timeout: timeoutMs
+            });
+
+            let stdout = "";
+            let stderr = "";
+            let killed = false;
+
+            const timer = setTimeout(() => {
+                killed = true;
+                child.kill();
+                resolve({ output: stdout, error: "Execution timed out" });
+            }, timeoutMs);
+
+            child.stdout.on('data', (data) => {
+                stdout += data.toString();
+            });
+
+            child.stderr.on('data', (data) => {
+                stderr += data.toString();
+            });
+
+            child.on('error', (err) => {
                 clearTimeout(timer);
-                resolve({ output: '', error: `Docker Spawn Error: ${err.message}. Is Docker running?` });
+                if (!killed) resolve({ output: stdout, error: err.message });
+            });
+
+            child.on('close', (code) => {
+                clearTimeout(timer);
+                if (!killed) {
+                    if (code !== 0) {
+                        resolve({ output: stdout, error: stderr || `Process exited with code ${code}` });
+                    } else {
+                        resolve({ output: stdout.trim() });
+                    }
+                }
             });
         });
     }

@@ -20,7 +20,7 @@ export class RepoGraphService {
     private consumers: Map<string, Set<string>> = new Map();
     private dependencies: Map<string, Set<string>> = new Map();
     private isInitialized: boolean = false;
-    private fileCache: Map<string, number> = new Map(); // mtime cache
+    private packageMap: Map<string, string> = new Map(); // @borg/core -> packages/core
 
     constructor(rootDir: string) {
         this.rootDir = rootDir;
@@ -28,6 +28,7 @@ export class RepoGraphService {
 
     async buildGraph() {
         console.time('RepoGraphBuild');
+        await this.buildPackageMap();
         const files = await this.getAllFiles(this.rootDir);
 
         // Clear maps
@@ -113,7 +114,23 @@ export class RepoGraphService {
     }
 
     private resolveModule(importer: string, moduleSpecifier: string): string | null {
-        // Simple Node-style resolution for now (relative)
+        // 1. Monorepo Alias Resolution
+        if (moduleSpecifier.startsWith('@borg/')) {
+            const pkgPath = this.packageMap.get(moduleSpecifier);
+            if (pkgPath) {
+                // Determine entry point (naively index.ts for now, or check package.json main)
+                // Better: Let node resolution handle it? No, we need source file for graph.
+                const entryPoints = ['src/index.ts', 'index.ts', 'src/index.tsx'];
+                for (const entry of entryPoints) {
+                    const p = path.join(this.rootDir, pkgPath, entry);
+                    if (fs.existsSync(p)) return p;
+                }
+                // If importing specific file: @borg/core/src/foo
+                // This is rare in our codebase (usually we import from index), but let's see.
+            }
+        }
+
+        // 2. Relative Resolution
         if (moduleSpecifier.startsWith('.')) {
             const dir = path.dirname(importer);
             let target = path.join(dir, moduleSpecifier);
@@ -135,10 +152,33 @@ export class RepoGraphService {
             if (fs.existsSync(target)) return target;
         }
 
-        // TODO: Handle workspace packages aliases (e.g. @borg/core)
-        // This requires reading tsconfig.json paths or package.json workspaces
-
         return null;
+    }
+
+    private async buildPackageMap() {
+        // Scans packages/* and apps/* for package.json
+        const scan = async (base: string) => {
+            const dir = path.join(this.rootDir, base);
+            if (!fs.existsSync(dir)) return;
+            const entries = await fs.promises.readdir(dir, { withFileTypes: true });
+            for (const entry of entries) {
+                if (entry.isDirectory()) {
+                    const pkgJsonPath = path.join(dir, entry.name, 'package.json');
+                    if (fs.existsSync(pkgJsonPath)) {
+                        try {
+                            const content = JSON.parse(await fs.promises.readFile(pkgJsonPath, 'utf-8'));
+                            if (content.name) {
+                                this.packageMap.set(content.name, path.join(base, entry.name));
+                            }
+                        } catch (e) { }
+                    }
+                }
+            }
+        };
+
+        await scan('packages');
+        await scan('apps');
+        console.log(`[RepoGraph] Mapped ${this.packageMap.size} packages.`);
     }
 
     private async getAllFiles(dir: string): Promise<string[]> {

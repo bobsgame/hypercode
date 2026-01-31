@@ -35,8 +35,13 @@ export interface ActiveLoop {
 export class AutoDevService {
     private activeLoops: Map<string, ActiveLoop> = new Map();
     private loopCounter = 0;
+    private director: any; // Director type avoided to prevent circular dep issues if any, but better to import interface
+    private rootDir: string;
 
-    constructor(private rootDir: string) { }
+    constructor(rootDir: string, director?: any) {
+        this.rootDir = rootDir;
+        this.director = director;
+    }
 
     /**
      * Start a "Fix until Pass" loop
@@ -135,7 +140,25 @@ export class AutoDevService {
 
                 // Wait before retry (exponential backoff)
                 const delay = Math.min(1000 * Math.pow(2, loop.currentAttempt - 1), 30000);
-                await new Promise(r => setTimeout(r, delay));
+
+                // AUTONOMOUS REPAIR
+                if (this.director && loop.status === 'running') {
+                    console.log(`[AutoDev] 🔧 Requesting Director fix...`);
+                    const goal = `Fix the following ${config.type} error in ${config.target || 'the project'}. 
+Output:
+${loop.lastOutput.substring(0, 2000)}
+
+Please analyze the file, fix the code, and ensure it passes.`;
+
+                    try {
+                        // Give the director a few steps to fix it
+                        await this.director.executeTask(goal, 5);
+                    } catch (e) {
+                        console.error(`[AutoDev] Director fix failed:`, e);
+                    }
+                } else {
+                    await new Promise(r => setTimeout(r, delay));
+                }
             }
         }
     }

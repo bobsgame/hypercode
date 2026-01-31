@@ -29,7 +29,8 @@ export class Director {
 
     constructor(server: IMCPServer) {
         this.server = server;
-        this.llmService = new LLMService();
+        // @ts-ignore
+        this.llmService = new LLMService(server.modelSelector);
         // @ts-ignore
         this.council = new Council(server.modelSelector);
 
@@ -467,7 +468,8 @@ class ConversationMonitor {
             // Broadcast to chat with Alt-Enter submit
             const statusPrefix = config.statusPrefix || "📊 [Director Status]:";
             if (config.enableChatPaste !== false) {
-                await this.server.executeTool('chat_reply', { text: `${statusPrefix} ${summary}`, submit: false });
+                // USER REQUEST: Auto-submit this summary to drive the loop
+                await this.server.executeTool('chat_reply', { text: `${statusPrefix} ${summary}`, submit: true });
             }
             // await new Promise(r => setTimeout(r, 500));
             // await this.server.executeTool('vscode_submit_chat', {});
@@ -506,14 +508,13 @@ class ConversationMonitor {
         try { await this.server.executeTool('vscode_execute_command', { command: 'interactive.acceptChanges' }); } catch (e) { }
 
         // PERIODIC ALT+ENTER: Click Accept buttons that pause development
-        // This runs every 30 seconds (heartbeat interval) to keep things moving
-        // SAFETY: Only run if user is IDLE (> 5s inactive) to prevent focus stealing
+        // Uses WebSocket 'SUBMIT_CHAT' instead of native_input to avoid focus stealing
         // @ts-ignore
         const lastActive = this.server.lastUserActivityTime || 0;
         if (Date.now() - lastActive > 5000) {
             try {
-                // Target the VS Code window explicitly to ensure Alt+Enter registers
-                await this.server.executeTool('native_input', { keys: 'alt+enter', windowTitle: 'Visual Studio Code' });
+                // Use WebSocket bridge (Safe)
+                await this.server.executeTool('chat_submit', {});
             } catch (e) { }
         }
 
@@ -657,7 +658,11 @@ class ConversationMonitor {
                         console.error("[Director] 🛑 Council repeated similar directive (Loop Detected). Sleeping.");
                         // Only reply if we haven't replied recently
                         const lastReply = this.recentDirectives[this.recentDirectives.length - 1];
-                        if (!lastReply || (now - lastReply.timestamp) > 30000) {
+
+                        // SILENCE FOR STANDBY: Do not spam chat if it's just 'Abstained' or 'Standby'
+                        const isStandby = /abstained|standby|no objection/i.test(directive.summary);
+
+                        if (!isStandby && (!lastReply || (now - lastReply.timestamp) > 30000)) {
                             // @ts-ignore
                             if (this.director.getConfig().enableChatPaste !== false) {
                                 await this.server.executeTool('chat_reply', { text: `[Director]: 🛑 Ignoring repetitive directive: "${directive.summary}"`, submit: false });
@@ -681,7 +686,8 @@ class ConversationMonitor {
                         // Report Back
                         // @ts-ignore
                         if (this.director.getConfig().enableChatPaste !== false) {
-                            await this.server.executeTool('chat_reply', { text: `🏛️ [Council]: ${directive.summary}`, submit: false });
+                            // USER REQUEST: Auto-submit Council Directives
+                            await this.server.executeTool('chat_reply', { text: `🏛️ [Council]: ${directive.summary}`, submit: true });
                         }
                     }
                 }

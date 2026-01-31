@@ -32,6 +32,7 @@ import { AutoTestService } from "./services/AutoTestService.js";
 import { ShellService } from "./services/ShellService.js";
 import { SandboxService } from "./security/SandboxService.js";
 import { SquadService } from "./orchestrator/SquadService.js";
+import { GitWorktreeManager } from "./orchestrator/GitWorktreeManager.js";
 import { AuditService } from "./security/AuditService.js";
 import { SkillRegistry } from "./skills/SkillRegistry.js";
 import { SuggestionService } from "./suggestions/SuggestionService.js";
@@ -127,6 +128,7 @@ export class MCPServer {
     public autoTestService: AutoTestService;
     public sandboxService: SandboxService;
     public squadService: SquadService;
+    public gitWorktreeManager: GitWorktreeManager;
     public commandRegistry: CommandRegistry;
     public contextManager: ContextManager;
     public symbolPinService: SymbolPinService;
@@ -184,7 +186,7 @@ export class MCPServer {
         // Context Manager
         this.contextManager = new ContextManager();
         this.symbolPinService = new SymbolPinService();
-        this.autoDevService = new AutoDevService(process.cwd());
+        this.autoDevService = new AutoDevService(process.cwd(), this.director);
         this.shellService = new ShellService(); // Added this line
         this.commandRegistry = new CommandRegistry(); // Corrected typo from instruction
         this.commandRegistry.register(new GitCommand());
@@ -202,6 +204,7 @@ export class MCPServer {
         this.researchService = new ResearchService(this, this.memoryManager); // Initialized AFTER memoryManager
 
         this.squadService = new SquadService(this);
+        this.gitWorktreeManager = new GitWorktreeManager(process.cwd());
 
         // @ts-ignore
         global.mcpServerInstance = this;
@@ -684,6 +687,24 @@ export class MCPServer {
                 const res = await merger.mergeBranch(branch);
                 result = { content: [{ type: "text", text: JSON.stringify(res) }] };
             }
+            else if (name === "git_worktree_list") {
+                result = {
+                    content: [{ type: "text", text: JSON.stringify(await this.gitWorktreeManager.listWorktrees(), null, 2) }]
+                };
+            }
+            else if (name === "git_worktree_add") {
+                const branch = args?.branch as string;
+                const path = args?.path as string; // Relative or absolute
+                // Manager handles it
+                const finalPath = await this.gitWorktreeManager.addWorktree(branch, path);
+                result = { content: [{ type: "text", text: `Worktree added at: ${finalPath}` }] };
+            }
+            else if (name === "git_worktree_remove") {
+                const pathOrBranch = args?.path || args?.branch as string;
+                const force = args?.force as boolean;
+                await this.gitWorktreeManager.removeWorktree(pathOrBranch, force);
+                result = { content: [{ type: "text", text: `Worktree removed: ${pathOrBranch}` }] };
+            }
             // 2. Intercept File Reading for Suggestions (Engagement Module)
             if (name === "read_file" || name === "view_file") {
                 const filePath = args.path || args.AbsolutePath;
@@ -1093,9 +1114,13 @@ export class MCPServer {
 
     async start() {
         console.log("[MCPServer] Loading Skills...");
-        // Initialize systems
-        await this.skillRegistry.loadSkills();
-        console.log("[MCPServer] Skills Loaded.");
+        // Start Services
+        // this.director.startChatDaemon(); // Removed, auto-drive handles this
+
+        // Build Graph in Background
+        this.autoTestService.repoGraph.buildGraph().catch(e => console.error("Graph build failed", e));
+
+        console.log(`[MCPServer] 🚀 Borg Core ready.`);
 
         // 1. Start Stdio (for local CLI usage)
         console.log("[MCPServer] Connecting Stdio...");

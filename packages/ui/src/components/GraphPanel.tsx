@@ -15,6 +15,23 @@ export function GraphPanel() {
         staleTime: 60000 // Cache for 1 min
     });
 
+    const [showSymbols, setShowSymbols] = useState(false);
+    const { data: symbolData } = trpc.repoGraph.getSymbolsGraph.useQuery(undefined, {
+        enabled: showSymbols,
+        staleTime: 300000 // Cache longer
+    });
+
+    const displayGraph = React.useMemo(() => {
+        if (!graphData) return { nodes: [], links: [] };
+        if (!showSymbols || !symbolData) return graphData;
+
+        // Merge
+        return {
+            nodes: [...graphData.nodes, ...symbolData.nodes],
+            links: [...graphData.links, ...symbolData.links]
+        };
+    }, [graphData, symbolData, showSymbols]);
+
     const executeTool = trpc.executeTool.useMutation();
     const fgRef = useRef<any>();
     const [containerDimensions, setDimensions] = useState({ width: 800, height: 600 });
@@ -75,6 +92,14 @@ export function GraphPanel() {
     return (
         <div className="flex flex-col h-full w-full bg-neutral-950 text-white relative">
             <div className="absolute top-4 right-4 z-10 flex gap-2">
+                <Button
+                    variant={showSymbols ? "secondary" : "outline"}
+                    size="sm"
+                    onClick={() => setShowSymbols(!showSymbols)}
+                    className="text-xs"
+                >
+                    {showSymbols ? "Hide Symbols" : "Show Symbols"}
+                </Button>
                 <Button variant="outline" size="icon" onClick={() => refetch()}><RefreshCw className="h-4 w-4" /></Button>
                 <Button variant="outline" size="icon" onClick={() => fgRef.current?.zoomToFit(400)}><ZoomOut className="h-4 w-4" /></Button>
             </div>
@@ -85,13 +110,19 @@ export function GraphPanel() {
                         ref={fgRef}
                         width={containerDimensions.width}
                         height={containerDimensions.height}
-                        graphData={graphData}
+                        width={containerDimensions.width}
+                        height={containerDimensions.height}
+                        graphData={displayGraph}
                         nodeLabel="id"
                         nodeColor={(node: any) => {
+                            if (node.group === 'symbol') {
+                                return node.kind === 'class' ? '#facc15' : '#3b82f6'; // Yellow Class, Blue Function
+                            }
                             if (node.group === 'packages') return '#ef4444'; // Red for packages
                             if (node.group === 'apps') return '#3b82f6'; // Blue for apps
                             return '#10b981'; // Green for others
                         }}
+                        nodeVal={(node: any) => node.group === 'symbol' ? 2 : (node.val || 4)}
                         nodeRelSize={6}
                         linkColor={() => 'rgba(255,255,255,0.2)'}
                         backgroundColor="#0a0a0a"

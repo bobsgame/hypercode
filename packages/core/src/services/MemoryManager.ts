@@ -58,7 +58,16 @@ export class MemoryManager {
                 };
             },
             delete: async (ids: string[]) => store.delete(ids),
-            reset: async () => store.reset()
+            reset: async () => store.reset(),
+            // @ts-ignore - Extension
+            list: async (where?: string, limit?: number) => {
+                const docs = await store.listDocuments(where, limit);
+                return docs.map(d => ({
+                    id: d.id,
+                    content: d.content,
+                    metadata: (d as any).metadata || { file_path: d.file_path }
+                }));
+            }
         };
 
         if (this.provider) {
@@ -106,6 +115,32 @@ export class MemoryManager {
         // For now, relies on semantic similarity. Symbols usually look like "function foo()..."
         // Prefixing query might help: "symbol for " + query?
         return await this.search(query, limit);
+    }
+
+    public async getAllSymbols(): Promise<any[]> {
+        if (!this.initialized) await this.initialize();
+        if (!this.provider) return [];
+
+        // Check if provider has listDocuments (it does if it's our VectorStore adapter)
+        // Since we are using an adapter pattern in initialize(), we need to cast or access the internal store
+        // But wait, the adapter defined in initialize() (lines 30-62) DOES NOT expose listDocuments!
+        // We need to update the adapter definition in MemoryManager.ts first.
+
+        // Actually, let's update the Adapter interface or just cheat for now by re-instantiating store?
+        // No, that's bad.
+        // Let's update `initialize` method to expose `list` in the provider object.
+        // But `VectorProvider` interface likely doesn't have `list`.
+
+        // Workaround: We will import VectorStore directly here for this specific operation if provider doesn't support it,
+        // OR we cast provider to any.
+
+        // Let's update `initialize` to add `list` to the provider object, casting it to any for now.
+        // @ts-ignore
+        if (this.provider.list) {
+            // @ts-ignore
+            return await this.provider.list("hash = 'symbol'", 5000);
+        }
+        return [];
     }
 
     /**

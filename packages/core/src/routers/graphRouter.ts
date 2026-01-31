@@ -52,4 +52,39 @@ export const graphRouter = t.router({
             const service = getGraphService();
             return service.getDependencies(input.filePath);
         }),
+
+    getSymbolsGraph: publicProcedure.query(async () => {
+        // @ts-ignore
+        const mcp = global.mcpServerInstance;
+        if (!mcp || !mcp.memoryManager) return { nodes: [], links: [] };
+
+        const symbols = await mcp.memoryManager.getAllSymbols();
+
+        const nodes: any[] = [];
+        const links: any[] = [];
+
+        symbols.forEach((sym: any) => {
+            // Node for the symbol
+            nodes.push({
+                id: sym.id,
+                name: sym.metadata.name,
+                val: 5, // Size
+                group: 'symbol',
+                kind: sym.metadata.kind, // function, class, etc.
+                file: sym.metadata.file_path
+            });
+
+            // Link to the file
+            // The file node ID in RepoGraph is usually the relative path
+            if (sym.metadata.file_path) {
+                links.push({
+                    source: sym.metadata.file_path,
+                    target: sym.id,
+                    type: 'defines'
+                });
+            }
+        });
+
+        return { nodes, links };
+    }),
 });

@@ -133,6 +133,39 @@ export class VectorStore {
         }));
     }
 
+    async listDocuments(where?: string, limit: number = 10000): Promise<CodeDocument[]> {
+        if (!this.initialized) await this.initialize();
+
+        let query = this.table.search();
+        if (where) {
+            query = query.where(where);
+        }
+
+        const execution = await query.limit(limit).execute();
+
+        let results: any[] = [];
+        if (Array.isArray(execution)) {
+            results = execution;
+        } else {
+            try {
+                // @ts-ignore
+                for await (const row of execution) {
+                    results.push(row);
+                }
+            } catch (e) {
+                console.error("[VectorStore] Failed to iterate results:", e);
+            }
+        }
+
+        return results.map((r: any) => ({
+            id: r.id,
+            file_path: r.file_path,
+            content: r.content,
+            hash: r.hash,
+            metadata: r.metadata // Ensure metadata is preserved
+        }));
+    }
+
     /**
      * Get a single document by ID.
      */

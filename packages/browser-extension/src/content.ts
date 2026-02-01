@@ -111,7 +111,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 hr: '---',
                 bulletListMarker: '-'
             });
-            const markdown = turndownService.turndown(article.content);
+            const markdown = turndownService.turndown(article.content || "");
 
             sendResponse({
                 success: true,
@@ -127,5 +127,67 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             sendResponse({ success: false, error: (error as Error).message });
         }
     }
+
+    // --- DOM AUTOMATION ---
+    if (request.type === 'CLICK_ELEMENT') {
+        const targetText = request.target.toLowerCase();
+        const elements = Array.from(document.querySelectorAll('button, a, input[type="submit"], [role="button"]'));
+        const element = elements.find(el => (el as HTMLElement).innerText?.toLowerCase().includes(targetText) || (el as HTMLInputElement).value?.toLowerCase().includes(targetText));
+
+        if (element) {
+            const hel = element as HTMLElement;
+            hel.style.outline = '4px solid yellow';
+            hel.style.transition = 'all 0.2s';
+            setTimeout(() => {
+                hel.click();
+                hel.style.outline = '';
+                sendResponse({ success: true, message: `Clicked "${targetText}"` });
+            }, 500);
+        } else {
+            sendResponse({ success: false, error: `Element not found: ${targetText}` });
+        }
+    }
+
+    if (request.type === 'PASTE_INTO_CHAT') {
+        // Universal "Chat Input" finder
+        const inputs = Array.from(document.querySelectorAll('textarea, [contenteditable="true"]'));
+        // Sort by visibility/size to find the "main" chat box
+        const mainInput = inputs.find(el => {
+            const rect = el.getBoundingClientRect();
+            return rect.width > 200 && rect.height > 20;
+        }) as HTMLElement;
+
+        if (mainInput) {
+            mainInput.focus();
+            // Try native execCommand for compat
+            document.execCommand('insertText', false, request.text);
+
+            // Fallback: Value setter for Textarea
+            if (mainInput instanceof HTMLTextAreaElement && mainInput.value !== undefined) {
+                if (mainInput.value !== request.text) mainInput.value += request.text; // Simple append check
+            } else {
+                mainInput.innerText = request.text; // ContentEditable
+            }
+
+            mainInput.style.border = '2px solid #00ff00';
+            setTimeout(() => mainInput.style.border = '', 1000);
+
+            if (request.submit) {
+                setTimeout(() => {
+                    const enterEvent = new KeyboardEvent('keydown', {
+                        bubbles: true, cancelable: true, keyCode: 13, key: 'Enter', code: 'Enter'
+                    });
+                    mainInput.dispatchEvent(enterEvent);
+                    // Also try clicking the submit button if visible nearby
+                    const submitBtn = document.querySelector('button[aria-label="Send"], button[type="submit"]');
+                    if (submitBtn) (submitBtn as HTMLElement).click();
+                }, 500);
+            }
+            sendResponse({ success: true, message: `Pasted text` });
+        } else {
+            sendResponse({ success: false, error: `No chat input found` });
+        }
+    }
+
     return true;
 });

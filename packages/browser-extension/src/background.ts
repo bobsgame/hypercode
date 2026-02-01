@@ -62,6 +62,10 @@ async function handleServerRequest(msg: any) {
       result = await getActiveTabContent();
     } else if (msg.method === "browser_scrape") {
       result = await scrapeActiveTab();
+    } else if (msg.method === "chat_reply" || msg.method === "browser_type") {
+      result = await triggerActionInTab('PASTE_INTO_CHAT', msg.params);
+    } else if (msg.method === "click_element" || msg.method === "browser_click") {
+      result = await triggerActionInTab('CLICK_ELEMENT', msg.params);
     } else {
       console.warn("Unknown method:", msg.method);
       return;
@@ -92,6 +96,13 @@ async function scrapeActiveTab(): Promise<any> {
 
   // Send message to content script
   return chrome.tabs.sendMessage(tab.id, { action: 'SCRAPE_PAGE' });
+}
+
+async function triggerActionInTab(type: string, payload: any): Promise<any> {
+  const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+  if (!tab?.id) throw new Error("No active tab found");
+
+  return chrome.tabs.sendMessage(tab.id, { type, ...payload });
 }
 
 // Browser Automation Helpers

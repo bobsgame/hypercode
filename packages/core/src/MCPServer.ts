@@ -586,13 +586,29 @@ export class MCPServer {
             }
             else if (name === "read_page") {
                 if (!this.wssInstance || this.wssInstance.clients.size === 0) {
-                    result = { content: [{ type: "text", text: "Error: No Browser Extension connected." }] };
+                    // FALLBACK: Use Native Reader (ReaderTools)
+                    console.log("[MCPServer] No Browser Extension. Falling back to Native Reader...");
+                    const nativeReader = ReaderTools.find(t => t.name === "read_page");
+                    if (nativeReader) {
+                        // @ts-ignore
+                        result = await nativeReader.handler(args);
+                    } else {
+                        result = { content: [{ type: "text", text: "Error: No Native Reader available." }] };
+                    }
                 } else {
                     result = await new Promise((resolve) => {
                         const requestId = `req_${Date.now()}_${Math.random()}`;
                         const timeout = setTimeout(() => {
                             this.pendingRequests.delete(requestId);
-                            resolve({ content: [{ type: "text", text: "Error: Browser timed out." }] });
+                            // TIMEOUT FALLBACK to Native Reader
+                            console.log("[MCPServer] Browser Timed Out. Falling back to Native Reader...");
+                            const nativeReader = ReaderTools.find(t => t.name === "read_page");
+                            if (nativeReader) {
+                                // @ts-ignore
+                                nativeReader.handler(args).then(resolve).catch((e: any) => resolve({ content: [{ type: "text", text: `Error: ${e.message}` }] }));
+                            } else {
+                                resolve({ content: [{ type: "text", text: "Error: Browser timed out and no native reader." }] });
+                            }
                         }, 5000);
 
                         this.pendingRequests.set(requestId, (data: any) => {

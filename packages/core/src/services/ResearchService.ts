@@ -100,4 +100,40 @@ export class ResearchService {
         });
 
         try {
-            awai
+            await this.server.executeTool("navigate", { url });
+            const result = await this.server.executeTool("read_page", { url });
+            const contentText = result.content?.[0]?.text || "";
+
+            if (contentText.startsWith("Error")) {
+                this.broadcast('RESEARCH_UPDATE', { status: 'error', target: url, error: contentText });
+                return `FAILED: ${contentText}`;
+            }
+
+            const ctxId = await this.memory.saveContext(
+                `INGESTED SOURCE: ${url}\n\n${contentText}`,
+                {
+                    title: url,
+                    source: url,
+                    type: 'research'
+                }
+            );
+
+            this.broadcast('RESEARCH_UPDATE', { status: 'memorized', target: url, id: ctxId });
+            return `MEMORIZED: ${url} (ID: ${ctxId})`;
+
+        } catch (e: any) {
+            this.broadcast('RESEARCH_UPDATE', { status: 'error', target: url, error: e.message });
+            return `ERROR: ${e.message}`;
+        }
+    }
+
+    private broadcast(type: string, payload: any) {
+        if (this.server.wssInstance) {
+            this.server.wssInstance.clients.forEach((client: any) => {
+                if (client.readyState === 1) {
+                    client.send(JSON.stringify({ type, payload }));
+                }
+            });
+        }
+    }
+}

@@ -43,9 +43,11 @@ import { HealerWidget } from "../components/HealerWidget";
 import IngestionStatus from "../components/IngestionStatus";
 import { ActivityPulse, SystemHealth, LatencyMonitor, SecurityWidget } from "@borg/ui";
 import { trpc } from "@/utils/trpc"; // Need tRPC to fetch stats
+import { HelpWidget } from "../components/HelpWidget";
 
 // Widget Registry
 const WIDGETS: Record<string, { title: string, component: React.ReactNode, defaultColSpan?: string }> = {
+    'help': { title: '📖 Feature Guide', component: <HelpWidget />, defaultColSpan: 'col-span-2' },
     'suggestions': { title: 'Engagement Suggestions', component: <SuggestionsPanel /> },
     'connection': { title: 'System Status', component: <ConnectionStatus /> },
     'indexing': { title: 'Indexing Status', component: <IndexingStatus /> },
@@ -96,6 +98,7 @@ function ConnectedLatency() {
 
 // Default Order
 const DEFAULT_LAYOUT = [
+    'help',
     'suggestions',
     'security', 'system_health', 'latency',
     'activity_pulse',

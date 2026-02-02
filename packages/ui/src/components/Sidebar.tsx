@@ -14,7 +14,8 @@ const navigation = [
   { name: 'Hardware', href: '/hardware', icon: Cpu },
   { name: 'Council', href: '/council', icon: Terminal },
   { name: 'Brain', href: '/dashboard/brain', icon: Network },
-  { name: 'MCP Servers', href: '/mcp', icon: Box },
+  { name: 'Workshop', href: '/dashboard/workshop', icon: Box },
+  { name: 'MCP Servers', href: '/mcp', icon: Settings },
   { name: 'Settings', href: '/settings', icon: Settings },
 ];
 

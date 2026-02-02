@@ -7,7 +7,10 @@ export * from "./components/ResearchPanel";
 export * from "./components/KnowledgeGraph";
 // export * from "./components/AgentChat";Panel';
 export * from './components/SymbolPinPanel';
+export * from "./components/PromptLibrary";
+export * from './components/CouncilDebateWidget';
 export * from './widgets/DependencyGraphWidget';
+export * from './components/WorkshopPage';
 // Basic UI Primitives
 export * from "./components/ui/button";
 export * from "./components/ui/input";

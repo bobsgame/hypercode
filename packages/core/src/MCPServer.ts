@@ -26,6 +26,11 @@ import http from 'http';
 console.log("[MCPServer] ✓ ws/http");
 
 import { McpmInstaller } from "./skills/McpmInstaller.js";
+import { Director } from "@borg/agents";
+import { Council, CouncilRole } from "@borg/agents";
+import { GeminiAgent } from "./agents/GeminiAgent.js";
+import { ClaudeAgent } from "./agents/ClaudeAgent.js";
+import { MetaArchitectAgent } from "./agents/MetaArchitectAgent.js";
 import { ConfigManager } from "./config/ConfigManager.js";
 import { AutoTestService } from "./services/AutoTestService.js";
 import { ShellService } from "./services/ShellService.js";
@@ -37,6 +42,7 @@ import { SkillRegistry } from "./skills/SkillRegistry.js";
 import { SuggestionService } from "./suggestions/SuggestionService.js";
 import { ResearchService } from "./services/ResearchService.js";
 import { HealerService } from "./services/HealerService.js";
+import { PromptRegistry } from "./prompts/PromptRegistry.js";
 import { WebSearchTool } from "./tools/WebSearchTool.js";
 console.log("[MCPServer] ✓ SkillRegistry");
 
@@ -52,15 +58,16 @@ import {
     ReaderTools,
     InputTools,
     WorktreeTools,
+    MetaTools,
     SystemStatusTool,
     ChainExecutor,
     type ChainRequest
 } from "@borg/tools";
 console.log("[MCPServer] ✓ All Tools & ChainExecutor");
 
-import { Director } from "@borg/agents";
-// @ts-ignore
-import { Council } from "@borg/agents";
+console.log("[MCPServer] ✓ All Tools & ChainExecutor");
+
+// Council and Director already imported above
 console.log("[MCPServer] ✓ Council");
 
 import { CommandRegistry } from "./commands/CommandRegistry.js";
@@ -108,7 +115,6 @@ export class MCPServer {
     private llmService: LLMService;
     private skillRegistry: SkillRegistry;
     private director: Director;
-    private council: Council;
     public permissionManager: PermissionManager;
     public auditService: AuditService;
     public shellService: ShellService;
@@ -138,6 +144,14 @@ export class MCPServer {
     public researchService: ResearchService;
     private knowledgeService: KnowledgeService; // Knowledge Graph Service
     private healerService: HealerService;
+    public promptRegistry: PromptRegistry;
+
+    // Core Agents
+    public geminiAgent: GeminiAgent;
+    public claudeAgent: ClaudeAgent;
+    public metaArchitectAgent: MetaArchitectAgent;
+    public council: Council;
+
     private activeAgents: Map<string, AgentAdapter> = new Map();
     public directorConfig = {
         taskCooldownMs: 10000,
@@ -174,7 +188,20 @@ export class MCPServer {
         this.autoTestService = new AutoTestService(process.cwd());
         this.sandboxService = new SandboxService();
         this.healerService = new HealerService(this.llmService, this);
-        // Moved ResearchService init below MemoryManager init
+        this.promptRegistry = new PromptRegistry();
+
+        // Initialize Core Agents
+        this.geminiAgent = new GeminiAgent(this.llmService, this.promptRegistry);
+        this.claudeAgent = new ClaudeAgent(this.llmService, this.promptRegistry);
+        this.metaArchitectAgent = new MetaArchitectAgent(this.llmService, this.promptRegistry);
+
+        // Initialize Council with Agents
+        // @ts-ignore
+        this.council = new Council(this.modelSelector);
+        this.council.setServer(this);
+        this.council.registerAgent(CouncilRole.CRITIC, this.geminiAgent);
+        this.council.registerAgent(CouncilRole.ARCHITECT, this.claudeAgent);
+        this.council.registerAgent(CouncilRole.META_ARCHITECT, this.metaArchitectAgent);
 
         // Load persistent config
         const savedConfig = this.configManager.loadConfig();
@@ -915,7 +942,7 @@ export class MCPServer {
             else {
                 // Check Standard Library
                 const terminalTools = this.terminalService.getTools();
-                const standardTool = [...FileSystemTools, ...terminalTools, ...MemoryTools, ...TunnelTools, ...LogTools, ...ConfigTools, ...SearchTools, ...ReaderTools, ...WorktreeTools, WebSearchTool].find(t => t.name === name);
+                const standardTool = [...FileSystemTools, ...terminalTools, ...MemoryTools, ...TunnelTools, ...LogTools, ...ConfigTools, ...SearchTools, ...ReaderTools, ...WorktreeTools, ...MetaTools, WebSearchTool].find(t => t.name === name);
                 if (standardTool) {
                     // @ts-ignore
                     result = await standardTool.handler(args);

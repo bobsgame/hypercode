@@ -11,4 +11,5 @@ export * from './ReaderTools.js';
 export * from './SearchTools.js';
 export * from './TerminalTools.js';
 export * from './TunnelTools.js';
+export * from './MetaTools.js';
 export * from './WorktreeTools.js';

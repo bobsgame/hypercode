@@ -53,5 +53,6 @@ export interface IMCPServer {
     };
     autoTestService?: any; // Loose typing to avoid cycle with Core
     executeTool(name: string, args: any): Promise<any>;
+    broadcastRequest?(messageType: string, payload: any): Promise<any>;
 }
 

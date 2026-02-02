@@ -40,11 +40,16 @@ import { GraphWidget } from "../components/GraphWidget";
 import { ShellHistoryWidget } from "../components/ShellHistoryWidget";
 import SuggestionsPanel from "../components/SuggestionsPanel";
 
+import { HealerWidget } from "../components/HealerWidget";
+import IngestionStatus from "../components/IngestionStatus";
+
 // Widget Registry
 const WIDGETS: Record<string, { title: string, component: React.ReactNode, defaultColSpan?: string }> = {
     'suggestions': { title: 'Engagement Suggestions', component: <SuggestionsPanel /> },
     'connection': { title: 'System Status', component: <ConnectionStatus /> },
     'indexing': { title: 'Indexing Status', component: <IndexingStatus /> },
+    'ingestion': { title: 'Ops: Data Ingestion', component: <IngestionStatus /> },
+    'healer': { title: 'Ops: Self-Healing Events', component: <HealerWidget />, defaultColSpan: 'col-span-2' },
     'autonomy': { title: 'Autonomy Controls', component: <AutonomyControl /> },
     'director_chat': { title: 'Director Chat', component: <DirectorChat /> },
     'council': { title: 'The Council', component: <CouncilWidget /> },
@@ -68,6 +73,8 @@ const WIDGETS: Record<string, { title: string, component: React.ReactNode, defau
 const DEFAULT_LAYOUT = [
     'suggestions',
     'connection', 'indexing',
+    'ingestion',
+    'healer',
     'autonomy', 'council',
     'director_chat',
     'audit',

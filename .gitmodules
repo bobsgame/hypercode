@@ -3250,3 +3250,12 @@
 [submodule "external/frameworks/opencode-interpreter"]
 	path = external/frameworks/opencode-interpreter
 	url = https://github.com/OpenCodeInterpreter/OpenCodeInterpreter
+[submodule "external/ui/openwork"]
+	path = external/ui/openwork
+	url = https://github.com/different-ai/openwork
+[submodule "external/tools/incidentfox"]
+	path = external/tools/incidentfox
+	url = https://github.com/incidentfox/incidentfox
+[submodule "external/mcp-servers/gnapsis"]
+	path = external/mcp-servers/gnapsis
+	url = https://github.com/e7nd7r/gnapsis

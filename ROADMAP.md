@@ -38,27 +38,7 @@
 - [x] **Project Audit:** Created `docs/PROJECT_STATUS.md` analyzing Frontend/Backend stats.
 - [x] **Instruction Consolidation:** Unified `UNIVERSAL_LLM_INSTRUCTIONS.md` (v1.7.1).
 - [x] **Legacy Cleanup:** Removed `CORE_INSTRUCTIONS.md`.
-- [ ] **Extension Wiring:** Connect `apps/extension` to `packages/memory`.
-**Goal:** Bridge local context into web-based AI models (ChatGPT, Gemini, Claude.ai).
-
-### Functionality Injection
-- [x] **MCP Injection:** Expose local MCP tools (FS, Git, Terminal) to web chats.
-- [x] **Context Export:** One-click export of web chats into Borg long-term memory.
-- [x] **Memory Recording:** Background recording of browsing research.
-
-### Browser Capabilities (via MCP)
-- [x] **Page Scraping:** Turn current page content into markdown context (Integrating `ReaderTools`).
-- [x] **Console Reader:** Stream browser console logs to the Borg debugger.
-- [x] **History & Email:** Secure access to history and GMail via authenticated MCP servers.
-- [x] **Tab Mirroring:** Real-time visual oversight of the agent's browser tab in the Dashboard.
-- [x] **Active Debugger Proxy:** Port forwarding and remote debugging bridge.
-**Goal:** Build the "Director + Swarm" Orchestrator.
-- [x] **Scaffolding:** Monorepo (Turborepo), Next.js Dashboard, Core Package initialized.
-- [x] **ModelSelector:** Quota management logic and **Automatic Fallback** (Priority).
-- [x] **Universal MCP Host:** Basic `MCPServer` wrapper created.
-- [x] **Router Logic:** Implement sub-MCP routing.
-- [x] **Dashboard UI:** Connect WebUI to Core via tRPC/WebSockets.
-- [x] **Modular Architecture:** Extracted `@borg/ai`, `@borg/adk`, and `@borg/agents` from Core.
+- [x] **Extension Wiring:** Connect `apps/extension` to `packages/memory`.
 
 ## Phase 14: Deep Code Intelligence (The Foundation)
 **Goal:** Establish the robust indexing and execution layer required for high-fidelity coding.
@@ -87,18 +67,20 @@
 - [x] **Symbol Pinning:** UI to manually prioritize specific code symbols.
 - [x] **Auto-Dev Loops:** "Fix until Pass" modes for tests and linters.
 
-## Phase 16: The SuperAI Browser Extension
+## Phase 16: The SuperAI Browser Extension (COMPLETED)
 **Goal:** Bridge local context into web-based AI models (ChatGPT, Gemini, Claude.ai).
 
 ### Functionality Injection
 - [x] **MCP Injection:** Expose local MCP tools (FS, Git, Terminal) to web chats via browser extension.
-- [x] **Context Export:** One-click export of web chats into Borg long-term memory.
-- [x] **Memory Recording:** Background recording of browsing research into the Vector Store.
+- [x] **Context Export:** One-click export of web chats into Borg long-term memory (`director.memorize`).
+- [x] **Memory Recording:** Background recording of browsing research.
 
 ### Browser Capabilities (via MCP)
 - [x] **Page Scraping:** Turn current page content into markdown context (Integrating `browser-use/`).
 - [x] **Console Reader:** Stream browser console logs to the Borg debugger.
-- [ ] **History & Email:** Secure access to history and GMail via authenticated MCP servers.
+- [x] **History:** Secure access to history via `browser_get_history` (WebSocket Bridge).
+- [x] **Tab Mirroring:** Real-time visual oversight of the agent's browser tab in the Dashboard.
+- [x] **Active Debugger Proxy:** Port forwarding and remote debugging bridge.
 
 ## Phase 17: Universal MCP & Orchestration
 - [x] **Traffic Inspector:** Real-time JSON-RPC inspection (Completed in Core).

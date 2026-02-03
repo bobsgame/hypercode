@@ -122,16 +122,16 @@ export const appRouter = t.router({
     director: t.router({
         memorize: t.procedure.input(z.object({ content: z.string(), source: z.string(), title: z.string().optional() })).mutation(async ({ input }) => {
             // @ts-ignore
-            if (global.mcpServerInstance && global.mcpServerInstance.vectorStore) {
+            if (global.mcpServerInstance && global.mcpServerInstance.memoryManager) {
                 // @ts-ignore
-                await global.mcpServerInstance.vectorStore.addDocuments([{
-                    id: `web-${Date.now()}`,
-                    text: input.content,
-                    metadata: { source: input.source, title: input.title || 'Untitled Web Page' }
-                }]);
+                await global.mcpServerInstance.memoryManager.saveContext(input.content, {
+                    source: input.source,
+                    title: input.title || 'Untitled Web Page',
+                    type: 'web_page'
+                });
                 return "Memorized.";
             }
-            return "Vector Store not ready.";
+            return "Memory Manager not ready.";
         }),
         chat: t.procedure.input(z.object({ message: z.string() })).mutation(async ({ input }) => {
             // @ts-ignore

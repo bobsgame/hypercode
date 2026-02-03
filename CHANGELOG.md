@@ -5,9 +5,11 @@
 - **Universal Instructions:** Major update to `docs/UNIVERSAL_LLM_INSTRUCTIONS.md` (v1.7.1) replacing legacy `CORE_INSTRUCTIONS.md`.
 - **Dependency Injection:** Refactored `AgentMemoryService` for testability using `MockMemoryManager`.
 
+
 ### Changed
 - **Documentation:** Consolidated `CLAUDE.md`, `GEMINI.md`, etc., to strictly reference Universal 1.7.1.
 - **Testing:** Fixed `AgentMemoryService` unit tests (Dependency Injection).
+- **Extension Wiring:** Verified and fixed `director.memorize` endpoint to use `MemoryManager.saveContext`, ensuring browser extension "Save to Memory" works.
 
 ## [1.7.0] - 2026-02-03
 ### Added

@@ -1,8 +1,6 @@
 # GEMINI INSTRUCTIONS
 
-> **BASE INSTRUCTION:** [READ UNIVERSAL_LLM_INSTRUCTIONS.md FIRST](./docs/UNIVERSAL_LLM_INSTRUCTIONS.md)
+> [!IMPORTANT]
+> **READ [UNIVERSAL_LLM_INSTRUCTIONS.md](./docs/UNIVERSAL_LLM_INSTRUCTIONS.md) FIRST.**
 
-## Gemini-Specific Guidelines
-- **Huge Context**: You are responsible for reading large logs and `docs/INBOX_LINKS.md`.
-- **Ingestion**: Use your context window to summarize documentation for the `Librarian` agent.
-- **Speed**: You are the default for quick "Search & Answer" loops.
+Gemini functions as the primary ingestion and analysis engine within the swarm, leveraging its huge context window as defined in the universal guide.

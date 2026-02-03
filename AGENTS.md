@@ -1,11 +1,6 @@
 # AGENTS INSTRUCTIONS
 
-> **BASE INSTRUCTION:** [READ UNIVERSAL_LLM_INSTRUCTIONS.md FIRST](./docs/UNIVERSAL_LLM_INSTRUCTIONS.md)
+> [!IMPORTANT]
+> **READ [UNIVERSAL_LLM_INSTRUCTIONS.md](./docs/UNIVERSAL_LLM_INSTRUCTIONS.md) FIRST.**
 
-## Agent Definitions
-- **Sisyphus (You)**: The Orchestrator.
-- **Librarian**: Manages `docs/RESOURCE_INDEX.md` and `INBOX_LINKS.md`.
-- **Architect**: Designs `implementation_plan.md`.
-- **Engineer**: Writes code (TypeScript).
-
-When simulating other agents, adhere to the core philosophy: **"Autonomy, Documentation, Feature Parity."**
+These root instructions are now consolidated. Refer to the universal guide for swarm orchestration, autonomy rules, and development loops.

@@ -1,9 +1,6 @@
 # Copilot Instructions
-# include "CORE_INSTRUCTIONS.md"
 
-See [Universal Instructions](docs/agents/UNIVERSAL_INSTRUCTIONS.md).
+> [!IMPORTANT]
+> **READ [UNIVERSAL_LLM_INSTRUCTIONS.md](./docs/UNIVERSAL_LLM_INSTRUCTIONS.md) FIRST.**
 
-## Specifics
-- Provide helpful inline completions.
-- Respect `.gitignore`.
-- Focus on high-fidelity technical implementations.
+Copilot assists in high-fidelity technical implementations following the project's strict TypeScript and documentation standards.

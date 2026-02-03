@@ -2241,4 +2241,66 @@ export class MCPServer {
                             const icon = msg.level === 'error' ? '🔴' : msg.level === 'warn' ? '🟡' : '🔵';
                             console.log(`[Browser] ${icon} ${msg.content} (${msg.url})`);
                             if (msg.level === 'error') {
-      
+                                this.auditService.log('BROWSER_ERROR', { url: msg.url, error: msg.content }, 'ERROR');
+                                // TRIGGER HEALER
+                                this.healerService.heal({ url: msg.url, error: msg.content, timestamp: msg.timestamp })
+                                    .catch(e => console.error("Healer Error:", e));
+                            }
+                        }
+                    } catch (e) {
+                        // Ignore non-JSON
+                    }
+                });
+            });
+        } else {
+            console.log("[MCPServer] Skipping WebSocket (No wsServer instance).");
+        }
+
+        // 3. Connect to Supervisor (Native Automation)
+        console.log("[MCPServer] Connecting to Supervisor...");
+
+        try {
+            console.log(`[MCPServer] DEBUG __dirname: ${__dirname}`);
+            const rootDir = this.findMonorepoRoot(__dirname);
+            console.log(`[MCPServer] DEBUG rootDir: ${rootDir}`);
+            if (rootDir) {
+                const supervisorPath = path.join(rootDir, 'packages', 'borg-supervisor', 'dist', 'index.js');
+                console.log(`[MCPServer] Supervisor Path Resolved: ${supervisorPath}`);
+
+                await this.router.connectToServer('borg-supervisor', 'node', [supervisorPath]);
+                console.error(`Borg Core: Connected to Supervisor at ${supervisorPath}`);
+
+                // Phase 16: Google Workspace Integration
+                const workspacePath = path.join(rootDir, 'external', 'mcp-servers', 'workspace', 'workspace-server', 'dist', 'index.js');
+                console.log(`[MCPServer] Google Workspace Server Path: ${workspacePath}`);
+                if (fs.existsSync(workspacePath)) {
+                    await this.router.connectToServer('google-workspace', 'node', [workspacePath]);
+                    console.error("Borg Core: Connected to Google Workspace Server (GMail/Calendar)");
+                }
+            } else {
+                console.error("[MCPServer] Failed to locate Monorepo Root. Skipping Supervisor.");
+            }
+        } catch (e: any) {
+            console.error("Borg Core: Failed to connect to Supervisor. Native automation disabled.", e.message);
+        }
+
+        if (this.wsServer && this.wssInstance) {
+            console.log("[MCPServer] Connecting internal WS transport...");
+            const wsTransport = new WebSocketServerTransport(this.wssInstance);
+            await this.wsServer.connect(wsTransport);
+        }
+        console.log("[MCPServer] Start Complete.");
+    }
+
+    private findMonorepoRoot(startDir: string): string | null {
+        let current = startDir;
+        const root = path.parse(current).root;
+        while (current !== root) {
+            if (fs.existsSync(path.join(current, 'turbo.json'))) {
+                return current;
+            }
+            current = path.dirname(current);
+        }
+        return null;
+    }
+}

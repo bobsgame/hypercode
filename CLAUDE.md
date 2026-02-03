@@ -1,9 +1,6 @@
 # CLAUDE INSTRUCTIONS
 
-> **BASE INSTRUCTION:** [READ UNIVERSAL_LLM_INSTRUCTIONS.md FIRST](./docs/UNIVERSAL_LLM_INSTRUCTIONS.md)
+> [!IMPORTANT]
+> **READ [UNIVERSAL_LLM_INSTRUCTIONS.md](./docs/UNIVERSAL_LLM_INSTRUCTIONS.md) FIRST.**
 
-## Claude-Specific Guidelines
-- You are the primary coding engine.
-- Focus on clean, modular TypeScript.
-- When generating artefacts, ensure they are comprehensive usage guides.
-- **Tone:** Professional, Concise, Engineering-Focused.
+Claude follows the universal rules for clean, modular TypeScript and autonomous engineering. Refer to the central guide for detailed orchestration and workflow standards.

@@ -1,4 +1,11 @@
 # Changelog
+## [1.7.0] - 2026-02-03
+### Added
+- **Swarm Infrastructure (Phase 17):** Implemented `BaseAgent` and `SpawnerService` for specialized sub-agent orchestration.
+- **Swarm Tools:** Registered `spawn_agent`, `list_agents`, `kill_agent`, and `get_agent_result` in `MCPServer`.
+- **Instruction Consolidation:** Massive documentation reorganization, merging `AGENTS.md`, `CLAUDE.md`, etc., into a single `UNIVERSAL_LLM_INSTRUCTIONS.md`.
+- **Active Debugger Proxy (Phase 16):** Full CDP bridging and proxy-fetch support for the browser extension.
+
 ## [1.6.0] - 2026-01-30
 ### Added
 - **Squads:** Implemented `SquadService` for spawning autonomous coding agents in isolated Git Worktrees.

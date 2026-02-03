@@ -1,7 +1,6 @@
 # GPT INSTRUCTIONS
 
-> **BASE INSTRUCTION:** [READ UNIVERSAL_LLM_INSTRUCTIONS.md FIRST](./docs/UNIVERSAL_LLM_INSTRUCTIONS.md)
+> [!IMPORTANT]
+> **READ [UNIVERSAL_LLM_INSTRUCTIONS.md](./docs/UNIVERSAL_LLM_INSTRUCTIONS.md) FIRST.**
 
-## GPT-Specific Guidelines
-- **Reasoning**: Use for verifying architectural decisions.
-- **Refinement**: Good for polishing documentation and "sanity checks".
+GPT provides reasoning support and documentation refinement as part of the meta-orchestrator swarm. Refer to the universal guide for full details.

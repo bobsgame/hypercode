@@ -3259,3 +3259,12 @@
 [submodule "external/mcp-servers/gnapsis"]
 	path = external/mcp-servers/gnapsis
 	url = https://github.com/e7nd7r/gnapsis
+[submodule "external/frameworks/polymcp"]
+	path = external/frameworks/polymcp
+	url = https://github.com/poly-mcp/Polymcp
+[submodule "external/frameworks/fastmcp"]
+	path = external/frameworks/fastmcp
+	url = https://github.com/jlowin/fastmcp
+[submodule "external/tools/theme-context"]
+	path = external/tools/theme-context
+	url = https://github.com/bidfox/themecontextmcp

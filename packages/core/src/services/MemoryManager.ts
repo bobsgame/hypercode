@@ -32,9 +32,10 @@ export class MemoryManager {
             add: async (docs: Document[]) => {
                 await store.addDocuments(docs.map(d => ({
                     id: d.id,
-                    file_path: (d.metadata as any)?.file_path || d.id,
+                    path: (d.metadata as any)?.path || (d.metadata as any)?.file_path || d.id,
                     content: d.content,
-                    hash: 'dynamic', // TODO: Calculate hash
+                    hash: (d.metadata as any)?.hash || 'dynamic',
+                    metadata: d.metadata,
                     vector: d.vector
                 })));
             },
@@ -43,8 +44,8 @@ export class MemoryManager {
                 return results.map((r: any) => ({
                     id: r.id,
                     content: r.content,
-                    metadata: { file_path: r.file_path, hash: r.hash },
-                    score: 0 // LanceDB wrapper didn't return score in previous interface, need update if needed
+                    metadata: { ...r.metadata, path: r.path, hash: r.hash },
+                    score: 0
                 }));
             },
             get: async (id: string) => {
@@ -53,7 +54,7 @@ export class MemoryManager {
                 return {
                     id: doc.id,
                     content: doc.content,
-                    metadata: { file_path: doc.file_path, hash: doc.hash },
+                    metadata: { ...doc.metadata, path: doc.path, hash: doc.hash },
                     score: 1
                 };
             },
@@ -65,7 +66,7 @@ export class MemoryManager {
                 return docs.map(d => ({
                     id: d.id,
                     content: d.content,
-                    metadata: (d as any).metadata || { file_path: d.file_path }
+                    metadata: { ...d.metadata, path: d.path, hash: d.hash }
                 }));
             }
         };

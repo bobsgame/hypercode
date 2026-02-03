@@ -18,17 +18,52 @@ export interface HelperEdge {
     weight: number;
 }
 
+import * as fs from 'fs';
+import * as path from 'path';
+
 export class GraphMemory {
     private nodes: Map<string, HelperNode> = new Map();
     private edges: HelperEdge[] = [];
+    private persistPath: string | null = null;
+
+    constructor(persistPath?: string) {
+        if (persistPath) {
+            this.persistPath = persistPath;
+            this.load();
+        }
+    }
+
+    private load() {
+        if (this.persistPath && fs.existsSync(this.persistPath)) {
+            try {
+                const data = JSON.parse(fs.readFileSync(this.persistPath, 'utf-8'));
+                this.nodes = new Map(Object.entries(data.nodes || {}));
+                this.edges = data.edges || [];
+            } catch (e) {
+                console.error("[GraphMemory] Failed to load graph:", e);
+            }
+        }
+    }
+
+    private save() {
+        if (this.persistPath) {
+            const data = {
+                nodes: Object.fromEntries(this.nodes),
+                edges: this.edges
+            };
+            fs.mkdirSync(path.dirname(this.persistPath), { recursive: true });
+            fs.writeFileSync(this.persistPath, JSON.stringify(data, null, 2));
+        }
+    }
 
     async addNode(id: string, label: string, props: Record<string, any> = {}) {
         this.nodes.set(id, { id, label, properties: props });
-        // In real impl, sync to DB
+        this.save();
     }
 
     async addEdge(source: string, target: string, relation: string) {
         this.edges.push({ source, target, relation, weight: 1.0 });
+        this.save();
     }
 
     async getRelated(nodeId: string): Promise<HelperNode[]> {

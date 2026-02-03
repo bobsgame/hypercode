@@ -16,6 +16,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';
+import { MemoryManager } from './MemoryManager.js';
 
 // Memory types
 export type MemoryType = 'session' | 'working' | 'long_term';
@@ -26,12 +27,22 @@ export interface Memory {
     type: MemoryType;
     namespace: MemoryNamespace;
     content: string;
+    media?: MemoryMedia[]; // Multi-modal support
     metadata: MemoryMetadata;
     createdAt: Date;
     accessedAt: Date;
     accessCount: number;
     score?: number;  // Relevance score for retrieval
     ttl?: number;    // Time-to-live in ms (for session memory)
+}
+
+export interface MemoryMedia {
+    type: 'image' | 'audio' | 'video' | 'file';
+    url?: string;        // External or Local path
+    dataUrl?: string;   // Base64 encoded
+    blobHash?: string;  // Reference to binary storage
+    mimeType?: string;
+    description?: string; // OCR text or AI caption
 }
 
 export interface MemoryMetadata {
@@ -41,6 +52,7 @@ export interface MemoryMetadata {
     confidence?: number;      // Extraction confidence (0-1)
     userId?: string;          // Associated user
     projectId?: string;       // Associated project
+    sessionId?: string;       // Associated session ID
     [key: string]: unknown;
 }
 
@@ -65,67 +77,14 @@ export interface MemoryServiceOptions {
  * Simple in-memory vector similarity using TF-IDF-like approach
  * Production would use proper embeddings
  */
-class SimpleVectorSearch {
-    private documents = new Map<string, { terms: Map<string, number>; doc: Memory }>();
-
-    private tokenize(text: string): string[] {
-        return text.toLowerCase()
-            .replace(/[^\w\s]/g, '')
-            .split(/\s+/)
-            .filter(t => t.length > 2);
-    }
-
-    private termFrequency(tokens: string[]): Map<string, number> {
-        const freq = new Map<string, number>();
-        for (const token of tokens) {
-            freq.set(token, (freq.get(token) || 0) + 1);
-        }
-        return freq;
-    }
-
-    add(memory: Memory): void {
-        const tokens = this.tokenize(memory.content);
-        const terms = this.termFrequency(tokens);
-        this.documents.set(memory.id, { terms, doc: memory });
-    }
-
-    remove(id: string): void {
-        this.documents.delete(id);
-    }
-
-    search(query: string, limit: number = 10): Memory[] {
-        const queryTokens = this.tokenize(query);
-        const queryTerms = this.termFrequency(queryTokens);
-        const scores: { memory: Memory; score: number }[] = [];
-
-        for (const [, { terms, doc }] of this.documents) {
-            let score = 0;
-            for (const [term, queryFreq] of queryTerms) {
-                const docFreq = terms.get(term) || 0;
-                score += queryFreq * docFreq;
-            }
-            if (score > 0) {
-                scores.push({ memory: { ...doc, score }, score });
-            }
-        }
-
-        return scores
-            .sort((a, b) => b.score - a.score)
-            .slice(0, limit)
-            .map(s => s.memory);
-    }
-
-    clear(): void {
-        this.documents.clear();
-    }
-}
+// SimpleVectorSearch replaced by MemoryManager
 
 /**
  * Agent Memory Service - Main service class
  */
 export class AgentMemoryService {
     private memories: Map<string, Memory> = new Map();
-    private vectorIndex: SimpleVectorSearch;
+    private memoryManager: MemoryManager;
     private options: Required<MemoryServiceOptions>;
     private dirty = false;
 
@@ -138,7 +97,10 @@ export class AgentMemoryService {
             maxWorkingMemories: options.maxWorkingMemories ?? 500,
         };
 
-        this.vectorIndex = new SimpleVectorSearch();
+        // Initialize MemoryManager (parent of persistDir is workspaceRoot)
+        const workspaceRoot = path.dirname(this.options.persistDir);
+        this.memoryManager = new MemoryManager(workspaceRoot);
+
         this.loadFromDisk();
     }
 
@@ -163,20 +125,19 @@ export class AgentMemoryService {
             try {
                 const data = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
                 for (const mem of data.memories || []) {
-                    // Restore dates
                     mem.createdAt = new Date(mem.createdAt);
                     mem.accessedAt = new Date(mem.accessedAt);
 
-                    // Skip expired session memories
                     if (mem.type === 'session' && mem.ttl) {
                         const age = Date.now() - mem.createdAt.getTime();
                         if (age > mem.ttl) continue;
                     }
 
                     this.memories.set(mem.id, mem);
-                    this.vectorIndex.add(mem);
+                    // No need to manually add to vectorIndex here, 
+                    // MemoryManager handles persistence of long-term/working.
                 }
-                console.log(`[AgentMemoryService] Loaded ${this.memories.size} memories`);
+                console.log(`[AgentMemoryService] Loaded ${this.memories.size} session memories`);
             } catch (e) {
                 console.error('[AgentMemoryService] Failed to load memories:', e);
             }
@@ -203,12 +164,12 @@ export class AgentMemoryService {
     /**
      * Add a memory
      */
-    add(
+    async add(
         content: string,
         type: MemoryType,
         namespace: MemoryNamespace,
         metadata: MemoryMetadata = {}
-    ): Memory {
+    ): Promise<Memory> {
         const memory: Memory = {
             id: this.generateId(),
             type,
@@ -222,15 +183,21 @@ export class AgentMemoryService {
         };
 
         this.memories.set(memory.id, memory);
-        this.vectorIndex.add(memory);
         this.dirty = true;
 
-        // Enforce limits
+        // If working or long-term, also persist to vector DB
+        if (type !== 'session') {
+            await this.memoryManager.saveContext(content, {
+                ...metadata,
+                id: memory.id,
+                type,
+                namespace,
+                createdAt: memory.createdAt.getTime()
+            });
+        }
+
         this.enforceMemoryLimits();
-
-        // Auto-save periodically
         this.scheduleSave();
-
         return memory;
     }
 
@@ -264,21 +231,52 @@ export class AgentMemoryService {
     /**
      * Delete a memory
      */
-    delete(id: string): boolean {
+    async delete(id: string): Promise<boolean> {
         const existed = this.memories.delete(id);
         if (existed) {
-            this.vectorIndex.remove(id);
             this.dirty = true;
         }
+
+        // Also delete from vector DB
+        try {
+            await this.memoryManager.deleteContext(id);
+        } catch (e) {
+            // Might not exist in vector DB if it was only a session memory
+        }
+
         return existed;
     }
 
     /**
-     * Search memories by content
+     * Search memories using hybrid strategy (Local sessions + Vector DB)
      */
-    search(query: string, options: MemorySearchOptions = {}): Memory[] {
+    async search(query: string, options: MemorySearchOptions = {}): Promise<Memory[]> {
         const limit = options.limit ?? 10;
-        let results = this.vectorIndex.search(query, limit * 2);  // Get more for filtering
+
+        // 1. Get results from Vector DB
+        const vectorResults = await this.memoryManager.search(query, limit * 2);
+        const mappedResults: Memory[] = vectorResults.map(r => ({
+            id: r.id,
+            content: r.content,
+            type: (r.metadata as any)?.type || 'long_term',
+            namespace: (r.metadata as any)?.namespace || 'project',
+            metadata: r.metadata as any,
+            createdAt: new Date((r.metadata as any)?.createdAt || Date.now()),
+            accessedAt: new Date(),
+            accessCount: 0, // We could track this in metadata if needed
+            score: r.score
+        }));
+
+        // 2. Add current session memories (which might not be indexed yet)
+        const sessionMemories = Array.from(this.memories.values())
+            .filter(m => m.type === 'session');
+
+        // For session memories, we do a simple title/content match if needed, 
+        // or just include the most recent ones. 
+        // Better: Index session memories too? For now, we rely on the fact that 
+        // they are small.
+
+        let results = [...mappedResults, ...sessionMemories];
 
         // Filter by type/namespace
         if (options.type) {
@@ -292,21 +290,24 @@ export class AgentMemoryService {
                 options.tags!.some(tag => m.metadata.tags?.includes(tag))
             );
         }
-        if (!options.includeExpired) {
-            results = results.filter(m => {
-                if (m.type !== 'session' || !m.ttl) return true;
-                return Date.now() - m.createdAt.getTime() <= m.ttl;
-            });
-        }
-        if (options.minScore !== undefined) {
-            results = results.filter(m => (m.score ?? 0) >= options.minScore!);
+
+        // Simple relevance boost for session memories if they mention query terms
+        const queryTerms = query.toLowerCase().split(/\s+/).filter(t => t.length > 2);
+        for (const res of results) {
+            if (res.type === 'session' && !res.score) {
+                let sessionScore = 0;
+                for (const term of queryTerms) {
+                    if (res.content.toLowerCase().includes(term)) sessionScore += 1;
+                }
+                res.score = sessionScore;
+            }
         }
 
-        // Apply temporal decay - more recent memories get boost
+        // Apply temporal decay
         const now = Date.now();
         for (const memory of results) {
             const ageHours = (now - memory.accessedAt.getTime()) / (1000 * 60 * 60);
-            const decayFactor = Math.exp(-ageHours / 24);  // Half-life of ~24 hours
+            const decayFactor = Math.exp(-ageHours / 24);
             memory.score = (memory.score ?? 0) * (0.5 + 0.5 * decayFactor);
         }
 
@@ -336,34 +337,43 @@ export class AgentMemoryService {
     /**
      * Add session memory (ephemeral)
      */
-    addSession(content: string, metadata: MemoryMetadata = {}): Memory {
-        return this.add(content, 'session', 'agent', metadata);
+    async addSession(content: string, metadata: MemoryMetadata = {}): Promise<Memory> {
+        return await this.add(content, 'session', 'agent', metadata);
     }
 
     /**
      * Add working memory (task-relevant)
      */
-    addWorking(content: string, namespace: MemoryNamespace = 'project', metadata: MemoryMetadata = {}): Memory {
-        return this.add(content, 'working', namespace, metadata);
+    async addWorking(content: string, namespace: MemoryNamespace = 'project', metadata: MemoryMetadata = {}): Promise<Memory> {
+        return await this.add(content, 'working', namespace, metadata);
     }
 
     /**
      * Add long-term memory (persistent)
      */
-    addLongTerm(content: string, namespace: MemoryNamespace = 'project', metadata: MemoryMetadata = {}): Memory {
-        return this.add(content, 'long_term', namespace, metadata);
+    async addLongTerm(content: string, namespace: MemoryNamespace = 'project', metadata: MemoryMetadata = {}): Promise<Memory> {
+        return await this.add(content, 'long_term', namespace, metadata);
     }
 
     /**
      * Check if memory should be consolidated to long-term
      */
-    private checkConsolidation(memory: Memory): void {
+    private async checkConsolidation(memory: Memory): Promise<void> {
         if (memory.type === 'working' &&
             memory.accessCount >= this.options.consolidationThreshold) {
             // Promote to long-term memory
             memory.type = 'long_term';
             memory.ttl = undefined;
             this.dirty = true;
+
+            // Sync update to vector DB
+            await this.memoryManager.saveContext(memory.content, {
+                ...memory.metadata,
+                id: memory.id,
+                type: 'long_term',
+                consolidatedAt: Date.now()
+            });
+
             console.log(`[AgentMemoryService] Consolidated memory ${memory.id} to long-term`);
         }
     }
@@ -417,7 +427,6 @@ export class AgentMemoryService {
         for (const [id, memory] of this.memories) {
             if (memory.type === 'session') {
                 this.memories.delete(id);
-                this.vectorIndex.remove(id);
             }
         }
         this.dirty = true;
@@ -435,8 +444,10 @@ export class AgentMemoryService {
             byNamespace[memory.namespace]++;
         }
 
+        // We could also mix in stats from memoryManager if needed
+
         return {
-            total: this.memories.size,
+            sessionCount: this.memories.size,
             ...byType,
             ...byNamespace,
         };
@@ -455,7 +466,7 @@ export class AgentMemoryService {
     /**
      * Import memories from JSON
      */
-    import(jsonData: string): number {
+    async import(jsonData: string): Promise<number> {
         const data = JSON.parse(jsonData);
         let count = 0;
 
@@ -465,7 +476,14 @@ export class AgentMemoryService {
             mem.id = this.generateId();  // Assign new ID
 
             this.memories.set(mem.id, mem);
-            this.vectorIndex.add(mem);
+
+            if (mem.type !== 'session') {
+                await this.memoryManager.saveContext(mem.content, {
+                    ...mem.metadata,
+                    id: mem.id,
+                    type: mem.type
+                });
+            }
             count++;
         }
 

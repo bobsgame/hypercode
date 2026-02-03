@@ -4,13 +4,14 @@
 import path from 'path';
 import fs from 'fs/promises';
 
-// Define Schema for Code Segments
-// We store: id, file_path, content, hash (to avoid re-indexing), and vector.
-export interface CodeDocument {
-    id: string; // usually relative path + chunk index
-    file_path: string;
+// Define Schema for Borg Documents
+// We store: id, path (reference), content, hash, and vector.
+export interface BorgDocument {
+    id: string;
+    path: string;       // formerly file_path
     content: string;
     hash: string;
+    metadata?: Record<string, any>;
     vector?: number[];
 }
 
@@ -51,9 +52,10 @@ export class VectorStore {
             this.table = await this.db.createTable(tableName,
                 [{
                     id: 'init',
-                    file_path: 'init',
+                    path: 'init',
                     content: 'init',
                     hash: 'init',
+                    metadata: {},
                     vector: dummyVector
                 }]
             );
@@ -79,7 +81,7 @@ export class VectorStore {
         return Array.from(output.data);
     }
 
-    async addDocuments(docs: Omit<CodeDocument, 'vector'>[]) {
+    async addDocuments(docs: Omit<BorgDocument, 'vector'>[]) {
         if (!this.initialized) await this.initialize();
 
         console.log(`[VectorStore] Embedding ${docs.length} documents...`);
@@ -103,7 +105,7 @@ export class VectorStore {
         }
     }
 
-    async search(query: string, limit: number = 5): Promise<CodeDocument[]> {
+    async search(query: string, limit: number = 5): Promise<BorgDocument[]> {
         if (!this.initialized) await this.initialize();
 
         const queryVector = await this.embed(query);
@@ -124,16 +126,17 @@ export class VectorStore {
             }
         }
 
-        // Map back to CodeDocument
+        // Map back to BorgDocument
         return results.map((r: any) => ({
             id: r.id,
-            file_path: r.file_path,
+            path: r.path,
             content: r.content,
-            hash: r.hash
+            hash: r.hash,
+            metadata: r.metadata
         }));
     }
 
-    async listDocuments(where?: string, limit: number = 10000): Promise<CodeDocument[]> {
+    async listDocuments(where?: string, limit: number = 10000): Promise<BorgDocument[]> {
         if (!this.initialized) await this.initialize();
 
         let query = this.table.search();
@@ -159,17 +162,17 @@ export class VectorStore {
 
         return results.map((r: any) => ({
             id: r.id,
-            file_path: r.file_path,
+            path: r.path,
             content: r.content,
             hash: r.hash,
-            metadata: r.metadata // Ensure metadata is preserved
+            metadata: r.metadata
         }));
     }
 
     /**
      * Get a single document by ID.
      */
-    async get(id: string): Promise<CodeDocument | null> {
+    async get(id: string): Promise<BorgDocument | null> {
         if (!this.initialized) await this.initialize();
 
         try {
@@ -177,9 +180,10 @@ export class VectorStore {
             if (Array.isArray(results) && results.length > 0) {
                 return {
                     id: results[0].id,
-                    file_path: results[0].file_path,
+                    path: results[0].path,
                     content: results[0].content,
-                    hash: results[0].hash
+                    hash: results[0].hash,
+                    metadata: results[0].metadata
                 };
             }
         } catch (e) {

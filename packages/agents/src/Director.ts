@@ -2,6 +2,7 @@ import type { IMCPServer } from "@borg/adk";
 import { LLMService } from "@borg/ai";
 import { Council } from "./Council.js";
 import { DIRECTOR_SYSTEM_PROMPT } from "@borg/ai";
+import { WorktreeManager } from "./orchestration/WorktreeManager.js";
 
 interface AgentContext {
     goal: string;
@@ -13,6 +14,7 @@ export class Director {
     private server: IMCPServer;
     private llmService: LLMService;
     private council: Council;
+    private worktreeManager: WorktreeManager;
 
     // Auto-Drive State
     private isAutoDriveActive: boolean = false; // SAFE START: Default to false
@@ -34,6 +36,7 @@ export class Director {
         // @ts-ignore
         this.council = new Council(server.modelSelector);
         this.council.setServer(server);
+        this.worktreeManager = new WorktreeManager();
 
         // AUTO-DRIVE: Engaged by default for the Great Absorption phase
         console.log("[Director] ⚡ Auto-Drive Engaged by default.");
@@ -114,8 +117,19 @@ export class Director {
         this.history = [];
         this.currentStatus = 'DRIVING';
 
+        // Generate a task ID (slug)
+        const taskId = `task-${Date.now()}-${goal.substring(0, 10).replace(/[^a-zA-Z0-9]/g, '')}`;
+        let worktreePath = "";
+
+        try {
+            worktreePath = await this.worktreeManager.createTaskEnvironment(taskId);
+            console.log(`[Director] 🌳 Worktree created at: ${worktreePath}`);
+        } catch (e) {
+            console.error(`[Director] Failed to create worktree, falling back to main cwd: ${e}`);
+        }
+
         const context: AgentContext = {
-            goal,
+            goal: `${goal}\n\n[ENVIRONMENT]: You are working in an ISOLATED git worktree at '${worktreePath}'.\nALL file operations (View, Edit, Create) MUST use this path as the base or absolute path.\nDo NOT edit files outside this directory unless explicitly analyzing 'main'.`,
             history: this.history,
             maxSteps
         };
@@ -128,49 +142,77 @@ export class Director {
 
         await this.broadcast(`${actionPrefix} ${goal}`);
 
-        for (let step = 1; step <= maxSteps; step++) {
-            this.currentStep = step;
-            if (!this.isAutoDriveActive && step > 1) { // Allow single run, but check auto flag if in loop
-                // pass
+        let taskResult = "Task stopped: Max steps reached.";
+
+        try {
+            for (let step = 1; step <= maxSteps; step++) {
+                this.currentStep = step;
+                if (!this.isAutoDriveActive && step > 1) { // Allow single run, but check auto flag if in loop
+                    // pass
+                }
+
+                console.error(`[Director] Step ${step}/${maxSteps}`);
+
+                // 1. Think
+                const plan = await this.think(context);
+                context.history.push(`Thinking: ${plan.reasoning}`);
+
+                if (plan.action === 'FINISH') {
+                    console.error("[Director] Task Completed.");
+                    this.activeGoal = null;
+                    this.currentStatus = this.isAutoDriveActive ? 'IDLE' : 'IDLE';
+                    taskResult = plan.result || "Task completed successfully.";
+
+                    // Attempt Merge
+                    if (worktreePath) {
+                        try {
+                            await this.worktreeManager.mergeTask(taskId);
+                            taskResult += " (Merged)";
+                        } catch (e: any) {
+                            taskResult += ` (Merge Failed: ${e.message})`;
+                            console.error(`[Director] Worktree merge failed: ${e}`);
+                        }
+                    }
+                    break;
+                }
+
+                // 1b. Council Advice (Advisory but using Consensus Engine)
+                const isHighAutonomy = this.server.permissionManager.getAutonomyLevel() === 'high';
+                if (!isHighAutonomy && !plan.toolName.startsWith('vscode_read') && !plan.toolName.startsWith('list_')) {
+                    // Quick consult, no blocking UI
+                    // Uses the consensus engine for a quick check
+                    const debate = await this.council.runConsensusSession(`Action: ${plan.toolName}. Reasoning: ${plan.reasoning}`);
+                    context.history.push(`Council Advice: ${debate.summary}`);
+                    console.error(`[Director] 🛡️ Council Advice: ${debate.summary}`);
+                }
+
+                // 2. Act
+                try {
+                    console.error(`[Director] Executing: ${plan.toolName}`);
+
+                    // Inject CWD if tool supports it? 
+                    // Most tools don't have explicit CWD override in top-level params unless designed so.
+                    // But we told the agent "You are in ${worktreePath}".
+                    // If the agent calls `run_command`, it should provide `Cwd: worktreePath`.
+                    // If the agent calls `write_file`, it should provide `TargetFile: worktreePath/foo.ts`.
+
+                    const result = await this.server.executeTool(plan.toolName, plan.params);
+                    const observation = JSON.stringify(result);
+                    context.history.push(`Action: ${plan.toolName}(${JSON.stringify(plan.params)})`);
+                    context.history.push(`Observation: ${observation}`);
+                } catch (error: any) {
+                    console.error(`[Director] Action Failed: ${error.message}`);
+                    context.history.push(`Error: ${error.message}`);
+                }
             }
-
-            console.error(`[Director] Step ${step}/${maxSteps}`);
-
-            // 1. Think
-            const plan = await this.think(context);
-            context.history.push(`Thinking: ${plan.reasoning}`);
-
-            if (plan.action === 'FINISH') {
-                console.error("[Director] Task Completed.");
-                this.activeGoal = null;
-                this.currentStatus = this.isAutoDriveActive ? 'IDLE' : 'IDLE';
-                return plan.result || "Task completed successfully.";
-            }
-
-            // 1b. Council Advice (Advisory but using Consensus Engine)
-            const isHighAutonomy = this.server.permissionManager.getAutonomyLevel() === 'high';
-            if (!isHighAutonomy && !plan.toolName.startsWith('vscode_read') && !plan.toolName.startsWith('list_')) {
-                // Quick consult, no blocking UI
-                // Uses the consensus engine for a quick check
-                const debate = await this.council.runConsensusSession(`Action: ${plan.toolName}. Reasoning: ${plan.reasoning}`);
-                context.history.push(`Council Advice: ${debate.summary}`);
-                console.error(`[Director] 🛡️ Council Advice: ${debate.summary}`);
-            }
-
-            // 2. Act
-            try {
-                console.error(`[Director] Executing: ${plan.toolName}`);
-                const result = await this.server.executeTool(plan.toolName, plan.params);
-                const observation = JSON.stringify(result);
-                context.history.push(`Action: ${plan.toolName}(${JSON.stringify(plan.params)})`);
-                context.history.push(`Observation: ${observation}`);
-            } catch (error: any) {
-                console.error(`[Director] Action Failed: ${error.message}`);
-                context.history.push(`Error: ${error.message}`);
+        } finally {
+            // Cleanup
+            if (worktreePath) {
+                await this.worktreeManager.cleanupTaskEnvironment(taskId);
             }
         }
 
-        return "Task stopped: Max steps reached.";
+        return taskResult;
     }
 
     /**

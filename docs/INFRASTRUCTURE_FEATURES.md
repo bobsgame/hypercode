@@ -128,6 +128,21 @@
 
 ---
 
+## Browser-Use Features (Agentic)
+
+### Agent-First Design
+- [ ] **Vision-Enabled**: Screenshot analysis for navigation
+- [ ] **Stealth Mode**: Anti-detection cloud execution
+- [ ] **High-Level API**: `agent.run(task)` vs low-level clicking
+- [ ] **Self-Correcting**: Retries failed interactions
+
+### Integration
+- [ ] **LangChain Compatible**
+- [ ] **Python SDK**
+- [ ] **Local & Cloud** Support
+
+---
+
 ## Implementation Priority for Borg
 
 ### Phase 1: Code Indexing

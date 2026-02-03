@@ -123,6 +123,23 @@
 - LangGraph, CrewAI
 - **Key Insights**: Graph-based workflows, role-based teams, shared memory
 
+### 10. Coding Skills & MCP Directories (Batch 15)
+- **Skills Frameworks**: `anthropics/skills`, `bkircher/skills`, `gemini-claude-skills`
+- **MCP Directories**: `awesome-mcp-servers`, `toolsdk-mcp-registry`
+- **Key Insights**: `SKILL.md` standardization, Gemini-as-a-skill pattern, Enterprise MCP registry validation.
+
+### 11. Agent Frameworks & Skills II (Batch 16)
+- **Frameworks**: `Maestro` (Orchestrator), `OpenAgents` (Control), `smolagents` (Code), `OpenHands` (Full).
+- **Skills**: `open-skills` (Sandboxed), `codex-skills`, `awesome-claude-skills`.
+- **Key Insights**: Git Worktrees for parallel agents, Pattern Context vs generic context, MVI token efficiency.
+
+---
+
+### 12. Knowledge Graphs & Media (Batch 17)
+- **Knowledge Graphs**: `cognee` (ECL/Graph), `txtai` (Embeddings DB), `ragflow` (DeepDoc).
+- **Browser**: `browser-use` (Agentic Web).
+- **Key Insights**: "Cognify" step for memory, "Quality In" for RAG, Agent-first browser automation.
+
 ---
 
 ## Next Steps

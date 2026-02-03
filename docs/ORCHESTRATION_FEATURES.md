@@ -122,6 +122,29 @@
 
 ---
 
+## Maestro Specific Features
+
+### Git Worktree Orchestration
+- [ ] **Task Branches**: Each agent gets a dedicated git worktree
+- [ ] **Parallel Execution**: No file lock contention
+- [ ] **Context Isolation**: Clean environment per sub-task
+- [ ] **Auto-Merge**: Supervisor merges worktrees on completion
+
+### Agent UX
+- [ ] **Playbooks**: Defined sets of tasks
+- [ ] **Group Chat**: Multi-agent chat interface
+
+---
+
+## OpenAgents Specific Features
+
+### Pattern Control
+- [ ] **MVI (Minimal Viable Information)**: <200 line context files
+- [ ] **Approval Gates**: Explicit user approval before execution
+- [ ] **Project-Specific Patterns**: Load only relevant idioms
+
+---
+
 ## Comparison: LangGraph vs CrewAI
 
 | Feature | LangGraph | CrewAI |

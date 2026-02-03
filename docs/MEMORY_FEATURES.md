@@ -142,6 +142,36 @@
 
 ---
 
+## Cognee Specific Features
+
+### ECL Core
+- [ ] **Cognify Step**: LLM extraction of graph edges before storage
+- [ ] **Knowledge Graph**: Nodes (Entities) + Edges (Relationships)
+- [ ] **Graph Retrieval**: Multi-hop reasoning over memory
+- [ ] **ECL Pipeline**: Extract -> Cognify -> Load
+
+### Integration
+- [ ] MCP Server
+- [ ] Vector + Graph hybrid search
+
+---
+
+## txtai Specific Features
+
+### All-in-One Embeddings
+- [ ] **Semantic Graph**: Topic modeling + dynamic graph
+- [ ] **SQL + Vector**: Hybrid search capability
+- [ ] **Local First**: Lightweight, no heavy DB required
+
+---
+
+## Implementation Priority for Borg
+1. **Cognee Integration**: Use for "Sherlock" Deep Memory (Reasoning Layer).
+2. **txtai Integration**: potential replacement for local lightweight memories.
+3. **Hybrid Backend**: Combine Postgres (relational) + Cognee (Graph) + Qdrant (Vector).
+
+---
+
 ## Zep Specific Features
 
 ### Temporal Knowledge Graph (Graphiti Engine)

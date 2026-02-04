@@ -838,6 +838,24 @@ export class MCPServer {
                     });
                 }
             }
+            // Phase 5: Browser Tool Direct
+            else if (name === "agent_browse") {
+                const task = args?.task as string;
+                if (!task) throw new Error("Missing 'task' argument for agent_browse");
+                result = await this.browserTool.executeTask(task, true);
+            }
+            // Phase 6: Semantic Search Direct
+            else if (name === "agent_search") {
+                const query = args?.query as string;
+                const root = args?.path || process.cwd();
+                if (!query) throw new Error("Missing 'query' argument for agent_search");
+
+                // Lazy load index if needed
+                try { await this.searchService.loadIndex(); } catch (e) { }
+
+                result = await this.searchService.search(query, root);
+            }
+
             // Swarm Tools
             else if (name === "spawn_agent") {
                 const id = this.spawnerService.spawn(args.type, args.task);

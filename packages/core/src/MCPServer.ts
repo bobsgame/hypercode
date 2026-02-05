@@ -101,6 +101,7 @@ import { SymbolPinService } from "./services/SymbolPinService.js";
 import { AutoDevService } from "./services/AutoDevService.js";
 import { MemoryManager } from "./services/MemoryManager.js";
 import { KnowledgeService } from './services/KnowledgeService.js';
+import { EventBus } from './services/EventBus.js';
 
 
 import { PermissionManager, AutonomyLevel } from "./security/PermissionManager.js";
@@ -173,6 +174,7 @@ export class MCPServer {
     public skillAssimilationService: SkillAssimilationService;
     private mcpAggregator: MCPAggregator;
     private submoduleManager: SubmoduleManager;
+    public eventBus: EventBus;
 
     // Phase 51: Core Infrastructure
     public lspService: LSPService;
@@ -251,6 +253,7 @@ export class MCPServer {
 
         this.mcpAggregator = new MCPAggregator();
         this.submoduleManager = new SubmoduleManager(process.cwd());
+        this.eventBus = new EventBus();
 
         // Phase 51: Core Infrastructure Services
         this.lspService = new LSPService(process.cwd());
@@ -461,6 +464,9 @@ export class MCPServer {
                 }));
             });
         }
+
+        // Emit Pulse Event
+        this.eventBus.emitEvent('tool:call', 'MCPServer', { tool: name, args, callId });
 
         // Audit Start
         try {

@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState, useEffect } from 'react';
 import { trpc } from '../utils/trpc';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/card';

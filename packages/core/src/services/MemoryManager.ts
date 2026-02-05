@@ -239,25 +239,25 @@ export class MemoryManager {
             console.error("Failed to update memory registry:", e);
         }
     }
-}
+
 
     /**
      * Infinite Context V3: Prune a conversation history to fit within limits.
      */
-    public pruneContext(messages: any[], options ?: Partial<PruningOptions>): any[] {
-    if (options) {
-        // Re-instantiate pruner if temporary options provided
-        // Or just use a temporary instance
-        const tempPruner = new ContextPruner(options);
-        return tempPruner.prune(messages);
+    public pruneContext(messages: any[], options?: Partial<PruningOptions>): any[] {
+        if (options) {
+            // Re-instantiate pruner if temporary options provided
+            // Or just use a temporary instance
+            const tempPruner = new ContextPruner(options);
+            return tempPruner.prune(messages);
+        }
+        return this.pruner.prune(messages);
     }
-    return this.pruner.prune(messages);
-}
 
     /**
      * Calculate token usage for observability
      */
     public getContextSize(messages: any[]): number {
-    return this.pruner.estimateTokens(messages);
-}
+        return this.pruner.estimateTokens(messages);
+    }
 }

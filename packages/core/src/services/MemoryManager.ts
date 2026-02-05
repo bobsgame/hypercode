@@ -66,7 +66,7 @@ export class MemoryManager {
             // @ts-ignore - Extension
             list: async (where?: string, limit?: number) => {
                 const docs = await store.listDocuments(where, limit);
-                return docs.map(d => ({
+                return docs.map((d: any) => ({
                     id: d.id,
                     content: d.content,
                     metadata: { ...d.metadata, path: d.path, hash: d.hash }

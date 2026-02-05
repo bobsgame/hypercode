@@ -2357,7 +2357,7 @@ export class MCPServer {
         if (this.wsServer) {
             console.log("[MCPServer] Starting WebSocket Server...");
             const PORT = 3001;
-            const httpServer = http.createServer((req, res) => {
+            const httpServer = http.createServer(async (req, res) => {
                 if (req.url === '/health') {
                     res.writeHead(200, { 'Content-Type': 'application/json' });
                     res.end(JSON.stringify({

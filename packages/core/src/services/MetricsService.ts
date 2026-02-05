@@ -5,6 +5,7 @@ export interface MetricEvent {
     value: number;
     tags?: Record<string, string>;
 }
+import os from 'os';
 
 export class MetricsService {
     private events: MetricEvent[] = [];
@@ -17,7 +18,7 @@ export class MetricsService {
         if (this.monitorInterval) clearInterval(this.monitorInterval);
 
         console.log("[MetricsService] Starting system monitoring...");
-        const os = require('os');
+        // const os = require('os'); // Replaced with import
 
         this.monitorInterval = setInterval(() => {
             const mem = process.memoryUsage();

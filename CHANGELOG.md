@@ -1,190 +1,29 @@
 # Changelog
-## [1.7.1] - 2026-02-03
-### Added
-- **Project Structure Audit:** Detailed `docs/PROJECT_STATUS.md` analysis of Frontend/Backend gaps.
-- **Universal Instructions:** Major update to `docs/UNIVERSAL_LLM_INSTRUCTIONS.md` (v1.7.1) replacing legacy `CORE_INSTRUCTIONS.md`.
-- **Dependency Injection:** Refactored `AgentMemoryService` for testability using `MockMemoryManager`.
-
-
-### Changed
-- **Documentation:** Consolidated `CLAUDE.md`, `GEMINI.md`, etc., to strictly reference Universal 1.7.1.
-- **Testing:** Fixed `AgentMemoryService` unit tests (Dependency Injection).
-- **Extension Wiring:** Verified and fixed `director.memorize` endpoint to use `MemoryManager.saveContext`, ensuring browser extension "Save to Memory" works.
-
-## [1.7.0] - 2026-02-03
-### Added
-- **Swarm Infrastructure (Phase 17):** Implemented `BaseAgent` and `SpawnerService` for specialized sub-agent orchestration.
-- **Swarm Tools:** Registered `spawn_agent`, `list_agents`, `kill_agent`, and `get_agent_result` in `MCPServer`.
-- **Instruction Consolidation:** Massive documentation reorganization, merging `AGENTS.md`, `CLAUDE.md`, etc., into a single `UNIVERSAL_LLM_INSTRUCTIONS.md`.
-- **Active Debugger Proxy (Phase 16):** Full CDP bridging and proxy-fetch support for the browser extension.
-
-## [1.6.0] - 2026-01-30
-### Added
-- **Squads:** Implemented `SquadService` for spawning autonomous coding agents in isolated Git Worktrees.
-- **Secure Execution:** Added `SandboxService` with Node.js (`vm`) and Python (`spawn`) isolation.
-- **Browser Memory:** Added `memorize_page` tool to capture web context into Vector Store.
-- **Deep Code Intel:** Implemented AST-based chunking for JavaScript/TypeScript files in `RepoGraphService`.
-- **Auto-Test:** Implemented `AutoTestService` for smart test execution on file change.
-- **System Stability:** Fixed critical `uuid` missing dependency in Core.
-
-## [1.5.2] - 2026-01-30
-### Added
-- **Memory Manager**: Created `MemoryManager` service to abstract vector store interactions (`packages/core/src/services/MemoryManager.ts`).
-- **Memory Parity**: Refactored `MCPServer` to use `MemoryManager` instead of raw `VectorStore`/`Indexer` for Jan.ai parity.
-- **Auto-Drive Fixes**: Patched `Director` focus stealing and `MCPServer` activity tracking.
-
-## [1.5.1] - 2026-01-30
-### Added
-- **Universal Documentation**: Created `docs/UNIVERSAL_LLM_INSTRUCTIONS.md` as the single source of truth for all AI agents.
-- **Model Specifics**: Updated `CLAUDE.md`, `AGENTS.md`, `GEMINI.md`, `GPT.md` to reference the universal file.
-- **Resource Index**: Initialized `docs/RESOURCE_INDEX.md` for tracking external tools and links.
-
-### Changed
-- **Core Instructions**: Refactored `CORE_INSTRUCTIONS.md` into `docs/UNIVERSAL_LLM_INSTRUCTIONS.md`.
-
-## [1.5.0] - 2026-01-28
-### Added
-- **Supervisor Personality:** Configurable "Default Topic" (Standing Order) effectively curing "awaiting instructions" spam.
-- **Dashboard:**
-  - Integrated `DirectorStatusWidget` for real-time detailed status.
-  - Added "Default Focus" configuration field.
-- **Inbox Processing:**
-  - Processed `INBOX_LINKS.md` and extracted high-value tools.
-  - Added submodules: `awesome-mcp-servers`, `humanizer`, `anthropic-skills`, `openai-skills`, `metamcp`.
-
-### Fixed
-- **Input Manager:** Implemented targeted window focus for `sendKeys` to prevent typing interruptions.
-- **Director:** Refactored state management and centralized configuration.
-
-## [1.4.0] - 2026-01-24
-### Added
-- **Submodules:** Integrated `jules-autopilot`, `opencode-autopilot`, and `awesome-mcp-servers`.
-- **Dashboards:**
-  - **Architecture:** Live `.gitmodules` status view.
-  - **Billing:** API Key status and cost estimator.
-  - **Inspector:** "Replay Logs" feature for historical analysis.
-- **Core:** `McpmRegistry` for tool discovery and `AutoConfig` for K8s detection.
-- **Docs:** Consolidated `AI_MASTER_INSTRUCTIONS.md`.
-
-### Fixed
-- **Auto-Drive:** Reduced aggression (5s interval), fixed focus stealing, and broadened approval regex.
-
-
-## [1.3.0] - 2026-01-24
-### Added
-- **Smart Auto-Drive:** Robust state detection, LLM-based steering during idle times, and strict `Alt+Enter` safety guards.
-- **Deep Indexing:** `CodeSplitter.ts` for semantic chunking (function/class aware) to improve RAG quality.
-- **Traffic Inspector:** Real-time visualization of MCP tool traffic at `/dashboard/inspector`.
-- **Gemini Ecosystem:** Integration with Google Jules (`JulesWrapper`) and ADK interfaces.
-- **Infrastructure:** Stubs for `GraphMemory` and `AutoConfig` (Universal Client).
-
-### Fixed
-- **Web App:** Resolved production build failures (`.next/BUILD_ID` missing).
-- **Dashboard:** Fixed React Query syntax making dashboard usable again.
-
 
 All notable changes to this project will be documented in this file.
 
-## [0.5.1] - 2026-01-14
-
-### Massive Ecosystem Integration
-- **Submodule Expansion:** Integrated **229** submodules covering the entire AI coding landscape.
-  - **SuperAI CLI:** Added `superai-cli/` with wrappers for Codebuff, Kimi, Claude Code, and more.
-  - **Memory:** Added `memory/` ecosystem with LettA, Mem0, Zep, and local vector stores.
-  - **MCP Servers:** Added 36+ general purpose MCP servers (Financial, Browser, Search).
-  - **Computer Use:** Integrated `computer-use/` tools including Microsoft Fara and Magentic UI.
-- **Dashboard Generator:** Added `scripts/generate_dashboard.py` to automatically track and categorize all integrated submodules in `SUBMODULES.md`.
-
+## [2.2.0] - 2026-02-04
 ### Added
-- **Submodules:**
-  - `agents/refs/agentapi`: Universal agent control API.
-  - `agents/workty`: Task management agent.
-  - `superai-cli/clis/codex-kaioken`: Advanced Codex wrapper.
-  - `tools/security/claude-code-safety-net`: Safety layer for AI agents.
-  - `tools/github/claude-code-gh-dash`: GitHub dashboard integration.
-  - `skills/external/ensue-skill`: Skill library integration.
+- **Phase 23 (Deep Data Search)**:
+  - Created `Indexer` and `CodeSplitter` in `@borg/memory`.
+  - Added AST-based symbol extraction for TypeScript.
+  - Added semantic chunking logic.
+  - Exposed `memory_index_codebase` and `memory_search` tools in `MCPServer`.
+  - Implemented `VectorStore.addDocuments` for batch processing.
 
-### Documentation
-- **SUBMODULES.md:** Fully populated ecosystem dashboard with categorized tables and version tracking.
-- **ROADMAP.md:** Updated to reflect the completion of Ecosystem Integration and new goals for Unified CLI Runner and Sandboxing.
-
-## [0.5.0] - 2026-01-14
-
-### Major Pivot: The SuperAI Era
-Shifted focus from "Enterprise Wrapper" to "Best-in-Class AI Coding Harness" (SuperAI).
-
+## [2.1.0] - 2026-02-04
 ### Added
-- **Traffic Inspection Service:** Real-time correlation, persistence, and filtering of MCP JSON-RPC traffic.
-- **Memory Plugin Architecture:** Unified `MemoryPluginManager` supporting `chroma`, `google-drive`, `mem0`.
-- **Tool Inventory Service:** Auto-discovery of installed CLI tools (Aider, Docker, Redis).
-- **Process Guardian:** Background service for monitoring and restarting critical AI processes.
-- **WebUI Dashboards:**
-  - `TrafficInspector`: High-fidelity visualization of MCP calls with request/response correlation.
-  - `ToolInventory`: Dashboard for tracking local tool status and versions.
-  - `InfrastructureDashboard`: Real-time monitoring of Redis, P2P Mesh, and Consensus.
-- **SuperAI CLI:** New `superai-cli/` directory structure consolidating all CLI tools, adapters, and agents.
-- **TUI Dashboard:** Ink-based terminal UI (`borg tui`) for managing the system from the command line.
-- **Memory Ecosystem:** Comprehensive memory system integration with dedicated `memory/` directory structure supporting multiple backends (Vector, Graph, Local).
-- **Submodule Dashboard:** Created `SUBMODULES.md` to track and document the extensive list of integrated tools and libraries.
-  
+- **Master MCP Server Architecture (Phase 21)**: Borg now aggregates downstream MCP servers (`git`, `filesystem`, etc.) via `MCPAggregator`.
+- **Stdio Client**: Native integration for spawning and controlling local MCP tools.
+- **Unified Documentation**: Centralized all agent instructions into `docs/LLM_INSTRUCTIONS.md`.
+- **Vision Document**: Published `VISION.md` outlining the "Neural Operating System" goal.
+- **Centralized Versioning**: Project version is now master-controlled by the `VERSION` file.
+
 ### Changed
-- **Branding:** Renamed "JULES" to "SuperAI Engine" or "SuperAI Command".
-- **Documentation:** Massive reorganization of `SUBMODULES.md` into functional categories (Memory, CLI, Agents).
-- **Core:** Fully migrated from Fastify routes to Hono for better performance and type safety.
-- **Structure:** Reorganized submodules into functional zones (`memory/`, `superai-cli/`) for better discoverability.
+- **Config**: `borg.config.json` is now the primary configuration point for adding tools.
+- **Routing**: Tool calls are now prefixed (e.g., `git_commit`) to allow namespace isolation between multiple servers.
 
-### Removed
-- **Legacy Routes:** Deleted `contextRoutes.ts`, `ingestionRoutes.ts`, `memoryRoutes.ts` (Fastify versions).
-
-## [0.4.1] - 2026-01-09
-
+## [1.7.0] - 2026-02-03
 ### Added
-- **Testing Infrastructure:** Configured Vitest at monorepo root with unified test runner.
-  - New test suites for `CouncilManager` and `SessionManager` in `packages/core/test/`.
-  - Migrated existing UI tests from Jest to Vitest (`archive`, `templates`, `jules/client`, `jules/route`).
-  - 8 test suites, 35 tests passing.
-
-### Fixed
-- **Core Package:** Added missing `uuid` runtime dependency (was only in devDeps as `@types/uuid`).
-- **Test Cleanup:** Fixed `delete global.window` issue in Vitest by using `configurable: true` property definitions.
-
-### Removed
-- **Submodules:** Removed redundant `submodules/opencode-autopilot-backup`.
-
-### Documentation
-- **Architecture Analysis:** Documented SessionManager separation (Core vs Autopilot serve different purposes).
-- **UI Drift:** Identified orchestration logic drift between UI port and Autopilot Council (sequential vs parallel debate).
-
-## [1.2.1] - 2026-01-08
-
-### Maintenance
--   **Ralph Loop:** Synchronized 70+ submodules to latest upstream versions.
--   **Dashboard:** Enhanced Ecosystem Dashboard to display submodule commit hashes and last update dates.
--   **Docs:** Updated `docs/project/STRUCTURE.md` with detailed directory layout.
-
-## [0.3.0] - 2026-01-08
-
-### Deep Initialization & Cleanup
-- **Versioning:** Standardized project version to `0.3.0` across all packages (bumped from 0.2.5).
-- **Submodules:** Deep synchronization of all submodules.
-- **Fixes:** Resolved Windows path issues by removing `opencode-skillful`.
-- **Documentation:** Created `SUBMODULES.md` dashboard.
-
-## [1.1.1] - 2026-01-05
-
-### Fixed
--   **Critical Git Repair:** Restored ~70 broken submodules in `external/` directory that were missing from `.gitmodules` or had detached configurations.
--   **Windows Compatibility:** Converted specific repositories with colon-containing filenames (`opencode-plugin-template`, `opencode-background`, `opencode-skillful`) to embedded repositories to prevent filesystem errors on Windows.
--   **Dashboard:** Updated `scripts/generate_dashboard.py` to correctly identify and report status of both registered submodules and embedded repositories.
-
-### Added
--   `docs/SUBMODULE_DASHBOARD.md`: Automated dashboard tracking submodule versions and status.
-
-## [1.1.0] - Previous
-
-### Added
--   Initial monorepo structure (Core, UI).
--   Core Service with Fastify & Socket.io.
--   Managers for Agents, Skills, Hooks, Prompts.
--   MCP Server management (stdio).
--   Documentation (ROADMAP, STRUCTURE, AGENTS).
+- **Core Infrastructure**: Registered LSP, Code Mode, and Plan Mode tools in MCPServer.
+- **Verification**: Added `CoreInfra.test.ts`.

@@ -1,0 +1,22 @@
+{
+  "state": {
+    "targetBranch": "main",
+    "diffSummary": "file1.ts\nfile2.ts",
+    "hasChanges": true,
+    "securityScan": "Passed",
+    "findings": [],
+    "critique": "Automated critique: Code structure appears sound.",
+    "status": "Merged",
+    "completedAt": "2026-02-04T16:48:26.130Z"
+  },
+  "snapshots": [
+    {
+      "targetBranch": "main",
+      "diffSummary": "file1.ts\nfile2.ts",
+      "hasChanges": true,
+      "securityScan": "Passed",
+      "findings": [],
+      "critique": "Automated critique: Code structure appears sound."
+    }
+  ]
+}

@@ -88,6 +88,7 @@ export interface WorkflowEngineOptions {
 
 /**
  * State Store - Persistent state management with snapshots
+ * Refactored to use individual files per execution for scalability.
  */
 export class StateStore {
     private states = new Map<string, WorkflowState>();
@@ -96,7 +97,8 @@ export class StateStore {
     constructor(private persistDir?: string) {
         if (persistDir) {
             this.ensurePersistDir();
-            this.loadPersistedStates();
+            // We don't load all states into memory at startup anymore to save RAM
+            // They will be loaded on demand (TODO: Add LRU cache if needed)
         }
     }
 
@@ -106,33 +108,46 @@ export class StateStore {
         }
     }
 
-    private loadPersistedStates(): void {
-        if (!this.persistDir) return;
-
-        const statesFile = path.join(this.persistDir, 'states.json');
-        if (fs.existsSync(statesFile)) {
-            const data = JSON.parse(fs.readFileSync(statesFile, 'utf-8'));
-            for (const [id, state] of Object.entries(data)) {
-                this.states.set(id, state as WorkflowState);
-            }
-        }
+    private getFilePath(id: string): string {
+        if (!this.persistDir) throw new Error("Persistence disabled");
+        return path.join(this.persistDir, `${id}.json`);
     }
 
     private persistState(id: string): void {
         if (!this.persistDir) return;
-
-        const statesFile = path.join(this.persistDir, 'states.json');
-        const data: Record<string, WorkflowState> = {};
-        for (const [stateId, state] of this.states) {
-            data[stateId] = state;
+        try {
+            const filePath = this.getFilePath(id);
+            const data = {
+                state: this.states.get(id),
+                snapshots: this.snapshots.get(id)
+            };
+            fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+        } catch (e) {
+            console.error(`[StateStore] Failed to persist state ${id}:`, e);
         }
-        fs.writeFileSync(statesFile, JSON.stringify(data, null, 2));
+    }
+
+    private loadState(id: string): void {
+        if (!this.persistDir) return;
+        if (this.states.has(id)) return; // Already loaded
+
+        const filePath = this.getFilePath(id);
+        if (fs.existsSync(filePath)) {
+            try {
+                const data = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+                if (data.state) this.states.set(id, data.state);
+                if (data.snapshots) this.snapshots.set(id, data.snapshots);
+            } catch (e) {
+                console.error(`[StateStore] Failed to load state ${id}:`, e);
+            }
+        }
     }
 
     /**
      * Get state by execution ID
      */
     get(executionId: string): WorkflowState | undefined {
+        this.loadState(executionId);
         return this.states.get(executionId);
     }
 
@@ -148,7 +163,7 @@ export class StateStore {
      * Update state (merge with existing)
      */
     update(executionId: string, updates: Partial<WorkflowState>): WorkflowState {
-        const current = this.states.get(executionId) || {};
+        const current = this.get(executionId) || {};
         const updated = { ...current, ...updates };
         this.set(executionId, updated);
         return updated;
@@ -158,19 +173,21 @@ export class StateStore {
      * Create a snapshot of current state
      */
     snapshot(executionId: string): void {
-        const state = this.states.get(executionId);
+        const state = this.get(executionId);
         if (!state) return;
 
         if (!this.snapshots.has(executionId)) {
             this.snapshots.set(executionId, []);
         }
         this.snapshots.get(executionId)!.push({ ...state });
+        this.persistState(executionId);
     }
 
     /**
      * Restore from a snapshot
      */
     restore(executionId: string, snapshotIndex?: number): WorkflowState | undefined {
+        this.loadState(executionId);
         const history = this.snapshots.get(executionId);
         if (!history || history.length === 0) return undefined;
 
@@ -186,6 +203,7 @@ export class StateStore {
      * Get snapshot history
      */
     getSnapshots(executionId: string): WorkflowState[] {
+        this.loadState(executionId);
         return this.snapshots.get(executionId) || [];
     }
 
@@ -195,7 +213,10 @@ export class StateStore {
     delete(executionId: string): void {
         this.states.delete(executionId);
         this.snapshots.delete(executionId);
-        this.persistState(executionId);
+        if (this.persistDir) {
+            const filePath = this.getFilePath(executionId);
+            if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+        }
     }
 }
 
@@ -280,6 +301,28 @@ export class GraphBuilder {
     }
 
     /**
+     * Get the graph structure for UI visualization (React Flow compatible)
+     */
+    getGraph(): { nodes: any[], edges: any[] } {
+        const nodes = Array.from(this.nodes.values()).map(n => ({
+            id: n.id,
+            label: n.name,
+            data: { description: n.description },
+            type: n.requiresApproval ? 'checkpoint' : 'default'
+        }));
+
+        const edges = this.edges.map(e => ({
+            id: e.id,
+            source: e.from,
+            target: typeof e.to === 'string' ? e.to : 'dynamic',
+            animated: !!e.condition,
+            label: e.condition ? 'Conditional' : undefined
+        }));
+
+        return { nodes, edges };
+    }
+
+    /**
      * Build the workflow definition
      */
     build(id: string, name?: string, description?: string): WorkflowDefinition {
@@ -321,6 +364,31 @@ export class WorkflowEngine extends EventEmitter {
         this.stateStore = new StateStore(
             this.options.persistDir ? path.join(this.options.persistDir, 'states') : undefined
         );
+    }
+
+    /**
+     * Get graph definition for UI
+     */
+    getGraph(workflowId: string): { nodes: any[], edges: any[] } | undefined {
+        const workflow = this.workflows.get(workflowId);
+        if (!workflow) return undefined;
+
+        const nodes = Array.from(workflow.nodes.values()).map(n => ({
+            id: n.id,
+            label: n.name,
+            data: { description: n.description },
+            type: n.requiresApproval ? 'checkpoint' : 'default'
+        }));
+
+        const edges = workflow.edges.map(e => ({
+            id: e.id,
+            source: e.from,
+            target: typeof e.to === 'string' ? e.to : 'dynamic',
+            animated: !!e.condition,
+            label: e.condition ? 'Conditional' : undefined
+        }));
+
+        return { nodes, edges };
     }
 
     /**
@@ -532,15 +600,44 @@ export class WorkflowEngine extends EventEmitter {
         execution.status = 'running';
         execution.updatedAt = new Date();
 
-        // Move to next node first
         const workflow = this.workflows.get(execution.workflowId)!;
-        const nextNode = await this.getNextNode(workflow, execution.currentNode, execution.state);
+        const node = workflow.nodes.get(execution.currentNode);
 
-        if (nextNode) {
-            execution.currentNode = nextNode;
-            await this.run(executionId);
+        if (node) {
+            // Execute the approved node
+            const step = await this.executeNode(executionId, node);
+            execution.history.push(step);
+
+            // Trim history
+            if (execution.history.length > this.options.maxHistory) {
+                execution.history = execution.history.slice(-this.options.maxHistory);
+            }
+
+            if (step.status === 'failed') {
+                execution.status = 'failed';
+                execution.error = step.error;
+                this.emit('execution:end', execution); // Notify failure
+                return;
+            }
+
+            // Update state
+            execution.state = step.outputState;
+            this.stateStore.set(executionId, execution.state);
+
+            // Advance to next node
+            const nextNode = await this.getNextNode(workflow, execution.currentNode, execution.state);
+            if (nextNode) {
+                execution.currentNode = nextNode;
+                // Continue run loop
+                await this.run(executionId);
+            } else {
+                execution.status = 'completed';
+                this.emit('execution:end', execution);
+            }
         } else {
-            execution.status = 'completed';
+            // Should not happen if valid graph
+            execution.status = 'failed';
+            execution.error = `Node ${execution.currentNode} not found during approval`;
         }
     }
 

@@ -6,6 +6,7 @@ import { suggestionsRouter } from './routers/suggestionsRouter.js';
 import { squadRouter } from './routers/squadRouter.js';
 import { councilRouter } from './routers/councilRouter.js';
 import { graphRouter } from './routers/graphRouter.js';
+import { workflowRouter } from './routers/workflowRouter.js';
 import { testsRouter } from './routers/testsRouter.js';
 import { contextRouter } from './routers/contextRouter.js';
 import { commandsRouter } from './routers/commandsRouter.js';
@@ -22,6 +23,7 @@ import { knowledgeRouter } from './routers/knowledgeRouter.js';
 
 export const appRouter = t.router({
     graph: graphRouter,
+    workflow: workflowRouter,
     tests: testsRouter,
     context: contextRouter,
     commands: commandsRouter,

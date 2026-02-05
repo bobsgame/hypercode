@@ -1,5 +1,10 @@
 import { spawn } from 'child_process';
+import { fileURLToPath } from 'url';
 import * as path from 'path';
+import * as fs from 'fs';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 import { rgPath } from '@vscode/ripgrep';
 
 export interface SearchResult {
@@ -80,15 +85,28 @@ export class SearchService {
 
     public async searchLexical(query: string, path: string): Promise<SearchResult[]> {
         return new Promise((resolve, reject) => {
-            const rg = spawn(rgPath, ['--json', query, path]);
+            // Fallback to 'rg' in PATH if bundled not found
+            let binary = fs.existsSync(rgPath) ? rgPath : 'rg';
+
+            if (process.platform === 'win32' && binary === 'rg') {
+                binary = 'rg.exe';
+            }
+
+            // Spawn without shell for safety and better signal handling
+            const rg = spawn(binary, ['--json', query, path], { shell: false });
+
             let output = '';
+            let error = '';
 
             rg.stdout.on('data', (data: any) => { output += data.toString(); });
+            rg.stderr.on('data', (data: any) => { error += data.toString(); });
+            rg.on('error', (err) => {
+                reject(new Error(`Failed to spawn ripgrep: ${err.message}`));
+            });
 
             rg.on('close', (code) => {
-                // rg returns 1 if no match found, which is fine
                 if (code !== 0 && code !== 1) {
-                    reject(new Error(`ripgrep failed`));
+                    reject(new Error(`ripgrep failed (code ${code}): ${error}`));
                     return;
                 }
 

@@ -5,9 +5,10 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "./ui/
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from "./ui/sheet";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "./ui/dialog";
 import { ScrollArea } from "./ui/scroll-area";
-import { Users, Plus, Trash2, Terminal, GitBranch, Activity, RefreshCw } from 'lucide-react';
+import { Users, Plus, Trash2, Terminal, GitBranch, Activity, RefreshCw, MessageSquare } from 'lucide-react';
 import { toast } from "sonner";
 import { trpc } from '@/utils/trpc';
 import { useRouter } from 'next/navigation';
@@ -35,6 +36,26 @@ export function SquadsPanel() {
             toast.error(`Failed to spawn member: ${err.message}`);
         }
     });
+
+
+
+    const [chatMember, setChatMember] = useState<any>(null);
+    const [chatMessage, setChatMessage] = useState('');
+
+    const chatMutation = trpc.squad.chat.useMutation({
+        onSuccess: () => {
+            toast.success("Message sent to agent.");
+            setChatMessage('');
+        },
+        onError: (err) => {
+            toast.error(`Failed to send message: ${err.message}`);
+        }
+    });
+
+    const handleSendChat = () => {
+        if (!chatMember || !chatMessage.trim()) return;
+        chatMutation.mutate({ branch: chatMember.branch, message: chatMessage });
+    };
 
     const killMutation = trpc.squad.kill.useMutation({
         onSuccess: () => {
@@ -150,7 +171,15 @@ export function SquadsPanel() {
                                         Director: {member.active ? 'Running' : 'Idle'}
                                     </div>
 
-                                    <div className="flex justify-end pt-2">
+                                    <div className="flex justify-end pt-2 gap-2">
+                                        <Button
+                                            variant="secondary"
+                                            size="sm"
+                                            onClick={() => setChatMember(member)}
+                                        >
+                                            <MessageSquare className="w-4 h-4 mr-2" />
+                                            Chat
+                                        </Button>
                                         <Button
                                             variant="destructive"
                                             size="sm"
@@ -175,6 +204,48 @@ export function SquadsPanel() {
                     ))
                 )}
             </div>
+
+            <Sheet open={!!chatMember} onOpenChange={(open) => !open && setChatMember(null)}>
+                <SheetContent side="right" className="min-w-[400px]">
+                    <SheetHeader>
+                        <SheetTitle>Chat with {chatMember?.branch}</SheetTitle>
+                        <SheetDescription>
+                            Send instructions or inject context into the running agent.
+                        </SheetDescription>
+                    </SheetHeader>
+                    <div className="py-6 space-y-4 flex flex-col h-full max-h-[calc(100vh-120px)]">
+                        <div className="flex-1 border rounded-md p-4 bg-muted/30 text-xs font-mono text-muted-foreground overflow-y-auto">
+                            <p className="mb-2 opacity-70">Agent output is currently visible in the Director logs or server console.</p>
+                            <div className="p-2 border border-dashed rounded bg-background/50">
+                                History injection enabled. Instructions sent here will be added to the agent's active context loop.
+                            </div>
+                        </div>
+                        <div className="space-y-2 mt-auto">
+                            <label className="text-sm font-medium">Message</label>
+                            <textarea
+                                className="flex min-h-[100px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 resize-none"
+                                value={chatMessage}
+                                onChange={(e) => setChatMessage(e.target.value)}
+                                placeholder="Enter command or context..."
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' && !e.shiftKey) {
+                                        e.preventDefault();
+                                        handleSendChat();
+                                    }
+                                }}
+                            />
+                            <div className="text-xs text-muted-foreground text-right">
+                                Press Enter to send, Shift+Enter for new line
+                            </div>
+                        </div>
+                    </div>
+                    <SheetFooter>
+                        <Button onClick={handleSendChat} disabled={chatMutation.isPending} className="w-full">
+                            {chatMutation.isPending ? 'Sending...' : 'Send Instruction'}
+                        </Button>
+                    </SheetFooter>
+                </SheetContent>
+            </Sheet>
         </div>
     );
 }

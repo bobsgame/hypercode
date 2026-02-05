@@ -32,22 +32,23 @@ export class MemoryManager {
         this.provider = {
             initialize: async () => store.initialize(),
             add: async (docs: Document[]) => {
-                await store.addDocuments(docs.map(d => ({
-                    id: d.id,
-                    path: (d.metadata as any)?.path || (d.metadata as any)?.file_path || d.id,
-                    content: d.content,
-                    hash: (d.metadata as any)?.hash || 'dynamic',
-                    metadata: d.metadata,
-                    vector: d.vector
-                })));
+                for (const d of docs) {
+                    await store.addMemory(d.content, {
+                        ...d.metadata,
+                        id: d.id,
+                        path: (d.metadata as any)?.path || d.id
+                    });
+                }
             },
             search: async (query: string, limit: number = 5) => {
                 const results = await store.search(query, limit);
+                console.log(`[MemoryManager] Raw Search Results:`, JSON.stringify(results, null, 2));
+                // LanceDB results: [{ vector, text, ...metadata, _distance }]
                 return results.map((r: any) => ({
-                    id: r.id,
-                    content: r.content,
-                    metadata: { ...r.metadata, path: r.path, hash: r.hash },
-                    score: 0
+                    id: r.id || 'unknown',
+                    content: r.text,
+                    metadata: { type: r.type, namespace: r.namespace, ...r },
+                    score: 1 - (r._distance || 0) // Convert distance to similarity
                 }));
             },
             get: async (id: string) => {

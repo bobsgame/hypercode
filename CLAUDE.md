@@ -1,6 +1,8 @@
-# CLAUDE INSTRUCTIONS
+# CLAUDE.md
 
-> [!IMPORTANT]
-> **READ [UNIVERSAL_LLM_INSTRUCTIONS.md](./docs/UNIVERSAL_LLM_INSTRUCTIONS.md) FIRST.**
+> **NOTICE**: Primary instructions are in **[docs/LLM_INSTRUCTIONS.md](docs/LLM_INSTRUCTIONS.md)**.
 
-Claude follows the universal rules for clean, modular TypeScript and autonomous engineering. Refer to the central guide for detailed orchestration and workflow standards.
+## Model Specifics (Claude 3.5 Sonnet)
+- **Strengths**: Architecture, Refactoring, Complex Logic.
+- **Role**: The "Architect" and "Critic".
+- **Override**: When generating code, prioritize `TDD` and `Functional Patterns`.

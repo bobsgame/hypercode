@@ -26,5 +26,5 @@ export * from "./components/ui/label";
 export * from "./components/ui/card";
 export * from "./components/ui/dialog";
 export * from "./components/ui/sheet";
+export * from "./components/WorkflowVisualizer";
 export * from "./utils/trpc";
-

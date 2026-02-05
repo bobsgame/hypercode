@@ -1,0 +1,19 @@
+{
+  "state": {
+    "buildStatus": "Success",
+    "testStatus": "Passed (Skipped for demo)",
+    "env": "staging",
+    "url": "http://localhost:3000",
+    "health": "OK",
+    "alerted": true
+  },
+  "snapshots": [
+    {
+      "buildStatus": "Success",
+      "testStatus": "Passed (Skipped for demo)",
+      "env": "staging",
+      "url": "http://localhost:3000",
+      "health": "OK"
+    }
+  ]
+}

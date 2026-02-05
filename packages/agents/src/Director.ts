@@ -38,10 +38,7 @@ export class Director {
         this.council.setServer(server);
         this.worktreeManager = new WorktreeManager();
 
-        // AUTO-DRIVE: Engaged by default for the Great Absorption phase
-        console.log("[Director] ⚡ Auto-Drive Engaged by default.");
-        // We defer starting it slightly to ensure server is fully ready
-        setTimeout(() => this.startAutoDrive(), 5000);
+
     }
 
     // Configuration
@@ -98,6 +95,24 @@ export class Director {
             lastHistory: this.history.slice(-3),
             config: this.config
         };
+    }
+
+    /**
+     * Handles a user message.
+     * If Idle/Finished: Starts a new task with the message as goal.
+     * If Busy: Injects the message into the active history for the agent to see in the next step.
+     */
+    public async handleUserMessage(message: string): Promise<string> {
+        if (this.currentStatus === 'IDLE' || this.activeGoal === null) {
+            // Start new task
+            this.executeTask(message, 20, 'user'); // Fire and forget (async)
+            return "Started new task: " + message;
+        } else {
+            // Inject into running context
+            console.log(`[Director] 📨 Injecting user message into running task: "${message}"`);
+            this.history.push(`\n[USER INTERRUPTION]: ${message}\n(You must Address this immediately)`);
+            return "Message sent to running agent.";
+        }
     }
 
     /**

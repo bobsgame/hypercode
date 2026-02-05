@@ -144,6 +144,15 @@ export class SquadService {
         return `Member ${id} not found.`;
     }
 
+    async messageMember(branchName: string, message: string) {
+        const id = `squad-${branchName}`;
+        const member = this.members.get(id);
+        if (member) {
+            return await member.director.handleUserMessage(message);
+        }
+        return `Member ${id} not found.`;
+    }
+
     // --- Job Management (Indexer, etc) ---
 
     private indexerJob: any | null = null; // Lazy load IndexerJob type to avoid cirular dep issues if possible, but importing class is fine

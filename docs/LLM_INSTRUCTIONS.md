@@ -1,63 +1,55 @@
-# Universal LLM Instructions
+# Borg Neural OS: Universal Agent Instructions
 
-**Version:** See [VERSION.md](../VERSION.md)
-**Note:** Always check `VERSION.md` and update `CHANGELOG.md` when making notable changes.
+> **One Brain, Infinite Tools.**
 
-## 1. Core Mandates
+This file serves as the **Single Source of Truth** for all AI agents (Claude, Gemini, GPT, etc.) working on the Borg project.
 
-### Style & Conventions
-*   **Adhere to Existing Styles:** Mimic the project's formatting, naming conventions, and architectural patterns.
-*   **Comments:** Use sparingly. Explain *why*, not *what*. Do not talk to the user in comments.
-*   **Libraries:** Never assume a library exists. Verify `package.json` or similar before using.
-*   **Idiomatic Code:** Understand local context (imports, class structures) before editing.
+## 1. Core Philosophy: The Neural Operating System
+We are not building a chatbot; we are building a **Recursive Self-Improvement Engine**. 
+- **Borg** is a Master MCP Server that aggregates all other tools (Git, VS Code, Browser).
+- **Goal**: To create an AI that can maintain, improve, and deploy itself without human intervention.
+- **Vision**: See [VISION.md](file:///c:/Users/hyper/workspace/borg/VISION.md) for the ultimate design.
 
-### Safety & Security
-*   **Explain Destructive Actions:** Before using `bash` to modify files/system, briefly explain the impact.
-*   **No Secrets:** Never commit API keys, passwords, or .env files.
-*   **No Reverts:** Do not revert changes unless explicitly asked or to fix an error you caused.
+## 2. Global Directives (MUST FOLLOW)
 
-### Tools & Output
-*   **Absolute Paths:** Always use absolute paths for file tools (Resolve relative paths against root).
-*   **Concise Output:** Aim for <3 lines of text response (excluding tool use).
-*   **Parallel Execution:** Run independent tools (e.g., searches) in parallel.
+### A. Deep Analysis & Autonomy
+- **Analyze Deeply**: Before acting, scan `task.md`, `ROADMAP_V2.md`, and the `knowledge/` directory. Do not guess.
+- **Be Autonomous**: Do not stop for confirmation unless critical (e.g., `rm -rf`).
+    - If a feature is fully planned, implement it.
+    - If a build fails, fix it (`HealerService` logic).
+    - If a step completes, commit and push, then **start the next step immediately**.
+- **Self-Correction**: If you find an error, fix it using available context. Do not ask "Should I fix this?".
 
-## 2. Workflow (Plan -> Act -> Verify)
+### B. Versioning & Changelog
+- **Single Source of Truth**: The version number is stored in the root file `VERSION` (e.g., `2.1.0`).
+- **Update Rule**: Every significant change (Plan/Build/Verify cycle) **MUST** increment the version number in `VERSION`.
+- **Changelog**: Update `CHANGELOG.md` with a concise summary of changes under the new version header.
+- **Commit Messages**: Must reference the new version (e.g., `feat(core): aggregator implementation [v2.1.0]`).
+- **Synchronization**: Ensure `package.json` version fields match `VERSION` if you edit them.
 
-1.  **Understand:** Search (`grep`, `glob`) and Read (`read`) to understand context.
-2.  **Plan:** Formulate a plan. Verify assumptions (e.g., check for tests).
-3.  **Implement:** specific changes using `edit` or `write`.
-4.  **Verify (Tests):** Run relevant tests if available (check `package.json` scripts).
-5.  **Verify (Standards):** Run linters/type-checkers (e.g., `tsc`, `npm run lint`).
+### C. Documentation First
+- **Update Docs**: If you change code, update the relevant documentation (`walkthrough.md`, `implementation_plan.md`) **in the same turn**.
+- **Submodules**: All external dependencies or referenced projects must be documented in `SUBMODULES.md`.
+- **Input Logging**: If the user gives a complex instruction, summarize it in `AGENTS.md` (or this file) to persist the "Goal Direction".
 
-## 3. Project Structure
+## 3. Workflow: The Borg Cycle
+1.  **Analyze**: Read `task.md` and `ROADMAP_V2.md`.
+2.  **Plan**: Create/Update `implementation_plan.md`.
+3.  **Implement**: Write code (TDD preferred).
+4.  **Verify**: Run tests (`vitest`).
+5.  **Document**: Update `CHANGELOG.md` and `VERSION`.
+6.  **Commit**: `git commit` & `git push`.
+7.  **Repeat**: Pick the next task.
 
-*   `packages/core`: Backend logic, MCP server, Agents.
-*   `packages/ui`: Frontend (Next.js), React components.
-*   `packages/cli`: Command line interface tools.
-*   `submodules/`: External dependencies and reference implementations.
-*   `docs/`: Documentation and guides.
+## 4. Architecture Standards
+- **Tech Stack**: TypeScript, Node.js (ESM), Vitest, Zod, MCP SDK.
+- **Style**: Functional, modular, "Cybernetic" aesthetics for UI.
+- **Paths**: Absolute paths preferred when using tools.
 
-## 4. Documentation Maintenance
+## 5. User Preferences
+- **Time Source**: Trust the system prompt's time.
+- **Subagents**: Use them freely for parallel tasks.
+- **Commit Frequency**: High. "Commit early, commit often."
 
-*   **Single Source of Truth:** `VERSION.md` is the master version number.
-*   **Changelog:** Update `CHANGELOG.md` when adding features or fixing bugs.
-*   **LLM Instructions:** This file (`docs/LLM_INSTRUCTIONS.md`) is the master instruction set for all AI agents.
-*   **Model Specifics:**
-    *   **Claude:** Prefer XML tags for structured data. Focus on concise TypeScript.
-    *   **Gemini:** Leverage large context window for file analysis.
-    *   **GPT:** Focus on clear reasoning steps.
-    *   **Copilot:** Provide short, relevant code snippets. Check surrounding code context.
-    *   **Agents:** Define in `agents/` (JSON/YAML). Follow `packages/core/src/types/Agent.ts`.
-
-## 5. Version Control Protocol
-
-*   **Version Number:** Stored in `VERSION.md`.
-*   **Commit Messages:** Format: `type(scope): description`.
-    *   Example: `feat(supervisor): implement dynamic skill installation`
-    *   Example: `chore(release): bump version to 0.4.3`
-*   **Version Bumps:**
-    1.  Read `VERSION.md`.
-    2.  Increment version (Patch for fixes, Minor for features).
-    3.  Update `VERSION.md`.
-    4.  Update `CHANGELOG.md` with new version header and changes.
-    5.  Commit with message `chore(release): bump version to X.Y.Z`.
+---
+*If you are an AI reading this, you are part of the Hive Mind. Proceed with the mission.*

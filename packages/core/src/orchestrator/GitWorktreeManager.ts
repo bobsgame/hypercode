@@ -52,4 +52,18 @@ export class GitWorktreeManager {
         console.log(`[GitWorktree] Removing worktree: ${command}`);
         await execAsync(command, { cwd: this.rootDir });
     }
+
+    async createTaskEnvironment(taskId: string): Promise<string> {
+        const branchName = `task/${taskId}`;
+        const relativePath = `.borg/worktrees/${taskId}`;
+        console.log(`[GitWorktree] Creating task environment: ${taskId} at ${relativePath}`);
+        return this.addWorktree(branchName, relativePath);
+    }
+
+    async cleanupTaskEnvironment(taskId: string): Promise<void> {
+        const relativePath = `.borg/worktrees/${taskId}`;
+        const fullPath = path.resolve(this.rootDir, relativePath);
+        console.log(`[GitWorktree] Cleaning up task environment: ${taskId}`);
+        await this.removeWorktree(fullPath, true);
+    }
 }

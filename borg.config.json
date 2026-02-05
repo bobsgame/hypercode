@@ -1,0 +1,27 @@
+{
+    "mcpServers": {
+        "filesystem": {
+            "command": "npx",
+            "args": [
+                "-y",
+                "@modelcontextprotocol/server-filesystem",
+                "./"
+            ],
+            "enabled": false,
+            "env": {}
+        },
+        "git": {
+            "command": "docker",
+            "args": [
+                "run",
+                "-i",
+                "--rm",
+                "-v",
+                "${PWD}:/git",
+                "modelcontextprotocol/server-git"
+            ],
+            "enabled": false,
+            "env": {}
+        }
+    }
+}

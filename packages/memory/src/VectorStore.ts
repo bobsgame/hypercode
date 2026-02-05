@@ -1,224 +1,109 @@
-
-// LAZY IMPORTS: lancedb and @xenova/transformers are heavy (30-60s load)
-// They're dynamically imported in initialize() instead of at startup
+import { connect } from '@lancedb/lancedb';
+import { pipeline } from '@xenova/transformers';
 import path from 'path';
-import fs from 'fs/promises';
-
-// Define Schema for Borg Documents
-// We store: id, path (reference), content, hash, and vector.
-export interface BorgDocument {
-    id: string;
-    path: string;       // formerly file_path
-    content: string;
-    hash: string;
-    metadata?: Record<string, any>;
-    vector?: number[];
-}
+import fs from 'fs';
 
 export class VectorStore {
     private dbPath: string;
-    private db: any;
-    private table: any;
-    private embeddingPipeline: any;
-    private initialized: boolean = false;
+    private db: any; // Type as any for now to avoid strict typing issues with lancedb
+    private embedder: any;
 
-    constructor(storagePath: string) {
-        this.dbPath = storagePath;
+    constructor(rootPath: string) {
+        this.dbPath = path.join(rootPath, 'data', 'lancedb');
+        if (!fs.existsSync(this.dbPath)) {
+            fs.mkdirSync(this.dbPath, { recursive: true });
+        }
     }
 
     async initialize() {
-        if (this.initialized) return;
+        console.log(`[VectorStore] Connecting to ${this.dbPath}...`);
+        this.db = await connect(this.dbPath);
 
-        console.log(`[VectorStore] Initializing LanceDB at ${this.dbPath}...`);
-
-        // 1. Connect to DB (LAZY LOAD)
-        const lancedb = await import('@lancedb/lancedb');
-        this.db = await lancedb.connect(this.dbPath);
-
-        // 2. Initialize Embedding Model (LAZY LOAD)
-        console.log(`[VectorStore] Loading Embedding Model (Xenova/all-MiniLM-L6-v2)...`);
-        const { pipeline } = await import('@xenova/transformers');
-        this.embeddingPipeline = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2');
-
-        // 3. Open or Create Table
-        const tableName = 'codebase_v1';
-        try {
-            this.table = await this.db.openTable(tableName);
-        } catch (e) {
-            console.log(`[VectorStore] Creating new table '${tableName}'...`);
-            // Initial dummy data to define schema (LanceDB requires schema inference from first data typically, or explicit schema)
-            // We'll use a dummy row with a vector of size 384 (MiniLM-L6-v2 dimension)
-            const dummyVector = new Array(384).fill(0.0);
-            this.table = await this.db.createTable(tableName,
-                [{
-                    id: 'init',
-                    path: 'init',
-                    content: 'init',
-                    hash: 'init',
-                    metadata: {},
-                    vector: dummyVector
-                }]
-            );
-            // Delete dummy
-            await this.table.delete("id = 'init'");
-        }
-
-        this.initialized = true;
+        console.log(`[VectorStore] Loading embedding model (Xenova/all-MiniLM-L6-v2)...`);
+        // Use feature-extraction pipeline
+        this.embedder = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2');
         console.log(`[VectorStore] Ready.`);
     }
 
-    async embed(text: string): Promise<number[]> {
-        if (!this.embeddingPipeline) throw new Error("VectorStore not initialized");
-
-        // Run model
-        // output is a Tensor. We want mean pooling or CLS token?
-        // simple feature-extraction pipeline usually returns the pooled output or sequence.
-        // For 'feature-extraction', default is full sequence. We need to pool.
-        // Actually, let's use the 'sentence-transformers/all-MiniLM-L6-v2' style which typically wants mean pooling.
-        const output = await this.embeddingPipeline(text, { pooling: 'mean', normalize: true });
-
-        // Convert Float32Array to number[]
+    async createEmbeddings(text: string): Promise<number[]> {
+        if (!this.embedder) await this.initialize();
+        const output = await this.embedder(text, { pooling: 'mean', normalize: true });
         return Array.from(output.data);
     }
 
-    async addDocuments(docs: Omit<BorgDocument, 'vector'>[]) {
-        if (!this.initialized) await this.initialize();
+    async addMemory(content: string, metadata: any) {
+        if (!this.db) await this.initialize();
 
-        console.log(`[VectorStore] Embedding ${docs.length} documents...`);
+        const embedding = await this.createEmbeddings(content);
+        const data = [{
+            vector: embedding,
+            text: content,
+            ...metadata,
+            timestamp: Date.now()
+        }];
 
-        const rows = [];
-        for (const doc of docs) {
-            try {
-                const vector = await this.embed(doc.content);
-                rows.push({
-                    ...doc,
-                    vector
-                });
-            } catch (e: any) {
-                console.error(`[VectorStore] Failed to embed ${doc.id}: ${e.message}`);
-            }
-        }
-
-        if (rows.length > 0) {
-            await this.table.add(rows);
-            console.log(`[VectorStore] Added ${rows.length} rows.`);
-        }
-    }
-
-    async search(query: string, limit: number = 5): Promise<BorgDocument[]> {
-        if (!this.initialized) await this.initialize();
-
-        const queryVector = await this.embed(query);
-        const execution = await this.table.search(queryVector).limit(limit).execute();
-
-        let results: any[] = [];
-        if (Array.isArray(execution)) {
-            results = execution;
-        } else {
-            // Handle AsyncGenerator or Iterator
-            // @ts-ignore
-            try {
-                for await (const row of execution) {
-                    results.push(row);
-                }
-            } catch (e) {
-                console.error("[VectorStore] Failed to iterate results:", e);
-            }
-        }
-
-        // Map back to BorgDocument
-        return results.map((r: any) => ({
-            id: r.id,
-            path: r.path,
-            content: r.content,
-            hash: r.hash,
-            metadata: r.metadata
-        }));
-    }
-
-    async listDocuments(where?: string, limit: number = 10000): Promise<BorgDocument[]> {
-        if (!this.initialized) await this.initialize();
-
-        let query = this.table.search();
-        if (where) {
-            query = query.where(where);
-        }
-
-        const execution = await query.limit(limit).execute();
-
-        let results: any[] = [];
-        if (Array.isArray(execution)) {
-            results = execution;
-        } else {
-            try {
-                // @ts-ignore
-                for await (const row of execution) {
-                    results.push(row);
-                }
-            } catch (e) {
-                console.error("[VectorStore] Failed to iterate results:", e);
-            }
-        }
-
-        return results.map((r: any) => ({
-            id: r.id,
-            path: r.path,
-            content: r.content,
-            hash: r.hash,
-            metadata: r.metadata
-        }));
-    }
-
-    /**
-     * Get a single document by ID.
-     */
-    async get(id: string): Promise<BorgDocument | null> {
-        if (!this.initialized) await this.initialize();
-
+        let table;
         try {
-            const results = await this.table.search().where(`id = '${id}'`).limit(1).execute();
-            if (Array.isArray(results) && results.length > 0) {
-                return {
-                    id: results[0].id,
-                    path: results[0].path,
-                    content: results[0].content,
-                    hash: results[0].hash,
-                    metadata: results[0].metadata
-                };
-            }
+            table = await this.db.openTable('memories');
+            await table.add(data);
         } catch (e) {
-            console.error(`[VectorStore] Failed to get ${id}:`, e);
+            // Table doesn't exist, create it
+            // Schema is inferred from data
+            table = await this.db.createTable('memories', data);
         }
-        return null;
+        return true;
     }
 
-    /**
-     * Delete documents by ID.
-     */
-    async delete(ids: string[]) {
-        if (!this.initialized) await this.initialize();
-        if (ids.length === 0) return;
+    async addDocuments(docs: any[]) {
+        if (!this.db) await this.initialize();
+        if (docs.length === 0) return;
 
+        // Create embeddings for batch if not present
+        const processed = await Promise.all(docs.map(async d => {
+            if (d.vector) return d;
+            const text = d.text || d.content;
+            return {
+                ...d,
+                vector: await this.createEmbeddings(text),
+                timestamp: Date.now()
+            };
+        }));
+
+        let table;
         try {
-            // Construct SQL-like filter: id IN ('a', 'b')
-            const idList = ids.map(id => `'${id}'`).join(", ");
-            await this.table.delete(`id IN (${idList})`);
-            console.log(`[VectorStore] Deleted ${ids.length} documents.`);
-        } catch (e: any) {
-            console.error(`[VectorStore] Failed to delete: ${e.message}`);
+            table = await this.db.openTable('memories');
+            await table.add(processed);
+        } catch (e) {
+            table = await this.db.createTable('memories', processed);
+        }
+        return true;
+    }
+
+    async get(id: string) {
+        if (!this.db) await this.initialize();
+        try {
+            const table = await this.db.openTable('memories');
+            const results = await table.search(await this.createEmbeddings('')) // Dummy search to get builder? No.
+                .where(`id = '${id}'`)
+                .limit(1)
+                .toArray();
+            return results.length > 0 ? results[0] : null;
+        } catch (e) {
+            return null;
         }
     }
 
-    /**
-     * Clear all data.
-     */
-    async reset() {
-        if (!this.initialized) await this.initialize();
-        // Since LanceDB doesn't easily support "truncate", we drop and recreate
-        try {
-            await this.db.dropTable('codebase_v1');
-            this.initialized = false;
-            await this.initialize();
-        } catch (e) { }
+    async search(query: string, limit: number = 5, where?: string) {
+        if (!this.db) await this.initialize();
+        const queryVec = await this.createEmbeddings(query);
+
+        const table = await this.db.openTable('memories');
+        let queryBuilder = table.search(queryVec).limit(limit);
+
+        if (where) {
+            queryBuilder = queryBuilder.where(where);
+        }
+
+        return await queryBuilder.toArray();
     }
 }

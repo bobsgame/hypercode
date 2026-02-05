@@ -33,6 +33,18 @@ export const squadRouter = t.router({
             return await server.squadService.killMember(input.branch);
         }),
 
+    chat: publicProcedure
+        .input(z.object({
+            branch: z.string(),
+            message: z.string()
+        }))
+        .mutation(async ({ input }) => {
+            // @ts-ignore
+            const server = global.mcpServerInstance;
+            if (!server) throw new Error("Server not initialized");
+            return await server.squadService.messageMember(input.branch, input.message);
+        }),
+
     // --- Indexer ---
 
     toggleIndexer: publicProcedure

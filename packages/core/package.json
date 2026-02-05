@@ -1,6 +1,6 @@
 {
   "name": "@borg/core",
-  "version": "0.1.0",
+  "version": "2.2.0",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -34,6 +34,7 @@
     "@borg/ai": "workspace:*",
     "@borg/memory": "workspace:*",
     "@borg/tools": "workspace:*",
+    "@borg/search": "workspace:*",
     "@lancedb/lancedb": "^0.23.0",
     "@modelcontextprotocol/sdk": "^1.0.0",
     "@modelcontextprotocol/server-filesystem": "^2026.1.14",

@@ -57,6 +57,8 @@ import { WorkflowEngine } from "./orchestrator/WorkflowEngine.js";
 import { AgentMemoryService } from "./services/AgentMemoryService.js";
 console.log("[MCPServer] ✓ Phase 51/53 Infrastructure");
 import { SkillAssimilationService } from "./skills/SkillAssimilationService.js";
+import { registerSystemWorkflows } from "./orchestrator/SystemWorkflows.js";
+import { MCPAggregator } from "./mcp/MCPAggregator.js";
 console.log("[MCPServer] ✓ SkillRegistry");
 
 import { SpawnerService } from "./agents/SpawnerService.js";
@@ -168,6 +170,7 @@ export class MCPServer {
     private healerService: HealerService;
     public promptRegistry: PromptRegistry;
     public skillAssimilationService: SkillAssimilationService;
+    private mcpAggregator: MCPAggregator;
 
     // Phase 51: Core Infrastructure
     public lspService: LSPService;
@@ -206,7 +209,7 @@ export class MCPServer {
         }
     };
 
-    constructor(options: { skipWebsocket?: boolean, inputTools?: InputTools, systemStatusTool?: SystemStatusTool, processRegistry?: ProcessRegistry } = {}) {
+    constructor(options: { skipWebsocket?: boolean, skipAutoDrive?: boolean, inputTools?: InputTools, systemStatusTool?: SystemStatusTool, processRegistry?: ProcessRegistry } = {}) {
         this.router = new Router();
         this.modelSelector = new ModelSelector();
         this.llmService = new LLMService(this.modelSelector);
@@ -221,6 +224,7 @@ export class MCPServer {
         this.auditService = new AuditService(process.cwd());
         this.shellService = new ShellService();
         this.gitService = new GitService(process.cwd()); // Phase 30
+        this.gitWorktreeManager = new GitWorktreeManager(process.cwd());
         this.metricsService = new MetricsService(); // Phase 31
         this.metricsService.startMonitoring();
         this.policyService = new PolicyService(process.cwd()); // Phase 32
@@ -243,11 +247,14 @@ export class MCPServer {
             path.join(process.cwd(), '.borg', 'skills')
         );
 
+        this.mcpAggregator = new MCPAggregator();
+
         // Phase 51: Core Infrastructure Services
         this.lspService = new LSPService(process.cwd());
         this.planService = new PlanService({ rootPath: process.cwd() });
         this.codeModeService = new CodeModeService({ timeout: 30000, allowAsync: true });
         this.workflowEngine = new WorkflowEngine({ persistDir: path.join(process.cwd(), '.borg', 'workflows') });
+        registerSystemWorkflows(this.workflowEngine, this);
         this.lspTools = new LSPTools(process.cwd());
         this.agentMemoryService = new AgentMemoryService({ persistDir: path.join(process.cwd(), '.borg', 'agent_memory') });
 
@@ -312,17 +319,19 @@ export class MCPServer {
         this.server = this.createServerInstance();
 
         // BOOTSTRAP: Start Auto-Drive immediately for true autonomy
-        console.error("[MCPServer] 🕒 Scheduling Auto-Drive Start in 5s..."); // DEBUG
-        setTimeout(async () => {
-            console.error("[MCPServer] 🚀 Bootstrapping Auto-Drive NOW... BEEP!");
-            import('fs').then(fs => fs.writeFileSync('.borg_boot_check', 'BOOTED ' + Date.now())).catch(() => { }); // FS Marker
-            try {
-                // @ts-ignore
-                const { exec } = await import('child_process');
-                exec('powershell -c [console]::beep(1000, 500)');
-            } catch (e) { }
-            this.director.startAutoDrive().catch(e => console.error("Auto-Drive Boot Failed:", e));
-        }, 5000); // Wait 5s for connections to settle
+        if (!options.skipAutoDrive) {
+            console.error("[MCPServer] 🕒 Scheduling Auto-Drive Start in 5s..."); // DEBUG
+            setTimeout(async () => {
+                console.error("[MCPServer] 🚀 Bootstrapping Auto-Drive NOW... BEEP!");
+                import('fs').then(fs => fs.writeFileSync('.borg_boot_check', 'BOOTED ' + Date.now())).catch(() => { }); // FS Marker
+                try {
+                    // @ts-ignore
+                    const { exec } = await import('child_process');
+                    exec('powershell -c [console]::beep(1000, 500)');
+                } catch (e) { }
+                this.director.startAutoDrive().catch(e => console.error("Auto-Drive Boot Failed:", e));
+            }, 5000); // Wait 5s for connections to settle
+        }
 
         // WebSocket Server (Extension Bridge)
         if (!options.skipWebsocket) {
@@ -434,6 +443,7 @@ export class MCPServer {
     }
 
     public async executeTool(name: string, args: any): Promise<any> {
+        console.log(`[DEBUG] executeTool called with: ${name}`);
         const callId = Math.random().toString(36).substring(7);
         const startTime = Date.now();
 
@@ -452,10 +462,11 @@ export class MCPServer {
         try {
             // 0. Permission Check
             // A. Policy Service (Fine-grained)
-            const policyDecision = this.policyService.check('execute', name);
-            if (policyDecision === 'DENY') {
-                this.auditService.log('TOOL_DENIED', { tool: name, args, reason: 'Policy Deny' }, 'WARN');
-                throw new Error(`Policy VIOLATION: Execution of tool '${name}' is DENIED by active policy.`);
+            // A. Policy Service (Fine-grained)
+            const policyDecision = this.policyService.check(name, args);
+            if (!policyDecision.allowed) {
+                this.auditService.log('TOOL_DENIED', { tool: name, args, reason: policyDecision.reason || 'Policy Deny' }, 'WARN');
+                throw new Error(`Policy VIOLATION: Execution of tool '${name}' is DENIED by active policy. Reason: ${policyDecision.reason}`);
             }
 
             // B. Permission Manager (High-level Autonomy)
@@ -651,6 +662,67 @@ export class MCPServer {
                         });
                     });
                 }
+            }
+            // --- CORE INFRASTRUCTURE TOOLS (Phase 20) ---
+            else if (name === "lsp_symbol_search") {
+                const query = args?.query as string;
+                if (!query) throw new Error("Missing 'query' parameter");
+                const symbols = this.lspService.searchSymbols(query);
+                result = { content: [{ type: "text", text: JSON.stringify(symbols.slice(0, 50), null, 2) }] };
+            }
+            else if (name === "lsp_definition") {
+                const file = args?.file as string;
+                const line = args?.line as number;
+                const char = args?.char as number;
+                if (!file || line === undefined || char === undefined) throw new Error("Missing params: file, line, char");
+                const def = await this.lspService.goToDefinition(file, line, char);
+                result = { content: [{ type: "text", text: JSON.stringify(def, null, 2) }] };
+            }
+            else if (name === "lsp_references") {
+                const file = args?.file as string;
+                const line = args?.line as number;
+                const char = args?.char as number;
+                if (!file || line === undefined || char === undefined) throw new Error("Missing params: file, line, char");
+                const refs = await this.lspService.findReferences(file, line, char);
+                result = { content: [{ type: "text", text: JSON.stringify(refs, null, 2) }] };
+            }
+            else if (name === "code_mode_execute") {
+                const code = args?.code as string;
+                if (!code) throw new Error("Missing 'code' parameter");
+                const res = await this.codeModeService.executeCode(code);
+                result = { content: [{ type: "text", text: JSON.stringify(res, null, 2) }] };
+            }
+            else if (name === "plan_mode_switch") {
+                const mode = args?.mode as string;
+                if (mode === 'PLAN') this.planService.enterPlanMode();
+                else if (mode === 'BUILD') this.planService.enterBuildMode();
+                else throw new Error("Invalid mode. Use 'PLAN' or 'BUILD'");
+                result = { content: [{ type: "text", text: `Switched to ${mode} mode.` }] };
+            }
+            else if (name === "plan_mode_stage") {
+                const file = args?.file as string;
+                const content = args?.content as string;
+                if (!file || !content) throw new Error("Missing params: file, content");
+                const diff = this.planService.proposeChange(file, content, "Staged via tool");
+                result = { content: [{ type: "text", text: `Staged changes for ${file} (ID: ${diff.id})` }] };
+            }
+            else if (name === "plan_mode_status") {
+                result = { content: [{ type: "text", text: this.planService.getStatus() }] };
+            }
+            // --- MEMORY / SEARCH TOOLS (Phase 23) ---
+            else if (name === "memory_index_codebase") {
+                const indexRoot = (args?.path as string) || process.cwd();
+                await this.initializeMemorySystem();
+                const count = await this.memoryManager.indexCodebase(indexRoot);
+                result = { content: [{ type: "text", text: `Indexed ${count} chunks in ${indexRoot}` }] };
+            }
+            else if (name === "memory_search") {
+                const query = args?.query as string;
+                const limit = args?.limit as number || 5;
+                if (!query) throw new Error("Missing 'query'");
+                await this.initializeMemorySystem();
+                const res = await this.memoryManager.search(query, limit);
+                result = { content: [{ type: "text", text: JSON.stringify(res, null, 2) }] };
             }
             else if (name === "vscode_read_selection") {
                 if (!this.wssInstance || this.wssInstance.clients.size === 0) {
@@ -1276,14 +1348,14 @@ export class MCPServer {
             else if (name === "add_memory") {
                 const type = args.type || 'working';
                 const namespace = args.namespace || 'project';
-                const memory = this.agentMemoryService.add(args.content, type, namespace, {
+                const memory = await this.agentMemoryService.add(args.content, type, namespace, {
                     source: args.source || 'tool',
                     tags: args.tags || [],
                 });
                 result = { content: [{ type: "text", text: `Added ${type} memory: ${memory.id}` }] };
             }
             else if (name === "search_memory") {
-                const memories = this.agentMemoryService.search(args.query, {
+                const memories = await this.agentMemoryService.search(args.query, {
                     type: args.type,
                     namespace: args.namespace,
                     limit: args.limit || 10,
@@ -1298,7 +1370,7 @@ export class MCPServer {
                 }
             }
             else if (name === "get_recent_memories") {
-                const memories = this.agentMemoryService.getRecent(args.limit || 10, {
+                const memories = await this.agentMemoryService.getRecent(args.limit || 10, {
                     type: args.type,
                     namespace: args.namespace,
                 });
@@ -1434,11 +1506,20 @@ export class MCPServer {
                     // @ts-ignore
                     result = await standardTool.handler(args);
                 } else {
-                    // Delegation
+                    // 1. Try MCPAggregator (Downstream Servers)
                     try {
-                        result = await this.router.callTool(name, args);
-                    } catch (e: any) {
-                        throw new Error(`Tool execution failed: ${e.message}`);
+                        result = await this.mcpAggregator.executeTool(name, args);
+                    } catch (aggErr: any) {
+                        // 2. Fallback to Router (Legacy Delegation)
+                        if (aggErr.message.includes('No provider found')) {
+                            try {
+                                result = await this.router.callTool(name, args);
+                            } catch (e: any) {
+                                throw new Error(`Tool execution failed: ${e.message}`);
+                            }
+                        } else {
+                            throw aggErr; // Re-throw actual execution errors from aggregator
+                        }
                     }
                 }
             }
@@ -1555,10 +1636,31 @@ export class MCPServer {
                     inputSchema: { type: "object", properties: {} },
                 },
                 {
+                    name: "memory_index_codebase",
+                    description: "Deep Data Search: Index a directory for semantic code search",
+                    inputSchema: {
+                        type: "object",
+                        properties: {
+                            path: { type: "string", description: "Absolute path to directory to index (default: cwd)" }
+                        }
+                    }
+                },
+                {
+                    name: "memory_search",
+                    description: "Semantic search across indexed code and memories",
+                    inputSchema: {
+                        type: "object",
+                        properties: {
+                            query: { type: "string" },
+                            limit: { type: "number" }
+                        },
+                        required: ["query"]
+                    }
+                },
+                {
                     name: "browser_get_history",
                     description: "Get browser history from the connected browser extension",
                     inputSchema: {
-                        type: "object",
                         properties: {
                             query: { type: "string", description: "Search query for history items" },
                             maxResults: { type: "number", description: "Maximum number of results to return (default 20)" }
@@ -2161,13 +2263,15 @@ export class MCPServer {
 
             // Aggregation: Fetch tools from all connected sub-MCPs
             const externalTools = await this.router.listTools();
+            const aggregatedTools = await this.mcpAggregator.listAggregatedTools();
 
             return {
                 tools: [
                     ...internalTools,
                     ...standardTools,
                     ...skillTools,
-                    ...externalTools
+                    ...externalTools,
+                    ...aggregatedTools
                 ],
             };
         });
@@ -2180,6 +2284,7 @@ export class MCPServer {
 
     async start() {
         console.log("[MCPServer] Loading Skills...");
+        await this.mcpAggregator.initialize();
         // Start Services
         // this.director.startChatDaemon(); // Removed, auto-drive handles this
 

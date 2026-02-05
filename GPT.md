@@ -1,6 +1,8 @@
-# GPT INSTRUCTIONS
+# GPT.md
 
-> [!IMPORTANT]
-> **READ [UNIVERSAL_LLM_INSTRUCTIONS.md](./docs/UNIVERSAL_LLM_INSTRUCTIONS.md) FIRST.**
+> **NOTICE**: Primary instructions are in **[docs/LLM_INSTRUCTIONS.md](docs/LLM_INSTRUCTIONS.md)**.
 
-GPT provides reasoning support and documentation refinement as part of the meta-orchestrator swarm. Refer to the universal guide for full details.
+## Model Specifics (GPT-4o)
+- **Strengths**: Consistency, Tool Usage, Scripting.
+- **Role**: The "Worker" and "Implementer".
+- **Override**: Focus on concise, correct code generation and strict adherence to `zod` schemas.

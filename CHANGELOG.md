@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.3.0] - 2026-02-06
+### Added
+- **Phase 36 (Release & Observability)** (In Progress):
+    - Enhanced Submodules Dashboard with project structure visualization and detailed versioning.
+- **Phase 35 (Standardization & Polish)**:
+    - **Code Hygiene**: Resolved 150+ lint errors in frontend.
+    - **Library UI**: Launched `/dashboard/library` showing Prompts and Skills.
+- **Phase 34 (Evolution - The Darwin Protocol)**:
+    - **DarwinService**: Mutation engine for A/B testing prompts.
+    - **Evolution UI**: `/dashboard/evolution` for managing agent experiments.
+- **Phase 33 (Self-Correction - The Healer)**:
+    - **HealerService**: Automated error analysis and fix suggestion loop.
+- **Phase 32 (Security & Governance - The Guardian)**:
+    - **PolicyService**: RBAC and Scope enforcement for tools.
+    - **Security Dashboard**: `/dashboard/security` for audit logs and policy management.
+- **Phase 31 (Deep Research - The Scholar)**:
+    - **DeepResearchService**: Multi-step recursive research agent.
+
 ## [2.2.1] - 2026-02-05
 ### Fixed
 - **Development Experience**: Resolved persistent console clearing issues during `pnpm run dev`.

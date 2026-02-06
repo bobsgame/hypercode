@@ -14,7 +14,7 @@ export async function GET() {
 
         const brainDir = path.join(rootDir, '.borg/brain');
         let brainCount = 0;
-        let recentCount = 0;
+        const recentCount = 0;
 
         try {
             await fs.access(brainDir);

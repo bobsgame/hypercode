@@ -1,13 +1,13 @@
 
 "use client";
 
-import { useEffect, useState } from 'react';
+
 import { trpc } from '@/utils/trpc';
 import { Card, CardHeader, CardTitle, CardContent, Badge } from '@borg/ui';
 
 export function SystemPulse() {
     // Polling System Pulse
-    const { data: status, refetch } = trpc.pulse.getSystemStatus.useQuery(undefined, {
+    const { data: status } = trpc.pulse.getSystemStatus.useQuery(undefined, {
         refetchInterval: 5000
     });
 

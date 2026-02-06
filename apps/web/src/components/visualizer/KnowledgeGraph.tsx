@@ -2,7 +2,7 @@
 "use client";
 
 import dynamic from 'next/dynamic';
-import { useEffect, useState, useRef } from 'react';
+import React, { useRef } from 'react';
 import { trpc } from '@/utils/trpc'; // Assuming standard TRPC hook location or adjust
 import { Card, CardHeader, CardTitle, CardContent } from '@borg/ui';
 
@@ -17,29 +17,24 @@ export function KnowledgeGraph() {
     // But for "Visual Grounding", let's visualize the "Knowledge Service" directly.
 
     // Use TRPC to fetch graph data
-    // @ts-ignore - The router type might not be fully propagated yet in dev
-    const { data, isLoading } = trpc.knowledge.getGraph.useQuery({ query: undefined, depth: 2 }, {
+    // @ts-expect-error - The router type might not be fully propagated yet in dev
+    const { data } = trpc.knowledge.getGraph.useQuery({ query: undefined, depth: 2 }, {
         refetchOnWindowFocus: false
     });
 
-    const [graphData, setGraphData] = useState({ nodes: [], links: [] });
-    const fgRef = useRef();
-
-    useEffect(() => {
-        if (data) {
-            // Transform data if necessary, or just set it
-            // GraphMemory returns { nodes: [], edges: [] }
-            // ForceGraph expects { nodes: [], links: [] }
-            setGraphData({
-                nodes: data.nodes || [],
-                links: (data.edges || []).map((e: any) => ({
-                    source: e.source,
-                    target: e.target,
-                    value: e.value || 1
-                }))
-            });
-        }
+    const graphData = React.useMemo(() => {
+        if (!data) return { nodes: [], links: [] };
+        return {
+            nodes: data.nodes || [],
+            links: (data.edges || []).map((e: { source: string; target: string; value?: number }) => ({
+                source: e.source,
+                target: e.target,
+                value: e.value || 1
+            }))
+        };
     }, [data]);
+
+    const fgRef = useRef();
 
     return (
         <Card className="h-[80vh] w-full flex flex-col">

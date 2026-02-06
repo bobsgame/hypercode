@@ -44,6 +44,7 @@ import { SkillRegistry } from "./skills/SkillRegistry.js";
 import { SuggestionService } from "./suggestions/SuggestionService.js";
 import { ResearchService } from "./services/ResearchService.js";
 import { HealerService } from "./services/HealerService.js";
+import { DarwinService } from "./services/DarwinService.js";
 import { MetricsService } from "./services/MetricsService.js";
 import { PolicyService } from "./security/PolicyService.js";
 import { PromptRegistry } from "./prompts/PromptRegistry.js";
@@ -171,6 +172,7 @@ export class MCPServer {
     public policyService: PolicyService; // Phase 32
     private knowledgeService: KnowledgeService; // Knowledge Graph Service
     private healerService: HealerService;
+    public darwinService: DarwinService;
     public promptRegistry: PromptRegistry;
     public skillAssimilationService: SkillAssimilationService;
     private mcpAggregator: MCPAggregator;
@@ -252,6 +254,7 @@ export class MCPServer {
             this.llmService,
             path.join(process.cwd(), '.borg', 'skills')
         );
+        this.darwinService = new DarwinService(this.llmService, this);
 
         this.mcpAggregator = new MCPAggregator();
         this.submoduleManager = new SubmoduleManager(process.cwd());
@@ -792,7 +795,7 @@ export class MCPServer {
                         const timeout = setTimeout(() => {
                             this.pendingRequests.delete(requestId);
                             resolve({ content: [{ type: "text", text: "Error: Extension timed out." }] });
-                        }, 5000); // Higher timeout for UI interactions
+                        }, 3000);
 
                         this.pendingRequests.set(requestId, (data: any) => {
                             clearTimeout(timeout);
@@ -806,6 +809,34 @@ export class MCPServer {
                         });
                     });
                 }
+            }
+            // --- HEALER TOOLS (Phase 33) ---
+            else if (name === "healer_diagnose") {
+                const error = args?.error as string;
+                const context = args?.context as string;
+                if (!error) throw new Error("Missing 'error' parameter");
+                const diagnosis = await this.healerService.analyzeError(error, context);
+                result = { content: [{ type: "text", text: JSON.stringify(diagnosis, null, 2) }] };
+            }
+            else if (name === "healer_heal") {
+                const error = args?.error as string;
+                const context = args?.context as string;
+                if (!error) throw new Error("Missing 'error' parameter");
+                const success = await this.healerService.heal(error, context);
+                result = { content: [{ type: "text", text: success ? "Healer successfully applied fix." : "Healer could not fix this error." }] };
+            }
+            // --- DARWIN TOOLS (Phase 34) ---
+            else if (name === "darwin_evolve") {
+                const prompt = args?.prompt as string;
+                const goal = args?.goal as string;
+                const mutation = await this.darwinService.proposeMutation(prompt, goal);
+                result = { content: [{ type: "text", text: JSON.stringify(mutation, null, 2) }] };
+            }
+            else if (name === "darwin_experiment") {
+                const mutationId = args?.mutationId as string;
+                const task = args?.task as string;
+                const experiment = await this.darwinService.startExperiment(mutationId, task);
+                result = { content: [{ type: "text", text: `Experiment ${experiment.id} started.` }] };
             }
             else if (name === "get_chat_history") {
                 if (!this.wssInstance || this.wssInstance.clients.size === 0) {
@@ -2497,7 +2528,7 @@ export class MCPServer {
                             if (msg.level === 'error') {
                                 this.auditService.log('BROWSER_ERROR', { url: msg.url, error: msg.content }, 'ERROR');
                                 // TRIGGER HEALER
-                                this.healerService.heal({ url: msg.url, error: msg.content, timestamp: msg.timestamp })
+                                this.healerService.heal(msg.content, `URL: ${msg.url}, Timestamp: ${msg.timestamp}`)
                                     .catch(e => console.error("Healer Error:", e));
                             }
                         }

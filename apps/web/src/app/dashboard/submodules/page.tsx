@@ -24,9 +24,12 @@ export default function SubmodulesPage() {
     const errorCount = submodules.filter(s => s.status === 'error').length;
 
     return (
-        <div className="p-8 space-y-8">
+        <div className="p-8 space-y-8 max-w-7xl mx-auto">
             <div className="flex justify-between items-center">
-                <h1 className="text-3xl font-bold tracking-tight">Submodule Status</h1>
+                <div>
+                    <h1 className="text-3xl font-bold tracking-tight">System Modules</h1>
+                    <p className="text-muted-foreground mt-1">Manage git submodules and view project hierarchy.</p>
+                </div>
                 <HealButton />
             </div>
 
@@ -37,41 +40,78 @@ export default function SubmodulesPage() {
                 <StatusCard title="Errors" value={errorCount} color="text-gray-500" />
             </div>
 
-            <Card>
-                <CardHeader>
-                    <CardTitle>Repository List ({submodules.length})</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    {loading ? (
-                        <p className="text-muted-foreground animate-pulse">Scanning repository... (this performs real-time git checks)</p>
-                    ) : (
-                        <div className="rounded-md border">
-                            <table className="w-full text-sm text-left">
-                                <thead className="bg-muted/50 text-muted-foreground">
-                                    <tr>
-                                        <th className="p-4 font-medium">Path</th>
-                                        <th className="p-4 font-medium">Status</th>
-                                        <th className="p-4 font-medium">Commit</th>
-                                        <th className="p-4 font-medium">URL</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {submodules.map((sub) => (
-                                        <tr key={sub.path} className="border-t hover:bg-muted/50 transition-colors">
-                                            <td className="p-4 font-mono">{sub.path}</td>
-                                            <td className="p-4">
-                                                <StatusBadge status={sub.status} />
-                                            </td>
-                                            <td className="p-4 font-mono text-xs">{sub.lastCommit || '-'}</td>
-                                            <td className="p-4 text-xs text-muted-foreground truncate max-w-[200px]">{sub.url}</td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    )}
-                </CardContent>
-            </Card>
+            <div className="grid gap-8 lg:grid-cols-3">
+                <div className="lg:col-span-2 space-y-8">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Repository Map ({submodules.length})</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            {loading ? (
+                                <p className="text-muted-foreground animate-pulse p-4">Scanning repository... (analyzing git status)</p>
+                            ) : (
+                                <div className="rounded-md border overflow-hidden">
+                                    <table className="w-full text-sm text-left">
+                                        <thead className="bg-muted/50 text-muted-foreground font-medium">
+                                            <tr>
+                                                <th className="p-4">Module Name</th>
+                                                <th className="p-4">Location (Root Relative)</th>
+                                                <th className="p-4">Status</th>
+                                                <th className="p-4">Version (Commit)</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y">
+                                            {submodules.map((sub) => (
+                                                <tr key={sub.path} className="hover:bg-muted/20 transition-colors">
+                                                    <td className="p-4 font-semibold">{sub.path.split('/').pop()}</td>
+                                                    <td className="p-4 font-mono text-muted-foreground">{sub.path}</td>
+                                                    <td className="p-4">
+                                                        <StatusBadge status={sub.status} />
+                                                    </td>
+                                                    <td className="p-4 font-mono text-xs">
+                                                        <span className="bg-zinc-100 dark:bg-zinc-800 px-2 py-1 rounded">
+                                                            {sub.lastCommit ? sub.lastCommit.substring(0, 7) : 'HEAD'}
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+                </div>
+
+                <div className="space-y-8">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Project Structure</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <div className="text-sm text-muted-foreground space-y-1 font-mono">
+                                <div className="flex items-center gap-2"><span className="text-blue-500">📂</span> <span>apps/</span></div>
+                                <div className="pl-6 border-l ml-2 border-zinc-200 dark:border-zinc-800">
+                                    <div className="flex items-center gap-2"><span>📦</span> <span>web</span> <span className="text-xs text-zinc-500">(Next.js Dashboard)</span></div>
+                                    <div className="flex items-center gap-2"><span>📦</span> <span>extension</span> <span className="text-xs text-zinc-500">(Browser Agent)</span></div>
+                                    <div className="flex items-center gap-2"><span>📦</span> <span>vscode</span> <span className="text-xs text-zinc-500">(Extension)</span></div>
+                                </div>
+                                <div className="flex items-center gap-2 mt-2"><span className="text-blue-500">📂</span> <span>packages/</span></div>
+                                <div className="pl-6 border-l ml-2 border-zinc-200 dark:border-zinc-800">
+                                    <div className="flex items-center gap-2"><span>lib</span> <span>core</span> <span className="text-xs text-zinc-500">(Borg Engine)</span></div>
+                                    <div className="flex items-center gap-2"><span>lib</span> <span>ui</span> <span className="text-xs text-zinc-500">(Shared Components)</span></div>
+                                    <div className="flex items-center gap-2"><span>lib</span> <span>memory</span> <span className="text-xs text-zinc-500">(Vector DB)</span></div>
+                                </div>
+                                <div className="flex items-center gap-2 mt-2"><span className="text-blue-500">📂</span> <span>docs/</span></div>
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-4">
+                                This monorepo uses <strong>TurboRepo</strong> for build orchestration.
+                                Core logic resides in <code>packages/core</code>, while interfaces live in <code>apps/</code>.
+                            </p>
+                        </CardContent>
+                    </Card>
+                </div>
+            </div>
         </div>
     );
 }

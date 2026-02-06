@@ -56,8 +56,8 @@ export async function getSubmodules(workspaceRoot: string): Promise<SubmoduleInf
 
         return results;
 
-    } catch (e) {
-        console.error("Error reading .gitmodules:", e);
+    } catch {
+        // console.error("Error reading .gitmodules:", e); // Silent fail safe
         return [];
     }
 }

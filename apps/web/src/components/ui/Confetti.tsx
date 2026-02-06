@@ -14,7 +14,19 @@ export default function Confetti() {
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
 
-        const particles: any[] = [];
+        interface Particle {
+            x: number;
+            y: number;
+            w: number;
+            h: number;
+            vx: number;
+            vy: number;
+            color: string;
+            gravity: number;
+            drag: number;
+        }
+
+        const particles: Particle[] = [];
         const colors = ['#f59e0b', '#ef4444', '#3b82f6', '#10b981', '#ffffff'];
 
         for (let i = 0; i < 150; i++) {

@@ -1,7 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
-import { motion } from 'framer-motion';
+import React, { useMemo, useState } from 'react';
 
 interface Node {
     id: string;
@@ -26,7 +25,7 @@ interface GraphData {
 }
 
 export function MemoryGraph({ data }: { data: GraphData }) {
-    const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
+    const [dimensions] = useState({ width: 800, height: 600 });
 
     // Simple state-based simulation (not real D3 force for now to keep deps low, just random scatter or circular)
     // We will improve this to a real force graph later or import a library.
@@ -74,7 +73,7 @@ export function MemoryGraph({ data }: { data: GraphData }) {
                 })}
 
                 {/* Nodes */}
-                {processedNodes.map((node, i) => (
+                {processedNodes.map((node) => (
                     <g key={node.id}>
                         <circle
                             cx={node.x}

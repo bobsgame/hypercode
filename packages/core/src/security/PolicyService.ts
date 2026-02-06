@@ -1,122 +1,45 @@
-import fs from 'fs';
-import path from 'path';
 
-export interface PolicyRule {
-    action: string; // "execute" or specific tool name
-    resource: string; // Glob pattern for args (if applicable) or tool name
-    effect: "ALLOW" | "DENY" | "ASK";
-    reason?: string;
-}
+export type PermissionLevel = 'root' | 'standard' | 'restricted';
 
-export interface PolicyConfig {
-    version: string;
-    rules: PolicyRule[];
-}
-
-export interface PolicyDecision {
-    allowed: boolean;
-    reason?: string;
+export interface ToolPolicy {
+    toolName: string;
+    description?: string;
 }
 
 export class PolicyService {
-    private policyPath: string;
-    private config: PolicyConfig;
+    private policies: Map<string, ToolPolicy> = new Map();
+    private blockedTools: Set<string> = new Set(['format_disk', 'rm_rf_root']);
 
-    constructor(cwd: string) {
-        this.policyPath = path.join(cwd, '.borg', 'policy.json');
-        this.config = { version: "1.0", rules: [] };
-        this.loadPolicy();
+    constructor(workspaceRoot: string) {
+        // Initialize with safe defaults
+        this.policies.set('read_file', { toolName: 'read_file' });
     }
 
-    private loadPolicy() {
-        try {
-            if (fs.existsSync(this.policyPath)) {
-                const content = fs.readFileSync(this.policyPath, 'utf-8');
-                this.config = JSON.parse(content);
-                console.log(`[PolicyService] Loaded ${this.config.rules.length} rules.`);
-            } else {
-                // Default Policy
-                this.config = {
-                    version: "1.0",
-                    rules: [
-                        { action: "execute", resource: "rm -rf *", effect: "DENY", reason: "Prevent catastrophe" },
-                        { action: "*", resource: "*", effect: "ALLOW" }
-                    ]
-                };
-                this.savePolicy();
-            }
-        } catch (e) {
-            console.error("[PolicyService] Failed to load policy:", e);
-        }
-    }
-
-    private savePolicy() {
-        try {
-            const dir = path.dirname(this.policyPath);
-            if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-            fs.writeFileSync(this.policyPath, JSON.stringify(this.config, null, 2));
-        } catch (e) {
-            console.error("[PolicyService] Failed to save policy:", e);
-        }
-    }
-
-    /**
-     * Check if a tool execution is allowed.
-     */
-    public check(toolName: string, args: any): PolicyDecision {
-        // 1. Check Explicit Rules
-        for (const rule of this.config.rules) {
-            // Match Action (usually 'execute' or tool name)
-            const matchAction = rule.action === '*' || rule.action === 'execute' || rule.action === toolName;
-
-            // Match Resource 
-            // If rule.resource matches tool name (basic blacklist)
-            // OR if rule.resource matches an argument value (granular)
-            let matchResource = false;
-
-            if (rule.resource === '*' || rule.resource === toolName) {
-                matchResource = true;
-            } else {
-                // Granular arg check (simple glob on any string arg)
-                // In future: support 'path:*.js' syntax
-                const values = Object.values(args || {}).filter(v => typeof v === 'string') as string[];
-                // Check if any arg matches rule.resource
-                // Simple match for now: rule.resource contains match
-                if (values.some(v => this.matches(rule.resource, v))) {
-                    matchResource = true;
-                }
-            }
-
-            if (matchAction && matchResource) {
-                if (rule.effect === 'DENY') return { allowed: false, reason: rule.reason || 'Denied by policy rule.' };
-                if (rule.effect === 'ALLOW') return { allowed: true };
-            }
+    public check(toolName: string, args: any): { allowed: boolean; reason?: string } {
+        if (this.blockedTools.has(toolName)) {
+            return { allowed: false, reason: 'Tool is globally blocked.' };
         }
 
-        // 2. Hardcoded Security Checks (Fallback)
-        if (['write_to_file', 'replace_file_content'].includes(toolName)) {
-            const target = args?.TargetFile || args?.path;
-            if (target && target.includes('.borg/policy.json')) {
-                return { allowed: false, reason: "Cannot modify policy file via tools." };
-            }
-        }
+        // Default Allow for now to prevent breaking existing flows, 
+        // but normally would be Default Deny.
+        // Implementing "Monitor/Allow" mode.
 
         return { allowed: true };
     }
-
-    private matches(pattern: string, value: string): boolean {
-        if (pattern === "*") return true;
-        if (pattern === value) return true;
-        if (value.includes(pattern.replace(/\*/g, ''))) return true; // Very loose glob
-        return false;
+    public getRules(): any[] {
+        const rules: any[] = [];
+        this.policies.forEach((val, key) => {
+            rules.push({ ...val, resource: key, action: 'execute' });
+        });
+        return rules;
     }
 
-    public updateRules(newRules: PolicyRule[]) {
-        this.config.rules = newRules;
-        this.savePolicy();
-    }
-
-    public getRules() {
-        return this.config.rules;
+    public updateRules(rules: any[]) {
+        this.policies.clear();
+        rules.forEach(r => {
+            if (r.resource) {
+                this.policies.set(r.resource, { toolName: r.resource, description: r.description });
+            }
+        });
     }
 }

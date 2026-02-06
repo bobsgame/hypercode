@@ -35,6 +35,53 @@ export const appRouter = t.router({
     knowledge: knowledgeRouter,
     research: researchRouter,
     pulse: pulseRouter,
+    healer: t.router({
+        diagnose: t.procedure.input(z.object({ error: z.string(), context: z.string().optional() })).mutation(async ({ input }) => {
+            // @ts-ignore
+            if (global.mcpServerInstance) {
+                // @ts-ignore
+                return global.mcpServerInstance.healerService.analyzeError(input.error, input.context || "");
+            }
+            throw new Error("MCPServer instance not found");
+        }),
+        heal: t.procedure.input(z.object({ error: z.string(), context: z.string().optional() })).mutation(async ({ input }) => {
+            // @ts-ignore
+            if (global.mcpServerInstance) {
+                // @ts-ignore
+                const success = await global.mcpServerInstance.healerService.heal(input.error, input.context || "");
+                return { success };
+            }
+            throw new Error("MCPServer instance not found");
+        })
+    }),
+    darwin: t.router({
+        evolve: t.procedure.input(z.object({ prompt: z.string(), goal: z.string() })).mutation(async ({ input }) => {
+            // @ts-ignore
+            if (global.mcpServerInstance) {
+                // @ts-ignore
+                return global.mcpServerInstance.darwinService.proposeMutation(input.prompt, input.goal);
+            }
+            throw new Error("MCPServer instance not found");
+        }),
+        experiment: t.procedure.input(z.object({ mutationId: z.string(), task: z.string() })).mutation(async ({ input }) => {
+            // @ts-ignore
+            if (global.mcpServerInstance) {
+                // @ts-ignore
+                const exp = await global.mcpServerInstance.darwinService.startExperiment(input.mutationId, input.task);
+                // @ts-ignore
+                return { experimentId: exp.id };
+            }
+            throw new Error("MCPServer instance not found");
+        }),
+        getStatus: t.procedure.query(async () => {
+            // @ts-ignore
+            if (global.mcpServerInstance) {
+                // @ts-ignore
+                return global.mcpServerInstance.darwinService.getStatus();
+            }
+            throw new Error("MCPServer instance not found");
+        })
+    }),
     health: publicProcedure.query(() => {
         return { status: 'running', service: '@borg/core' };
     }),
@@ -644,16 +691,7 @@ export const appRouter = t.router({
             return { counts: {}, averages: {}, totalEvents: 0, series: [] };
         })
     }),
-    healer: t.router({
-        getHistory: t.procedure.query(async () => {
-            // @ts-ignore
-            if (global.mcpServerInstance && global.mcpServerInstance.healerService) {
-                // @ts-ignore
-                return global.mcpServerInstance.healerService.getHistory();
-            }
-            return [];
-        })
-    }),
+
     policy: t.router({
         getRules: t.procedure.query(() => {
             // @ts-ignore

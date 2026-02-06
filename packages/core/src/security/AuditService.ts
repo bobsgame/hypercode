@@ -2,83 +2,82 @@
 import fs from 'fs';
 import path from 'path';
 
-export interface AuditEntry {
-    timestamp: string;
-    level: 'INFO' | 'WARN' | 'ERROR';
-    agentId?: string;
-    event: string;
-    details?: any;
-    metadata?: any;
+export interface AuditLogEntry {
+    timestamp: number;
+    action: string;
+    params: any;
+    level: string;
 }
 
 export class AuditService {
     private logPath: string;
+    private buffer: AuditLogEntry[] = [];
+    private flushInterval: NodeJS.Timeout;
 
-    constructor(cwd: string) {
-        const auditDir = path.join(cwd, '.borg', 'audit');
-        if (!fs.existsSync(auditDir)) {
-            // Ensure .borg exists first
-            if (!fs.existsSync(path.join(cwd, '.borg'))) {
-                fs.mkdirSync(path.join(cwd, '.borg'));
-            }
-            fs.mkdirSync(auditDir);
+    constructor(logDir: string = '.borg/audit') {
+        const absoluteLogDir = path.isAbsolute(logDir) ? logDir : path.join(process.cwd(), logDir);
+        if (!fs.existsSync(absoluteLogDir)) {
+            fs.mkdirSync(absoluteLogDir, { recursive: true });
         }
-        // Rotate inputs? For MVP, single file.
-        this.logPath = path.join(auditDir, 'audit.jsonl');
+        // Rotate logs by day
+        const date = new Date().toISOString().split('T')[0];
+        this.logPath = path.join(absoluteLogDir, `audit-${date}.jsonl`);
+
+        // Auto-flush every 5 seconds
+        this.flushInterval = setInterval(() => this.flush(), 5000);
     }
 
-    log(event: string, details?: any, level: 'INFO' | 'WARN' | 'ERROR' = 'INFO') {
-        const entry: AuditEntry = {
-            timestamp: new Date().toISOString(),
-            level,
-            event,
-            details,
+    public log(action: string, params: any, level: string = 'INFO') {
+        const entry: AuditLogEntry = {
+            timestamp: Date.now(),
+            action,
+            params,
+            level
         };
+        this.buffer.push(entry);
+    }
 
-        const line = JSON.stringify(entry) + '\n';
+    public async flush() {
+        if (this.buffer.length === 0) return;
+
+        const chunk = this.buffer.splice(0, this.buffer.length);
+        const lines = chunk.map(e => JSON.stringify(e)).join('\n') + '\n';
+
         try {
-            fs.appendFileSync(this.logPath, line, 'utf-8');
+            await fs.promises.appendFile(this.logPath, lines, 'utf8');
         } catch (e) {
-            console.error("[AuditService] Failed to write log:", e);
+            console.error("[AuditService] Failed to flush logs", e);
         }
     }
 
-    getLogs(limit: number = 50): AuditEntry[] {
-        return this.query({ limit });
-    }
-
-    query(filters: { level?: string; agentId?: string; limit?: number; event?: string }): AuditEntry[] {
+    public async queryLogs(limit: number = 100): Promise<AuditLogEntry[]> {
         if (!fs.existsSync(this.logPath)) return [];
 
         try {
-            const content = fs.readFileSync(this.logPath, 'utf-8');
+            const content = await fs.promises.readFile(this.logPath, 'utf8');
             const lines = content.trim().split('\n');
-            const entries: AuditEntry[] = [];
-
-            // Read backwards for latest first
-            for (let i = lines.length - 1; i >= 0; i--) {
-                const line = lines[i].trim();
-                if (!line) continue;
-
-                try {
-                    const entry = JSON.parse(line);
-
-                    // Filters
-                    if (filters.level && entry.level !== filters.level) continue;
-                    if (filters.agentId && entry.agentId !== filters.agentId) continue;
-                    if (filters.event && !entry.event.includes(filters.event)) continue;
-
-                    entries.push(entry);
-
-                    if (filters.limit && entries.length >= filters.limit) break;
-                } catch (e) {
-                    // Ignore corrupted lines
-                }
-            }
-            return entries;
+            return lines
+                .map(line => {
+                    try { return JSON.parse(line); } catch { return null; }
+                })
+                .filter(l => l !== null)
+                .slice(-limit)
+                .reverse(); // Newest first
         } catch (e) {
-            console.error("[AuditService] Failed to read logs:", e);
+            console.error("[AuditService] Failed to query logs", e);
             return [];
         }
+    }
+    public async getLogs(limit: number = 50): Promise<AuditLogEntry[]> {
+        return this.queryLogs(limit);
+    }
+
+    public async query(filter: { level?: string, agentId?: string, action?: string, limit?: number }): Promise<AuditLogEntry[]> {
+        const logs = await this.queryLogs(filter.limit || 100);
+        return logs.filter(log => {
+            if (filter.level && log.level !== filter.level) return false;
+            if (filter.action && log.action !== filter.action) return false;
+            return true;
+        });
     }
 }

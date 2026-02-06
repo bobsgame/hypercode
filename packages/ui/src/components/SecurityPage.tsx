@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState } from 'react';
 import { Shield, ShieldAlert, ShieldCheck, Lock, Unlock, Plus, Trash2, AlertTriangle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "./ui/card";

@@ -21,8 +21,8 @@ export const GlobalSearch: React.FC = () => {
             // Parse simplistic file paths
             const lines = text.split('\n');
             const parsed = [];
-            let currentFile = "";
-            let snippet = "";
+            const currentFile = "";
+            const snippet = "";
 
             // Heuristic Parsing of ripgrep/grep output or search_codebase output
             // Usually: "packages/core/foo.ts:10: const bar = 1;"

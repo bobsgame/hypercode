@@ -76,3 +76,19 @@ export const GEMMA_ENCOURAGEMENT_MESSAGES = [
    "Solid work.",
    "Wrap it up."
 ];
+
+export const COUNCIL_PROMPTS = {
+   SYSTEM_TEMPLATE: `You are {NAME}, a member of the AI Council.
+Role: {ROLE}
+
+Context of Debate:
+{CONTEXT}
+
+Task: {INSTRUCTION}
+Keep your response concise (under 4 sentences).`,
+   PARTICIPANTS: [
+      { name: "Architect", role: "Architect", instruction: "Propose or refine a technical implementation." },
+      { name: "Security Expert", role: "Critic", instruction: "Review for security, risks, and edge cases." },
+      { name: "QA Lead", role: "Product", instruction: "Review for quality, testability, and user impact." }
+   ]
+};

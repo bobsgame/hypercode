@@ -3,6 +3,7 @@ import { LLMService } from "@borg/ai";
 import { Council } from "./Council.js";
 import { DIRECTOR_SYSTEM_PROMPT } from "@borg/ai";
 import { WorktreeManager } from "./orchestration/WorktreeManager.js";
+import type { AgentMemoryService } from "../../core/src/services/AgentMemoryService.js";
 
 interface AgentContext {
     goal: string;
@@ -14,7 +15,9 @@ export class Director {
     private server: IMCPServer;
     private llmService: LLMService;
     private council: Council;
+    private council: Council;
     private worktreeManager: WorktreeManager;
+    private memoryService: AgentMemoryService | undefined;
 
     // Auto-Drive State
     private isAutoDriveActive: boolean = false; // SAFE START: Default to false
@@ -35,10 +38,15 @@ export class Director {
         this.llmService = new LLMService(server.modelSelector);
         // @ts-ignore
         this.council = new Council(server.modelSelector);
+        // @ts-ignore
         this.council.setServer(server);
         this.worktreeManager = new WorktreeManager();
 
-
+        // @ts-ignore
+        if (server.agentMemoryService) {
+            // @ts-ignore
+            this.memoryService = server.agentMemoryService;
+        }
     }
 
     // Configuration
@@ -143,8 +151,22 @@ export class Director {
             console.error(`[Director] Failed to create worktree, falling back to main cwd: ${e}`);
         }
 
+        // 0. Retrieve Context from Memory (Hippocampus)
+        let priorContext = "";
+        if (this.memoryService) {
+            try {
+                const memories = await this.memoryService.search(goal, { limit: 3, type: 'long_term' });
+                if (memories.length > 0) {
+                    priorContext = `\n\n[RECALLED MEMORIES]:\n${memories.map(m => `- ${m.content} (Confidence: ${m.score?.toFixed(2)})`).join('\n')}\n(Use these memories to guide your plan)`;
+                    console.log(`[Director] 🧠 Recalled ${memories.length} relevant memories.`);
+                }
+            } catch (e) {
+                console.warn(`[Director] Memory retrieval failed: ${e}`);
+            }
+        }
+
         const context: AgentContext = {
-            goal: `${goal}\n\n[ENVIRONMENT]: You are working in an ISOLATED git worktree at '${worktreePath}'.\nALL file operations (View, Edit, Create) MUST use this path as the base or absolute path.\nDo NOT edit files outside this directory unless explicitly analyzing 'main'.`,
+            goal: `${goal}\n\n[ENVIRONMENT]: You are working in an ISOLATED git worktree at '${worktreePath}'.\nALL file operations (View, Edit, Create) MUST use this path as the base or absolute path.\nDo NOT edit files outside this directory unless explicitly analyzing 'main'.${priorContext}`,
             history: this.history,
             maxSteps
         };
@@ -183,6 +205,17 @@ export class Director {
                         try {
                             await this.worktreeManager.mergeTask(taskId);
                             taskResult += " (Merged)";
+
+                            // 🧠 Save Success to Long-Term Memory
+                            if (this.memoryService) {
+                                await this.memoryService.addLongTerm(
+                                    `Task "${goal}" completed successfully.\nSummary: ${taskResult}`,
+                                    'project',
+                                    { source: 'director', confidence: 1.0, tags: ['success', 'task'] }
+                                );
+                                console.log(`[Director] 🧠 Consolidated success to long-term memory.`);
+                            }
+
                         } catch (e: any) {
                             taskResult += ` (Merge Failed: ${e.message})`;
                             console.error(`[Director] Worktree merge failed: ${e}`);

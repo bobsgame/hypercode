@@ -144,9 +144,7 @@ export class MCPServer {
     public permissionManager: PermissionManager;
     public auditService: AuditService;
     public shellService: ShellService;
-    public shellService: ShellService;
     public memoryManager: MemoryManager; // Centralized Memory Service
-    public deepResearchService: DeepResearchService;
     // public vectorStore: any; // DEPRECATED
     // private indexer: any; // DEPRECATED
     private memoryInitialized: boolean = false;

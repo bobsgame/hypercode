@@ -1,6 +1,9 @@
 import { ModelSelector } from "@borg/ai";
 import { IAgent } from "@borg/ai";
 import { IMCPServer } from "@borg/adk";
+import { COUNCIL_PROMPTS } from "@borg/ai";
+import { CouncilService } from "../../core/src/services/CouncilService.js";
+import type { AgentMemoryService } from "../../core/src/services/AgentMemoryService.js";
 
 export enum CouncilRole {
     ARCHITECT = 'Architect',
@@ -49,6 +52,8 @@ interface DebateConfig {
 export class Council {
     private agents: Map<string, IAgent> = new Map();
     private server: IMCPServer | undefined;
+    private councilService: CouncilService | undefined;
+    private memoryService: AgentMemoryService | undefined;
     public lastResult: DebateResult | null = null;
     private consensusMode: ConsensusMode = ConsensusMode.MAJORITY;
 
@@ -57,6 +62,13 @@ export class Council {
             this.agents = agents;
         }
         this.server = server;
+        // @ts-ignore
+        if (server && server.councilService) {
+            // @ts-ignore
+            this.councilService = server.councilService;
+            // @ts-ignore
+            if (server.agentMemoryService) this.memoryService = server.agentMemoryService;
+        }
     }
 
     public registerAgent(role: string, agent: IAgent) {
@@ -65,6 +77,11 @@ export class Council {
 
     public setServer(server: IMCPServer) {
         this.server = server;
+        // @ts-ignore
+        if (server && server.councilService) {
+            // @ts-ignore
+            this.councilService = server.councilService;
+        }
     }
 
     private async broadcast(type: string, payload: any) {
@@ -94,23 +111,41 @@ export class Council {
         const transcripts: TranscriptEntry[] = [];
         let context = `Topic: "${topic}"\n\n`;
         let votes = { for: 0, against: 0 };
+        let memoryContext = ""; // Define upfront for broadcast
 
-        await this.broadcast('COUNCIL_START', { topic });
+        // 🧠 Retrieve Context from Memory (Hippocampus)
+        if (this.memoryService) {
+            try {
+                const memories = await this.memoryService.search(topic, { limit: 3, type: 'long_term' });
+                if (memories.length > 0) {
+                    memoryContext = `\n[RELEVANT MEMORIES]:\n${memories.map(m => `- ${m.content}`).join('\n')}\n`;
+                    context += memoryContext;
+                    console.log(`[Council] 🧠 Recalled ${memories.length} relevant memories for debate.`);
+                }
+            } catch (e) {
+                console.warn(`[Council] Memory retrieval failed: ${e}`);
+            }
+        }
+
+        await this.broadcast('COUNCIL_START', { topic, memoryContext });
+
+        let sessionId: string | undefined;
+        if (this.councilService) {
+            const session = this.councilService.startSession(topic);
+            sessionId = session.id;
+        }
 
         // Governance Check
         if (this.isMetaTask(topic)) {
             if (this.server && this.server.permissionManager.getAutonomyLevel() !== 'high') {
                 const denial = "DENIED: Meta-Tasks require HIGH autonomy level.";
+                if (sessionId && this.councilService) this.councilService.concludeSession(sessionId);
                 return { approved: false, transcripts: [], summary: denial, consensusMode: this.consensusMode, votes, confidence: 0 };
             }
             context += `[SYSTEM NOTICE]: This is a META-TASK. The Meta-Architect will preside.\n\n`;
         }
 
-        const participants = [
-            { name: "Architect", role: CouncilRole.ARCHITECT, instruction: "Propose or refine a technical implementation." },
-            { name: "Security Expert", role: CouncilRole.CRITIC, instruction: "Review for security, risks, and edge cases." },
-            { name: "QA Lead", role: CouncilRole.PRODUCT, instruction: "Review for quality, testability, and user impact." }
-        ];
+        const participants = COUNCIL_PROMPTS.PARTICIPANTS;
 
         // Multi-Round Debate
         for (let round = 1; round <= finalConfig.maxRounds; round++) {
@@ -135,6 +170,10 @@ export class Council {
                 const entry = { speaker: p.name, text: response, vote: isApproved, confidence, round };
                 transcripts.push(entry);
                 await this.broadcast('COUNCIL_TRANSCRIPT', entry);
+
+                if (sessionId && this.councilService) {
+                    this.councilService.submitOpinion(sessionId, p.name, response);
+                }
 
                 // Early Exit if Unanimous High Confidence (after round 1)
                 if (round > 1 && confidence >= finalConfig.earlyConsensusThreshold && isApproved) {
@@ -163,6 +202,9 @@ export class Council {
         votes = { for: 0, against: 0 };
         lastStances.forEach(t => {
             if (t.vote) votes.for++; else votes.against++;
+            if (sessionId && this.councilService) {
+                this.councilService.castVote(sessionId, t.speaker, t.vote ? "approve" : "reject", "Result of debate round");
+            }
         });
 
         let approved = false;
@@ -190,6 +232,9 @@ export class Council {
         };
 
         this.lastResult = result;
+        if (sessionId && this.councilService) {
+            this.councilService.concludeSession(sessionId);
+        }
         await this.broadcast('COUNCIL_END', { result });
         return result;
     }
@@ -204,14 +249,11 @@ export class Council {
         const agent = agentRole ? this.agents.get(agentRole) : undefined;
         await this.broadcast('COUNCIL_THINKING', { speaker: name });
 
-        const systemPrompt = `You are ${name}, a member of the AI Council.
-Role: ${role}
-
-Context of Debate:
-${context}
-
-Task: ${instruction}
-Keep your response concise (under 4 sentences).`;
+        const systemPrompt = COUNCIL_PROMPTS.SYSTEM_TEMPLATE
+            .replace('{NAME}', name)
+            .replace('{ROLE}', role)
+            .replace('{CONTEXT}', context)
+            .replace('{INSTRUCTION}', instruction);
 
         try {
             if (agent && agent.isActive()) {

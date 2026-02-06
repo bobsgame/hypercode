@@ -17,6 +17,21 @@ export const councilRouter = t.router({
             // @ts-ignore
             return global.mcpServerInstance.council.lastResult || null;
         }
+    }),
+    listSessions: publicProcedure.query(async () => {
+        // @ts-ignore
+        if (global.mcpServerInstance && global.mcpServerInstance.councilService) {
+            // @ts-ignore
+            return global.mcpServerInstance.councilService.listSessions();
+        }
+        return [];
+    }),
+    getSession: publicProcedure.input(z.object({ id: z.string() })).query(async ({ input }) => {
+        // @ts-ignore
+        if (global.mcpServerInstance && global.mcpServerInstance.councilService) {
+            // @ts-ignore
+            return global.mcpServerInstance.councilService.getSession(input.id);
+        }
         return null;
     })
 });

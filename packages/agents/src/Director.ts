@@ -404,7 +404,20 @@ export class Director {
         const goal = context.goal.toLowerCase();
         const lastEntry = context.history[context.history.length - 1] || "";
 
-        // Safety: If no idea, list files
+        // Research Heuristic
+        if (/(?:research|learn|understand|investigate|deep dive)/i.test(goal)) {
+            // Check if we already did research
+            const hasResearched = context.history.some(h => h.includes("research_recursively"));
+            if (!hasResearched) {
+                return {
+                    action: 'CONTINUE',
+                    toolName: 'research_recursively',
+                    params: { topic: goal, depth: 2 },
+                    reasoning: "Goal involves research, starting deep dive."
+                };
+            }
+        }
+
         if (!lastEntry) return { action: 'CONTINUE', toolName: 'list_files', params: { path: process.cwd() }, reasoning: "Looking around." };
 
         // Detect loops

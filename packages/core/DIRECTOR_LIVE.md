@@ -82,3 +82,6 @@ Abstained.
 
 ### [9:28:28 PM] Director
 🏛️ [Council]: Abstained.
+
+### [1:57:45 PM] Director
+🎬 **Director Action**: I need to research Quantum Computing

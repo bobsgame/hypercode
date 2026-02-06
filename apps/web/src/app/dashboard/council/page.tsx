@@ -1,137 +1,207 @@
+
 'use client';
 
-import { useState, useEffect } from 'react';
-import { getCouncilConfig, saveCouncilConfig } from './actions';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Plus, Save, Trash2 } from 'lucide-react';
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { useState, useEffect } from "react";
+import { Loader2, MessageSquare, Gavel, User, Play, RefreshCw, ChevronRight } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-interface Member {
-    name: string;
-    provider: string;
-    modelId: string;
-    systemPrompt: string;
+interface CouncilSession {
+    id: string;
+    topic: string;
+    status: 'active' | 'concluded';
+    round: number;
+    opinions: Opinion[];
+    votes: Vote[];
+    createdAt: number;
+}
+
+interface Opinion {
+    agentId: string;
+    content: string;
+    timestamp: number;
+    round: number;
+}
+
+interface Vote {
+    agentId: string;
+    choice: string;
+    reason: string;
+    timestamp: number;
 }
 
 export default function CouncilPage() {
-    const [members, setMembers] = useState<Member[]>([]);
+    const [sessions, setSessions] = useState<CouncilSession[]>([]);
     const [loading, setLoading] = useState(true);
-    const [saving, setSaving] = useState(false);
+    const [newTopic, setNewTopic] = useState("");
+    const [activeTab, setActiveTab] = useState("sessions");
 
+    // Mock data for now until we have server actions
     useEffect(() => {
-        load();
+        // Simulation of fetching data
+        const mockSessions: CouncilSession[] = [
+
+        ];
+        setSessions(mockSessions);
+        setLoading(false);
     }, []);
 
-    const load = async () => {
-        setLoading(true);
-        const config = await getCouncilConfig();
-        if (config && config.members) {
-            setMembers(config.members);
-        }
-        setLoading(false);
+    const handleCreateSession = async () => {
+        // TODO: Connect to backend
+        console.log("Creating session for:", newTopic);
     };
-
-    const handleSave = async () => {
-        setSaving(true);
-        await saveCouncilConfig({ members });
-        setSaving(false);
-        alert("Council Configuration Saved!");
-    };
-
-    const addMember = () => {
-        setMembers([...members, { name: "New Member", provider: "lmstudio", modelId: "local", systemPrompt: "You are a helpful assistant." }]);
-    };
-
-    const removeMember = (index: number) => {
-        const newMembers = [...members];
-        newMembers.splice(index, 1);
-        setMembers(newMembers);
-    };
-
-    const updateMember = (index: number, field: keyof Member, value: string) => {
-        const newMembers = [...members];
-        newMembers[index] = { ...newMembers[index], [field]: value };
-        setMembers(newMembers);
-    };
-
-    if (loading) return <div className="p-8 text-center text-gray-500">Loading Council...</div>;
 
     return (
-        <div className="p-8 max-w-5xl mx-auto">
-            <div className="flex justify-between items-center mb-8">
-                <div>
-                    <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-400 to-pink-600 bg-clip-text text-transparent">
-                        Council Chamber
-                    </h1>
-                    <p className="text-gray-400">Configure the AI personas that guide the Director.</p>
+        <div className="container mx-auto p-6 space-y-6 max-w-7xl">
+            <div className="flex justify-between items-center border-b pb-4 mb-4">
+                <div className="flex items-center gap-3">
+                    <div className="h-12 w-12 bg-indigo-900/20 rounded-lg flex items-center justify-center border border-indigo-500/30">
+                        <Gavel className="h-6 w-6 text-indigo-400" />
+                    </div>
+                    <div>
+                        <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">
+                            The Council
+                        </h1>
+                        <p className="text-muted-foreground text-sm">Multi-Agent Consensus & Debate System</p>
+                    </div>
                 </div>
-                <Button onClick={handleSave} disabled={saving} className="bg-purple-600 hover:bg-purple-700">
-                    {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                    Save Configuration
-                </Button>
+                <div className="flex gap-2">
+                    <Input
+                        placeholder="Propose a topic for debate..."
+                        value={newTopic}
+                        onChange={(e) => setNewTopic(e.target.value)}
+                        className="w-80 bg-background/50"
+                    />
+                    <Button onClick={handleCreateSession} className="bg-indigo-600 hover:bg-indigo-700">
+                        <Play className="mr-2 h-4 w-4" />
+                        Convene Session
+                    </Button>
+                </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-6">
-                {members.map((member, idx) => (
-                    <Card key={idx} className="bg-[#1e1e1e] border-[#333]">
-                        <CardHeader className="flex flex-row items-center justify-between pb-2">
-                            <CardTitle className="text-lg font-medium text-white flex items-center gap-2">
-                                <Input
-                                    value={member.name}
-                                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateMember(idx, 'name', e.target.value)}
-                                    className="bg-transparent border-none text-lg font-bold w-48 focus:ring-0 text-purple-400 p-0"
-                                />
-                                <span className="text-xs text-gray-500 font-normal">({member.provider})</span>
-                            </CardTitle>
-                            <Button variant="ghost" size="sm" onClick={() => removeMember(idx)} className="text-red-400 hover:text-red-300 hover:bg-red-900/20">
-                                <Trash2 className="h-4 w-4" />
-                            </Button>
-                        </CardHeader>
-                        <CardContent className="grid gap-4">
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="text-xs text-gray-500">Provider</label>
-                                    <select
-                                        value={member.provider}
-                                        onChange={(e: React.ChangeEvent<HTMLSelectElement>) => updateMember(idx, 'provider', e.target.value)}
-                                        className="w-full bg-[#111] border border-[#333] rounded px-3 py-2 text-sm text-white"
-                                    >
-                                        <option value="ollama">Ollama (Local)</option>
-                                        <option value="lmstudio">LM Studio (Local)</option>
-                                        <option value="openai">OpenAI</option>
-                                        <option value="google">Google Gemini</option>
-                                        <option value="anthropic">Anthropic Claude</option>
-                                        <option value="deepseek">DeepSeek</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className="text-xs text-gray-500">Model ID</label>
-                                    <Input
-                                        value={member.modelId}
-                                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateMember(idx, 'modelId', e.target.value)}
-                                        className="bg-[#111] border-[#333] text-white"
-                                        placeholder="e.g. gemma:2b, gpt-4o"
-                                    />
-                                </div>
-                            </div>
-                            <div>
-                                <label className="text-xs text-gray-500">System Persona</label>
-                                <textarea
-                                    value={member.systemPrompt}
-                                    onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => updateMember(idx, 'systemPrompt', e.target.value)}
-                                    className="w-full h-24 bg-[#111] border border-[#333] rounded px-3 py-2 text-sm text-gray-300 resize-none font-mono"
-                                    placeholder="You represent..."
-                                />
-                            </div>
-                        </CardContent>
-                    </Card>
-                ))}
+            <Tabs defaultValue="sessions" className="w-full">
+                <TabsList className="bg-background/20 border mb-4">
+                    <TabsTrigger value="sessions">Active Debates</TabsTrigger>
+                    <TabsTrigger value="history">History</TabsTrigger>
+                    <TabsTrigger value="members">Council Members</TabsTrigger>
+                </TabsList>
 
-                <Button variant="outline" onClick={addMember} className="border-dashed border-gray-600 text-gray-400 hover:bg-[#222]">
-                    <Plus className="mr-2 h-4 w-4" /> Add Council Member
-                </Button>
-            </div>
+                <TabsContent value="sessions" className="space-y-4">
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div className="lg:col-span-2 space-y-4">
+                            {loading ? (
+                                <div className="flex justify-center p-12">
+                                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                                </div>
+                            ) : sessions.length === 0 ? (
+                                <Card className="border-dashed">
+                                    <CardContent className="flex flex-col items-center justify-center p-12 text-center text-muted-foreground">
+                                        <Gavel className="h-12 w-12 mb-4 opacity-20" />
+                                        <h3 className="text-lg font-medium">No Active Debates</h3>
+                                        <p className="max-w-sm mt-2">The Council is currently in recess. Propose a topic above to convene a session.</p>
+                                    </CardContent>
+                                </Card>
+                            ) : (
+                                sessions.map(session => (
+                                    <Card key={session.id} className="border-l-4 border-l-indigo-500">
+                                        <CardHeader className="pb-2">
+                                            <div className="flex justify-between items-start">
+                                                <div>
+                                                    <Badge variant="outline" className="mb-2 border-indigo-500/30 text-indigo-400">
+                                                        Round {session.round}
+                                                    </Badge>
+                                                    <CardTitle className="text-xl">{session.topic}</CardTitle>
+                                                </div>
+                                                <Badge className={session.status === 'active' ? 'bg-green-900/40 text-green-400 hover:bg-green-900/60' : 'bg-gray-800'}>
+                                                    {session.status.toUpperCase()}
+                                                </Badge>
+                                            </div>
+                                        </CardHeader>
+                                        <CardContent>
+                                            <div className="flex items-center gap-4 text-sm text-muted-foreground mb-4">
+                                                <span className="flex items-center"><MessageSquare className="h-3 w-3 mr-1" /> {session.opinions.length} Opinions</span>
+                                                <span className="flex items-center"><User className="h-3 w-3 mr-1" /> {new Set(session.opinions.map(o => o.agentId)).size} Agents</span>
+                                            </div>
+                                            <Button variant="secondary" size="sm" className="w-full">
+                                                View Debate <ChevronRight className="ml-1 h-3 w-3" />
+                                            </Button>
+                                        </CardContent>
+                                    </Card>
+                                ))
+                            )}
+                        </div>
+
+                        <div className="space-y-6">
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Session Stats</CardTitle>
+                                </CardHeader>
+                                <CardContent className="space-y-4">
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-sm">Active Sessions</span>
+                                        <span className="font-bold text-xl">{sessions.filter(s => s.status === 'active').length}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-sm">Total Opinions</span>
+                                        <span className="font-bold text-xl">{sessions.reduce((acc, s) => acc + s.opinions.length, 0)}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-sm">Consensus Rate</span>
+                                        <span className="font-bold text-xl text-green-400">--%</span>
+                                    </div>
+                                </CardContent>
+                            </Card>
+
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Council Manifest</CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="space-y-3">
+                                        <div className="flex items-center gap-3 p-2 rounded hover:bg-muted/50 transition-colors">
+                                            <div className="h-8 w-8 rounded-full bg-blue-500/20 flex items-center justify-center border border-blue-500/30">
+                                                <User className="h-4 w-4 text-blue-400" />
+                                            </div>
+                                            <div>
+                                                <div className="font-semibold text-sm">The Architect</div>
+                                                <div className="text-[10px] text-muted-foreground">System Design</div>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-3 p-2 rounded hover:bg-muted/50 transition-colors">
+                                            <div className="h-8 w-8 rounded-full bg-red-500/20 flex items-center justify-center border border-red-500/30">
+                                                <User className="h-4 w-4 text-red-400" />
+                                            </div>
+                                            <div>
+                                                <div className="font-semibold text-sm">The Critic</div>
+                                                <div className="text-[10px] text-muted-foreground">Risk Analysis</div>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-3 p-2 rounded hover:bg-muted/50 transition-colors">
+                                            <div className="h-8 w-8 rounded-full bg-green-500/20 flex items-center justify-center border border-green-500/30">
+                                                <User className="h-4 w-4 text-green-400" />
+                                            </div>
+                                            <div>
+                                                <div className="font-semibold text-sm">The Pragmatist</div>
+                                                <div className="text-[10px] text-muted-foreground">Implementation</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </div>
+                    </div>
+                </TabsContent>
+
+                <TabsContent value="members">
+                    <div className="text-center p-12 text-muted-foreground">
+                        Member configuration coming soon.
+                    </div>
+                </TabsContent>
+            </Tabs>
         </div>
     );
 }

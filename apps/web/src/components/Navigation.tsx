@@ -10,6 +10,8 @@ const NAV_ITEMS = [
     { href: '/', label: 'Mission Control', color: 'hover:text-blue-500', activeColor: 'text-blue-500' },
     { href: '/docs', label: 'Documentation', color: 'hover:text-blue-100', activeColor: 'text-blue-500' },
     { href: '/dashboard/council', label: 'Council', color: 'hover:text-purple-500', activeColor: 'text-purple-500' },
+    { href: '/dashboard/director', label: 'Director', color: 'hover:text-amber-500', activeColor: 'text-amber-500' },
+    { href: '/dashboard/research', label: 'Deep Research', color: 'hover:text-cyan-500', activeColor: 'text-cyan-500' },
     { href: '/dashboard/skills', label: 'Skills', color: 'hover:text-green-500', activeColor: 'text-green-500' },
     { href: '/dashboard/library', label: 'Library', color: 'hover:text-indigo-500', activeColor: 'text-indigo-500' },
     { href: '/dashboard/reader', label: 'Reader', color: 'hover:text-orange-500', activeColor: 'text-orange-500' },

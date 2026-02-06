@@ -31,6 +31,37 @@ export class DeepResearchService {
         this.browser = new BrowserTool();
     }
 
+    public async recursiveResearch(topic: string, depth: number = 2, maxBreadth: number = 3): Promise<ResearchResult & { subTopics?: ResearchResult[] }> {
+        console.log(`[DeepResearch] 🔄 Recursive Research: ${topic} (Depth Remaining: ${depth})`);
+
+        // 1. Research current topic
+        const result = await this.researchTopic(topic, 2); // Standard depth for individual node
+
+        if (depth <= 0) {
+            return result;
+        }
+
+        // 2. Recurse into related topics
+        const subTopics: ResearchResult[] = [];
+        const nextDepth = depth - 1;
+
+        // Take top N related topics
+        const branches = result.relatedTopics.slice(0, maxBreadth);
+
+        for (const subTopic of branches) {
+            // Check if we've already researched this recently? (Memory check would go here)
+            // For now, just recurse
+            try {
+                const subResult = await this.recursiveResearch(subTopic, nextDepth, maxBreadth);
+                subTopics.push(subResult);
+            } catch (e) {
+                console.error(`[DeepResearch] Failed to research sub-topic: ${subTopic}`, e);
+            }
+        }
+
+        return { ...result, subTopics };
+    }
+
     public async researchTopic(topic: string, depth: number = 2): Promise<ResearchResult> {
         console.log(`[DeepResearch] Starting research on: ${topic} (Depth: ${depth})`);
 
@@ -98,6 +129,10 @@ export class DeepResearchService {
         let count = 0;
         for (const source of sources) {
             if (count >= 3) break;
+            // TODO: Use BrowserTool to actually scrape if needed
+            // For now, we rely on title/snippet or assume placeholder
+            // In a real recursive run, we might want to deeply scrape.
+            // Let's add a placeholder for now to save tokens/time during dev.
             scrapedData.push(`Source: ${source.url}\n(Content scraping pending)`);
             count++;
         }
@@ -113,7 +148,8 @@ export class DeepResearchService {
         await this.memory.saveContext(`Research Report: ${topic}\n\n${synthesis.summary}`, {
             source: 'DeepResearchService',
             title: `Research: ${topic}`,
-            type: 'research_report'
+            type: 'research_report',
+            tags: ['research', topic, ...synthesis.relatedTopics]
         });
 
         return synthesis;
@@ -147,7 +183,7 @@ export class DeepResearchService {
             Task:
             1. Summarize the key findings.
             2. List the sources used.
-            3. Suggest 3 related topics.
+            3. Suggest 3 related topics for further research.
             
             Format as JSON:
             {
@@ -167,7 +203,12 @@ export class DeepResearchService {
                 prompt
             );
             const cleanJson = response.content.replace(/```json\n?|\n?```/g, '').trim();
-            return JSON.parse(cleanJson) as ResearchResult;
+            const result = JSON.parse(cleanJson) as ResearchResult;
+
+            // Ensure relatedTopics is present
+            if (!result.relatedTopics) result.relatedTopics = [];
+
+            return result;
         } catch (e) {
             return {
                 topic,

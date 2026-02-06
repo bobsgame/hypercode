@@ -109,6 +109,8 @@ import { DeepResearchService } from './services/DeepResearchService.js';
 import { PermissionManager, AutonomyLevel } from "./security/PermissionManager.js";
 import { BrowserTool } from "@borg/tools";
 import { SearchService } from "@borg/search";
+import { CouncilService } from "./services/CouncilService.js";
+import { createCouncilTools } from "./mcp/tools/council_tools.js";
 console.log("[MCPServer] ✓ PermissionManager");
 
 const __filename = fileURLToPath(import.meta.url);
@@ -142,7 +144,9 @@ export class MCPServer {
     public permissionManager: PermissionManager;
     public auditService: AuditService;
     public shellService: ShellService;
+    public shellService: ShellService;
     public memoryManager: MemoryManager; // Centralized Memory Service
+    public deepResearchService: DeepResearchService;
     // public vectorStore: any; // DEPRECATED
     // private indexer: any; // DEPRECATED
     private memoryInitialized: boolean = false;
@@ -179,6 +183,7 @@ export class MCPServer {
     private submoduleManager: SubmoduleManager;
     public eventBus: EventBus;
     public deepResearchService: DeepResearchService;
+    public councilService: CouncilService;
 
     // Phase 51: Core Infrastructure
     public lspService: LSPService;
@@ -320,6 +325,7 @@ export class MCPServer {
         this.researchService = new ResearchService(this, this.memoryManager); // Initialized AFTER memoryManager
         this.knowledgeService = new KnowledgeService(this.memoryManager); // Added
         this.deepResearchService = new DeepResearchService(this.llmService, this.searchService, this.memoryManager);
+        this.councilService = new CouncilService();
 
         this.squadService = new SquadService(this);
         this.gitWorktreeManager = new GitWorktreeManager(process.cwd());
@@ -758,8 +764,10 @@ export class MCPServer {
             else if (name === "research_topic") {
                 const topic = args?.topic as string;
                 const depth = args?.depth as number || 2;
+                const breadth = args?.breadth as number || 2;
                 if (!topic) throw new Error("Missing 'topic'");
-                const res = await this.deepResearchService.researchTopic(topic, depth);
+                console.log(`[MCPServer] Triggering Recursive Research: ${topic}`);
+                const res = await this.deepResearchService.recursiveResearch(topic, depth, breadth);
                 result = { content: [{ type: "text", text: JSON.stringify(res, null, 2) }] };
             }
             else if (name === "vscode_read_selection") {
@@ -1991,6 +1999,19 @@ export class MCPServer {
                             prompt: { type: "string", description: "The task or prompt to send to the agent" }
                         },
                         required: ["name", "prompt"]
+                    }
+                },
+                {
+                    name: "research_recursively",
+                    description: "Perform deep, recursive research on a topic using sub-agents/sub-tasks.",
+                    inputSchema: {
+                        type: "object",
+                        properties: {
+                            topic: { type: "string", description: "The main topic to research" },
+                            depth: { type: "number", description: "Depth of recursion (def: 2)" },
+                            breadth: { type: "number", description: "Breadth of related topics (def: 3)" }
+                        },
+                        required: ["topic"]
                     }
                 },
                 {

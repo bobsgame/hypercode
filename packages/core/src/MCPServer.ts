@@ -252,10 +252,11 @@ export class MCPServer {
         this.sandboxService = new SandboxService();
         this.healerService = new HealerService(this.llmService, this);
         this.promptRegistry = new PromptRegistry();
+        this.deepResearchService = new DeepResearchService(this.llmService); // Initialize FIRST
         this.skillAssimilationService = new SkillAssimilationService(
-            this.skillRegistry,
+            this,
             this.llmService,
-            path.join(process.cwd(), '.borg', 'skills')
+            this.deepResearchService
         );
         this.darwinService = new DarwinService(this.llmService, this);
 

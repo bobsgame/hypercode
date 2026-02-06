@@ -14,6 +14,7 @@ import { symbolsRouter } from './routers/symbolsRouter.js';
 import { autoDevRouter } from './routers/autoDevRouter.js';
 import { shellRouter } from './routers/shellRouter.js';
 import { memoryRouter } from './routers/memoryRouter.js';
+import { skillsRouter } from './routers/skillsRouter.js';
 import { researchRouter } from './routers/researchRouter.js';
 import { pulseRouter } from './routers/pulseRouter.js';
 
@@ -34,7 +35,10 @@ export const appRouter = t.router({
     memory: memoryRouter,
     knowledge: knowledgeRouter,
     research: researchRouter,
+    knowledge: knowledgeRouter,
+    research: researchRouter,
     pulse: pulseRouter,
+    skills: skillsRouter,
     healer: t.router({
         diagnose: t.procedure.input(z.object({ error: z.string(), context: z.string().optional() })).mutation(async ({ input }) => {
             // @ts-ignore

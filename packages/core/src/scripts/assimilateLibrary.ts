@@ -33,7 +33,12 @@ async function run() {
         const index = JSON.parse(cleanJSON);
 
         const selector = new ModelSelector();
-        const llm = new LLMService(selector);
+        // Mock LLM for offline assimilation test
+        const llm = {
+            generateText: async () => ({ content: "export const toolDefinition = { name: 'mock_tool', description: 'Mock Tool', schema: {}, execute: async () => 'Executed' };" }),
+            generateJSON: async () => ({}),
+            // Add other necessary methods if SkillAssimilationService calls them
+        } as any;
         const registry = new SkillRegistry([skillsRoot]);
 
         const memoryManager = new MemoryManager(root);

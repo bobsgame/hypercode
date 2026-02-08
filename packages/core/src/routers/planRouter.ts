@@ -8,10 +8,14 @@ export const planRouter = t.router({
     }),
 
     setMode: t.procedure.input(z.object({
-        mode: z.enum(['plan', 'build'])
+        mode: z.enum(['PLAN', 'BUILD'])
     })).mutation(async ({ input }) => {
         const server = getMcpServer();
-        server.planService.setMode(input.mode);
+        if (input.mode === 'PLAN') {
+            server.planService.enterPlanMode();
+        } else {
+            server.planService.enterBuildMode();
+        }
         return { mode: input.mode };
     }),
 

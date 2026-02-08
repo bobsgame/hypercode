@@ -1,6 +1,6 @@
 'use client';
 
-import { trpcc } from '@/utils/trpc';
+import { trpc } from '@/utils/trpc';
 import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,8 +11,8 @@ export default function SettingsDashboard() {
     const [log, setLog] = useState('');
 
     // Fetch settings
-    const settingsQuery = trpcc.settings.get.useQuery();
-    const updateMutation = trpcc.settings.update.useMutation();
+    const settingsQuery = trpc.settings.get.useQuery();
+    const updateMutation = trpc.settings.update.useMutation();
 
     useEffect(() => {
         if (settingsQuery.data) {

@@ -1,117 +1,76 @@
-# borg Roadmap: The Ultimate SuperAI
+# Borg Project Roadmap
 
-## Phase 13: Local AI Tool Governance (COMPLETED)
-- [x] **Tool Spreadsheet:** Dashboard inventory of local tools.
-- [x] **Status Detection:** Auto-discovery of installed CLI tools.
-- [x] **Process Monitor:** Watchdog for background services.
-- [x] **Hardware Stats:** Real-time resource monitoring.
-- [x] **Ecosystem Dashboard:** Auto-generated `SUBMODULES.md` tracking 200+ integrated tools.
-- [x] **Massive Submodule Integration:** Import and categorize 100+ external tools.
-- [x] **Resource Indexing:** `FEATURES_CATALOG.md` created.
-- [x] **Unified Dashboarding:** Consolidated "Mission Control" UI established.
+> **Status**: Phase 58 (Grand Unification) - **IN PROGRESS**
+> **Version**: 2.6.0
+> **Codename**: AIOS (AI Operating System)
 
-## Phase 14: System Polish & Core UX (CURRENT FOCUS)
-**Goal:** Streamline existing systems. Fix "interrupting" bugs. Enhance Dashboard utility.
-- [x] **Governance:** Establish `RULES.md` and `DESIGN_STANDARDS.md`.
-- [x] **Supervisor Repair:** Fix `InputManager` typing interruptions (Added window target logic).
-- [x] **Dashboard Config:** Added `DirectorStatusWidget` and consolidated UI.
-- [x] **Documentation:** Sync all docs with actual codebase state.
-- [x] **Roadmap Sync:** Verify `ROADMAP.md` is the source of truth.
-- [x] **Backlog Processing:** Automate triage of `INBOX_LINKS.md` (300+ items).
-- [x] **Dashboard Polish:** Unify styling and layout for "Mission Control" (Completed as Phase 22).
+---
 
-## Phase 22: Director & Dashboard 2.0 (COMPLETED)
-- [x] **Director Control Panel:** Full configuration UI.
-- [x] **Autonomy & Safety:** Kill switch, loop prevention, auto-submit.
-- [x] **Draggable Dashboard:** `dnd-kit` grid layout with persistence.
-- [x] **Configurable Persona:** Custom prefixes and behavior settings.
+## Phase 1-19: Foundations (Completed)
 
-## Phase 15: Deep Research & Absorption (Completed)
-**Goal:** Achieve feature parity with the "Definitive Borg Resource Index".
-- [x] **Ingest:** Processed `INBOX_LINKS.md` (Batches 1-3).
-- [x] **Analyze:** Created `web-research` skill and autonomous script.
-- [x] **Absorb:** Injected `treesitter-expert`, `frontend-design`, `mcp-builder` skills.
-- [x] **Submodules:** Added key repos (`anthropic-skills`, `awesome-mcp-servers`).
+- [x] **Phase 1: Zero-Shot Architecting** - Initial concept and MVP
+- [x] **Phase 10: The Local LLM Bridge** - Oufob/Ollama integration
+- [x] **Phase 15: Deep Analysis** - Core system introspection
+- [x] **Phase 19: The Enterprise Vision** - Defined commercial goals
 
-## Phase 15b: Deep Analysis & Stabilization (CURRENT FOCUS)
-**Goal:** Comprehensive Audit, Documentation, and Test Stabilization.
-- [x] **Project Audit:** Created `docs/PROJECT_STATUS.md` analyzing Frontend/Backend stats.
-- [x] **Instruction Consolidation:** Unified `UNIVERSAL_LLM_INSTRUCTIONS.md` (v1.7.1).
-- [x] **Legacy Cleanup:** Removed `CORE_INSTRUCTIONS.md`.
-- [x] **Extension Wiring:** Connect `apps/extension` to `packages/memory`.
+## Phase 20-29: The Core Architecture (Completed)
 
-## Phase 14: Deep Code Intelligence (The Foundation)
-**Goal:** Establish the robust indexing and execution layer required for high-fidelity coding.
+- [x] **Phase 20: The Monorepo Transition** - Migrated to pnpm + Turborepo structure types/core/ui/apps
+- [x] **Phase 21: The MCP Foundation** - Implemented Model Context Protocol SDK integration
+- [x] **Phase 22: The tRPC Backbone** - Replaced REST with tRPC for type-safe frontend-backend comms
+- [x] **Phase 23: The Director Agent** - Created the first autonomous loop (Director.ts)
+- [x] **Phase 24: The Tool Registry** - Built `packages/tools` with standard file/terminal tools
+- [x] **Phase 25: The Shell Service** - Robust PTY management for terminal persistence
+- [x] **Phase 26: The Git Service** - Git integration for autonomous commits
+- [x] **Phase 27: The System Dashboard** - Launched Next.js dashboard (v1)
+- [x] **Phase 28: The Vector Memory** - Integrated LanceDB/ChromaDB for semantic search
+- [x] **Phase 29: The Search Service** - Ripgrep + AST implementation
 
-### Robust Indexing
-- [x] **Vector Integration:** Enhance `RepoMapService` to use vector embeddings for semantic search (RAG) using `fs-lexical` + `txtai`.
-- [x] **Tree-sitter Deep Dive:** Upgrade symbol extraction to support full call graphs and type hierarchies.
-- [x] **Graph Service:** Finalize `RepoGraphService` to visualize import/export dependencies (Integrated `Cognee` for Graph Memory).
+## Phase 30-39: The Intelligence Layer (Completed)
 
-### Secure Execution
-- [x] **Sandboxing:** Finalize `SandboxService` for secure Docker/WASM code execution (Integrating `code-sandbox/` tools).
-- [x] **Auto-Test Runner:** Automatically detect and run relevant tests for modified files.
+- [x] **Phase 30: Multi-Model Selector** - Support for Claude, Gemini, GPT via `LLMService`
+- [x] **Phase 31: The Metrics Service** - Prometheus-style metrics for agent performance
+- [x] **Phase 32: The Policy Engine** - Allowed/Blocked commands and file paths
+- [x] **Phase 33: The Healer (Self-Correction)** - Automatic error analysis and fix generation
+- [x] **Phase 34: The Darwin Protocol** - Prompt mutation and evolution experiments
+- [x] **Phase 35: The Council** - Multi-persona voting mechanism (Architect/Critic/Builder)
+- [x] **Phase 36: Deep Research V1** - Recursive web scraping and summarization
+- [x] **Phase 37: The Knowledge Graph** - Cognee integration for semantic relationships
+- [x] **Phase 38: The Skill Assimilator** - Reading docs and generating new tools
+- [x] **Phase 39: The Visual Cortex** - Image analysis and screenshot capabilities
 
-## Phase 15: The SuperAI Harness (Feature Parity)
-**Goal:** Match and exceed the capabilities of Amp, Auggie, Claude Code, Codebuff, and OpenCode.
+## Phase 40-49: The Expansion (Completed)
 
-### Core Engine
-- [x] **Unified CLI Runner:** Create `borg cli` wrapper to transparently invoke any integrated CLI (`superai-cli/`).
-- [x] **Unified TUI/WebUI:** Ensure 100% feature parity between terminal and web interfaces.
-- [x] **Mobile Remote Control:** Responsive mobile UI for monitoring and intervening in agent sessions.
-- [x] **Shell Integration:** Deep shell history integration and context awareness (Warp-style).
+- [x] **Phase 40: The Browser Extension** - Chrome extension for browser-MCP bridge
+- [x] **Phase 41: The IDE Bridge** - VS Code extension for internal observation
+- [x] **Phase 42: The Submodule Surge** - Integrated 100+ reference submodules
+- [x] **Phase 43: The Nervous System** - Event bus and global state management
+- [x] **Phase 44: The CLI Harness** - Commander.js CLI with 11 functional groups
+- [x] **Phase 45: Knowledge Assimilation** - Ingesting PDFs, docs, and codebase context
+- [x] **Phase 46: Dashboard Rebuild (v2)** - Modern UI with Tailwind, glassmorphism, real-time stats
+- [x] **Phase 47: The Supervisor** - High-level task decomposition agent
+- [x] **Phase 48: The Worktree Manager** - Git worktrees for parallel agent squads
+- [x] **Phase 49: The Sandbox** - Secure code execution environment (VM/Docker)
 
-### Advanced Coding Features
-- [x] **Multi-File Context:** "Add to Context" logic similar to Aider/Claude Code.
-- [x] **In-Chat Commands:** Slash commands for git operations, diff reviews, and undo steps.
-- [x] **Symbol Pinning:** UI to manually prioritize specific code symbols.
-- [x] **Auto-Dev Loops:** "Fix until Pass" modes for tests and linters.
+## Phase 50-59: The Singularity (Current)
 
-## Phase 16: The SuperAI Browser Extension (COMPLETED)
-**Goal:** Bridge local context into web-based AI models (ChatGPT, Gemini, Claude.ai).
+- [x] **Phase 50: Grand Unification V1** - Connecting all disparate systems into one OS
+- [x] **Phase 51: Infrastructure Hardening** - Robust error handling and process supervision
+- [x] **Phase 52: The Universal Interface** - Standardized UI components across all 31 pages
+- [x] **Phase 53: The Documentation Overhaul** - Rewrote all LLM instructions (v2.6.0)
+- [x] **Phase 54: The Version Sync** - Unified versioning across all packages
+- [x] **Phase 55: The Session Manager** - State persistence and crash recovery
+- [x] **Phase 56: The Session Router** - Dashboard control of session state
+- [x] **Phase 57: Resilient Intelligence** - Automatic fallback, Director hardening, heartbeats
+- [/] **Phase 58: Grand Unification V2** (IN PROGRESS)
+  - [x] `test_grand_unification_v2.ts` creation
+  - [x] Submodule Dashboard
+  - [x] Documentation Consistency
+  - [ ] Autonomous Loop Execution
 
-### Functionality Injection
-- [x] **MCP Injection:** Expose local MCP tools (FS, Git, Terminal) to web chats via browser extension.
-- [x] **Context Export:** One-click export of web chats into Borg long-term memory (`director.memorize`).
-- [x] **Memory Recording:** Background recording of browsing research.
+## Phase 60+: Future Horizons
 
-### Browser Capabilities (via MCP)
-- [x] **Page Scraping:** Turn current page content into markdown context (Integrated `browser-use` bridge).
-- [x] **Console Reader:** Stream browser console logs to the Borg debugger.
-- [x] **History:** Secure access to history via `browser_get_history` (WebSocket Bridge).
-- [x] **Tab Mirroring:** Real-time visual oversight of the agent's browser tab in the Dashboard.
-- [x] **Active Debugger Proxy:** Port forwarding and remote debugging bridge.
-
-## Phase 17: Universal MCP & Orchestration
-- [x] **Traffic Inspector:** Real-time JSON-RPC inspection (Completed in Core).
-- [x] **Dynamic Disclosure:** Hide tools until needed to save context.
-- [x] **Semantic Reranking:** Optimize tool descriptions for model consumption.
-- [x] **Proxy System:** Bridge remote/local servers.
-- [x] **Workflow Engine:** Graph-based state machine for durable multi-agent execution (LangGraph-inspired).
-
-## Phase 18: Multi-Agent Squads
-- [x] **Consensus Protocol:** Multi-model debate engine.
-- [x] **Git Worktree Squads:** Parallel coding agents in isolated branches (Maestro Pattern via `WorktreeManager`).
-- [ ] **Local-Remote Bridge:** Sync projects between local machine and cloud instances.
-
-## Phase 19: Enterprise & Ecosystem (Restored)
-### Advanced Governance & Security
-- [x] **RBAC Foundation:** Role-based access control service and middleware (admin, developer, operator, viewer)
-- [ ] **SSO integration:** OIDC/SAML foundation
-- [x] **Enhanced Audit Logging:** Comprehensive audit trails for agent, council, and architect actions
-- [ ] **Policy Engine:** Declarative policies for agent behavior and resource usage
-
-### Distributed Orchestration
-- [ ] **Multi-Node Council:** Distributed supervisor councils across different regions/nodes
-- [ ] **Agent-to-Agent (A2A) Mesh:** Secure communication protocol for autonomous agent cooperation
-- [ ] **Edge Deployment:** Lightweight Borg runtime for edge devices
-
-### Developer Ecosystem
-- [ ] **Borg Marketplace:** Registry for sharing supervisors, skills, and agent templates
-- [ ] **Visual Designer:** Low-code interface for designing agent workflows and council structures
-- [ ] **OpenAPI / SDK:** Formalized external API and multi-language SDKs (Python, Go, Rust)
-
-### Performance & Scalability
-- [ ] **GPU Acceleration:** Native support for local model acceleration (llama.cpp integration)
-- [ ] **Tiered Memory:** Advanced memory management with cold storage and semantic caching
-- [ ] **Batch Processing:** High-throughput task execution for large-scale operations
+- [ ] **Phase 60: The Mesh** - P2P agent swarm coordination
+- [ ] **Phase 61: The Marketplace** - Decentralized tool/agent marketplace
+- [ ] **Phase 62: The Neural Link** - Direct brain-computer interface (BCI) integration patterns
+- [ ] **Phase 63: The Hive Mind** - Shared learning across all Borg instances

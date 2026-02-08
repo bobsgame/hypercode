@@ -1,6 +1,6 @@
 'use client';
 
-import { trpcc } from '@/utils/trpc';
+import { trpc } from '@/utils/trpc';
 import { useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -12,20 +12,20 @@ export default function CodeDashboard() {
     const [query, setQuery] = useState('');
 
     // Determine which query to run based on input state
-    const symbolsQuery = trpcc.lsp.getSymbols.useQuery(
+    const symbolsQuery = trpc.lsp.getSymbols.useQuery(
         { filePath },
         { enabled: !!filePath && !query }
     );
 
-    const searchQuery = trpcc.lsp.searchSymbols.useQuery(
+    const searchQuery = trpc.lsp.searchSymbols.useQuery(
         { query },
         { enabled: !!query }
     );
 
-    const indexMutation = trpcc.lsp.indexProject.useMutation();
+    const indexMutation = trpc.lsp.indexProject.useMutation();
 
     const results = query ? searchQuery.data : symbolsQuery.data;
-    const isLoading = query ? searchQuery.isLoading : symbolsQuery.isLoading;
+    const isPending = query ? searchQuery.isPending : symbolsQuery.isPending;
 
     return (
         <div className="p-6 space-y-6 h-full flex flex-col">
@@ -36,7 +36,7 @@ export default function CodeDashboard() {
                 </div>
                 <Button
                     onClick={() => indexMutation.mutate()}
-                    disabled={indexMutation.isLoading}
+                    disabled={indexMutation.isPending}
                     variant="outline"
                 >
                     {indexMutation.isLoading ? 'Indexing...' : 'Re-Index Project'}
@@ -82,9 +82,9 @@ export default function CodeDashboard() {
                             <div key={idx} className="flex items-center justify-between p-2 rounded hover:bg-gray-700/50 group border border-transparent hover:border-gray-600 transition-colors">
                                 <div className="flex items-center gap-3">
                                     <span className={`text-xs px-1.5 py-0.5 rounded border ${symbol.kind === 6 ? 'bg-blue-900/30 text-blue-400 border-blue-800' : // Method
-                                            symbol.kind === 5 ? 'bg-yellow-900/30 text-yellow-400 border-yellow-800' : // Class
-                                                symbol.kind === 13 ? 'bg-purple-900/30 text-purple-400 border-purple-800' : // Variable
-                                                    'bg-gray-800 text-gray-400 border-gray-700'
+                                        symbol.kind === 5 ? 'bg-yellow-900/30 text-yellow-400 border-yellow-800' : // Class
+                                            symbol.kind === 13 ? 'bg-purple-900/30 text-purple-400 border-purple-800' : // Variable
+                                                'bg-gray-800 text-gray-400 border-gray-700'
                                         }`}>
                                         {getSymbolKindName(symbol.kind)}
                                     </span>

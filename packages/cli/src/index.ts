@@ -1,51 +1,70 @@
 #!/usr/bin/env node
-import './logger-patch.js';
+/**
+ * Borg CLI - The Neural Operating System Command Interface
+ * @module @borg/cli
+ * @version 2.5.0
+ *
+ * Main entry point for the `borg` command. Provides comprehensive CLI access
+ * to all AIOS subsystems: MCP router, memory, agents, sessions, providers,
+ * tools, skills, configuration, and the web dashboard.
+ */
 
-console.log("[CLI] Bare Metal Startup..."); // Debug log
+import { Command } from 'commander';
+import { readFileSync } from 'node:fs';
+import { resolve, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-// Emulate 'start' command being default
-const args = process.argv.slice(2);
-const command = args[0] || 'start';
+import { registerStartCommand } from './commands/start.js';
+import { registerStatusCommand } from './commands/status.js';
+import { registerMcpCommand } from './commands/mcp.js';
+import { registerMemoryCommand } from './commands/memory.js';
+import { registerAgentCommand } from './commands/agent.js';
+import { registerSessionCommand } from './commands/session.js';
+import { registerProviderCommand } from './commands/provider.js';
+import { registerToolsCommand } from './commands/tools.js';
+import { registerConfigCommand } from './commands/config.js';
+import { registerDashboardCommand } from './commands/dashboard.js';
 
-if (command === 'start') {
-  (async () => {
-    try {
-      // CLI MARKER
-      const fs = await import('fs');
-      fs.writeFileSync('.cli_startup_marker', 'CLI Started at ' + new Date().toISOString());
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
-      const React = (await import('react')).default;
-      const { render } = await import('ink');
-      // @ts-ignore
-      const { App } = await import('./ui/App.js');
-
-      console.log = function () { }; // Final silence before TUI take over, though App takes over pretty quick.
-      render(React.createElement(App));
-    } catch (e) {
-      // original console error
-      process.stderr.write(`[CLI] FATAL: ${e}\n`);
-      process.exit(1);
-    }
-  })();
-} else if (command === 'status') {
-  // Lazy Load UI for status
-  console.log("[CLI] Loading UI for status...");
-  (async () => {
-    const React = (await import('react')).default;
-    const { render } = await import('ink');
-    const { App } = await import('./ui/App.js');
-    render(React.createElement(App, { view: 'status' }));
-  })();
-} else if (command === 'research') {
-  (async () => {
-    console.log("[CLI] Starting Research Pipeline...");
-    const { MCPServer } = await import('@borg/core/MCPServer');
-    // @ts-ignore
-    const { runResearchPipeline } = await import('@borg/core/dist/scripts/researchPipeline.js');
-    const server = new MCPServer();
-    await runResearchPipeline(server);
-  })();
-} else {
-  console.log("Unknown command. Usage: borg [start|status]");
-  process.exit(1);
+/** Read version from VERSION.md (single source of truth) */
+function getVersion(): string {
+  try {
+    const versionPath = resolve(__dirname, '..', '..', '..', 'VERSION.md');
+    return readFileSync(versionPath, 'utf-8').trim();
+  } catch {
+    return '2.5.0';
+  }
 }
+
+const version = getVersion();
+
+const program = new Command();
+
+program
+  .name('borg')
+  .description('Borg — The Neural Operating System / AIOS\n\nThe ultimate AI tool dashboard & development orchestrator.\nManage MCP servers, memory, agents, sessions, providers, and more.')
+  .version(version, '-v, --version', 'Display the current Borg version')
+  .option('--json', 'Output results as JSON (applies to list/status commands)')
+  .option('--config <path>', 'Path to borg config file', '~/.borg/config.jsonc')
+  .option('--log-level <level>', 'Log level: debug, info, warn, error', 'info')
+  .option('--no-color', 'Disable colored output');
+
+// Register all command groups
+registerStartCommand(program);
+registerStatusCommand(program);
+registerMcpCommand(program);
+registerMemoryCommand(program);
+registerAgentCommand(program);
+registerSessionCommand(program);
+registerProviderCommand(program);
+registerToolsCommand(program);
+registerConfigCommand(program);
+registerDashboardCommand(program);
+
+// Default action: show help if no command given
+program.action(() => {
+  program.help();
+});
+
+program.parse(process.argv);

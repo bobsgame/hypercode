@@ -1,6 +1,6 @@
 'use client';
 
-import { trpcc } from '@/utils/trpc';
+import { trpc } from '@/utils/trpc';
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -13,19 +13,19 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 export default function PlansDashboard() {
     const [activeTab, setActiveTab] = useState('diffs');
 
-    const { data: modeData, refetch: refetchMode } = trpcc.planService.getMode.useQuery();
-    const { data: diffs, refetch: refetchDiffs } = trpcc.planService.getDiffs.useQuery();
-    const { data: checkpoints, refetch: refetchCheckpoints } = trpcc.planService.getCheckpoints.useQuery();
+    const { data: modeData, refetch: refetchMode } = trpc.planService.getMode.useQuery();
+    const { data: diffs, refetch: refetchDiffs } = trpc.planService.getDiffs.useQuery();
+    const { data: checkpoints, refetch: refetchCheckpoints } = trpc.planService.getCheckpoints.useQuery();
 
-    const setModeMutation = trpcc.planService.setMode.useMutation({
+    const setModeMutation = trpc.planService.setMode.useMutation({
         onSuccess: () => refetchMode()
     });
 
-    const approveMutation = trpcc.planService.approveDiff.useMutation({ onSuccess: () => refetchDiffs() });
-    const rejectMutation = trpcc.planService.rejectDiff.useMutation({ onSuccess: () => refetchDiffs() });
-    const applyAllMutation = trpcc.planService.applyAll.useMutation({ onSuccess: () => refetchDiffs() });
-    const rollbackMutation = trpcc.planService.rollback.useMutation({ onSuccess: () => { refetchDiffs(); refetchCheckpoints(); } });
-    const createCheckpointMutation = trpcc.planService.createCheckpoint.useMutation({ onSuccess: () => refetchCheckpoints() });
+    const approveMutation = trpc.planService.approveDiff.useMutation({ onSuccess: () => refetchDiffs() });
+    const rejectMutation = trpc.planService.rejectDiff.useMutation({ onSuccess: () => refetchDiffs() });
+    const applyAllMutation = trpc.planService.applyAll.useMutation({ onSuccess: () => refetchDiffs() });
+    const rollbackMutation = trpc.planService.rollback.useMutation({ onSuccess: () => { refetchDiffs(); refetchCheckpoints(); } });
+    const createCheckpointMutation = trpc.planService.createCheckpoint.useMutation({ onSuccess: () => refetchCheckpoints() });
 
     const currentMode = modeData?.mode || 'PLAN';
 

@@ -42,15 +42,18 @@ Borg is a massive AI operating system monorepo. This session performed a compreh
 - **`@ts-ignore` count**: `MCPServer.ts` and `trpc.ts` still have many `@ts-ignore` comments. Gradual cleanup needed.
 - **ROADMAP.md**: Only covers Phases 13-19. Phases 20-58 (accomplished) are not documented there yet.
 - **Dashboard**: Some pages use `trpcc` import, others use `trpc`. Should be standardized.
-- **Test V2**: `test_grand_unification_v2.ts` was created but never successfully executed (tsx/npx issues).
+- **Test V2**: `test_grand_unification_v2.ts` executed successfully.
+  - **Step 1 (Session)**: ✅ PASSED (Persistence verified).
+  - **Step 2 (Director)**: ⚠️ PARTIAL (Logic ran, but LLM returned 404 for `claude-3-5-sonnet-latest`).
+  - **Step 3 (Worktree)**: ✅ PASSED (Worktree created).
+  - **Conclusion**: Core infrastructure is solid. LLM config needs update.
 
 ## 4. Recommended Next Steps
-1. **Update ROADMAP.md** with all accomplished phases (20-58).
-2. **Create `docs/SUBMODULE_DASHBOARD.md`** cataloging all 200+ submodules.
-3. **Implement remaining features** from AGENTS.md wishlist (MCP traffic inspector, memory dashboard, provider billing).
+1. **Fix LLM Config**: Update `packages/core/config/council.json` (or `LLMService`) to use `claude-3-5-sonnet-20241022`.
+2. **Commit submodules**: Ensure `git submodule update` is clean.
+3. **Implement remaining features** from AGENTS.md wishlist.
 4. **Fix dashboard import inconsistency** (`trpcc` vs `trpc`).
-5. **Run integration test** `test_grand_unification_v2.ts` successfully.
-6. **Reduce `@ts-ignore`** count in MCPServer.ts progressively.
+5. **Reduce `@ts-ignore`** count in MCPServer.ts.
 
 ## 5. User Preferences (Standing Instructions)
 - Autonomous operation preferred — keep going without confirmation.

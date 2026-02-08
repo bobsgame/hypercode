@@ -1,19 +1,19 @@
 
 "use client";
 
-import { trpcc } from "@/utils/trpc";
+import { trpc } from "@/utils/trpc";
 import { useState } from "react";
 import { motion } from "framer-motion";
 
 export default function KnowledgeDashboard() {
-    const submodulesQuery = trpcc.submodule.list.useQuery();
-    const resourcesQuery = trpcc.knowledge.getResources.useQuery();
-    const updateAllMutation = trpcc.submodule.updateAll.useMutation();
+    const submodulesQuery = trpc.submodule.list.useQuery();
+    const resourcesQuery = trpc.knowledge.getResources.useQuery();
+    const updateAllMutation = trpc.submodule.updateAll.useMutation();
 
     const [updating, setUpdating] = useState(false);
     const [ingestUrl, setIngestUrl] = useState("");
     const [ingestLog, setIngestLog] = useState("");
-    const ingestMutation = trpcc.knowledge.ingest.useMutation();
+    const ingestMutation = trpc.knowledge.ingest.useMutation();
 
     const handleIngest = async () => {
         if (!ingestUrl) return;
@@ -37,9 +37,9 @@ export default function KnowledgeDashboard() {
         }
     };
 
-    const installMutation = trpcc.submodule.install.useMutation();
-    const buildMutation = trpcc.submodule.build.useMutation();
-    const enableMutation = trpcc.submodule.enable.useMutation();
+    const installMutation = trpc.submodule.install.useMutation();
+    const buildMutation = trpc.submodule.build.useMutation();
+    const enableMutation = trpc.submodule.enable.useMutation();
     const [actioning, setActioning] = useState<string | null>(null);
 
     const handleAction = async (action: 'install' | 'build' | 'enable', path: string) => {
@@ -154,10 +154,10 @@ export default function KnowledgeDashboard() {
                         />
                         <button
                             onClick={handleIngest}
-                            disabled={ingestMutation.isLoading}
+                            disabled={ingestMutation.isPending}
                             className="bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded font-bold disabled:opacity-50"
                         >
-                            {ingestMutation.isLoading ? '...' : 'INGEST'}
+                            {ingestMutation.isPending ? '...' : 'INGEST'}
                         </button>
                     </div>
                     {ingestLog && (

@@ -1,11 +1,11 @@
 
 'use client';
 
-import { trpcc } from '../../../utils/trpc';
+import { trpc } from '../../../utils/trpc';
 import { useState, useEffect } from 'react';
 
 export default function HealerDashboard() {
-    const historyQuery = trpcc.healer.getHistory.useQuery(undefined, {
+    const historyQuery = trpc.healer.getHistory.useQuery(undefined, {
         refetchInterval: 5000 // Poll every 5s
     });
 

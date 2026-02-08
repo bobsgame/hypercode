@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { t, publicProcedure } from '../lib/trpc-core.js';
+import { t, publicProcedure, getMcpServer } from '../lib/trpc-core.js';
 import { KnowledgeService } from '../services/KnowledgeService.js';
 
 export const knowledgeRouter = t.router({
@@ -9,17 +9,14 @@ export const knowledgeRouter = t.router({
             depth: z.number().optional().default(1)
         }))
         .query(async ({ input }) => {
-            // @ts-ignore
-            const mcp = global.mcpServerInstance;
-            if (!mcp || !mcp.knowledgeService) {
+            const mcp = getMcpServer();
+            if (!mcp.knowledgeService) {
                 return { nodes: [], edges: [] };
             }
 
-            // Get raw content from service
             const result = await mcp.knowledgeService.getGraph(input.query, input.depth);
 
             try {
-                // Parse the JSON string returned by the service
                 const content = result.content[0].text;
                 const graphData = JSON.parse(content);
                 return graphData;
@@ -30,13 +27,19 @@ export const knowledgeRouter = t.router({
         }),
 
     getStats: publicProcedure.query(async () => {
-        // @ts-ignore
-        const mcp = global.mcpServerInstance;
-        if (!mcp || !mcp.memoryManager) return { count: 0 };
-
+        const mcp = getMcpServer();
+        if (!mcp.memoryManager) return { count: 0 };
         const contexts = await mcp.memoryManager.listContexts();
         return { count: contexts.length };
     }),
+
+    ingest: publicProcedure
+        .input(z.object({ url: z.string() }))
+        .mutation(async ({ input }) => {
+            const mcp = getMcpServer();
+            return mcp.deepResearchService.ingest(input.url);
+        }),
+
     getResources: publicProcedure.query(async () => {
         const fs = await import('fs/promises');
         const path = await import('path');

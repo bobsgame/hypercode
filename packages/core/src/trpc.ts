@@ -27,6 +27,7 @@ import { planRouter as planServiceRouter } from './routers/planRouter.js';
 import { metricsRouter as metricsServiceRouter } from './routers/metricsRouter.js';
 import { supervisorRouter } from './routers/supervisorRouter.js';
 import { lspRouter } from './routers/lspRouter.js';
+import { settingsRouter } from './routers/settingsRouter.js';
 
 export const appRouter = t.router({
     graph: graphRouter,
@@ -340,6 +341,7 @@ export const appRouter = t.router({
     lsp: lspRouter,
     agentMemory: agentMemoryRouter,
     planService: planServiceRouter,
+    settings: settingsRouter,
 
     runCommand: adminProcedure.input(z.object({ command: z.string() })).mutation(async ({ input }) => {
         // @ts-ignore

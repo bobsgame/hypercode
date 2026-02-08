@@ -164,7 +164,7 @@ export class MCPServer {
     private terminalService: TerminalService;
     private processRegistry: ProcessRegistry;
     private mcpmInstaller: McpmInstaller;
-    private configManager: ConfigManager;
+    public configManager: ConfigManager;
     public autoTestService: AutoTestService;
     public sandboxService: SandboxService;
     public spawnerService: SpawnerService;

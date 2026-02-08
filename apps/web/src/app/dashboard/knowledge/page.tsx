@@ -11,6 +11,21 @@ export default function KnowledgeDashboard() {
     const updateAllMutation = trpcc.submodule.updateAll.useMutation();
 
     const [updating, setUpdating] = useState(false);
+    const [ingestUrl, setIngestUrl] = useState("");
+    const [ingestLog, setIngestLog] = useState("");
+    const ingestMutation = trpcc.knowledge.ingest.useMutation();
+
+    const handleIngest = async () => {
+        if (!ingestUrl) return;
+        setIngestLog(`Ingesting: ${ingestUrl}...`);
+        try {
+            const result = await ingestMutation.mutateAsync({ url: ingestUrl });
+            setIngestLog(`Success: ${result}`);
+            setIngestUrl("");
+        } catch (e: any) {
+            setIngestLog(`Error: ${e.message}`);
+        }
+    };
 
     const handleUpdateAll = async () => {
         setUpdating(true);
@@ -121,6 +136,35 @@ export default function KnowledgeDashboard() {
                             ))
                         )}
                     </div>
+                </section>
+
+                {/* Ingestion Section */}
+                <section className="bg-gray-800 rounded-lg border border-gray-700 p-6 flex flex-col gap-4">
+                    <h2 className="text-xl font-bold text-green-400 flex items-center">
+                        <span className="mr-2">🧠</span> Ingest Knowledge
+                    </h2>
+                    <div className="flex gap-2">
+                        <input
+                            type="text"
+                            className="flex-1 bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white focus:border-green-500 outline-none"
+                            placeholder="Enter URL to ingest (e.g., https://example.com/docs)"
+                            value={ingestUrl}
+                            onChange={(e) => setIngestUrl(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && handleIngest()}
+                        />
+                        <button
+                            onClick={handleIngest}
+                            disabled={ingestMutation.isLoading}
+                            className="bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded font-bold disabled:opacity-50"
+                        >
+                            {ingestMutation.isLoading ? '...' : 'INGEST'}
+                        </button>
+                    </div>
+                    {ingestLog && (
+                        <div className="bg-black p-3 rounded text-xs font-mono text-gray-300 break-all border border-gray-700">
+                            {ingestLog}
+                        </div>
+                    )}
                 </section>
 
                 {/* Resources Section - Categorized */}

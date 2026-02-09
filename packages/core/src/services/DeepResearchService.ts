@@ -2,7 +2,6 @@
 import { LLMService } from '@borg/ai';
 import { SearchService } from '@borg/search';
 import { MemoryManager } from './MemoryManager.js';
-import { BrowserTool } from '@borg/tools';
 import { MCPServer } from '../MCPServer.js';
 
 // Dynamically import WebSearchTool if needed, or define interface
@@ -23,7 +22,6 @@ export interface ResearchResult {
 export class DeepResearchService {
     private llm: LLMService;
     private memory: MemoryManager;
-    private browser: BrowserTool;
     private server: any;
 
     constructor(server: any, llm: LLMService, _search: SearchService, memory: MemoryManager) {
@@ -31,7 +29,6 @@ export class DeepResearchService {
         this.llm = llm;
         // SearchService ignored for now as it's local. We need Web Search.
         this.memory = memory;
-        this.browser = new BrowserTool();
     }
 
     public async recursiveResearch(topic: string, depth: number = 2, maxBreadth: number = 3): Promise<ResearchResult & { subTopics?: ResearchResult[] }> {

@@ -1,6 +1,6 @@
 
 import { MemoryManager } from '../services/MemoryManager.js';
-import { MCPServer } from '../MCPServer.js';
+import type { MCPServer } from '../MCPServer.js';
 import { search, SafeSearchType } from 'duck-duck-scrape';
 
 /**

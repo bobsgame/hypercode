@@ -2,7 +2,7 @@
 import { LLMService } from '@borg/ai';
 import { SearchService } from '@borg/search';
 import { MemoryManager } from './MemoryManager.js';
-import { MCPServer } from '../MCPServer.js';
+import type { MCPServer } from '../MCPServer.js';
 
 // Dynamically import WebSearchTool if needed, or define interface
 // We'll rely on our own internal 'search' helper that uses the SearchService if strictly compliant,

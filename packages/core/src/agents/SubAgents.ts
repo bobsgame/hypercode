@@ -1,6 +1,6 @@
 
 import { BaseAgent } from './BaseAgent.js';
-import { MCPServer } from '../MCPServer.js';
+import type { MCPServer } from '../MCPServer.js';
 
 export class ResearchAgent extends BaseAgent {
     private server: MCPServer;

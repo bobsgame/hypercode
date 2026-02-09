@@ -1,5 +1,5 @@
 import { DeepResearchService } from './DeepResearchService.js';
-import { MCPServer } from '../MCPServer.js';
+import type { MCPServer } from '../MCPServer.js';
 import { LLMService } from '@borg/ai';
 import { SkillRegistry } from '../skills/SkillRegistry.js'; // Import
 import fs from 'fs/promises';

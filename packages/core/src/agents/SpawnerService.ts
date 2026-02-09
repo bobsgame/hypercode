@@ -1,7 +1,7 @@
 
 import { BaseAgent, AgentStatus } from './BaseAgent.js';
 import { ResearchAgent, CodeAgent } from './SubAgents.js';
-import { MCPServer } from '../MCPServer.js';
+import type { MCPServer } from '../MCPServer.js';
 
 export class SpawnerService {
     private static instance: SpawnerService;

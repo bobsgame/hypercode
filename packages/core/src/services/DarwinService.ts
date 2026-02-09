@@ -1,6 +1,6 @@
 
 import { LLMService } from '@borg/ai';
-import { MCPServer } from '../MCPServer.js';
+import type { MCPServer } from '../MCPServer.js';
 
 export interface Mutation {
     id: string;

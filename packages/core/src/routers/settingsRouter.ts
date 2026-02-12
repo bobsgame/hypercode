@@ -4,9 +4,8 @@ import { t, publicProcedure, getMcpServer } from '../lib/trpc-core.js';
 export const settingsRouter = t.router({
     get: publicProcedure.query(() => {
         const mcp = getMcpServer();
-        // @ts-ignore - configManager might be missing in some contexts
-        if (mcp && mcp.configManager) {
-            return mcp.configManager.loadConfig() || {};
+        if (mcp && (mcp as any).configManager) {
+            return (mcp as any).configManager.loadConfig() || {};
         }
         return {};
     }),

@@ -259,11 +259,7 @@ export class MCPServer {
         this.router = new Router();
         this.modelSelector = new ModelSelector();
         this.llmService = new LLMService(this.modelSelector);
-        this.skillRegistry = new SkillRegistry([
-            path.join(process.cwd(), '.borg', 'skills'),
-            path.join(process.env.HOME || process.env.USERPROFILE || '', '.borg', 'skills')
-        ]);
-        this.skillRegistry.setMasterIndexPath(path.join(process.cwd(), 'BORG_MASTER_INDEX.jsonc'));
+        // SkillRegistry initialized later with correct paths
         this.sessionManager = new SessionManager(process.cwd()); // Phase 57: State Persistence
         this.projectTracker = new ProjectTracker(process.cwd()); // Phase 59: Autonomous Loop
         this.director = new Director(this);

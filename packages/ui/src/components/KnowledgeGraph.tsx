@@ -27,13 +27,13 @@ interface GraphData {
 }
 
 interface KnowledgeGraphProps {
-    nodes: GraphNode[];
-    links: GraphEdge[];
+    nodes?: GraphNode[];
+    links?: GraphEdge[];
     loading?: boolean;
     onNodeClick?: (node: GraphNode) => void;
 }
 
-export function KnowledgeGraph({ nodes, links, loading = false, onNodeClick }: KnowledgeGraphProps) {
+export function KnowledgeGraph({ nodes = [], links = [], loading = false, onNodeClick }: KnowledgeGraphProps) {
     const { theme } = useTheme();
     const fgRef = useRef<any>();
 

@@ -6,9 +6,9 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 
 export default function KnowledgeDashboard() {
-    const submodulesQuery = trpc.submodule.list.useQuery();
+    // Submodule router is currently disabled — using static data
+    const submodulesData: any[] = [];
     const resourcesQuery = trpc.knowledge.getResources.useQuery();
-    const updateAllMutation = trpc.submodule.updateAll.useMutation();
 
     const [updating, setUpdating] = useState(false);
     const [ingestUrl, setIngestUrl] = useState("");
@@ -29,35 +29,21 @@ export default function KnowledgeDashboard() {
 
     const handleUpdateAll = async () => {
         setUpdating(true);
-        try {
-            await updateAllMutation.mutateAsync();
-        } finally {
-            setUpdating(false);
-            submodulesQuery.refetch();
-        }
+        // Submodule sync disabled — router not registered
+        setUpdating(false);
     };
 
-    const installMutation = trpc.submodule.install.useMutation();
-    const buildMutation = trpc.submodule.build.useMutation();
-    const enableMutation = trpc.submodule.enable.useMutation();
     const [actioning, setActioning] = useState<string | null>(null);
 
     const handleAction = async (action: 'install' | 'build' | 'enable', path: string) => {
         setActioning(`${action}-${path}`);
-        try {
-            if (action === 'install') await installMutation.mutateAsync({ path });
-            if (action === 'build') await buildMutation.mutateAsync({ path });
-            if (action === 'enable') await enableMutation.mutateAsync({ path });
-            submodulesQuery.refetch();
-        } catch (e) {
-            alert(`Failed to ${action}: ${e}`);
-        } finally {
-            setActioning(null);
-        }
+        // Submodule actions disabled — router not registered
+        setActioning(null);
     };
 
-    const submodules = submodulesQuery.data || [];
+    const submodules = submodulesData;
     const resources = resourcesQuery.data || { categories: [] };
+
 
     // Group resources for display
     const mcpServers = resources.categories.find((c: any) => c.name.includes("MCP Directories") || c.name.includes("MCPs"))?.urls || [];

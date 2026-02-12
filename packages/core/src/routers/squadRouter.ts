@@ -1,6 +1,6 @@
 
 import { z } from 'zod';
-import { t, publicProcedure } from '../trpc.js';
+import { t, publicProcedure } from '../lib/trpc-core.js';
 import { getMcpServer } from '../lib/mcpHelper.js';
 
 export const squadRouter = t.router({
@@ -16,8 +16,7 @@ export const squadRouter = t.router({
             goal: z.string()
         }))
         .mutation(async ({ input }) => {
-            // @ts-ignore
-            const server = global.mcpServerInstance;
+            const server = getMcpServer();
             if (!server) throw new Error("Server not initialized");
             return await server.squadService.spawnMember(input.branch, input.goal);
         }),
@@ -27,8 +26,7 @@ export const squadRouter = t.router({
             branch: z.string()
         }))
         .mutation(async ({ input }) => {
-            // @ts-ignore
-            const server = global.mcpServerInstance;
+            const server = getMcpServer();
             if (!server) throw new Error("Server not initialized");
             return await server.squadService.killMember(input.branch);
         }),
@@ -39,8 +37,7 @@ export const squadRouter = t.router({
             message: z.string()
         }))
         .mutation(async ({ input }) => {
-            // @ts-ignore
-            const server = global.mcpServerInstance;
+            const server = getMcpServer();
             if (!server) throw new Error("Server not initialized");
             return await server.squadService.messageMember(input.branch, input.message);
         }),
@@ -50,16 +47,15 @@ export const squadRouter = t.router({
     toggleIndexer: publicProcedure
         .input(z.object({ enabled: z.boolean() }))
         .mutation(async ({ input }) => {
-            // @ts-ignore
-            const server = global.mcpServerInstance;
+            const server = getMcpServer();
             if (!server) return false;
             return await server.squadService.toggleIndexer(input.enabled);
         }),
 
     getIndexerStatus: publicProcedure.query(() => {
-        // @ts-ignore
-        const server = global.mcpServerInstance;
+        const server = getMcpServer();
         if (!server) return { running: false, indexing: false };
         return server.squadService.getIndexerStatus();
     })
 });
+

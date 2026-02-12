@@ -1,7 +1,6 @@
 import { z } from 'zod';
 import { t, publicProcedure } from '../lib/trpc-core.js';
-// @ts-ignore
-import { ResearchService } from '../services/ResearchService.js';
+import { getMcpServer } from '../lib/mcpHelper.js';
 
 export const researchRouter = t.router({
     conduct: publicProcedure
@@ -9,14 +8,13 @@ export const researchRouter = t.router({
             topic: z.string(),
             depth: z.number().min(1).max(10).default(3)
         }))
-        .mutation(async ({ ctx, input }) => {
-            // @ts-ignore
-            const mcp = global.mcpServerInstance;
+        .mutation(async ({ input }) => {
+            const mcp = getMcpServer();
             if (!mcp) throw new Error("MCP Server not found");
 
-            // @ts-ignore
-            const service: ResearchService = mcp.researchService;
+            const service = (mcp as any).researchService;
             const report = await service.research(input.topic, input.depth);
             return { report };
         })
 });
+

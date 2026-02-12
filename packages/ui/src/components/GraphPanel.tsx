@@ -10,13 +10,13 @@ import { Loader2, RefreshCw, ZoomIn, ZoomOut } from 'lucide-react';
 const ForceGraph2D = dynamic(() => import('react-force-graph-2d'), { ssr: false });
 
 export function GraphPanel() {
-    const { data: graphData, isLoading, refetch } = trpc.repoGraph.get.useQuery(undefined, {
+    const { data: graphData, isLoading, refetch } = trpc.graph.get.useQuery(undefined, {
         refetchOnWindowFocus: false,
         staleTime: 60000 // Cache for 1 min
     });
 
     const [showSymbols, setShowSymbols] = useState(false);
-    const { data: symbolData } = trpc.repoGraph.getSymbolsGraph.useQuery(undefined, {
+    const { data: symbolData } = trpc.graph.getSymbolsGraph.useQuery(undefined, {
         enabled: showSymbols,
         staleTime: 300000 // Cache longer
     });

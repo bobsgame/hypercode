@@ -4,7 +4,7 @@ import type { NextConfig } from "next";
 console.clear = () => { };
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  transpilePackages: ["@borg/ui", "@borg/core"],
 };
 
 export default nextConfig;

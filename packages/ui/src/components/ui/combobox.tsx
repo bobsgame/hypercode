@@ -5,7 +5,7 @@ import { CaretSortIcon, CheckIcon } from "@radix-ui/react-icons"
 import * as PopoverPrimitive from "@radix-ui/react-popover"
 
 import { cn } from "../../lib/utils"
-import { Button } from "@/components/ui/button"
+import { Button } from "./button"
 import {
   Command,
   CommandEmpty,
@@ -13,7 +13,7 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
-} from "@/components/ui/command"
+} from "./command"
 
 const Popover = PopoverPrimitive.Root
 const PopoverTrigger = PopoverPrimitive.Trigger

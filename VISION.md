@@ -1,6 +1,6 @@
 # VISION.md - Borg: The Neural Operating System
 
-> **Version**: 2.5.0 | **Codename**: AIOS (AI Operating System)
+> **Version**: 2.6.0 | **Codename**: AIOS (AI Operating System)
 > **Tagline**: *"The Ultimate AI Tool Dashboard & Development Orchestrator"*
 
 ---

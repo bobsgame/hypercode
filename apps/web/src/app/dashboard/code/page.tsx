@@ -39,7 +39,7 @@ export default function CodeDashboard() {
                     disabled={indexMutation.isPending}
                     variant="outline"
                 >
-                    {indexMutation.isLoading ? 'Indexing...' : 'Re-Index Project'}
+                    {indexMutation.isPending ? 'Indexing...' : 'Re-Index Project'}
                 </Button>
             </div>
 
@@ -71,9 +71,9 @@ export default function CodeDashboard() {
                 </div>
 
                 <ScrollArea className="flex-1 p-4">
-                    {isLoading && <div className="text-gray-500 animate-pulse">Loading symbols...</div>}
+                    {isPending && <div className="text-gray-500 animate-pulse">Loading symbols...</div>}
 
-                    {!isLoading && (!results || results.length === 0) && (
+                    {!isPending && (!results || results.length === 0) && (
                         <div className="text-gray-500 italic">No symbols found. Try indexing the project.</div>
                     )}
 

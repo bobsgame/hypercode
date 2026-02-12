@@ -1,7 +1,7 @@
 'use client';
 
-import { trpc } from '@/lib/trpc';
-import { useEffect, useState } from 'react';
+import { trpc } from "@/utils/trpc";
+
 
 interface MetricBucket {
     time: number;
@@ -18,22 +18,10 @@ interface MetricsData {
 }
 
 export default function MetricsPage() {
-    const [data, setData] = useState<MetricsData | null>(null);
-    const [error, setError] = useState<string | null>(null);
-
-    useEffect(() => {
-        const fetchData = async () => {
-            try {
-                const result = await (trpc as any).metrics.getStats.query({});
-                setData(result);
-            } catch (e: any) {
-                setError(e.message);
-            }
-        };
-        fetchData();
-        const interval = setInterval(fetchData, 5000);
-        return () => clearInterval(interval);
-    }, []);
+    const { data, error, isLoading } = trpc.metrics.getStats.useQuery(
+        { windowMs: 3600000 },
+        { refetchInterval: 5000 }
+    );
 
     const formatBytes = (b: number) => {
         if (b > 1073741824) return `${(b / 1073741824).toFixed(1)} GB`;
@@ -53,11 +41,11 @@ export default function MetricsPage() {
 
             {error && (
                 <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4 text-destructive">
-                    Error: {error}
+                    Error: {error.message}
                 </div>
             )}
 
-            {!data && !error && (
+            {isLoading && (
                 <div className="text-muted-foreground animate-pulse">Loading metrics...</div>
             )}
 
@@ -93,7 +81,7 @@ export default function MetricsPage() {
                     <div className="bg-card border rounded-lg p-6">
                         <h2 className="text-lg font-semibold mb-4">Event Type Breakdown</h2>
                         <div className="space-y-2">
-                            {Object.entries(data.counts).map(([type, count]) => (
+                            {Object.entries(data.counts as Record<string, number>).map(([type, count]) => (
                                 <div key={type} className="flex justify-between items-center">
                                     <span className="font-mono text-sm">{type}</span>
                                     <div className="flex items-center gap-4">
@@ -104,7 +92,7 @@ export default function MetricsPage() {
                                             />
                                         </div>
                                         <span className="text-sm text-muted-foreground w-16 text-right">
-                                            {count}
+                                            {count as number}
                                         </span>
                                     </div>
                                 </div>
@@ -117,8 +105,8 @@ export default function MetricsPage() {
                         <div className="bg-card border rounded-lg p-6">
                             <h2 className="text-lg font-semibold mb-4">Activity Over Time</h2>
                             <div className="flex items-end h-32 gap-px">
-                                {data.series.map((bucket, i) => {
-                                    const maxCount = Math.max(...data.series.map(s => s.count), 1);
+                                {data.series.map((bucket: any, i: number) => {
+                                    const maxCount = Math.max(...(data.series as any[]).map((s: any) => s.count), 1);
                                     const height = (bucket.count / maxCount) * 100;
                                     return (
                                         <div

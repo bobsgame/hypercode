@@ -32,7 +32,7 @@ export function SquadsPanel() {
             setNewGoal('');
             utils.squad.list.invalidate();
         },
-        onError: (err) => {
+        onError: (err: any) => {
             toast.error(`Failed to spawn member: ${err.message}`);
         }
     });
@@ -48,7 +48,7 @@ export function SquadsPanel() {
             toast.success("Message sent to agent.");
             setChatMessage('');
         },
-        onError: (err) => {
+        onError: (err: any) => {
             toast.error(`Failed to send message: ${err.message}`);
         }
     });
@@ -63,7 +63,7 @@ export function SquadsPanel() {
             toast.success("Squad member terminated.");
             utils.squad.list.invalidate();
         },
-        onError: (err) => {
+        onError: (err: any) => {
             toast.error(`Failed to kill member: ${err.message}`);
         }
     });

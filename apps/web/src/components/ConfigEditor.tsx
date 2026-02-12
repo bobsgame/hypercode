@@ -1,33 +1,15 @@
 "use client";
-import { trpc } from "../utils/trpc";
 import { useState, useEffect } from "react";
 
+// Config router is currently disabled — using static placeholder
 export default function ConfigEditor() {
-    const configQuery = trpc.config.readAntigravity.useQuery();
-    const saveMutation = trpc.config.writeAntigravity.useMutation();
-
-    const [jsonContent, setJsonContent] = useState<string>("");
+    const [jsonContent, setJsonContent] = useState<string>("{}");
     const [status, setStatus] = useState<string>("");
-
-    useEffect(() => {
-        if (configQuery.data) {
-            setJsonContent(JSON.stringify(configQuery.data, null, 4));
-        }
-    }, [configQuery.data]);
+    const isLoading = false;
 
     const handleSave = async () => {
-        try {
-            setStatus("Saving...");
-            await saveMutation.mutateAsync({ content: jsonContent });
-            setStatus("Saved successfully!");
-            setTimeout(() => setStatus(""), 3000);
-            configQuery.refetch();
-        } catch (e: any) {
-            setStatus(`Error: ${e.message}`);
-        }
+        setStatus("Config router is not active. Enable it in trpc.ts to save configuration.");
     };
-
-    if (configQuery.isLoading) return <div className="p-4">Loading Config...</div>;
 
     return (
         <div className="p-6 border rounded-lg bg-zinc-900 text-zinc-100 shadow-md w-full max-w-2xl mt-8">
@@ -40,15 +22,15 @@ export default function ConfigEditor() {
                 />
             </div>
             <div className="flex justify-between items-center mt-4">
-                <span className={`text-sm ${status.includes("Error") ? "text-red-400" : "text-green-400"}`}>
+                <span className={`text-sm ${status.includes("not active") ? "text-yellow-400" : status.includes("Error") ? "text-red-400" : "text-green-400"}`}>
                     {status}
                 </span>
                 <button
                     onClick={handleSave}
-                    disabled={saveMutation.isPending}
+                    disabled={true}
                     className="bg-blue-600 hover:bg-blue-700 text-white py-2 px-6 rounded font-medium disabled:opacity-50"
                 >
-                    {saveMutation.isPending ? "Saving..." : "Save Config"}
+                    Save Config (Router Disabled)
                 </button>
             </div>
         </div>

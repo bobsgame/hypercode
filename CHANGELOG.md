@@ -2,6 +2,49 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.6.1] - 2026-02-11
+
+### Fixed
+
+- **tRPC Router Stability**:
+  - Fixed duplicate `health` and `getTaskStatus` keys in `appRouter` (TS1117 build error)
+  - Fixed `graphRouter.get` fallback to include `dependencies: {}` (union type mismatch)
+  - Fixed `squadRouter.ts` circular dependency (`../trpc.js` → `../lib/trpc-core.js`)
+  - Removed duplicate `ProjectTracker` initialization in `MCPServer.ts`
+  - Disabled `AutoTestWidget` (router is commented out) — replaced with informational placeholder
+  - Made `KnowledgeGraph` component props optional with sensible defaults
+- **tRPC v11 Migration**:
+  - Replaced deprecated `isLoading` → `isPending` in `code/page.tsx`, `settings/page.tsx`, `memory/page.tsx`, `council/page.tsx`
+  - Fixed `evolution/page.tsx` `onError` type annotation (removed explicit `Error` type for tRPC v11 inference)
+  - Fixed `evolution/page.tsx` `Badge` variant from invalid `"success"` to `"default"`
+- **Disabled Router Pages**:
+  - Fixed `knowledge/page.tsx` — replaced `trpc.submodule.*` calls with static data (router disabled)
+  - Fixed `mcp/page.tsx` — replaced `trpc.mcp.*` calls with static placeholder UI (router disabled)
+
+### Changed
+
+- **@ts-ignore Cleanup (87 comments removed across 14 routers)**:
+  - `shellRouter` (6), `testsRouter` (2), `skillsRouter` (5), `suggestionsRouter` (7)
+  - `graphRouter` (4), `workflowRouter` (10), `symbolsRouter` (14), `squadRouter` (5)
+  - `settingsRouter` (1), `researchRouter` (2), `memoryRouter` (8)
+  - `contextRouter` (10), `commandsRouter` (4), `autoDevRouter` (10)
+  - All now use `getMcpServer()` helper with `(mcp as any)` type assertions instead of `global.mcpServerInstance`
+
+### Added
+
+- **Real Data Wiring**:
+  - `billing.getStatus` now returns real cost data via `QuotaService.getUsageByModel()`
+  - `getTaskStatus` now returns real progress from `ProjectTracker.getStatus()`
+  - `indexingStatus` now returns real state from `LSPService`
+  - `pulseRouter.getLatestEvents` now reads from `EventBus` history buffer
+  - `RepoGraphService.toJSON()` now includes raw `dependencies` map for frontend consumption
+  - `EventBus` initialization enabled in `MCPServer.ts`
+- **Documentation**:
+  - `HANDOFF_ANTIGRAVITY.md` — comprehensive deep analysis: 25 routers, 30 services, 31 dashboard pages, @ts-ignore inventory, priority recommendations
+  - Updated `ROADMAP.md` Phase 63 with completed item tracking
+  - Updated `ProjectTracker` to prioritize local `task.md`/`docs/task.md` over hardcoded brain path
+
+
 ## [2.6.0] - 2026-02-08
 
 ### Added

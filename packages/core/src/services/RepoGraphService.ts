@@ -225,13 +225,22 @@ export class RepoGraphService {
             }
         }
 
+        const dependencies: Record<string, string[]> = {};
+        for (const [k, v] of this.dependencies.entries()) {
+            dependencies[k] = Array.from(v);
+        }
+
         return {
-            nodes: Array.from(nodes).map(id => ({
-                id,
-                name: path.basename(id),
-                group: id.split('/')[0] // simplistic grouping by top-level folder
-            })),
-            links
+            nodes: Array.from(nodes).map(id => {
+                const parts = id.split('/');
+                return {
+                    id,
+                    name: path.basename(id),
+                    group: parts[0] === 'packages' ? parts[1] : parts[0] // Better grouping
+                };
+            }),
+            links: links.map(l => ({ source: l.source, target: l.target })),
+            dependencies // Add raw dependencies for UI consumers
         };
     }
 }

@@ -23,6 +23,7 @@ This file serves as the entry point for all autonomous agents working on the Bor
 | [`GROK.md`](GROK.md) | Grok-4 | Innovator — Creative solutions, edge cases |
 | [`CODEX.md`](CODEX.md) | GPT-5-Codex | Specialist — Complex algorithms, security |
 | [`copilot-instructions.md`](copilot-instructions.md) | Copilot | Inline — Real-time code completion |
+| [`ANTIGRAVITY.md`](ANTIGRAVITY.md) | Antigravity | Orchestrator — System management & coordination |
 
 ## Session Protocol
 1. **Read** `HANDOFF_ANTIGRAVITY.md` for context from previous sessions.

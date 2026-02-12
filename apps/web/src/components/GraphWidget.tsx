@@ -6,7 +6,7 @@ import { KnowledgeGraph } from '@borg/ui';
 import { motion } from 'framer-motion';
 
 export function GraphWidget() {
-    const { data, isLoading, refetch } = trpc.repoGraph.get.useQuery(undefined, {
+    const { data, isLoading, refetch } = trpc.graph.get.useQuery(undefined, {
         refetchInterval: 10000,
         refetchOnWindowFocus: false
     });
@@ -18,7 +18,7 @@ export function GraphWidget() {
             nodes: data.nodes.map((n: any) => ({
                 id: n.id,
                 label: n.name || n.id.split('/').pop() || n.id,
-                type: n.group === 1 ? 'topic' : (n.group === 2 ? 'document' : 'concept'),
+                type: (n.group === 1 ? 'topic' : (n.group === 2 ? 'document' : 'concept')) as 'topic' | 'document' | 'concept',
                 val: n.val || 5
             })),
             links: data.links.map((l: any) => ({
@@ -29,8 +29,8 @@ export function GraphWidget() {
         };
     }, [data]);
 
-    // @ts-ignore
-    const openFile = trpc.vscode.open.useMutation();
+    // vscode router is currently disabled — file open is a no-op
+    const openFile = { mutate: (args: any) => console.log('vscode.open disabled:', args.path) };
 
     const nodeCount = mappedData.nodes.length;
     const linkCount = mappedData.links.length;

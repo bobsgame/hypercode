@@ -1,13 +1,14 @@
 "use client";
 
 import { useState } from 'react';
-import { trpc } from '@/utils/trpc';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, Plus, Server, Trash2, Globe, Terminal } from "lucide-react";
+import { Loader2, Plus, Server, Globe, Terminal } from "lucide-react";
 
+// MCP router is currently disabled — using static placeholder data
 export default function MCPDashboard() {
-    const { data: servers, isLoading, refetch } = trpc.mcp.list.useQuery();
+    const servers: any[] = [];
+    const isLoading = false;
     const [isAddOpen, setIsAddOpen] = useState(false);
 
     return (
@@ -23,7 +24,7 @@ export default function MCPDashboard() {
             </div>
 
             {isAddOpen && (
-                <AddServerForm onSuccess={() => { setIsAddOpen(false); refetch(); }} />
+                <AddServerForm onSuccess={() => { setIsAddOpen(false); }} />
             )}
 
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -31,7 +32,13 @@ export default function MCPDashboard() {
                     <div className="col-span-3 flex justify-center p-12">
                         <Loader2 className="h-8 w-8 animate-spin text-zinc-500" />
                     </div>
-                ) : servers?.map((server: any) => (
+                ) : servers.length === 0 ? (
+                    <div className="col-span-3 text-center p-12 text-zinc-500">
+                        <Server className="h-12 w-12 mx-auto mb-4 opacity-30" />
+                        <p className="text-lg font-medium">MCP Router Not Active</p>
+                        <p className="text-sm mt-1">The MCP aggregator router is currently disabled. Enable it in trpc.ts to manage servers.</p>
+                    </div>
+                ) : servers.map((server: any) => (
                     <ServerCard key={server.name} server={server} />
                 ))}
             </div>
@@ -47,19 +54,17 @@ function ServerCard({ server }: { server: any }) {
                     <Server className="h-5 w-5 text-zinc-500" />
                     {server.name}
                 </CardTitle>
-                <Badge status={server.status} />
+                <StatusBadge status={server.status} />
             </CardHeader>
             <CardContent>
                 <div className="space-y-4">
                     <div className="text-xs font-mono text-zinc-500 bg-black/50 p-2 rounded truncate">
                         {server.config.command} {server.config.args?.join(' ')}
                     </div>
-
                     <div className="flex justify-between text-sm text-zinc-400">
                         <span>Tools:</span>
                         <span className="font-bold text-white">{server.toolCount}</span>
                     </div>
-
                     {server.config.env && (
                         <div className="flex flex-wrap gap-1">
                             {Object.keys(server.config.env).map(k => (
@@ -73,7 +78,7 @@ function ServerCard({ server }: { server: any }) {
     );
 }
 
-function Badge({ status }: { status: string }) {
+function StatusBadge({ status }: { status: string }) {
     const colors = {
         connected: "bg-green-500/10 text-green-500 border-green-500/20",
         stopped: "bg-zinc-500/10 text-zinc-500 border-zinc-500/20",
@@ -95,25 +100,12 @@ function AddServerForm({ onSuccess }: { onSuccess: () => void }) {
         args: '',
         env: ''
     });
-
-    const addMutation = trpc.mcp.add.useMutation({
-        onSuccess: () => {
-            onSuccess();
-        }
-    });
+    const [isPending] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        const args = formData.args.split(' ').filter(Boolean);
-        const env = formData.env ? JSON.parse(formData.env) : undefined;
-
-        addMutation.mutate({
-            name: formData.name,
-            command: formData.command,
-            args,
-            env,
-            repoUrl: mode === 'git' ? formData.repoUrl : undefined
-        });
+        setError("MCP router is not active. Enable it in trpc.ts to add servers.");
     };
 
     return (
@@ -192,15 +184,15 @@ function AddServerForm({ onSuccess }: { onSuccess: () => void }) {
                     </div>
 
                     <div className="flex justify-end pt-2">
-                        <Button type="submit" disabled={addMutation.isPending} className="bg-green-600 hover:bg-green-500">
-                            {addMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        <Button type="submit" disabled={isPending} className="bg-green-600 hover:bg-green-500">
+                            {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                             {mode === 'git' ? 'Clone & Add Server' : 'Add Server Configuration'}
                         </Button>
                     </div>
 
-                    {addMutation.error && (
+                    {error && (
                         <div className="text-red-400 text-sm bg-red-900/20 p-2 rounded">
-                            {addMutation.error.message}
+                            {error}
                         </div>
                     )}
                 </form>

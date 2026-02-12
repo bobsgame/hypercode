@@ -12,17 +12,14 @@ import { AlertTriangle, Shield, Activity, Lock } from 'lucide-react';
 
 export default function SecurityPage() {
     const [auditLimit, setAuditLimit] = useState(50);
-    const { data: auditLogs, isLoading: loadingLogs, refetch: refetchLogs } = trpc.audit.getLogs.useQuery({ limit: auditLimit });
-    const { data: policies, isLoading: loadingPolicies } = trpc.policy.getRules.useQuery();
+    const { data: auditLogs, isLoading: loadingLogs, refetch: refetchLogs } = trpc.audit.query.useQuery({ limit: auditLimit });
+    // Policy router is currently disabled — using static data
+    const policies: any[] = [];
+    const loadingPolicies = false;
     const { data: autonomyLevel } = trpc.autonomy.getLevel.useQuery();
 
-    const lockdownMutation = trpc.policy.lockdown.useMutation({
-        onSuccess: () => { refetchLogs(); }
-    });
+    const [lockdownPending, setLockdownPending] = useState(false);
 
-    const unlockMutation = trpc.policy.unlock.useMutation({
-        onSuccess: () => { refetchLogs(); }
-    });
 
     return (
         <div className="p-6 space-y-6">
@@ -38,8 +35,8 @@ export default function SecurityPage() {
                     {/* Lockdown Button */}
                     <Button
                         variant="destructive"
-                        onClick={() => lockdownMutation.mutate()}
-                        disabled={lockdownMutation.isPending}
+                        disabled={true}
+                        title="Policy router not active"
                     >
                         <Lock className="w-4 h-4 mr-2" />
                         SYSTEM LOCKDOWN
@@ -75,7 +72,7 @@ export default function SecurityPage() {
                                                             {new Date(log.timestamp).toLocaleTimeString()}
                                                         </span>
                                                         <Badge variant={
-                                                            log.level === 'WARN' ? 'warning' :
+                                                            log.level === 'WARN' ? 'secondary' :
                                                                 log.level === 'ERROR' ? 'destructive' : 'outline'
                                                         }>
                                                             {log.level}

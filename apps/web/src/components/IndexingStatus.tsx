@@ -5,8 +5,9 @@ import { motion } from 'framer-motion';
 export default function IndexingStatus() {
     const status = trpc.indexingStatus.useQuery(undefined, { refetchInterval: 3000 });
 
-    const progress = status.data
-        ? Math.round((status.data.filesIndexed / Math.max(status.data.totalFiles, 1)) * 100)
+    const statusData = status.data as any;
+    const progress = statusData
+        ? Math.round((statusData.filesIndexed / Math.max(statusData.totalFiles || 1, 1)) * 100)
         : 0;
 
     const isComplete = progress >= 100;
@@ -60,11 +61,11 @@ export default function IndexingStatus() {
                         {/* Stats Grid */}
                         <div className="grid grid-cols-2 gap-3">
                             <div className="p-3 bg-zinc-800/50 rounded-lg text-center">
-                                <p className="text-2xl font-bold text-white">{status.data.filesIndexed}</p>
+                                <p className="text-2xl font-bold text-white">{statusData.filesIndexed}</p>
                                 <p className="text-[10px] text-zinc-500 uppercase">Files Indexed</p>
                             </div>
                             <div className="p-3 bg-zinc-800/50 rounded-lg text-center">
-                                <p className="text-2xl font-bold text-white">{status.data.totalFiles}</p>
+                                <p className="text-2xl font-bold text-white">{statusData.totalFiles || '—'}</p>
                                 <p className="text-[10px] text-zinc-500 uppercase">Total Files</p>
                             </div>
                         </div>

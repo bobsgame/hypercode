@@ -66,11 +66,42 @@
   - [x] `test_grand_unification_v2.ts` creation (PASSED)
   - [x] Submodule Dashboard
   - [x] Documentation Consistency
-  - [ ] Autonomous Loop Execution
+  - [x] Autonomous Loop Execution
 
 ## Phase 60+: Future Horizons
 
-- [ ] **Phase 60: The Mesh** - P2P agent swarm coordination
-- [ ] **Phase 61: The Marketplace** - Decentralized tool/agent marketplace
-- [ ] **Phase 62: The Neural Link** - Direct brain-computer interface (BCI) integration patterns
-- [ ] **Phase 63: The Hive Mind** - Shared learning across all Borg instances
+- [x] **Phase 62: Ignition (Real Capabilities)**
+    - [ ] `CoderAgent`: Real LLM coding integration
+    - [ ] `ResearcherAgent`: DeepResearch integration
+    - [ ] **Fix**: Skill Registry API Mismatch (Frontend vs Backend)
+    - [ ] **Feature**: Real Memory Graph Visualization (remove mock)
+    - [ ] **Harden**: Deep Research Tool Loading
+
+- [ ] **Phase 63: Codebase Hardening (Audit Findings — 2026-02-09)**
+  > Exhaustive audit: 31+ router namespaces, 32 dashboard pages, 30 services
+  - **P0 — Critical** (Breaks Core UX)
+    - [x] `skillsRouter.list` → Query `SkillRegistry` (returns real data now)
+    - [x] `researchRouter.conduct` → Fixed context access via `getMcpServer()`
+    - [x] `pulseRouter.getLatestEvents` → Implemented `EventBus` history buffer, refactored to `getMcpServer()`
+  - **P1 — High** (Fake Data Masquerading as Real)
+    - [x] `billing.getStatus` → Real cost data via `QuotaService.getUsageByModel()`
+    - [x] `getTaskStatus` → Returns real progress from `ProjectTracker` via `getMcpServer()`
+    - [x] `indexingStatus` → Returns real state from `LSPService` via `getMcpServer()`
+    - [ ] Director page → Wire to real plan data (currently 100% mock)
+    - [ ] Research page → Wire `handleResearch()` to tRPC (currently simulated)
+  - **P2 — Medium** (Technical Debt)
+    - [ ] Replace remaining ~50 `@ts-ignore global.mcpServerInstance` with `getMcpServer()` (8 routers: workflow, symbols, suggestions, squad, skills, shell, tests, graph)
+    - [x] Fix `squadRouter.ts` import path (`../trpc.js` → `../lib/trpc-core.js`)
+    - [ ] Fix `councilRouter` naming inconsistency (`council` vs `councilService`)
+    - [x] Remove `repoGraph` duplicate mounting (alias of `graph`)
+    - [ ] Cache tool→client mapping in `Router.callTool()` (currently O(N²))
+    - [ ] Extract 15+ inline routers from `trpc.ts` into separate files
+  - **P3 — Low** (Polish)
+    - [ ] Council page: Implement "Members" tab (shows "coming soon")
+    - [ ] Healer page: Add streaming for active infections
+    - [ ] `workflowRouter.list`: Expose `WorkflowEngine` registered workflows
+
+- [ ] **Phase 64: The Mesh** - P2P agent swarm coordination
+- [ ] **Phase 65: The Marketplace** - Decentralized tool/agent marketplace
+- [ ] **Phase 66: The Neural Link** - Direct brain-computer interface (BCI) integration patterns
+- [ ] **Phase 67: The Hive Mind** - Shared learning across all Borg instances

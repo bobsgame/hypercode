@@ -1,12 +1,12 @@
 import { z } from 'zod';
 import { t, publicProcedure } from '../lib/trpc-core.js';
+import { getMcpServer } from '../lib/mcpHelper.js';
 
 export const contextRouter = t.router({
     list: publicProcedure.query(() => {
-        // @ts-ignore
-        if (global.mcpServerInstance?.contextManager) {
-            // @ts-ignore
-            return global.mcpServerInstance.contextManager.list();
+        const mcp = getMcpServer();
+        if ((mcp as any)?.contextManager) {
+            return (mcp as any).contextManager.list();
         }
         return [];
     }),
@@ -14,10 +14,9 @@ export const contextRouter = t.router({
     add: publicProcedure.input(z.object({
         filePath: z.string()
     })).mutation(({ input }) => {
-        // @ts-ignore
-        if (global.mcpServerInstance?.contextManager) {
-            // @ts-ignore
-            return global.mcpServerInstance.contextManager.add(input.filePath);
+        const mcp = getMcpServer();
+        if ((mcp as any)?.contextManager) {
+            return (mcp as any).contextManager.add(input.filePath);
         }
         return 'ContextManager not initialized';
     }),
@@ -25,29 +24,27 @@ export const contextRouter = t.router({
     remove: publicProcedure.input(z.object({
         filePath: z.string()
     })).mutation(({ input }) => {
-        // @ts-ignore
-        if (global.mcpServerInstance?.contextManager) {
-            // @ts-ignore
-            return global.mcpServerInstance.contextManager.remove(input.filePath);
+        const mcp = getMcpServer();
+        if ((mcp as any)?.contextManager) {
+            return (mcp as any).contextManager.remove(input.filePath);
         }
         return 'ContextManager not initialized';
     }),
 
     clear: publicProcedure.mutation(() => {
-        // @ts-ignore
-        if (global.mcpServerInstance?.contextManager) {
-            // @ts-ignore
-            return global.mcpServerInstance.contextManager.clear();
+        const mcp = getMcpServer();
+        if ((mcp as any)?.contextManager) {
+            return (mcp as any).contextManager.clear();
         }
         return 'ContextManager not initialized';
     }),
 
     getPrompt: publicProcedure.query(() => {
-        // @ts-ignore
-        if (global.mcpServerInstance?.contextManager) {
-            // @ts-ignore
-            return global.mcpServerInstance.contextManager.getContextPrompt();
+        const mcp = getMcpServer();
+        if ((mcp as any)?.contextManager) {
+            return (mcp as any).contextManager.getContextPrompt();
         }
         return '';
     }),
 });
+

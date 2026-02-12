@@ -5,7 +5,7 @@ import { trpc } from '../utils/trpc';
 
 export function AuditLogViewer() {
     // @ts-ignore
-    const { data: logs, refetch } = trpc.audit.getLogs.useQuery({ limit: 100 }, {
+    const { data: logs, refetch } = trpc.audit.query.useQuery({ limit: 100 }, {
         refetchInterval: 5000
     });
 

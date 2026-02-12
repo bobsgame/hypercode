@@ -14,20 +14,20 @@ export function SkillsViewer() {
                     📚 Skills Library
                 </h2>
                 <div className="text-xs text-zinc-500 uppercase font-bold tracking-wider">
-                    {skillsQuery.data?.tools?.length || 0} Available
+                    {skillsQuery.data?.length || 0} Available
                 </div>
             </div>
 
             {skillsQuery.isLoading && <div className="text-zinc-500 animate-pulse">Loading skills...</div>}
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {skillsQuery.data?.tools?.map((skill: any) => (
+                {skillsQuery.data?.map((skill: any) => (
                     <div
                         key={skill.name}
                         onClick={() => setSelectedSkill(skill.name === selectedSkill ? null : skill.name)}
                         className={`p-4 rounded-lg border cursor-pointer transition-all hover:scale-[1.02] ${selectedSkill === skill.name
-                                ? 'bg-blue-900/20 border-blue-500/50 shadow-[0_0_15px_rgba(59,130,246,0.2)]'
-                                : 'bg-zinc-800/50 border-zinc-700/50 hover:bg-zinc-800 hover:border-zinc-600'
+                            ? 'bg-blue-900/20 border-blue-500/50 shadow-[0_0_15px_rgba(59,130,246,0.2)]'
+                            : 'bg-zinc-800/50 border-zinc-700/50 hover:bg-zinc-800 hover:border-zinc-600'
                             }`}
                     >
                         <div className="font-bold text-zinc-200 mb-1 flex items-center gap-2">

@@ -7,9 +7,10 @@ import { Card, CardHeader, CardTitle, CardContent, Badge } from '@borg/ui';
 
 export function SystemPulse() {
     // Polling System Pulse
-    const { data: status } = trpc.pulse.getSystemStatus.useQuery(undefined, {
+    const { data } = trpc.pulse.getSystemStatus.useQuery(undefined, {
         refetchInterval: 5000
     });
+    const status = data as any;
 
     return (
         <div className="space-y-4">
@@ -18,7 +19,7 @@ export function SystemPulse() {
                     <CardTitle className="flex justify-between items-center">
                         <span>System Status</span>
                         {status?.status === 'online' ? (
-                            <Badge variant="success" className="animate-pulse">Online</Badge>
+                            <Badge variant="default" className="animate-pulse">Online</Badge>
                         ) : (
                             <Badge variant="destructive">Offline</Badge>
                         )}

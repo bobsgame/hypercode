@@ -3,6 +3,7 @@ import { LLMService } from '@borg/ai';
 import type { MCPServer } from '../MCPServer.js';
 import path from 'path';
 import fs from 'fs';
+import { EventEmitter } from 'events';
 
 export interface Diagnosis {
     errorType: string;
@@ -20,16 +21,24 @@ export interface FixPlan {
     explanation: string;
 }
 
-export class HealerService {
+export interface HealRecord {
+    timestamp: number;
+    error: string;
+    fix: FixPlan;
+    success: boolean;
+}
+
+export class HealerService extends EventEmitter {
     private llm: LLMService;
     private server: MCPServer;
-    private history: { timestamp: number; error: string; fix: FixPlan; success: boolean }[] = [];
+    private history: HealRecord[] = [];
 
     public getHistory() {
         return this.history;
     }
 
     constructor(llm: LLMService, server: MCPServer) {
+        super();
         this.llm = llm;
         this.server = server;
     }
@@ -209,22 +218,26 @@ export class HealerService {
 
             const success = await this.applyFix(plan);
 
-            this.history.push({
+            const historyItem = {
                 timestamp: Date.now(),
                 error: typeof error === 'string' ? error : error.message,
                 fix: plan,
                 success
-            });
+            };
+            this.history.push(historyItem);
+            this.emit('heal', historyItem);
 
             return success;
         } catch (e) {
             console.error("❌ Healer Failed:", e);
-            this.history.push({
+            const historyItem = {
                 timestamp: Date.now(),
                 error: typeof error === 'string' ? error : error.message,
                 fix: { id: 'failed', diagnosis, filesToModify: [], explanation: 'Fix generation failed' },
                 success: false
-            });
+            };
+            this.history.push(historyItem);
+            this.emit('heal', historyItem);
             return false;
         }
     }

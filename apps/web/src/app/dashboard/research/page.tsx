@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
@@ -8,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useState } from "react";
 import { Loader2, Search, BookOpen, GitBranch, ExternalLink, Network } from "lucide-react";
+import { trpc } from '@/utils/trpc';
 
 interface ResearchNode {
     topic: string;
@@ -23,40 +23,24 @@ export default function ResearchPage() {
     const [loading, setLoading] = useState(false);
     const [result, setResult] = useState<ResearchNode | null>(null);
 
-    // Mock initial state or fetch from history later
+    const conductMutation = trpc.research.conduct.useMutation();
 
     const handleResearch = async () => {
         if (!topic) return;
         setLoading(true);
         setResult(null);
 
-        // TODO: Call MCPServer via TRPC or Action
-        // Simulating the delay and result for UI dev
         try {
-            // In real app, we would use trpc.research.start.mutate({ topic, depth })
-            // For now, let's console log
             console.log(`Starting research: ${topic} (Depth: ${depth})`);
+            const response = await conductMutation.mutateAsync({ topic, depth });
 
-            // Wait for "backend"
-            // await new Promise(r => setTimeout(r, 3000));
-
-            // Mock Result
-            /*
-            setResult({
-                topic: topic,
-                summary: "This is a simulated summary of the deep research.",
-                sources: [{ title: "Example Source", url: "https://example.com" }],
-                relatedTopics: ["Subtopic 1", "Subtopic 2"],
-                subTopics: [
-                    {
-                        topic: "Subtopic 1",
-                        summary: "Summary of subtopic 1...",
-                        sources: [],
-                        relatedTopics: []
-                    }
-                ]
-            });
-            */
+            // Assuming response.report matches the ResearchNode structure loosely or is text.
+            // If report is a string, we might need to parse it or display it simply.
+            // For now, let's treat the root result as the node.
+            // Adjust based on actual default return type of ResearchService if needed.
+            if (response.report) {
+                setResult(response.report as unknown as ResearchNode);
+            }
         } catch (e) {
             console.error(e);
         } finally {
@@ -65,6 +49,7 @@ export default function ResearchPage() {
     };
 
     const renderTree = (node: ResearchNode, level: number = 0) => {
+        if (!node) return null;
         return (
             <div key={node.topic} className={`ml-${level * 4} border-l-2 border-indigo-500/30 pl-4 mb-4`}>
                 <div className="flex items-center gap-2 mb-2">
@@ -77,7 +62,7 @@ export default function ResearchPage() {
                     {node.summary}
                 </p>
 
-                {node.sources.length > 0 && (
+                {node.sources && node.sources.length > 0 && (
                     <div className="flex flex-wrap gap-2 mb-3">
                         {node.sources.slice(0, 3).map((s, i) => (
                             <a key={i} href={s.url} target="_blank" rel="noopener noreferrer"

@@ -11,9 +11,9 @@ export function CommandRunner() {
     const executeParams = command ? { command, cwd: process.cwd() } : undefined;
 
     // We invoke this manually, not automatically
-    const executeMutation = trpc.runCommand.useMutation({
-        onSuccess: (data: string) => {
-            setOutput(data);
+    const executeMutation = trpc.commands.execute.useMutation({
+        onSuccess: (data) => {
+            setOutput(data.output || 'Command completed.');
         },
         onError: (err: any) => {
             setOutput(`Error: ${err.message}`);
@@ -23,7 +23,7 @@ export function CommandRunner() {
     const handleRun = async () => {
         if (!command) return;
         setOutput("Running...");
-        executeMutation.mutate({ command });
+        executeMutation.mutate({ input: command });
     };
 
     const handleKeyDown = (e: React.KeyboardEvent) => {

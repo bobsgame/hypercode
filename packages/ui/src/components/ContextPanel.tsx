@@ -12,22 +12,23 @@ import { trpc } from '../utils/trpc';
 export function ContextPanel() {
     const [newFile, setNewFile] = useState('');
 
-    const { data: pinnedFiles = [], refetch } = trpc.context.list.useQuery(undefined, {
-        refetchInterval: 5000,
+    const contextQuery = trpc.borgContext.list.useQuery(undefined, {
+        refetchInterval: 5000
     });
+    const { data: pinnedFiles = [], refetch } = contextQuery;
 
-    const addMutation = trpc.context.add.useMutation({
+    const addMutation = trpc.borgContext.add.useMutation({
         onSuccess: () => {
             setNewFile('');
             refetch();
         }
     });
 
-    const removeMutation = trpc.context.remove.useMutation({
+    const removeMutation = trpc.borgContext.remove.useMutation({
         onSuccess: () => refetch()
     });
 
-    const clearMutation = trpc.context.clear.useMutation({
+    const clearMutation = trpc.borgContext.clear.useMutation({
         onSuccess: () => refetch()
     });
 

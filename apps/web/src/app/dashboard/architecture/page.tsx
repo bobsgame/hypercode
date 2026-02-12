@@ -4,7 +4,7 @@ import React from 'react';
 import { trpc } from '@/utils/trpc';
 
 export default function ArchitecturePage() {
-    const { data: submodules, isLoading } = trpc.git.getSubmodules.useQuery();
+    const { data: submodules, isLoading } = trpc.git.getModules.useQuery();
 
     return (
         <div className="p-6">
@@ -84,7 +84,7 @@ export default function ArchitecturePage() {
 import Mermaid from '@/components/Mermaid';
 
 function GraphVisualizer() {
-    const { data: graph, isLoading } = trpc.repoGraph.get.useQuery();
+    const { data: graph, isLoading } = trpc.graph.get.useQuery();
     const [mermaidSrc, setMermaidSrc] = React.useState('');
 
     React.useEffect(() => {
@@ -122,32 +122,25 @@ function GraphVisualizer() {
 }
 
 function AutoTestWidget() {
-    const { data: results, isLoading } = trpc.autoTest.getResults.useQuery(undefined, { refetchInterval: 2000 });
-
-    if (isLoading) return <div className="text-zinc-500">Loading Test Results...</div>;
-
-    // Sort: Failures first
-    const sorted = Object.entries(results || {}).sort((a: any, b: any) => {
-        if (a[1].status === 'fail' && b[1].status !== 'fail') return -1;
-        if (b[1].status === 'fail' && a[1].status !== 'fail') return 1;
-        return b[1].timestamp - a[1].timestamp;
-    });
-
-    if (sorted.length === 0) return <div className="text-zinc-500 italic">No tests have run yet. Save a file to trigger.</div>;
-
     return (
-        <div className="space-y-2 max-h-60 overflow-y-auto">
-            {sorted.map(([path, info]: any) => (
-                <div key={path} className="flex justify-between items-center bg-black/20 p-2 rounded text-xs">
-                    <span className="truncate max-w-[70%] font-mono text-zinc-300">{path.split('\\').pop()?.split('/').pop()}</span>
-                    <span className={`px-2 py-1 rounded font-bold ${info.status === 'pass' ? 'bg-emerald-900 text-emerald-300' :
-                        info.status === 'fail' ? 'bg-rose-900 text-rose-300' :
-                            'bg-blue-900 text-blue-300 animate-pulse'
-                        }`}>
-                        {info.status.toUpperCase()}
-                    </span>
+        <div className="space-y-2">
+            <div className="text-zinc-500 italic text-sm">
+                Auto-test service is currently disabled. Enable the <code className="bg-zinc-800 px-1 rounded">autoTest</code> router in <code className="bg-zinc-800 px-1 rounded">trpc.ts</code> to activate file-save-triggered testing.
+            </div>
+            <div className="grid grid-cols-3 gap-2 text-xs">
+                <div className="bg-zinc-800 p-3 rounded text-center">
+                    <div className="text-2xl font-bold text-zinc-400">—</div>
+                    <div className="text-zinc-500 mt-1">Tests Run</div>
                 </div>
-            ))}
+                <div className="bg-zinc-800 p-3 rounded text-center">
+                    <div className="text-2xl font-bold text-emerald-400">—</div>
+                    <div className="text-zinc-500 mt-1">Passing</div>
+                </div>
+                <div className="bg-zinc-800 p-3 rounded text-center">
+                    <div className="text-2xl font-bold text-rose-400">—</div>
+                    <div className="text-zinc-500 mt-1">Failing</div>
+                </div>
+            </div>
         </div>
     );
 }

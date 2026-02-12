@@ -7,26 +7,26 @@ export function ContextWidget() {
     const [filePath, setFilePath] = useState('');
     const utils = trpc.useContext();
 
-    const { data: files, isLoading } = trpc.context.list.useQuery();
-    const addMutation = trpc.context.add.useMutation({
+    const { data: files, isLoading } = trpc.borgContext.list.useQuery();
+    const addMutation = trpc.borgContext.add.useMutation({
         onSuccess: () => {
-            utils.context.list.invalidate();
+            utils.borgContext.list.invalidate();
             setFilePath('');
         }
     });
-    const removeMutation = trpc.context.remove.useMutation({
-        onSuccess: () => utils.context.list.invalidate()
+    const removeMutation = trpc.borgContext.remove.useMutation({
+        onSuccess: () => utils.borgContext.list.invalidate()
     });
-    const clearMutation = trpc.context.clear.useMutation({
-        onSuccess: () => utils.context.list.invalidate()
+    const clearMutation = trpc.borgContext.clear.useMutation({
+        onSuccess: () => utils.borgContext.list.invalidate()
     });
 
     const handleAdd = () => {
-        if (filePath) addMutation.mutate({ path: filePath });
+        if (filePath) addMutation.mutate({ filePath });
     };
 
     const handleRemove = (path: string) => {
-        removeMutation.mutate({ path });
+        removeMutation.mutate({ filePath: path });
     };
 
     return (

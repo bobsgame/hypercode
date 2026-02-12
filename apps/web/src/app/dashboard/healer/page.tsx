@@ -1,23 +1,14 @@
 
 'use client';
 
-import { trpc } from '../../../utils/trpc';
-import { useState, useEffect } from 'react';
+import { useHealerStream } from '@borg/ui';
 
 export default function HealerDashboard() {
-    const historyQuery = trpc.healer.getHistory.useQuery(undefined, {
-        refetchInterval: 5000 // Poll every 5s
-    });
+    const { events, isLoading } = useHealerStream();
 
-    const [activeInfections, setActiveInfections] = useState<any[]>([]);
-
-    useEffect(() => {
-        // In a real app, we might subscribe to an event stream for active infections
-        // For now, we'll just mock it or infer from logs if possible. 
-        // But since we don't have a stream yet, we will rely on history.
-    }, []);
-
-    const history = historyQuery.data || [];
+    // In stream mode, events are history + new
+    const history = events;
+    const activeInfections: any[] = []; // Still mock for active, but history is live
 
     return (
         <div className="p-8 bg-gray-900 min-h-screen text-gray-100 font-mono">

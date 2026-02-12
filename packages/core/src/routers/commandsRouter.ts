@@ -1,14 +1,14 @@
 import { z } from 'zod';
 import { t, publicProcedure } from '../lib/trpc-core.js';
+import { getMcpServer } from '../lib/mcpHelper.js';
 
 export const commandsRouter = t.router({
     execute: publicProcedure.input(z.object({
         input: z.string()
     })).mutation(async ({ input }) => {
-        // @ts-ignore
-        if (global.mcpServerInstance?.commandRegistry) {
-            // @ts-ignore
-            const result = await global.mcpServerInstance.commandRegistry.execute(input.input);
+        const mcp = getMcpServer();
+        if ((mcp as any)?.commandRegistry) {
+            const result = await (mcp as any).commandRegistry.execute(input.input);
             if (result) {
                 return {
                     handled: result.handled,
@@ -22,10 +22,9 @@ export const commandsRouter = t.router({
     }),
 
     list: publicProcedure.query(() => {
-        // @ts-ignore
-        if (global.mcpServerInstance?.commandRegistry) {
-            // @ts-ignore
-            const commands = global.mcpServerInstance.commandRegistry.getCommands();
+        const mcp = getMcpServer();
+        if ((mcp as any)?.commandRegistry) {
+            const commands = (mcp as any).commandRegistry.getCommands();
             return commands.map((cmd: any) => ({
                 name: cmd.name,
                 description: cmd.description
@@ -34,3 +33,4 @@ export const commandsRouter = t.router({
         return [];
     }),
 });
+

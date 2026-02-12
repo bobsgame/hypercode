@@ -1,16 +1,16 @@
 import { z } from 'zod';
 import { t, publicProcedure } from '../lib/trpc-core.js';
 import { RepoGraphService } from '../services/RepoGraphService.js';
+import { getMcpServer } from '../lib/mcpHelper.js';
 
 // Lazy-initialized graph service (initialized on first call)
 let graphService: RepoGraphService | null = null;
 
 function getGraphService(): RepoGraphService {
     if (!graphService) {
-        // @ts-ignore - global.mcpServerInstance may have autoTestService with repoGraph
-        if (global.mcpServerInstance?.autoTestService?.repoGraph) {
-            // @ts-ignore
-            graphService = global.mcpServerInstance.autoTestService.repoGraph;
+        const mcp = getMcpServer();
+        if ((mcp as any)?.autoTestService?.repoGraph) {
+            graphService = (mcp as any).autoTestService.repoGraph;
         } else {
             // Fallback: create standalone instance
             graphService = new RepoGraphService(process.cwd());
@@ -23,11 +23,10 @@ export const graphRouter = t.router({
     get: publicProcedure.query(async () => {
         const service = getGraphService();
         if (!service) {
-            return { nodes: [], links: [] };
+            return { nodes: [], links: [], dependencies: {} as Record<string, string[]> };
         }
         // Build graph if not initialized
-        // @ts-ignore - isInitialized is private but we check it for optimization
-        if (!service['isInitialized']) {
+        if (!(service as any)['isInitialized']) {
             await service.buildGraph();
         }
         return service.toJSON();
@@ -54,11 +53,10 @@ export const graphRouter = t.router({
         }),
 
     getSymbolsGraph: publicProcedure.query(async () => {
-        // @ts-ignore
-        const mcp = global.mcpServerInstance;
-        if (!mcp || !mcp.memoryManager) return { nodes: [], links: [] };
+        const mcp = getMcpServer();
+        if (!mcp || !(mcp as any).memoryManager) return { nodes: [], links: [] };
 
-        const symbols = await mcp.memoryManager.getAllSymbols();
+        const symbols = await (mcp as any).memoryManager.getAllSymbols();
 
         const nodes: any[] = [];
         const links: any[] = [];
@@ -75,7 +73,6 @@ export const graphRouter = t.router({
             });
 
             // Link to the file
-            // The file node ID in RepoGraph is usually the relative path
             if (sym.metadata.file_path) {
                 links.push({
                     source: sym.metadata.file_path,
@@ -88,3 +85,4 @@ export const graphRouter = t.router({
         return { nodes, links };
     }),
 });
+

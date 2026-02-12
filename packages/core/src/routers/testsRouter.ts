@@ -30,11 +30,9 @@ export const testsRouter = t.router({
     })).mutation(async ({ input }) => {
         const service = getMcpServer().autoTestService;
         // Manually trigger test runner
-        // @ts-ignore - method existence check
-        const testFile = service.findTestFile?.(input.filePath);
+        const testFile = (service as any).findTestFile?.(input.filePath);
         if (testFile) {
-            // @ts-ignore
-            service.runTest?.(testFile);
+            (service as any).runTest?.(testFile);
             return { success: true, testFile };
         }
         return { success: false, error: 'No test file found' };

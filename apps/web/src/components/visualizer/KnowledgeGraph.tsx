@@ -17,7 +17,6 @@ export function KnowledgeGraph() {
     // But for "Visual Grounding", let's visualize the "Knowledge Service" directly.
 
     // Use TRPC to fetch graph data
-    // @ts-expect-error - The router type might not be fully propagated yet in dev
     const { data } = trpc.knowledge.getGraph.useQuery({ query: undefined, depth: 2 }, {
         refetchOnWindowFocus: false
     });

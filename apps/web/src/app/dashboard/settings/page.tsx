@@ -40,10 +40,10 @@ export default function SettingsDashboard() {
                 </div>
                 <Button
                     onClick={handleSave}
-                    disabled={updateMutation.isLoading}
+                    disabled={updateMutation.isPending}
                     className="bg-yellow-600 hover:bg-yellow-500"
                 >
-                    {updateMutation.isLoading ? 'Saving...' : 'Save Changes'}
+                    {updateMutation.isPending ? 'Saving...' : 'Save Changes'}
                 </Button>
             </div>
 
@@ -54,7 +54,7 @@ export default function SettingsDashboard() {
                     </div>
                 )}
 
-                {settingsQuery.isLoading ? (
+                {settingsQuery.isPending ? (
                     <div className="text-gray-500 font-mono">Loading configuration...</div>
                 ) : (
                     <Textarea

@@ -99,7 +99,7 @@ export default function MemoryPage() {
                         onChange={(e) => setFactInput(e.target.value)}
                         className="bg-blue-950/20 border-blue-900/50"
                     />
-                    <Button type="submit" variant="secondary" disabled={addFactMutation.isLoading}>
+                    <Button type="submit" variant="secondary" disabled={addFactMutation.isPending}>
                         Inject
                     </Button>
                 </form>

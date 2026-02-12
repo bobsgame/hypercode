@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { RefreshCcw, Dna, FlaskConical, Play, CheckCircle, XCircle } from 'lucide-react';
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@borg/ui";
 
 export default function EvolutionPage() {
     const { toast } = useToast();
@@ -22,20 +22,31 @@ export default function EvolutionPage() {
 
     const { data: status, refetch } = trpc.darwin.getStatus.useQuery();
 
-    const evolveMutation = trpc.darwin.evolve.useMutation({
-        onSuccess: () => {
-            toast({ title: "Mutation Proposed", description: "New prompt variant created." });
-            refetch();
+    const { mutate: mutateIdea, isPending: isMutating } = trpc.darwin.evolve.useMutation({
+        onSuccess: (data: any) => {
+            toast({
+                title: "Mutation Successful",
+                description: `Created Variant: ${data.id}`,
+                variant: "success",
+            });
+            refetch(); // Added refetch here to update status after mutation
         },
-        onError: (err) => {
-            toast({ title: "Evolution Failed", description: err.message, variant: "destructive" });
+        onError: (error) => {
+            toast({
+                title: "Mutation Failed",
+                description: error.message,
+                variant: "destructive",
+            });
         }
     });
 
-    const runExperiment = trpc.darwin.experiment.useMutation({
-        onSuccess: (data) => {
-            toast({ title: "Experiment Started", description: `Experiment ID: ${data.experimentId}` });
-            refetch();
+    const { mutate: evaluateExperiment, isPending: isEvaluating } = trpc.darwin.experiment.useMutation({
+        onSuccess: (data: any) => {
+            toast({
+                title: "Experiment Evaluated",
+                description: `Experiment ${data.experimentId} processed.`,
+            });
+            refetch(); // Added refetch here to update status after experiment
         },
         onError: (err) => {
             toast({ title: "Experiment Failed", description: err.message, variant: "destructive" });
@@ -44,12 +55,12 @@ export default function EvolutionPage() {
 
     const handleEvolve = () => {
         if (!prompt || !goal) return;
-        evolveMutation.mutate({ prompt, goal });
+        mutateIdea({ prompt, goal });
     };
 
     const handleExperiment = () => {
         if (!selectedMutation || !task) return;
-        runExperiment.mutate({ mutationId: selectedMutation, task });
+        evaluateExperiment({ mutationId: selectedMutation, task });
     };
 
     return (
@@ -92,8 +103,8 @@ export default function EvolutionPage() {
                                     onChange={(e) => setGoal(e.target.value)}
                                 />
                             </div>
-                            <Button onClick={handleEvolve} disabled={evolveMutation.isLoading}>
-                                {evolveMutation.isLoading ? <RefreshCcw className="w-4 h-4 animate-spin mr-2" /> : <Dna className="w-4 h-4 mr-2" />}
+                            <Button onClick={handleEvolve} disabled={isMutating}>
+                                {isMutating ? <RefreshCcw className="w-4 h-4 animate-spin mr-2" /> : <Dna className="w-4 h-4 mr-2" />}
                                 Evolve
                             </Button>
                         </CardContent>
@@ -154,8 +165,8 @@ export default function EvolutionPage() {
                                     onChange={(e) => setTask(e.target.value)}
                                 />
                             </div>
-                            <Button onClick={handleExperiment} disabled={runExperiment.isLoading}>
-                                {runExperiment.isLoading ? <RefreshCcw className="w-4 h-4 animate-spin mr-2" /> : <FlaskConical className="w-4 h-4 mr-2" />}
+                            <Button onClick={handleExperiment} disabled={isEvaluating}>
+                                {isEvaluating ? <RefreshCcw className="w-4 h-4 animate-spin mr-2" /> : <FlaskConical className="w-4 h-4 mr-2" />}
                                 Start Experiment
                             </Button>
                         </CardContent>
@@ -175,7 +186,7 @@ export default function EvolutionPage() {
                                                 <span className="font-mono text-sm">{e.id}</span>
                                             </div>
                                             {e.status === 'COMPLETED' && (
-                                                <Badge variant={e.winner === 'B' ? 'success' : e.winner === 'TIE' ? 'outline' : 'secondary'}>
+                                                <Badge variant={e.winner === 'B' ? 'default' : e.winner === 'TIE' ? 'outline' : 'secondary'}>
                                                     Winner: {e.winner}
                                                 </Badge>
                                             )}

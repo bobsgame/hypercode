@@ -2,8 +2,8 @@
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Check, X, Shield, Users, Brain, Activity } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@borg/ui";
+import { Check, X, Shield, Users, Brain, Activity, Gavel } from "lucide-react";
 
 interface TranscriptEntry {
     speaker: string;

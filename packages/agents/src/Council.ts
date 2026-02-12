@@ -17,7 +17,7 @@ export enum ConsensusMode {
     SINGLE_APPROVAL = 'single-approval'
 }
 
-interface TranscriptEntry {
+export interface TranscriptEntry {
     speaker: string;
     text: string;
     vote?: boolean;
@@ -25,7 +25,7 @@ interface TranscriptEntry {
     round?: number;
 }
 
-interface DebateResult {
+export interface DebateResult {
     approved: boolean;
     transcripts: TranscriptEntry[];
     summary: string;
@@ -40,7 +40,7 @@ interface DebateRound {
     entries: TranscriptEntry[];
 }
 
-interface DebateConfig {
+export interface DebateConfig {
     maxRounds: number;
     allowRebuttals: boolean;
     requireSynthesis: boolean;

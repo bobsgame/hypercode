@@ -1,7 +1,7 @@
 
 import { z } from 'zod';
 import { t, publicProcedure } from '../lib/trpc-core.js';
-import { SystemEvent } from '../services/EventBus.js';
+import { getMcpServer } from '../lib/mcpHelper.js';
 
 export const pulseRouter = t.router({
     getLatestEvents: publicProcedure
@@ -10,8 +10,7 @@ export const pulseRouter = t.router({
             afterTimestamp: z.number().optional()
         }))
         .query(async ({ input }) => {
-            // @ts-ignore
-            const mcp = global.mcpServerInstance;
+            const mcp = getMcpServer();
             if (!mcp || !mcp.eventBus) return [];
 
             const history = mcp.eventBus.getHistory(input.limit);
@@ -24,8 +23,7 @@ export const pulseRouter = t.router({
         }),
 
     getSystemStatus: publicProcedure.query(async () => {
-        // @ts-ignore
-        const mcp = global.mcpServerInstance;
+        const mcp = getMcpServer();
         if (!mcp) return { status: 'offline' };
 
         return {

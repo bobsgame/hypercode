@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
@@ -6,20 +5,21 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useState, useEffect } from "react";
 import { BrainCircuit, GitBranch, Shield, Zap } from "lucide-react";
-
-// Mock Data
-const MOCK_PLAN = {
-    goal: "Implement Recursive Research",
-    status: "IN_PROGRESS",
-    steps: [
-        { id: 1, action: "research_recursively", status: "DONE", result: "Found 12 sources." },
-        { id: 2, action: "update_prompts", status: "DONE", result: "Modified SystemPrompts.ts" },
-        { id: 3, action: "verify_logic", status: "RUNNING", result: "Running tests..." },
-    ]
-};
+import { trpc } from '@/utils/trpc';
 
 export default function DirectorPage() {
-    const [plan, setPlan] = useState<any>(MOCK_PLAN);
+    const { data: config } = trpc.directorConfig.get.useQuery();
+    const { data: taskStatus } = trpc.getTaskStatus.useQuery({});
+    const { data: autonomyLevel } = trpc.autonomy.getLevel.useQuery();
+
+    // Construct plan view from real data
+    const plan = {
+        goal: config?.defaultTopic || "Defining Mission...",
+        status: taskStatus?.status === 'processing' || taskStatus?.status === 'busy' ? 'IN_PROGRESS' : 'IDLE',
+        steps: taskStatus?.taskId ? [
+            { id: 1, action: taskStatus.taskId, status: 'RUNNING', result: `Progress: ${taskStatus.progress || 0}%` }
+        ] : []
+    };
 
     return (
         <div className="container mx-auto p-6 space-y-6 max-w-7xl">
@@ -41,7 +41,7 @@ export default function DirectorPage() {
                     <CardHeader>
                         <CardTitle className="flex items-center justify-between">
                             <span>Current Strategic Goal</span>
-                            <Badge variant="outline" className="border-amber-500 text-amber-500 animate-pulse">
+                            <Badge variant="outline" className={`border-amber-500 ${plan.status === 'IN_PROGRESS' ? 'text-amber-500 animate-pulse' : 'text-muted-foreground'}`}>
                                 {plan.status}
                             </Badge>
                         </CardTitle>
@@ -52,18 +52,20 @@ export default function DirectorPage() {
                         </div>
 
                         <div className="relative border-l-2 border-muted ml-4 space-y-8 pl-8 py-2">
-                            {plan.steps.map((step: any) => (
+                            {plan.steps.length > 0 ? plan.steps.map((step: any) => (
                                 <div key={step.id} className="relative">
                                     <div className={`absolute -left-[41px] h-4 w-4 rounded-full border-2 ${step.status === 'DONE' ? 'bg-green-500 border-green-500' :
-                                            step.status === 'RUNNING' ? 'bg-amber-500 border-amber-500 animate-ping' :
-                                                'bg-background border-muted'
+                                        step.status === 'RUNNING' ? 'bg-amber-500 border-amber-500 animate-ping' :
+                                            'bg-background border-muted'
                                         }`} />
                                     <div className="flex flex-col gap-1">
                                         <div className="font-mono text-sm text-muted-foreground uppercase">{step.action}</div>
                                         <div className="font-medium">{step.result}</div>
                                     </div>
                                 </div>
-                            ))}
+                            )) : (
+                                <div className="text-muted-foreground italic">No active tasks.</div>
+                            )}
                         </div>
                     </CardContent>
                 </Card>
@@ -78,16 +80,9 @@ export default function DirectorPage() {
                             <div className="flex items-center justify-between p-3 border rounded bg-muted/20">
                                 <div className="flex items-center gap-2">
                                     <GitBranch className="h-4 w-4 text-purple-400" />
-                                    <span className="font-mono text-sm">feat/recursive-research</span>
+                                    <span className="font-mono text-sm">feat/autonomous</span>
                                 </div>
                                 <Badge variant="secondary">Active</Badge>
-                            </div>
-                            <div className="flex items-center justify-between p-3 border rounded bg-muted/20 opacity-50">
-                                <div className="flex items-center gap-2">
-                                    <GitBranch className="h-4 w-4" />
-                                    <span className="font-mono text-sm">fix/ui-glitch</span>
-                                </div>
-                                <Badge variant="outline">Merged</Badge>
                             </div>
                         </CardContent>
                     </Card>
@@ -97,9 +92,9 @@ export default function DirectorPage() {
                             <CardTitle className="text-sm uppercase text-muted-foreground">Autonomy Level</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <div className="flex items-center gap-2 text-green-400">
+                            <div className={`flex items-center gap-2 ${autonomyLevel === 'high' ? 'text-green-400' : 'text-yellow-400'}`}>
                                 <Shield className="h-5 w-5" />
-                                <span className="font-bold">HIGH</span>
+                                <span className="font-bold uppercase">{autonomyLevel || 'UNKNOWN'}</span>
                             </div>
                             <p className="text-xs text-muted-foreground mt-2">
                                 Director is authorized to recruit squads and perform deep research without explicit approval.

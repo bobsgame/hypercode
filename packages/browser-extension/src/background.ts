@@ -4,13 +4,16 @@ console.log("Borg Browser Extension Background Service Worker Starting... 🚀")
 let socket: WebSocket | null = null;
 let requestIdCounter = 0;
 const pendingRequests = new Map<number, (response: any) => void>();
+let reconnectAttempts = 0;
 
 function connect() {
-  console.log("Connecting to Borg MCP Server (ws://localhost:3001)...");
-  socket = new WebSocket("ws://localhost:3001");
+  // Use 127.0.0.1 to avoid dual-stack localhost ambiguity
+  console.log("Connecting to Borg MCP Server (ws://127.0.0.1:3001)...");
+  socket = new WebSocket("ws://127.0.0.1:3001");
 
   socket.onopen = () => {
     console.log("✅ Connected to Borg Hub");
+    reconnectAttempts = 0;
   };
 
   socket.onmessage = async (event) => {
@@ -37,9 +40,10 @@ function connect() {
   };
 
   socket.onclose = () => {
-    console.log("❌ Disconnected. Reconnecting in 5s...");
+    // console.log("❌ Disconnected. Reconnecting in 5s...");
     socket = null;
-    setTimeout(connect, 5000);
+    const delay = Math.min(30000, 5000 * Math.pow(1.5, ++reconnectAttempts));
+    setTimeout(connect, delay);
   };
 
   socket.onerror = (err) => {

@@ -12,14 +12,15 @@ export default function CouncilConfig() {
     const [isExpanded, setIsExpanded] = useState(false);
 
     useEffect(() => {
-        if (configQuery.data?.council) {
-            setCouncil(configQuery.data.council);
+        const data = configQuery.data as any;
+        if (data?.council) {
+            setCouncil(data.council);
         }
     }, [configQuery.data]);
 
     const handleUpdate = (newCouncil: any) => {
         setCouncil(newCouncil);
-        updateMutation.mutate({ council: newCouncil });
+        updateMutation.mutate({ council: newCouncil } as any);
     };
 
     const addPersona = () => {
@@ -42,7 +43,7 @@ export default function CouncilConfig() {
     };
 
     const savePersona = () => {
-        updateMutation.mutate({ council });
+        updateMutation.mutate({ council } as any);
     };
 
     if (configQuery.isPending) return null;

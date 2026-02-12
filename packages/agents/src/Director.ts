@@ -24,7 +24,7 @@ export class Director {
 
     // Execution State
     private activeGoal: string | null = null;
-    private currentProjectTask: any = null; // Phase 59: Track active project task
+    public currentProjectTask: any = null; // Phase 59: Track active project task
     private lastGoal: string | null = null;
     private lastGoalTime: number = 0;
     private currentStep: number = 0;
@@ -284,6 +284,32 @@ export class Director {
         }
 
         return taskResult;
+    }
+
+    /**
+     * Phase 60: The Mesh - P2P Delegation
+     * Broadcasts a task to the Swarm for fulfillment.
+     */
+    public async delegateToSwarm(task: string, requirements: string[] = ['Worker']): Promise<string> {
+        // @ts-ignore
+        const mesh = this.server.meshService;
+        if (!mesh) {
+            return "Swarm Mesh not available.";
+        }
+
+        console.log(`[Director] 🕸️ Delegating task to Swarm: "${task}"`);
+
+        // Broadcast TASK_OFFER
+        // Using string type to avoid cyclic dependency on @borg/core definitions
+        mesh.broadcast('TASK_OFFER', {
+            task,
+            requester: 'Director', // Identity
+            requirements
+        });
+
+        // In a real implementation, we would wait for 'TASK_ACCEPT' response
+        // For now, we fire-and-forget and log.
+        return "Task broadcasted to Swarm network.";
     }
 
     /**
@@ -843,7 +869,8 @@ class ConversationMonitor {
                 let taskContext = "";
                 if (nextTask) {
                     taskContext = `\n\n[PROJECT PLAN]: The next priority task is: "${nextTask.description}" (File: ${nextTask.sourceFile}). Please direct the agent to complete this specific task.`;
-                    this.currentProjectTask = nextTask;
+                    // @ts-ignore
+                    this.director.currentProjectTask = nextTask;
                 } else {
                     taskContext = "\n\n[PROJECT PLAN]: No specific tasks found in task.md or ROADMAP.md. Proceed with GENERAL IMPROVEMENTS.";
                 }

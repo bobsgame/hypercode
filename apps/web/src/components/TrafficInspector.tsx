@@ -100,26 +100,8 @@ export function TrafficInspector() {
     // Replay Logic
     const utils = trpc.useContext();
     const handleReplay = async () => {
-        try {
-            const result = await utils.client.logs.read.query({ lines: 100 });
-            // Parse heuristic logs
-            // Log format: [Director] Executing: toolName
-            const lines = result.split('\n');
-            lines.forEach(line => {
-                const match = line.match(/\[Director\] Executing: (\w+)/);
-                if (match) {
-                    addPacket({
-                        id: Math.random().toString(36).substr(2, 9),
-                        type: 'TOOL_CALL_START',
-                        tool: match[1],
-                        args: { _replayed: true, raw: line },
-                        timestamp: Date.now() // Approximation
-                    });
-                }
-            });
-        } catch (e) {
-            console.error("Replay fail", e);
-        }
+        // logs router is not active — replay not available
+        console.warn('[TrafficInspector] Log replay not available — logs router is disabled');
     };
 
     return (

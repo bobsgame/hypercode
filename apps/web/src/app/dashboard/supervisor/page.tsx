@@ -1,6 +1,6 @@
 'use client';
 
-import { trpc } from '@/lib/trpc';
+import { trpc } from "@/utils/trpc";
 import { useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -58,8 +58,8 @@ export default function SupervisorPage() {
                         onChange={(e) => setGoal(e.target.value)}
                         className="flex-1"
                     />
-                    <Button onClick={handleDecompose} disabled={!goal || decomposeMutation.isLoading}>
-                        {decomposeMutation.isLoading ? 'Planning...' : 'Plan'}
+                    <Button onClick={handleDecompose} disabled={!goal || decomposeMutation.isPending}>
+                        {decomposeMutation.isPending ? 'Planning...' : 'Plan'}
                     </Button>
                     <Button onClick={handleExecute} disabled={!goal || isExecuting} variant="default">
                         {isExecuting ? 'Supervising...' : 'Execute'}

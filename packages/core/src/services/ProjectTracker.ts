@@ -26,11 +26,11 @@ export class ProjectTracker {
      * 4. Todo in ROADMAP.md
      */
     public getNextTask(): ProjectTask | null {
-        const taskMdPath = path.join(this.rootDir, '.gemini/antigravity/brain/3f267825-b33e-44e9-957c-3d4ff1b84eb6/task.md'); // Adjust path as needed or make configurable
-        // Fallback to local task.md if brain path doesn't exist (dev mode)
+        // Default to local task.md in root
         const localTaskMd = path.join(this.rootDir, 'task.md');
+        const docsTaskMd = path.join(this.rootDir, 'docs', 'task.md');
 
-        let targetPath = fs.existsSync(taskMdPath) ? taskMdPath : (fs.existsSync(localTaskMd) ? localTaskMd : null);
+        let targetPath = fs.existsSync(localTaskMd) ? localTaskMd : (fs.existsSync(docsTaskMd) ? docsTaskMd : null);
 
         if (targetPath) {
             const task = this.findTaskInFile(targetPath);
@@ -62,8 +62,9 @@ export class ProjectTracker {
         const currentTask = this.getNextTask();
 
         return {
-            progress: total > 0 ? Math.round((done / total) * 100) : 0,
+            taskId: currentTask ? currentTask.id : 'idle',
             status: currentTask ? 'busy' : 'idle',
+            progress: total > 0 ? Math.round((done / total) * 100) : 0,
             currentTask: currentTask ? currentTask.description : 'Idle'
         };
     }

@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.6.2] - 2026-02-12
+
+### Fixed
+
+- **Dashboard Build Stabilization (18 component fixes)**:
+  - Fixed 6 disabled router references (TraceViewer, SystemStatus, RemoteAccessCard, GlobalSearch, ConfigEditor, TestStatusWidget) — replaced with static placeholder UI
+  - Fixed TrafficInspector `handleReplay()` — disabled `logs.read` router replaced with console warning
+  - Fixed router name mismatches: `context`→`borgContext` (ContextWidget), `repoGraph`→`graph` (GraphWidget), `audit.getLogs`→`audit.query` (AuditLogViewer)
+  - Fixed procedure: `shell.execute`→`commands.execute` (CommandRunner), input shape `path`→`filePath` (ContextWidget)
+  - Fixed union type access with safe casts: IndexingStatus, SystemPulse, CouncilConfig
+  - Fixed Badge variants: `"success"`→`"default"` (SystemPulse, evolution/page, security/page)
+  - Fixed SkillsViewer: `data.tools`→direct array access
+  - Removed stale `@ts-expect-error` from KnowledgeGraph.tsx
+
+### Added
+
+- **Dependencies**: `react-force-graph-2d` for KnowledgeGraph 2D visualizer
+- **Build**: Clean build with 39 routes, exit code 0
+
 ## [2.6.1] - 2026-02-11
 
 ### Fixed

@@ -184,9 +184,140 @@ export default function CouncilPage() {
 
 
                 <TabsContent value="members">
-                    <div className="text-center p-12 text-muted-foreground">
-                        Member configuration coming soon.
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {/* Architect */}
+                        <Card className="border-blue-500/20 bg-gradient-to-br from-blue-950/10 to-transparent">
+                            <CardHeader className="flex flex-row items-center gap-4 pb-2">
+                                <div className="h-12 w-12 rounded-full bg-blue-900/30 border border-blue-500/40 flex items-center justify-center text-2xl">
+                                    🏛️
+                                </div>
+                                <div>
+                                    <CardTitle className="text-lg text-blue-300">The Architect</CardTitle>
+                                    <p className="text-xs text-muted-foreground">System Design & Architecture</p>
+                                </div>
+                                <Badge variant="outline" className="ml-auto text-green-500 border-green-900/50">Active</Badge>
+                            </CardHeader>
+                            <CardContent className="space-y-3 pt-2">
+                                <p className="text-sm text-muted-foreground leading-relaxed">
+                                    Evaluates proposals from a systems architecture perspective. Focuses on scalability,
+                                    modularity, and long-term maintainability. Advocates for clean abstractions and
+                                    separation of concerns.
+                                </p>
+                                <div className="flex gap-2 flex-wrap">
+                                    <Badge variant="secondary" className="text-xs">Architecture</Badge>
+                                    <Badge variant="secondary" className="text-xs">Scalability</Badge>
+                                    <Badge variant="secondary" className="text-xs">Design Patterns</Badge>
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        {/* Critic */}
+                        <Card className="border-red-500/20 bg-gradient-to-br from-red-950/10 to-transparent">
+                            <CardHeader className="flex flex-row items-center gap-4 pb-2">
+                                <div className="h-12 w-12 rounded-full bg-red-900/30 border border-red-500/40 flex items-center justify-center text-2xl">
+                                    🔍
+                                </div>
+                                <div>
+                                    <CardTitle className="text-lg text-red-300">The Critic</CardTitle>
+                                    <p className="text-xs text-muted-foreground">Quality Assurance & Risk Analysis</p>
+                                </div>
+                                <Badge variant="outline" className="ml-auto text-green-500 border-green-900/50">Active</Badge>
+                            </CardHeader>
+                            <CardContent className="space-y-3 pt-2">
+                                <p className="text-sm text-muted-foreground leading-relaxed">
+                                    Stress-tests proposals for edge cases, security vulnerabilities, and performance
+                                    bottlenecks. Plays devil&apos;s advocate to ensure robustness. Identifies risks
+                                    others may overlook.
+                                </p>
+                                <div className="flex gap-2 flex-wrap">
+                                    <Badge variant="secondary" className="text-xs">Security</Badge>
+                                    <Badge variant="secondary" className="text-xs">Edge Cases</Badge>
+                                    <Badge variant="secondary" className="text-xs">Risk Analysis</Badge>
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        {/* Product */}
+                        <Card className="border-green-500/20 bg-gradient-to-br from-green-950/10 to-transparent">
+                            <CardHeader className="flex flex-row items-center gap-4 pb-2">
+                                <div className="h-12 w-12 rounded-full bg-green-900/30 border border-green-500/40 flex items-center justify-center text-2xl">
+                                    📦
+                                </div>
+                                <div>
+                                    <CardTitle className="text-lg text-green-300">The Product Lead</CardTitle>
+                                    <p className="text-xs text-muted-foreground">User Experience & Feature Prioritization</p>
+                                </div>
+                                <Badge variant="outline" className="ml-auto text-green-500 border-green-900/50">Active</Badge>
+                            </CardHeader>
+                            <CardContent className="space-y-3 pt-2">
+                                <p className="text-sm text-muted-foreground leading-relaxed">
+                                    Champions the end-user perspective. Evaluates proposals based on user impact,
+                                    development velocity, and alignment with the product roadmap. Prioritizes features
+                                    that deliver maximum value.
+                                </p>
+                                <div className="flex gap-2 flex-wrap">
+                                    <Badge variant="secondary" className="text-xs">UX</Badge>
+                                    <Badge variant="secondary" className="text-xs">Roadmap</Badge>
+                                    <Badge variant="secondary" className="text-xs">Prioritization</Badge>
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        {/* Meta-Architect */}
+                        <Card className="border-purple-500/20 bg-gradient-to-br from-purple-950/10 to-transparent">
+                            <CardHeader className="flex flex-row items-center gap-4 pb-2">
+                                <div className="h-12 w-12 rounded-full bg-purple-900/30 border border-purple-500/40 flex items-center justify-center text-2xl">
+                                    🧠
+                                </div>
+                                <div>
+                                    <CardTitle className="text-lg text-purple-300">The Meta-Architect</CardTitle>
+                                    <p className="text-xs text-muted-foreground">Cross-System Integration & Strategy</p>
+                                </div>
+                                <Badge variant="outline" className="ml-auto text-yellow-500 border-yellow-900/50">Reserved</Badge>
+                            </CardHeader>
+                            <CardContent className="space-y-3 pt-2">
+                                <p className="text-sm text-muted-foreground leading-relaxed">
+                                    Activated for cross-cutting architectural decisions that span multiple subsystems.
+                                    Synthesizes perspectives from all other council members and resolves conflicts at
+                                    the highest abstraction level.
+                                </p>
+                                <div className="flex gap-2 flex-wrap">
+                                    <Badge variant="secondary" className="text-xs">Strategy</Badge>
+                                    <Badge variant="secondary" className="text-xs">Integration</Badge>
+                                    <Badge variant="secondary" className="text-xs">Synthesis</Badge>
+                                </div>
+                            </CardContent>
+                        </Card>
                     </div>
+
+                    {/* Consensus Modes */}
+                    <Card className="mt-6 border-indigo-900/30">
+                        <CardHeader>
+                            <CardTitle className="text-sm uppercase tracking-wider text-muted-foreground">
+                                Available Consensus Modes
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                <div className="p-3 bg-muted/20 rounded-lg border text-center">
+                                    <div className="font-bold text-sm mb-1">Majority</div>
+                                    <p className="text-xs text-muted-foreground">&gt;50% approval</p>
+                                </div>
+                                <div className="p-3 bg-muted/20 rounded-lg border text-center">
+                                    <div className="font-bold text-sm mb-1">Supermajority</div>
+                                    <p className="text-xs text-muted-foreground">&gt;66% approval</p>
+                                </div>
+                                <div className="p-3 bg-muted/20 rounded-lg border text-center">
+                                    <div className="font-bold text-sm mb-1">Unanimous</div>
+                                    <p className="text-xs text-muted-foreground">100% approval</p>
+                                </div>
+                                <div className="p-3 bg-muted/20 rounded-lg border text-center">
+                                    <div className="font-bold text-sm mb-1">Single Approval</div>
+                                    <p className="text-xs text-muted-foreground">Any 1 member</p>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
                 </TabsContent>
             </Tabs >
         </div >

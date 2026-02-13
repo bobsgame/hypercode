@@ -2,11 +2,11 @@
 
 import { trpc } from '@/utils/trpc';
 import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@borg/ui';
+import { Button } from '@borg/ui';
+import { Badge } from '@borg/ui';
+import { ScrollArea } from '@borg/ui';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@borg/ui";
 import { GitBranch, GitCommit, Play, Rewind, CheckCircle, XCircle, AlertCircle, FileCode } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 

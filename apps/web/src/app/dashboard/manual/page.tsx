@@ -1,7 +1,7 @@
 'use client';
 
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@borg/ui';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@borg/ui";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@borg/ui";
 import { Book, Cpu, Shield, Activity, GraduationCap, GitBranch, Terminal } from 'lucide-react';
 

@@ -3,13 +3,13 @@
 
 import React, { useState } from 'react';
 import { trpc } from '@/utils/trpc';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@borg/ui';
+import { Badge } from '@borg/ui';
+import { Button } from '@borg/ui';
+import { Input } from '@borg/ui';
+import { Textarea } from '@borg/ui';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@borg/ui";
+import { ScrollArea } from '@borg/ui';
 import { RefreshCcw, Dna, FlaskConical, Play, CheckCircle, XCircle } from 'lucide-react';
 import { useToast } from "@borg/ui";
 

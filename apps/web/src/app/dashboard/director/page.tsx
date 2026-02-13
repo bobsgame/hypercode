@@ -1,8 +1,8 @@
 'use client';
 
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { Card, CardHeader, CardTitle, CardContent } from "@borg/ui";
+import { Badge } from "@borg/ui";
+import { ScrollArea } from "@borg/ui";
 import { useState, useEffect } from "react";
 import { BrainCircuit, GitBranch, Shield, Zap } from "lucide-react";
 import { trpc } from '@/utils/trpc';

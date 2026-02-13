@@ -3,11 +3,11 @@
 
 import React, { useState } from 'react';
 import { trpc } from '@/utils/trpc';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@borg/ui';
+import { Badge } from '@borg/ui';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@borg/ui';
+import { Button } from '@borg/ui';
+import { ScrollArea } from '@borg/ui';
 import { AlertTriangle, Shield, Activity, Lock } from 'lucide-react';
 
 export default function SecurityPage() {

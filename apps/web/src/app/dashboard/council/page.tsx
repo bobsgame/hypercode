@@ -1,14 +1,14 @@
 
 'use client';
 
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { Card, CardHeader, CardTitle, CardContent } from "@borg/ui";
+import { Button } from "@borg/ui";
+import { Badge } from "@borg/ui";
+import { ScrollArea } from "@borg/ui";
 import { useState, useEffect } from "react";
 import { Loader2, MessageSquare, Gavel, User, Play, RefreshCw, ChevronRight } from "lucide-react";
-import { Input } from "@/components/ui/input";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Input } from "@borg/ui";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@borg/ui";
 import { trpc } from "@/utils/trpc";
 import { DebateVisualizer } from "@/components/council/DebateVisualizer";
 

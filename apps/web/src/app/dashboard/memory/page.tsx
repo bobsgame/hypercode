@@ -3,13 +3,13 @@
 import React, { useState } from 'react';
 import { trpc } from '@/utils/trpc';
 import { MemoryGraph } from '@/components/memory/MemoryGraph';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@borg/ui';
+import { Input } from '@borg/ui';
+import { Button } from '@borg/ui';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@borg/ui";
 import { Search, Brain, Database, Share2, Layers, Clock, Archive } from 'lucide-react';
-import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { Badge } from "@borg/ui";
+import { ScrollArea } from "@borg/ui";
 
 export default function MemoryPage() {
     const [query, setQuery] = useState('');

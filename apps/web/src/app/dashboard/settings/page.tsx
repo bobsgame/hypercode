@@ -2,9 +2,9 @@
 
 import { trpc } from '@/utils/trpc';
 import { useState, useEffect } from 'react';
-import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
+import { Card } from '@borg/ui';
+import { Button } from '@borg/ui';
+import { Textarea } from '@borg/ui';
 
 export default function SettingsDashboard() {
     const [configJson, setConfigJson] = useState('');

@@ -1,10 +1,10 @@
 'use client';
 
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardContent } from "@borg/ui";
 import { useEffect, useState } from "react";
 import { fetchSubmodulesAction, healSubmodulesAction } from "./actions";
 import { SubmoduleInfo } from "@/lib/git";
-import { Button } from "@/components/ui/button";
+import { Button } from "@borg/ui";
 import { Loader2, RefreshCw } from "lucide-react";
 
 export default function SubmodulesPage() {

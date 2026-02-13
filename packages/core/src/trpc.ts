@@ -123,46 +123,7 @@ export const appRouter = t.router({
         if (!mcp || !mcp.lspService) return { status: 'offline', filesIndexed: 0, totalFiles: 0 };
         return mcp.lspService.getStatus();
     }),
-    // remoteAccess: t.router({
-    //     start: t.procedure.mutation(async () => {
-    //         const { TunnelTools } = await import('@borg/tools');
-    //         const result = await TunnelTools[0].handler({ port: 3000 });
-    //         return result.content[0].text;
-    //     }),
-    //     stop: t.procedure.mutation(async () => {
-    //         const { TunnelTools } = await import('@borg/tools');
-    //         const result = await TunnelTools[1].handler({});
-    //         return result.content[0].text;
-    //     }),
-    //     status: t.procedure.query(async () => {
-    //         const { TunnelTools } = await import('@borg/tools');
-    //         const result = await TunnelTools[2].handler({});
-    //         return JSON.parse(result.content[0].text);
-    //     })
-    // }),
-    // config: t.router({
-    //     readAntigravity: t.procedure.query(async () => {
-    //         const { ConfigTools } = await import('@borg/tools');
-    //         // @ts-ignore
-    //         const result = await ConfigTools[0].handler({});
-    //         // Parse JSON content from the tool output
-    //         return JSON.parse(result.content[0].text);
-    //     }),
-    //     writeAntigravity: t.procedure.input(z.object({ content: z.string() })).mutation(async ({ input }) => {
-    //         const { ConfigTools } = await import('@borg/tools');
-    //         const result = await ConfigTools[1].handler({ content: input.content });
-    //         return result.content[0].text;
-    //     })
-    // }),
-    // logs: t.router({
-    //     read: t.procedure.input(z.object({ lines: z.number().optional() })).query(async ({ input }) => {
-    //         const { LogTools } = await import('@borg/tools');
-    //         // @ts-ignore
-    //         const result = await LogTools[0].handler({ lines: input.lines });
-    //         return result.content[0].text;
-    //     })
-    // }),
-    //
+    // remoteAccess, config, logs routers — removed (not wired)
     autonomy: t.router({
         setLevel: t.procedure.input(z.object({ level: z.enum(['low', 'medium', 'high']) })).mutation(async ({ input }) => {
             getMcpServer().permissionManager.setAutonomyLevel(input.level);
@@ -173,17 +134,11 @@ export const appRouter = t.router({
         }),
         activateFullAutonomy: t.procedure.mutation(async () => {
             const mcp = getMcpServer();
-            // 1. Set Autonomy High
             mcp.permissionManager.setAutonomyLevel('high');
-
-            // 2. Start Director Chat Daemon
             // @ts-ignore - Private/Missing method usage preserved from original
             mcp.director.startChatDaemon();
-
-            // 3. Start Watchdog (Long)
             // @ts-ignore - Private/Missing method usage preserved from original
             mcp.director.startWatchdog(100);
-
             return "Autonomous Supervisor Activated (High Level + Chat Daemon + Watchdog)";
         })
     }),
@@ -242,7 +197,6 @@ export const appRouter = t.router({
             return "Stopped";
         }),
         startAutoDrive: adminProcedure.mutation(async () => {
-            // Running valid tool so it logs properly
             getMcpServer().executeTool('start_auto_drive', {});
             return "Started";
         })
@@ -259,11 +213,9 @@ export const appRouter = t.router({
             pasteToSubmitDelayMs: z.number().optional(),
             acceptDetectionMode: z.enum(['state', 'polling']).optional(),
             pollingIntervalMs: z.number().optional(),
-            // Personalization & Council
             persona: z.enum(['default', 'homie', 'professional', 'chaos']).optional(),
             customInstructions: z.string().optional(),
             council: z.any().optional(),
-            // New Controls
             autoSubmitChat: z.boolean().optional(),
             enableChatPaste: z.boolean().optional(),
             enableCouncil: z.boolean().optional(),
@@ -285,40 +237,16 @@ export const appRouter = t.router({
         args: z.any()
     })).mutation(async ({ input }) => {
         const result = await getMcpServer().executeTool(input.name, input.args);
-        // Result is { content: ... }
         // @ts-ignore
         if (result.isError) throw new Error(result.content[0].text);
         // @ts-ignore
         return result.content[0].text;
     }),
-    //
-    // autoTest: t.router({
-    //     getResults: t.procedure.query(() => {
-    //         const results = getMcpServer().autoTestService.testResults;
-    //         return Object.fromEntries(results);
-    //     }),
-    //     getStatus: t.procedure.query(() => {
-    //         return { isRunning: getMcpServer().autoTestService.isRunning };
-    //     }),
-    //     start: t.procedure.mutation(() => {
-    //         getMcpServer().autoTestService.start();
-    //         return true;
-    //     }),
-    //     stop: t.procedure.mutation(() => {
-    //         getMcpServer().autoTestService.stop();
-    //         return true;
-    //     }),
-    //     clear: t.procedure.mutation(() => {
-    //         getMcpServer().autoTestService.testResults.clear();
-    //         return true;
-    //     })
-    // }),
     git: t.router({
         getModules: t.procedure.query(async () => {
             const fs = await import('fs/promises');
             const path = await import('path');
             try {
-                // Read .gitmodules file
                 const gitModulesPath = path.join(process.cwd(), '.gitmodules');
                 const content = await fs.readFile(gitModulesPath, 'utf-8');
                 const modules = [];
@@ -330,9 +258,9 @@ export const appRouter = t.router({
                         path: match[2],
                         url: match[3],
                         status: 'unknown',
-                        branch: 'main', // Placeholder, would need git submodule status
-                        lastCommit: 'HEAD', // Placeholder
-                        date: new Date().toISOString().split('T')[0], // Placeholder, real date requires git log per module
+                        branch: 'main',
+                        lastCommit: 'HEAD',
+                        date: new Date().toISOString().split('T')[0],
                         active: false
                     });
                 }
@@ -352,91 +280,6 @@ export const appRouter = t.router({
             return getMcpServer().gitService.revert(input.hash);
         })
     }),
-
-    // submodule: t.router({
-    //     list: t.procedure.query(async () => {
-    //         return getMcpServer().submoduleService.listSubmodules();
-    //     }),
-    //     updateAll: t.procedure.mutation(async () => {
-    //         return getMcpServer().submoduleService.updateAll();
-    //     }),
-    //     install: t.procedure.input(z.object({ path: z.string() })).mutation(async ({ input }) => {
-    //         return getMcpServer().submoduleService.installDependencies(input.path);
-    //     }),
-    //     build: t.procedure.input(z.object({ path: z.string() })).mutation(async ({ input }) => {
-    //         return getMcpServer().submoduleService.buildSubmodule(input.path);
-    //     }),
-    //     enable: t.procedure.input(z.object({ path: z.string() })).mutation(async ({ input }) => {
-    //         return getMcpServer().submoduleService.enableSubmodule(input.path);
-    //     })
-    // }),
-    // billing: billingRouter,
-    // system: t.router({
-    //     stats: t.procedure.query(async () => {
-    //         const result = await getMcpServer().executeTool('system_status', {});
-    //         // @ts-ignore
-    //         if (result.isError) return { error: result.content[0].text, platform: 'Error' };
-    //         // @ts-ignore
-    //         return JSON.parse(result.content[0].text);
-    //     }),
-    //     info: t.procedure.query(async () => {
-    //         const fs = await import('fs/promises');
-    //         const path = await import('path');
-    //         const { exec } = await import('child_process');
-    //         const util = await import('util');
-    //         const execAsync = util.promisify(exec);
-    //
-    //         let rootVersion = '0.0.0';
-    //         try {
-    //             rootVersion = (await fs.readFile(path.join(process.cwd(), 'VERSION'), 'utf-8')).trim();
-    //         } catch (e) { /* ignore */ }
-    //
-    //         let submodules: any[] = [];
-    //         try {
-    //             const { stdout } = await execAsync('git submodule status');
-    //             // Format: -hash path (describe)
-    //             submodules = stdout.trim().split('\n').map(line => {
-    //                 const parts = line.trim().split(' ');
-    //                 const commit = parts[0].replace(/^[+-]/, ''); // Remove status chars
-    //                 const path = parts[1];
-    //                 // Status logic
-    //                 let status = 'Clean';
-    //                 if (line.trim().startsWith('-')) status = 'Uninitialized';
-    //                 if (line.trim().startsWith('+')) status = 'Modified';
-    //
-    //                 return {
-    //                     name: path.split('/').pop() || path,
-    //                     path: path,
-    //                     commit: commit,
-    //                     branch: 'HEAD', // Expensive to get real branch for all, default to HEAD for now
-    //                     date: new Date().toISOString().split('T')[0], // Placeholder, real date requires git log per module
-    //                     status: status
-    //                 };
-    //             });
-    //         } catch (e) {
-    //             console.error("Failed to read submodules", e);
-    //         }
-    //
-    //         return {
-    //             rootVersion,
-    //             submodules,
-    //             structure: [
-    //                 { path: 'apps/web', description: 'Next.js Dashboard & Mission Control Interface' },
-    //                 { path: 'packages/core', description: 'Central Intelligence: Orchestrator, MCPServer, tRPC' },
-    //                 { path: 'packages/borg-supervisor', description: 'Autonomous Agent Logic & Input Management' },
-    //                 { path: 'packages/ui', description: 'Shared Design System & Feature Widgets' }
-    //             ]
-    //         };
-    //     })
-    // }),
-    // sandbox: t.router({
-    //     execute: t.procedure.input(z.object({
-    //         language: z.enum(['python', 'node']),
-    //         code: z.string()
-    //     })).mutation(async ({ input }) => {
-    //         return getMcpServer().sandboxService.execute(input.language, input.code);
-    //     })
-    // }),
     audit: t.router({
         query: t.procedure.input(z.object({ limit: z.number().optional() })).query(async ({ input }) => {
             return getMcpServer().auditService.getLogs(input.limit || 50);
@@ -447,123 +290,6 @@ export const appRouter = t.router({
             return getMcpServer().auditService.query(input);
         })
     }),
-    // // Merged into line 375
-    //
-    // roadmap: t.router({
-    //     get: t.procedure.query(async () => {
-    //         const fs = await import('fs/promises');
-    //         const path = await import('path');
-    //         try {
-    //             // Try root first
-    //             const rootCookie = path.join(process.cwd(), 'ROADMAP.md');
-    //             return await fs.readFile(rootCookie, 'utf-8');
-    //         } catch (e) {
-    //             try {
-    //                 // Try docs/
-    //                 const docsCookie = path.join(process.cwd(), 'docs', 'ROADMAP.md');
-    //                 return await fs.readFile(docsCookie, 'utf-8');
-    //             } catch (e2) {
-    //                 return "# Roadmap\n\nCould not load ROADMAP.md";
-    //             }
-    //         }
-    //     })
-    // }),
-    // metrics: metricsServiceRouter,
-    //
-    // policy: t.router({
-    //     getRules: t.procedure.query(() => {
-    //         return getMcpServer().policyService.getRules();
-    //     }),
-    //     updateRules: t.procedure.input(z.object({ rules: z.array(z.any()) })).mutation(({ input }) => {
-    //         getMcpServer().policyService.updateRules(input.rules);
-    //         return true;
-    //     }),
-    //     lockdown: t.procedure.mutation(() => {
-    //         const mcp = getMcpServer();
-    //         // 1. Set Autonomy to Low
-    //         mcp.permissionManager.setAutonomyLevel('low');
-    //         // 2. Add Deny All Rule to top of policy (memory only or persist?)
-    //         // Let's persist a lockdown rule.
-    //         const rules = mcp.policyService.getRules();
-    //         // Check if already locked
-    //         if (rules[0].reason !== 'SYSTEM LOCKDOWN') {
-    //             rules.unshift({ action: "*", resource: "*", effect: "DENY", reason: "SYSTEM LOCKDOWN" });
-    //             mcp.policyService.updateRules(rules);
-    //         }
-    //         return "SYSTEM LOCKED DOWN";
-    //     }),
-    //     unlock: t.procedure.mutation(() => {
-    //         const mcp = getMcpServer();
-    //         const rules = mcp.policyService.getRules();
-    //         if (rules[0].reason === 'SYSTEM LOCKDOWN') {
-    //             rules.shift(); // Remove top rule
-    //             mcp.policyService.updateRules(rules);
-    //         }
-    //         return "SYSTEM UNLOCKED";
-    //     })
-    // }), // End policy
-    // vscode: t.router({
-    //     open: t.procedure.input(z.object({
-    //         path: z.string()
-    //     })).mutation(async ({ input }) => {
-    //         const server = getMcpServer();
-    //         // @ts-ignore - shellService might be missing from interface
-    //         if (server && server.shellService) {
-    //             try {
-    //                 // @ts-ignore
-    //                 await server.shellService.execute(`code "${input.path}"`);
-    //                 return true;
-    //             } catch (e) {
-    //                 try {
-    //                     await server.executeTool('vscode_execute_command', {
-    //                         command: 'vscode.open', args: [input.path]
-    //                     });
-    //                     return true;
-    //                 } catch (e2) { return false; }
-    //             }
-    //         }
-    //         return false;
-    //     })
-    // }),
-    // search: t.router({
-    //     query: t.procedure.input(z.object({ query: z.string() })).mutation(async ({ input }) => {
-    //         return await getMcpServer().executeTool('search_codebase', { query: input.query });
-    //     })
-    // }),
-    // mcp: t.router({
-    //     list: t.procedure.query(async () => {
-    //         return await getMcpServer().mcpAggregator.listServers();
-    //     }),
-    //     add: t.procedure.input(z.object({
-    //         name: z.string(),
-    //         command: z.string(),
-    //         args: z.array(z.string()).optional(),
-    //         env: z.record(z.string()).optional(),
-    //         repoUrl: z.string().optional()
-    //     })).mutation(async ({ input }) => {
-    //         const server = getMcpServer();
-    //
-    //         if (input.repoUrl) {
-    //             // Use the tool logic to handle cloning + adding
-    //             return await server.executeTool('mcp_add_server', {
-    //                 name: input.name,
-    //                 repoUrl: input.repoUrl,
-    //                 command: input.command,
-    //                 args: input.args,
-    //                 env: input.env
-    //             });
-    //         } else {
-    //             // Direct add (manual config)
-    //             await server.mcpAggregator.addServerConfig(input.name, {
-    //                 command: input.command,
-    //                 args: input.args || [],
-    //                 env: input.env,
-    //                 enabled: true
-    //             });
-    //             return { success: true };
-    //         }
-    //     })
-    // })
 });
 
 export type AppRouter = typeof appRouter;

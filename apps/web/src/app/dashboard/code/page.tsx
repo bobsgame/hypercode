@@ -2,10 +2,10 @@
 
 import { trpc } from '@/utils/trpc';
 import { useState } from 'react';
-import { Card } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { Card } from '@borg/ui';
+import { Input } from '@borg/ui';
+import { Button } from '@borg/ui';
+import { ScrollArea } from '@borg/ui';
 
 export default function CodeDashboard() {
     const [filePath, setFilePath] = useState('packages/core/src/MCPServer.ts');

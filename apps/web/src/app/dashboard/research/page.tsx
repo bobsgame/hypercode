@@ -1,10 +1,10 @@
 'use client';
 
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { Card, CardHeader, CardTitle, CardContent } from "@borg/ui";
+import { Button } from "@borg/ui";
+import { Input } from "@borg/ui";
+import { Badge } from "@borg/ui";
+import { ScrollArea } from "@borg/ui";
 import { useState } from "react";
 import { Loader2, Search, BookOpen, GitBranch, ExternalLink, Network } from "lucide-react";
 import { trpc } from '@/utils/trpc';

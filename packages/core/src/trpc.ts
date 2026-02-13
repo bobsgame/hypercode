@@ -2,8 +2,6 @@ import { z } from 'zod';
 import fs from 'fs/promises';
 import path from 'path';
 import { t, publicProcedure, adminProcedure } from './lib/trpc-core.js';
-import { type Diagnosis, type HealRecord } from './services/HealerService.js';
-import { observable } from '@trpc/server/observable';
 import { getMcpServer } from './lib/mcpHelper.js';
 import { suggestionsRouter } from './routers/suggestionsRouter.js';
 import { squadRouter } from './routers/squadRouter.js';
@@ -35,6 +33,8 @@ import { settingsRouter } from './routers/settingsRouter.js';
 import { sessionRouter } from './routers/sessionRouter.js';
 import { billingRouter } from './routers/billingRouter.js';
 import { mcpRouter } from './routers/mcpRouter.js';
+import { healerRouter } from './routers/healerRouter.js';
+import { darwinRouter } from './routers/darwinRouter.js';
 
 
 // import { type AnyTRPCRouter } from '@trpc/server';
@@ -65,42 +65,8 @@ export const appRouter = t.router({
     session: sessionRouter,
     billing: billingRouter,
     mcp: mcpRouter,
-    healer: t.router({
-        diagnose: t.procedure.input(z.object({ error: z.string(), context: z.string().optional() })).mutation(async ({ input }) => {
-            return getMcpServer().healerService.analyzeError(input.error, input.context || "");
-        }),
-        heal: t.procedure.input(z.object({ error: z.string(), context: z.string().optional() })).mutation(async ({ input }) => {
-            const success = await getMcpServer().healerService.heal(input.error, input.context || "");
-            return { success };
-        }),
-        getHistory: t.procedure.query(async (): Promise<HealRecord[]> => {
-            return getMcpServer().healerService.getHistory();
-        }),
-        // subscribe: publicProcedure.subscription(() => {
-        //     return observable<any>((emit) => {
-        //         const onHeal = (data: any) => {
-        //             emit.next(data);
-        //         };
-        //         const service = getMcpServer().healerService;
-        //         service.on('heal', onHeal);
-        //         return () => {
-        //             service.off('heal', onHeal);
-        //         };
-        //     });
-        // })
-    }),
-    darwin: t.router({
-        evolve: t.procedure.input(z.object({ prompt: z.string(), goal: z.string() })).mutation(async ({ input }) => {
-            return getMcpServer().darwinService.proposeMutation(input.prompt, input.goal);
-        }),
-        experiment: t.procedure.input(z.object({ mutationId: z.string(), task: z.string() })).mutation(async ({ input }) => {
-            const exp = await getMcpServer().darwinService.startExperiment(input.mutationId, input.task);
-            return { experimentId: exp.id };
-        }),
-        getStatus: t.procedure.query(async () => {
-            return getMcpServer().darwinService.getStatus();
-        })
-    }),
+    healer: healerRouter,
+    darwin: darwinRouter,
     health: publicProcedure.query(() => {
         return { status: 'running', service: '@borg/core' };
     }),

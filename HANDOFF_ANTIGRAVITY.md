@@ -1,7 +1,7 @@
-# HANDOFF — Antigravity Session (Feb 12, 2026)
+# HANDOFF — Antigravity Session (Feb 12, 2026 — Evening)
 
 ## Session Summary
-Continued from v2.6.2. Focused on **wiring real data into dashboard pages** and **cross-browser extension compatibility**. 6 commits pushed to `main`.
+Continued from earlier session. Focused on **systematic quality sweep**: standardizing imports, cleaning dead code, and making the MCP Aggregator functional. Build verified clean (exit 0).
 
 ## Commits This Session
 | Hash | Description |
@@ -10,35 +10,45 @@ Continued from v2.6.2. Focused on **wiring real data into dashboard pages** and 
 | `cb7d8bd1` | workflowRouter.list + Healer page stats & active infections |
 | `a4100938` | Firefox MV3 manifests + mcpRouter + MCP page tRPC wiring |
 | `f3c506e3` | Events page real-time polling + Skills page import fixes |
+| `522e53cb` | **Import standardization (12 pages), MCP aggregator wired, dead code cleanup** |
 
-## Key Changes
+## Key Changes (This Evening)
 
-### Dashboard Pages Wired to Real Data
-- **MCP Aggregator**: New `mcpRouter.ts` (listServers/listTools/getStatus). Page shows live server/tool counts.
-- **Healer**: Active infections derived from failed heal records. Stats row (Total Events, Neutralized, Success Rate, Last Heal).
-- **Workflows**: `workflowRouter.list` returns real `WorkflowEngine.workflows` Map data.
-- **Events**: Real-time polling via `pulse.getLatestEvents` (3s) + `getSystemStatus` (5s). Stats row + system status panel.
-- **Skills**: Import paths fixed to `@borg/ui`. ScrollArea replaced with native overflow.
+### Import Standardization (12 pages)
+All dashboard pages migrated from `@/components/ui/` → `@borg/ui`:
+council, director, supervisor, code, settings, submodules, evolution, research, security, memory, manual, plans.
 
-### Extension Compatibility
-- All 3 manifests (`apps/extension`, `packages/browser-extension`, `packages/browser-extension/public`) now include `background.scripts` for Firefox MV3 alongside `service_worker` for Chrome.
+### MCP Aggregator Now Functional
+- Added `addServer` / `removeServer` mutations to `mcpRouter.ts`
+- Rewrote MCP dashboard with working form, remove buttons, and Tools tab
+- MCPAggregator service already had full implementation (STDIO client management, tool discovery, config persistence)
 
-### New Files
-- `packages/core/src/routers/mcpRouter.ts` — tRPC router for MCPAggregator
+### Dead Code Cleanup
+Removed ~200 lines of commented-out routers from `trpc.ts` (remoteAccess, config, logs, autoTest, submodule, system, sandbox, roadmap, policy, vscode, search, inline mcp).
+
+### Dashboard Landing Page
+Created `/dashboard` route with organized links to all 31 sub-pages.
 
 ## Current Build State
-- Last known clean build at v2.6.2 (commit `3870630a`).
-- Dashboard pages updated since then; rebuild recommended to verify.
+- `packages/core` — `tsc --noEmit` passes (exit 0)
+- `apps/web` — `next build` passes (exit 0)
+
+## Full Dashboard Audit Results
+- **20 pages** wired directly to tRPC backends
+- **6 pages** delegate to `@borg/ui` components (chronicle, library, workshop, squads, brain, pulse)
+- **3 pages** delegate to local components (command, config, inspector)
+- **1 landing page** at `/dashboard`
+- **Only 1 remaining local UI import**: Alert in plans page (not in @borg/ui)
 
 ## Remaining Items
-1. **Events page types**: `systemStatus` uses `as any` casts for union type narrowing — could be improved with a proper shared type.
-2. **Skills page**: Still uses `@/components/ui/` for some components not available in `@borg/ui` (e.g., `ScrollArea` was replaced with div).
-3. **`@ts-ignore` cleanup**: ~20 files in `packages/core/src` still have `@ts-ignore` directives.
-4. **Inline routers in `trpc.ts`**: The healer router (lines 66-97) and several other routers remain inline — should be extracted to separate files.
-5. **MCP page Add Server form**: Currently shows error when submitting — needs a real `mcp.addServer` mutation wired to MCPAggregator.
+1. **Inline routers**: healer, autonomy, director, directorConfig, executeTool, git, audit still inline in `trpc.ts` — should be extracted.
+2. **`@ts-ignore` cleanup**: ~20 files in `packages/core/src` still have directives.
+3. **Plans Alert component**: Still uses local `@/components/ui/alert` since Alert isn't exported by `@borg/ui`.
+4. **Submodule actions disabled**: Knowledge page has disabled submodule sync/install/build actions (submodule router not registered).
 
 ## Next Steps (Priority Order)
-1. Rebuild and verify (`pnpm build`)
-2. Extract remaining inline routers from `trpc.ts`
-3. Wire MCP "Add Server" form to real mutationborder
-4. Complete Phase 4 roadmap items (council naming, cache tool mapping, submodule dashboard)
+1. Extract remaining inline routers from `trpc.ts` (healer → `healerRouter.ts` already exists!)
+2. Wire submodule actions on knowledge page
+3. Add Alert component to `@borg/ui` exports
+4. Continue building out features: improve architecture page, add audit log page
+5. `@ts-ignore` audit and reduction

@@ -1,51 +1,57 @@
-# HANDOFF — Antigravity Session (Feb 12, 2026 — Late Evening)
+# HANDOFF — Antigravity Session
 
-## Session Summary
-Continued quality sweep. Extracted all inline tRPC routers from `trpc.ts`, reducing it from 570+ to 113 lines. Removed 10 `@ts-ignore` directives with proper type fixes. Created `Alert` UI component and fixed `@borg/ui` exports.
+## Session Date: Feb 12-13, 2026
 
-## Commits This Session (Phase 2)
-| Hash | Description |
-|------|-------------|
-| `522e53cb` | Import standardization (12 pages), MCP aggregator, dead code cleanup |
-| `aba9bd6b` | Extract healer/darwin routers from trpc.ts |
-| `8cf27b26` | Extract autonomy/director/directorConfig/git/audit routers |
-| `7f9a5785` | Remove unused imports, fix duplicate identifiers in trpc.ts |
-| `b49b0079` | Remove 7 @ts-ignore (mcpHelper, EventBus, GeminiAdapter, reactors) |
-| `cf43c0d5` | Remove 3 more @ts-ignore (TerminalSensor, SkillAssimilation) |
-| `831a7144` | Alert component, fix duplicate export, add 7 missing component exports |
+## Summary
 
-## Key Changes
+Massive quality improvement session focused on eliminating `@ts-ignore` directives and improving UI/router consistency.
 
-### trpc.ts Transformation
-- **Before:** 570+ lines with inline routers + dead code
-- **After:** 113 lines — clean import-only orchestration file
-- 7 routers extracted: healer, darwin, autonomy, director, directorConfig, git, audit
+### @ts-ignore Reduction: 44 → 5 (89% reduction)
 
-### @ts-ignore Reduction (44 → 34)
-- mcpHelper.ts: Use MCPServer.ts global declaration
-- trpc-core.ts: Replace `(global as any)` with typed global  
-- EventBus.ts: Use `super.on()` with proper cast
-- GeminiAdapter.ts, HealerReactor.ts, AutoTestReactor.ts: Use typed globals
-- TerminalSensor.ts: Cast stderr.write properly
-- SkillAssimilationService.ts: Type research result
+| File | Before | After | Fix Type |
+|------|--------|-------|----------|
+| TerminalSensor.ts | 1 | 0 | Proper stderr.write cast |
+| SkillAssimilationService.ts | 2 | 0 | Typed deepResearch result |
+| mcpHelper.ts | 1 | 0 | Removed redundant global decl |
+| trpc-core.ts | 1 | 0 | Used typed global |
+| EventBus.ts | 1 | 0 | super.on() type assertion |
+| GeminiAdapter.ts | 1 | 0 | Typed global access |
+| HealerReactor.ts | 1 | 0 | EventBus typing fix |
+| AutoTestReactor.ts | 1 | 0 | EventBus typing fix |
+| trpc.ts | 2 | 0 | executeTool result cast |
+| KnowledgeService.ts | 1 | 0 | getSnapshot cast |
+| HealerService.ts | 2 | 0 | LLM response parsing cast |
+| DarwinService.ts | 3 | 0 | LLM response parsing + lint fix |
+| CodeModeService.ts | 1 | 0 | global[] sandbox cast |
+| SpawnerService.ts | 1 | 0 | Protected fail() cast |
+| SquadService.ts | 4 | 0 | Dynamic import, IMCPServer gaps |
+| autonomyRouter.ts | 2 | 0 | Director method casts |
+| directorRouter.ts | 2 | 0 | Director broadcast/executeTask |
+| SystemCommands.ts | 1 | 0 | Removed redundant comment |
+| MemoryManager.ts | 7 | 0 | GraphMemory import, VectorStore, provider.list |
+| MCPServer.ts | 4 | 0 | child_process, handler calls |
+| **Test/Scripts** | **5** | **5** | Unchanged (non-production) |
 
-### @borg/ui Improvements
-- Created `Alert` component (4 variants: default, destructive, warning, success)
-- Fixed duplicate `WorkflowVisualizer` export
-- Added 7 missing exports: Alert, GraphPanel, CodeIntelPage, ContextPanel, MemoryPage, IntegratedTerminal, SystemStatus
+### Other Improvements
 
-## Current Build State
-- `packages/core` — `tsc --noEmit` passes (exit 0)
-- All changes pushed to `main`
+- **TraceViewer**: Wired to `audit.query` with 3s polling, color-coded levels, auto-scroll
+- **Alert Component**: Created `@borg/ui` Alert with 4 variants (default, destructive, warning, success)
+- **CommandRunner**: Removed dead `executeParams` variable with browser-invalid `process.cwd()`
+- **@borg/ui Exports**: Added Alert, GraphPanel, CodeIntelPage, ContextPanel, MemoryPage, IntegratedTerminal, SystemStatus
+- **Dashboard**: All 31 pages confirmed using `@borg/ui` exclusively (zero local UI imports)
+- **DarwinService Lint**: Fixed invalid `LLMResponse as string` cast → `String(res)`
 
-## Dashboard Audit (31 pages)
-- **20** wired to tRPC backends
-- **6** delegate to `@borg/ui` components
-- **3** delegate to local components  
-- **1** landing page hub
+### Remaining @ts-ignore (5 — test/script only)
 
-## Remaining Items
-1. **@ts-ignore cleanup**: ~34 remaining, mostly in MCPServer.ts (4), MemoryManager.ts (7), SquadService.ts (4)
-2. **Plans page**: Can now use `Alert` from `@borg/ui` instead of local import
-3. **Submodule actions**: Knowledge page has disabled sync/install/build buttons
-4. **MemoryManager adapter**: 7 @ts-ignore from `@borg/memory` type mismatches — needs interface alignment
+- `tests/Phase28_SmartContext.test.ts` (1) — test mock
+- `scripts/verify_research_recursion.ts` (4) — verification script
+
+### Build Status
+
+✅ `tsc --noEmit` passes cleanly (exit 0)
+
+### Next Steps
+
+1. Fix remaining @ts-ignore in test/script files (low priority)
+2. Wire submodule router for Knowledge page actions
+3. Continue feature development per ROADMAP

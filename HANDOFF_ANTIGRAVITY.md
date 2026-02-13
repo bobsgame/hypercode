@@ -1,57 +1,25 @@
-# HANDOFF — Antigravity Session
+# HANDOFF — Antigravity Session (Launch Prep)
 
-## Session Date: Feb 12-13, 2026
+## Session Date: Feb 13, 2026
 
 ## Summary
+Focused on "Ignition" — wiring up the disconnected UI components to the underlying engines.
 
-Massive quality improvement session focused on eliminating `@ts-ignore` directives and improving UI/router consistency.
+### 🚀 Features Activated
+- **Submodule Management**: Created `submoduleRouter.ts` and wired the Knowledge Dashboard. Buttons for **Sync**, **Install**, **Build**, and **Enable** are now functional.
+- **MCP Aggregation**: Verified `mcpRouter` is correctly exposed. The MCP Dashboard can now add/remove downstream servers naturally.
+- **Director Status**: Verified the live link between the Director's brain and `trpc.director.status`.
 
-### @ts-ignore Reduction: 44 → 5 (89% reduction)
+### 🛠️ Technical Debt Cleared
+- **`trpc.ts`**: Verified clean of the ~200 lines of legacy commented-out code.
+- **Router Registration**: Registered missing `submoduleRouter`.
 
-| File | Before | After | Fix Type |
-|------|--------|-------|----------|
-| TerminalSensor.ts | 1 | 0 | Proper stderr.write cast |
-| SkillAssimilationService.ts | 2 | 0 | Typed deepResearch result |
-| mcpHelper.ts | 1 | 0 | Removed redundant global decl |
-| trpc-core.ts | 1 | 0 | Used typed global |
-| EventBus.ts | 1 | 0 | super.on() type assertion |
-| GeminiAdapter.ts | 1 | 0 | Typed global access |
-| HealerReactor.ts | 1 | 0 | EventBus typing fix |
-| AutoTestReactor.ts | 1 | 0 | EventBus typing fix |
-| trpc.ts | 2 | 0 | executeTool result cast |
-| KnowledgeService.ts | 1 | 0 | getSnapshot cast |
-| HealerService.ts | 2 | 0 | LLM response parsing cast |
-| DarwinService.ts | 3 | 0 | LLM response parsing + lint fix |
-| CodeModeService.ts | 1 | 0 | global[] sandbox cast |
-| SpawnerService.ts | 1 | 0 | Protected fail() cast |
-| SquadService.ts | 4 | 0 | Dynamic import, IMCPServer gaps |
-| autonomyRouter.ts | 2 | 0 | Director method casts |
-| directorRouter.ts | 2 | 0 | Director broadcast/executeTask |
-| SystemCommands.ts | 1 | 0 | Removed redundant comment |
-| MemoryManager.ts | 7 | 0 | GraphMemory import, VectorStore, provider.list |
-| MCPServer.ts | 4 | 0 | child_process, handler calls |
-| **Test/Scripts** | **5** | **5** | Unchanged (non-production) |
+### 🔍 Verification Results
+- `knowledge/page.tsx`: Uses `trpc.submodule` hooks correctly.
+- `mcpRouter.ts`: Implements `addServer`/`removeServer`.
+- `autoDevRouter.ts`: Exposes `startLoop`/`cancelLoop` for autonomous fixing.
 
-### Other Improvements
-
-- **TraceViewer**: Wired to `audit.query` with 3s polling, color-coded levels, auto-scroll
-- **Alert Component**: Created `@borg/ui` Alert with 4 variants (default, destructive, warning, success)
-- **CommandRunner**: Removed dead `executeParams` variable with browser-invalid `process.cwd()`
-- **@borg/ui Exports**: Added Alert, GraphPanel, CodeIntelPage, ContextPanel, MemoryPage, IntegratedTerminal, SystemStatus
-- **Dashboard**: All 31 pages confirmed using `@borg/ui` exclusively (zero local UI imports)
-- **DarwinService Lint**: Fixed invalid `LLMResponse as string` cast → `String(res)`
-
-### Remaining @ts-ignore (5 — test/script only)
-
-- `tests/Phase28_SmartContext.test.ts` (1) — test mock
-- `scripts/verify_research_recursion.ts` (4) — verification script
-
-### Build Status
-
-✅ `tsc --noEmit` passes cleanly (exit 0)
-
-### Next Steps
-
-1. Fix remaining @ts-ignore in test/script files (low priority)
-2. Wire submodule router for Knowledge page actions
-3. Continue feature development per ROADMAP
+## Next Actions
+1. **Hydrate Submodules**: Go to the Knowledge page and click "Sync All" then "Install" on key modules.
+2. **Connect Tools**: Use the MCP page to add any external tool servers (e.g., `sqlite`, `filesystem`).
+3. **Engage Director**: The brain is live. You can start giving it high-level objectives.

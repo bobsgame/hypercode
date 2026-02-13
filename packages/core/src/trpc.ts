@@ -36,6 +36,7 @@ import { directorRouter } from './routers/directorRouter.js';
 import { directorConfigRouter } from './routers/directorConfigRouter.js';
 import { gitRouter } from './routers/gitRouter.js';
 import { auditRouter } from './routers/auditRouter.js';
+import { submoduleRouter } from './routers/submoduleRouter.js';
 
 
 // import { type AnyTRPCRouter } from '@trpc/server';
@@ -103,6 +104,7 @@ export const appRouter = t.router({
     }),
     git: gitRouter,
     audit: auditRouter,
+    submodule: submoduleRouter,
 });
 
 export type AppRouter = typeof appRouter;

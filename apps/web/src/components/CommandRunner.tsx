@@ -8,8 +8,6 @@ export function CommandRunner() {
     const [command, setCommand] = useState("");
     const [output, setOutput] = useState("");
 
-    const executeParams = command ? { command, cwd: process.cwd() } : undefined;
-
     // We invoke this manually, not automatically
     const executeMutation = trpc.commands.execute.useMutation({
         onSuccess: (data) => {

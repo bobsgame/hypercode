@@ -12,19 +12,16 @@
 - [ ] **Continue strict-typing cleanup in shared UI components**
   - Latest observed blocker: `packages/ui/src/components/ContextPanel.tsx`
   - Prior blockers resolved in workflows/council/director/search/indexing/trace/chronicle surfaces
-- [ ] **Fix 3 remaining `@ts-ignore`** in `apps/web/src/app/dashboard/council/page.tsx` (lines 54, 58, 63)
-  - Root cause: `councilRouter.listSessions` return type doesn't match `CouncilSession[]` state type
-  - Fix: Add explicit output schema to `council.listSessions` procedure (like `configRouter.list` fix)
-- [ ] **Verify `apps/web` build** passes cleanly after `knowledge/page.tsx` coderTask state restoration
-- [ ] **Fix `skill: any` cast** in `skills/page.tsx` line 105 — type the skills list response
+- [x] **Fix 3 remaining `@ts-ignore`** in `council/page.tsx` — replaced with `CouncilSession` interface + safe cast
+- [x] **Verify `apps/web` build** — `tsc --noEmit` passes (exit 0), `next build` passes with 8GB heap
+- [x] **Fix `skill: any` cast** in `skills/page.tsx` — already has `normalizeSkills()` + `SkillListItem` interface
 
 ### Auth Completion
-- [ ] **Wire auth submit flows** for `LoginForm.tsx`, `signup/page.tsx`, `forgot-password/page.tsx`
-  - Backend API routes exist (`oauthRouter`) but frontend submit handlers need real mutation calls
+- [x] **Auth submit flows already wired** — `LoginForm.tsx` calls `/api/auth/login` via fetch; all 3 API routes (`login`, `signup`, `forgot-password`) fully implemented with `authStore` library
 
 ### Dashboard Data Integrity
-- [ ] **Replace `super-assistant/page.tsx` placeholder** with real MCP agent capabilities or archive the page
-- [ ] **Fix Turbopack broad-pattern warnings** in `submodules/actions.ts` — use environment variable or config for repo root instead of `path.join(process.cwd(), '../..')`
+- [x] **Replaced `super-assistant/page.tsx`** — now shows real MCP data (tools, servers, skills) via tRPC
+- [x] **Fixed Turbopack broad-pattern warnings** — 7 path traversals in 5 files replaced with `getMonorepoRoot()` helper
 
 ---
 
@@ -70,18 +67,18 @@
 - [ ] **Type `DeepResearchService` constructor** — replace `server: any` with typed `MCPServer` reference
 - [ ] **Type `KnowledgeService.getGraph` return** — replace `content: any[]` with structured type
 
-### Verify Orphaned Dashboard Pages
-- [ ] **`/dashboard/chronicle`** — verify router connection, document purpose
-- [ ] **`/dashboard/events`** — verify if wired to `pulse` router
-- [ ] **`/dashboard/library`** — verify if wired to `skills` or static content
-- [ ] **`/dashboard/manual`** — verify if static documentation page
-- [ ] **`/dashboard/reader`** — verify if wired to `expert.ingest`
-- [ ] **`/dashboard/security`** — verify if wired to `autonomy`/`audit`
-- [ ] **`/dashboard/mcp/observability`** — verify if wired to `metrics`
-- [ ] **`/dashboard/mcp/search`** — verify if wired to `tools.search`
-- [ ] **`/dashboard/mcp/registry`** — verify if wired to `mcpServers.list`
-- [ ] **`/dashboard/mcp/docs`** — verify if static documentation
-- [ ] **`/dashboard/mcp/inspector`** — verify if wired to `logs` router
+### Verify Orphaned Dashboard Pages (ALL VERIFIED ✅)
+- [x] **`/dashboard/chronicle`** — static `@borg/ui` component
+- [x] **`/dashboard/events`** — wired to `pulse.getLatestEvents`
+- [x] **`/dashboard/library`** — static `@borg/ui` component
+- [x] **`/dashboard/manual`** — static documentation page
+- [x] **`/dashboard/reader`** — wired to `executeTool` mutation
+- [x] **`/dashboard/security`** — wired to `audit.list` + `autonomy.setLevel`
+- [x] **`/dashboard/mcp/observability`** — wired to `logs.list` (real analytics)
+- [x] **`/dashboard/mcp/search`** — wired to `tools.list` (client-side filter)
+- [x] **`/dashboard/mcp/registry`** — mock data (hardcoded server list)
+- [x] **`/dashboard/mcp/docs`** — static documentation
+- [x] **`/dashboard/mcp/inspector`** — wired to `tools.list` + `agent.runTool`
 
 ---
 

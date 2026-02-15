@@ -6,6 +6,47 @@ import { ScrollArea } from './ui/scroll-area';
 import { Activity, Brain, CheckCircle, Clock } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
+type DirectorStatusViewModel = {
+    active: boolean;
+    status: string;
+    goal: string;
+    step: number;
+    totalSteps: number;
+    lastHistory: string[];
+};
+
+function normalizeDirectorStatus(value: unknown): DirectorStatusViewModel {
+    if (!value || typeof value !== 'object') {
+        return {
+            active: false,
+            status: 'OFFLINE',
+            goal: 'No active task',
+            step: 0,
+            totalSteps: 0,
+            lastHistory: [],
+        };
+    }
+
+    const record = value as Record<string, unknown>;
+    const active = typeof record.active === 'boolean' ? record.active : false;
+    const status = typeof record.status === 'string' ? record.status : 'OFFLINE';
+    const goal = typeof record.goal === 'string' ? record.goal : 'No active task';
+    const step = typeof record.step === 'number' ? record.step : 0;
+    const totalSteps = typeof record.totalSteps === 'number' ? record.totalSteps : 0;
+    const lastHistory = Array.isArray(record.lastHistory)
+        ? record.lastHistory.filter((entry): entry is string => typeof entry === 'string')
+        : [];
+
+    return {
+        active,
+        status,
+        goal,
+        step,
+        totalSteps,
+        lastHistory,
+    };
+}
+
 export function DirectorStatusWidget() {
     const { data: status, isLoading } = trpc.director.status.useQuery(undefined, {
         refetchInterval: 1000, // Real-time updates
@@ -23,12 +64,13 @@ export function DirectorStatusWidget() {
     }
 
     // Handle legacy or partial status response
-    const active = status.active || false;
-    const currentStatus = status.status || 'OFFLINE';
-    const goal = status.goal || 'No active task';
-    const step = status.step || 0;
-    const total = status.totalSteps || 0;
-    const history = status.lastHistory || [];
+    const normalized = normalizeDirectorStatus(status);
+    const active = normalized.active;
+    const currentStatus = normalized.status;
+    const goal = normalized.goal;
+    const step = normalized.step;
+    const total = normalized.totalSteps;
+    const history = normalized.lastHistory;
 
     return (
         <Card className="relative overflow-hidden bg-zinc-900 border-zinc-800 h-full flex flex-col">

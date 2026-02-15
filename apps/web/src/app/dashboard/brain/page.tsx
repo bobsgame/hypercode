@@ -7,7 +7,20 @@ import { trpc } from '@/utils/trpc';
 
 export default function BrainPage() {
     const graphQuery = trpc.graph.getSymbolsGraph.useQuery();
-    const { nodes = [], links = [] } = graphQuery.data || {};
+    const { nodes: rawNodes = [], links: rawLinks = [] } = graphQuery.data || {};
+
+    const nodes = rawNodes.map((node: any) => ({
+        id: node.id,
+        label: node.name,
+        type: 'concept' as const,
+        val: node.val || 1
+    }));
+
+    const links = rawLinks.map((link: any) => ({
+        source: link.source,
+        target: link.target,
+        value: 1
+    }));
 
     return (
         <div className="h-full w-full p-6 flex flex-col">

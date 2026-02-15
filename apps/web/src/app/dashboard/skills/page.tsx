@@ -8,13 +8,38 @@ import { Button } from '@borg/ui';
 import { Badge } from "@borg/ui";
 import { Hammer, BookOpen, Terminal, CheckCircle2, Loader2, AlertCircle } from 'lucide-react';
 
+interface SkillListItem {
+    id: string;
+    name: string;
+    description: string;
+    content: string;
+    path: string;
+}
+
+function normalizeSkills(value: unknown): SkillListItem[] {
+    if (!Array.isArray(value)) return [];
+
+    return value.filter((item): item is SkillListItem => {
+        if (!item || typeof item !== 'object') return false;
+        const skill = item as Partial<SkillListItem>;
+        return (
+            typeof skill.id === 'string' &&
+            typeof skill.name === 'string' &&
+            typeof skill.description === 'string' &&
+            typeof skill.content === 'string' &&
+            typeof skill.path === 'string'
+        );
+    });
+}
+
 export default function SkillsPage() {
     const [topic, setTopic] = useState('');
     const [logs, setLogs] = useState<string[]>([]);
     const [status, setStatus] = useState<'idle' | 'assimilating' | 'success' | 'error'>('idle');
 
-    // List existing skills (Placeholder for now until list endpoint is robust)
+    // List existing skills
     const { data: skills, refetch } = trpc.skills.list.useQuery();
+    const skillList = normalizeSkills(skills);
 
     const assimilateMutation = trpc.skills.assimilate.useMutation({
         onMutate: () => {
@@ -100,9 +125,9 @@ export default function SkillsPage() {
                     </CardHeader>
                     <CardContent>
                         <div className="h-[400px] overflow-y-auto">
-                            {skills?.length === 0 && <p className="text-muted-foreground italic">No custom skills loaded.</p>}
+                            {skillList.length === 0 && <p className="text-muted-foreground italic">No custom skills loaded.</p>}
                             <div className="grid grid-cols-1 gap-2">
-                                {skills?.map((skill: any, i: number) => (
+                                {skillList.map((skill, i: number) => (
                                     <div key={i} className="flex items-center justify-between p-3 rounded-md border border-zinc-800 bg-zinc-900/50">
                                         <div className="font-medium">{skill.name}</div>
                                         <Badge variant="outline">Active</Badge>

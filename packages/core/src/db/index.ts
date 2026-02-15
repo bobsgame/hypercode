@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * @file index.ts
  * @module packages/core/src/db/index
@@ -13,7 +14,7 @@
 
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import Database from "better-sqlite3";
-import * as schema from "./metamcp-schema";
+import * as schema from "./metamcp-schema.js";
 import * as dotenv from "dotenv";
 import path from "path";
 

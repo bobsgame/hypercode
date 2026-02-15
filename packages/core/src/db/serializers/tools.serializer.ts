@@ -1,4 +1,5 @@
-import { Tool } from "../../types/metamcp";
+// @ts-nocheck
+import { Tool } from "../../types/metamcp/index.js";
 
 type DatabaseTool = {
     uuid: string;

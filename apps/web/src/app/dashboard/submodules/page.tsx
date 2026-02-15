@@ -72,6 +72,8 @@ export default function SubmodulesPage() {
                                         <thead className="bg-muted/50 text-muted-foreground font-medium">
                                             <tr>
                                                 <th className="p-4">Module Name</th>
+                                                <th className="p-4">Package</th>
+                                                <th className="p-4">Version</th>
                                                 <th className="p-4">Status</th>
                                                 <th className="p-4">HEAD Commit</th>
                                                 <th className="p-4">Last Update</th>
@@ -83,6 +85,12 @@ export default function SubmodulesPage() {
                                                     <td className="p-4">
                                                         <div className="font-medium text-base">{sub.path.split('/').pop()}</div>
                                                         <div className="text-muted-foreground text-xs font-mono mt-1">{sub.path}</div>
+                                                    </td>
+                                                    <td className="p-4">
+                                                        <div className="font-mono text-xs text-blue-400">{sub.pkgName || '-'}</div>
+                                                    </td>
+                                                    <td className="p-4">
+                                                        <div className="font-mono text-xs bg-zinc-800 px-2 py-1 rounded w-fit">{sub.version || '-'}</div>
                                                     </td>
                                                     <td className="p-4">
                                                         <StatusBadge status={sub.status} />

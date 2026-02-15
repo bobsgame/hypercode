@@ -14,7 +14,7 @@ export default function DirectorPage() {
 
     // Construct plan view from real data
     const plan = {
-        goal: config?.defaultTopic || "Defining Mission...",
+        goal: (config as any)?.defaultTopic || "Defining Mission...",
         status: taskStatus?.status === 'processing' || taskStatus?.status === 'busy' ? 'IN_PROGRESS' : 'IDLE',
         steps: taskStatus?.taskId ? [
             { id: 1, action: taskStatus.taskId, status: 'RUNNING', result: `Progress: ${taskStatus.progress || 0}%` }

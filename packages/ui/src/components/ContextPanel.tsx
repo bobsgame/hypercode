@@ -9,13 +9,22 @@ import { Badge } from './ui/badge';
 import { X, Plus, Trash2, FileText, Pin } from 'lucide-react';
 import { trpc } from '../utils/trpc';
 
+function normalizePinnedFiles(value: unknown): string[] {
+    if (!Array.isArray(value)) {
+        return [];
+    }
+
+    return value.filter((entry): entry is string => typeof entry === 'string');
+}
+
 export function ContextPanel() {
     const [newFile, setNewFile] = useState('');
 
     const contextQuery = trpc.borgContext.list.useQuery(undefined, {
         refetchInterval: 5000
     });
-    const { data: pinnedFiles = [], refetch } = contextQuery;
+    const { data: rawPinnedFiles, refetch } = contextQuery;
+    const pinnedFiles = normalizePinnedFiles(rawPinnedFiles);
 
     const addMutation = trpc.borgContext.add.useMutation({
         onSuccess: () => {
@@ -82,7 +91,7 @@ export function ContextPanel() {
                                 No files pinned. Add files to include them in context.
                             </p>
                         ) : (
-                            pinnedFiles.map((file: string) => (
+                            pinnedFiles.map((file) => (
                                 <div
                                     key={file}
                                     className="flex items-center justify-between p-2 bg-muted/50 rounded-md group"

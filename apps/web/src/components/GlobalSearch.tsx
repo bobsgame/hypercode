@@ -11,6 +11,28 @@ type SearchResult = {
     uri?: string;
 };
 
+type SymbolLike = {
+    name?: unknown;
+    containerName?: unknown;
+    location?: {
+        uri?: unknown;
+        range?: {
+            start?: {
+                line?: unknown;
+                character?: unknown;
+            };
+        };
+    };
+};
+
+function normalizeSymbols(value: unknown): SymbolLike[] {
+    if (!Array.isArray(value)) {
+        return [];
+    }
+
+    return value.filter((item): item is SymbolLike => typeof item === 'object' && item !== null);
+}
+
 export const GlobalSearch: React.FC = () => {
     const [query, setQuery] = useState('');
     const [results, setResults] = useState<SearchResult[]>([]);
@@ -29,7 +51,8 @@ export const GlobalSearch: React.FC = () => {
 
         try {
             const { data: symbols } = await searchQuery.refetch();
-            const mapped: SearchResult[] = (symbols || []).slice(0, 50).map((s: any) => {
+            const normalizedSymbols = normalizeSymbols(symbols);
+            const mapped: SearchResult[] = normalizedSymbols.slice(0, 50).map((s) => {
                 const uri: string = String(s?.location?.uri ?? '');
                 const file = uri.startsWith('file://') ? decodeURIComponent(uri.replace('file://', '')) : uri;
                 const line = Number(s?.location?.range?.start?.line ?? 0);
@@ -44,8 +67,9 @@ export const GlobalSearch: React.FC = () => {
             });
 
             setResults(mapped.length > 0 ? mapped : [{ file: 'No results', snippet: 'No matching symbols found in LSP index.' }]);
-        } catch (error: any) {
-            setResults([{ file: 'Search failed', snippet: error?.message ?? 'Unable to query symbol index.' }]);
+        } catch (error: unknown) {
+            const message = error instanceof Error ? error.message : 'Unable to query symbol index.';
+            setResults([{ file: 'Search failed', snippet: message }]);
         } finally {
             setIsSearching(false);
         }

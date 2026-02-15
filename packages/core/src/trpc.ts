@@ -37,6 +37,19 @@ import { auditRouter } from './routers/auditRouter.js';
 import { submoduleRouter } from './routers/submoduleRouter.js';
 import { expertRouter } from './routers/expertRouter.js';
 import { systemProcedures } from './routers/systemProcedures.js';
+import { mcpServersRouter } from './routers/mcpServersRouter.js';
+import { namespacesRouter } from './routers/namespacesRouter.js';
+import { endpointsRouter } from './routers/endpointsRouter.js';
+import { apiKeysRouter } from './routers/apiKeysRouter.js';
+import { toolsRouter } from './routers/toolsRouter.js';
+import { toolSetsRouter } from './routers/toolSetsRouter.js';
+import { logsRouter } from './routers/logsRouter.js';
+import { configRouter } from './routers/configRouter.js';
+import { serverHealthRouter } from './routers/serverHealthRouter.js';
+import { policiesRouter } from './routers/policiesRouter.js';
+import { savedScriptsRouter } from './routers/savedScriptsRouter.js';
+import { oauthRouter } from './routers/oauthRouter.js';
+import { agentRouter } from './routers/agentRouter.js';
 
 
 // import { type AnyTRPCRouter } from '@trpc/server';
@@ -77,6 +90,19 @@ export const appRouter = t.router({
     audit: auditRouter,
     submodule: submoduleRouter,
     expert: expertRouter,
+    mcpServers: mcpServersRouter,
+    namespaces: namespacesRouter,
+    endpoints: endpointsRouter,
+    apiKeys: apiKeysRouter,
+    tools: toolsRouter,
+    toolSets: toolSetsRouter,
+    logs: logsRouter,
+    config: configRouter,
+    serverHealth: serverHealthRouter,
+    policies: policiesRouter,
+    savedScripts: savedScriptsRouter,
+    oauth: oauthRouter,
+    agent: agentRouter,
 });
 
 export type AppRouter = typeof appRouter;

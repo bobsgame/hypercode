@@ -1,4 +1,4 @@
-import { ApiKeyType } from "../../types/metamcp";
+import { ApiKeyType } from "../../types/metamcp/index.js";
 
 export class ApiKeysSerializer {
     static serializeApiKey(dbApiKey: {

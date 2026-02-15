@@ -12,15 +12,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@borg/ui";
 import { trpc } from "@/utils/trpc";
 import { DebateVisualizer } from "@/components/council/DebateVisualizer";
 
-// Local Interface (mirroring backend slightly for now or just infer from TRPC)
-// Ideally we infer from router output, but manual for speed
+// Local Interface matching backend CouncilService types
 interface CouncilSession {
     id: string;
     topic: string;
     status: 'active' | 'concluded';
     round: number;
-    opinions: any[];
-    votes: any[];
+    opinions: Opinion[];
+    votes: Vote[];
     createdAt: number;
 }
 
@@ -38,6 +37,29 @@ interface Vote {
     timestamp: number;
 }
 
+/**
+ * Reason: shared trpc client typing can degrade some payloads to `unknown[]` in web builds.
+ * What: runtime-normalizes session payloads to the local `CouncilSession` shape.
+ * Why: keeps strict React state typing without `@ts-ignore` or unsafe casts.
+ */
+function normalizeSessions(value: unknown): CouncilSession[] {
+    if (!Array.isArray(value)) return [];
+
+    return value.filter((item): item is CouncilSession => {
+        if (!item || typeof item !== 'object') return false;
+        const session = item as Partial<CouncilSession>;
+        return (
+            typeof session.id === 'string' &&
+            typeof session.topic === 'string' &&
+            (session.status === 'active' || session.status === 'concluded') &&
+            typeof session.round === 'number' &&
+            Array.isArray(session.opinions) &&
+            Array.isArray(session.votes) &&
+            typeof session.createdAt === 'number'
+        );
+    });
+}
+
 export default function CouncilPage() {
     const [sessions, setSessions] = useState<CouncilSession[]>([]);
     const [selectedSession, setSelectedSession] = useState<CouncilSession | null>(null);
@@ -51,21 +73,19 @@ export default function CouncilPage() {
 
     useEffect(() => {
         if (listQuery.data) {
-            // @ts-ignore
-            setSessions(listQuery.data);
+            const data = normalizeSessions(listQuery.data);
+            setSessions(data);
             // Auto-select most recent if none selected
-            if (!selectedSession && listQuery.data.length > 0) {
-                // @ts-ignore
-                setSelectedSession(listQuery.data[0]);
+            if (!selectedSession && data.length > 0) {
+                setSelectedSession(data[0]);
             }
             // Update selected session object from list if it exists (live updates)
             if (selectedSession) {
-                // @ts-ignore
-                const updated = listQuery.data.find(s => s.id === selectedSession.id);
+                const updated = data.find(s => s.id === selectedSession.id);
                 if (updated) setSelectedSession(updated);
             }
         }
-    }, [listQuery.data]);
+    }, [listQuery.data, selectedSession]);
 
     const handleCreateSession = async () => {
         if (!newTopic) return;

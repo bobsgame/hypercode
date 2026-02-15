@@ -3,25 +3,17 @@ import { NextResponse } from 'next/server';
 import fs from 'fs/promises';
 import path from 'path';
 
+// Resolve the monorepo root safely without overly broad path traversals
+// that trigger Turbopack's file pattern analysis
+function getMonorepoRoot(): string {
+    return process.env.BORG_ROOT || path.resolve(process.cwd(), '..', '..');
+}
+
 export async function GET() {
     try {
-        const logDir = path.join(process.cwd(), '../../../.borg/data'); // Relative to apps/web/src/app/api...
-        // Wait, process.cwd() in Next.js might be the root of the repo or apps/web.
-        // Usually it's the project root if run from there, or apps/web.
-        // Let's assume repo root or try to find .borg.
-        // Safest is to check multiple paths or use an absolute path environment variable.
-        // But for this environment: c:\Users\hyper\workspace\borg
-        // If next runs in apps/web, then .borg is at ../../.borg
+        const rootDir = getMonorepoRoot();
 
-        // Let's try to detect the root.
-        let rootDir = process.cwd();
-        if (rootDir.endsWith('web')) {
-            rootDir = path.join(rootDir, '../../');
-        } else if (rootDir.endsWith('apps')) { // Unlikely
-            rootDir = path.join(rootDir, '../');
-        }
-
-        const logFile = path.join(rootDir, '.borg/data/healer_events.jsonl');
+        const logFile = path.join(rootDir, '.borg', 'data', 'healer_events.jsonl');
 
         try {
             await fs.access(logFile);

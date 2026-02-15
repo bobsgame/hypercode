@@ -3,6 +3,15 @@
 import { useState, useEffect } from "react";
 import { trpc } from "../utils/trpc";
 
+function getPasteToSubmitDelayMs(value: unknown): number {
+    if (typeof value !== 'object' || value === null) {
+        return 0;
+    }
+
+    const delay = (value as { pasteToSubmitDelayMs?: unknown }).pasteToSubmitDelayMs;
+    return typeof delay === 'number' ? delay : 0;
+}
+
 export function DirectorChat() {
     const [input, setInput] = useState("");
     const [messages, setMessages] = useState<{ role: 'user' | 'agent', content: string }[]>([
@@ -12,10 +21,12 @@ export function DirectorChat() {
 
     // Fetch config for auto-submit delay
     const configQuery = trpc.directorConfig.get.useQuery();
+    const pasteToSubmitDelayMs = getPasteToSubmitDelayMs(configQuery.data);
 
     const chatMutation = trpc.director.chat.useMutation({
         onSuccess: (data) => {
-            setMessages(prev => [...prev, { role: 'agent', content: data }]);
+            const content = typeof data === 'string' ? data : JSON.stringify(data, null, 2);
+            setMessages(prev => [...prev, { role: 'agent', content }]);
         },
         onError: (error) => {
             setMessages(prev => [...prev, { role: 'agent', content: `Error: ${error.message}` }]);
@@ -56,7 +67,7 @@ export function DirectorChat() {
     const handlePaste = (e: React.ClipboardEvent) => {
         const text = e.clipboardData.getData('text');
         // If config allows and delay > 0
-        const delay = configQuery.data?.pasteToSubmitDelayMs || 0;
+        const delay = pasteToSubmitDelayMs;
 
         if (delay > 0 && text.trim().length > 0) {
             // We need to wait for state update or pass text directly. 
@@ -139,7 +150,7 @@ export function DirectorChat() {
                     Send
                 </button>
             </form>
-            {submitTimer && <div className="text-xs text-blue-400 mt-1 animate-pulse">Auto-submitting in {(configQuery.data?.pasteToSubmitDelayMs || 1000) / 1000}s... (type to cancel)</div>}
+            {submitTimer && <div className="text-xs text-blue-400 mt-1 animate-pulse">Auto-submitting in {(pasteToSubmitDelayMs || 1000) / 1000}s... (type to cancel)</div>}
         </div >
     );
 }

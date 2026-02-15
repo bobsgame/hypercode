@@ -18,6 +18,15 @@ import {
     DialogTitle,
 } from "./ui/dialog";
 
+function getContextContent(value: unknown): string {
+    if (!value || typeof value !== 'object') {
+        return '';
+    }
+
+    const record = value as Record<string, unknown>;
+    return typeof record.content === 'string' ? record.content : '';
+}
+
 export default function MemoryPage() {
     const [searchQuery, setSearchQuery] = useState('');
     const [activeTab, setActiveTab] = useState('contexts');
@@ -167,7 +176,7 @@ export default function MemoryPage() {
                         ) : contextDetail.data ? (
                             <ScrollArea className="h-[500px] w-full rounded-md border p-4 bg-muted/50">
                                 <pre className="text-xs font-mono whitespace-pre-wrap break-all">
-                                    {contextDetail.data.content}
+                                    {getContextContent(contextDetail.data)}
                                 </pre>
                                 {/* <div className="mt-4 border-t pt-4">
                             <h4 className="font-semibold mb-2">Metadata</h4>

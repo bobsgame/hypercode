@@ -10,10 +10,32 @@ import { Button } from '@borg/ui';
 import { ScrollArea } from '@borg/ui';
 import { Shield, Lock } from 'lucide-react';
 
+interface AuditLogEntry {
+    timestamp: number;
+    action: string;
+    params: unknown;
+    level: string;
+}
+
+function normalizeAuditLogs(value: unknown): AuditLogEntry[] {
+    if (!Array.isArray(value)) return [];
+
+    return value.filter((entry): entry is AuditLogEntry => {
+        if (!entry || typeof entry !== 'object') return false;
+        const log = entry as Partial<AuditLogEntry>;
+        return (
+            typeof log.timestamp === 'number' &&
+            typeof log.action === 'string' &&
+            typeof log.level === 'string'
+        );
+    });
+}
+
 export default function SecurityPage() {
     const [auditLimit] = useState(50);
     const utils = trpc.useUtils();
-    const { data: auditLogs, isLoading: loadingLogs, refetch: refetchLogs } = trpc.audit.query.useQuery({ limit: auditLimit });
+    const { data: rawAuditLogs, isLoading: loadingLogs, refetch: refetchLogs } = trpc.audit.list.useQuery({ limit: auditLimit });
+    const auditLogs = normalizeAuditLogs(rawAuditLogs);
     const { data: autonomyLevel } = trpc.autonomy.getLevel.useQuery();
     const lockdownMutation = trpc.autonomy.setLevel.useMutation({
         onSuccess: async () => {
@@ -81,7 +103,7 @@ export default function SecurityPage() {
                             <ScrollArea className="h-[600px] w-full rounded-md border p-4">
                                 {loadingLogs ? <div>Loading logs...</div> : (
                                     <div className="space-y-4">
-                                        {auditLogs?.map((log: any, i: number) => (
+                                        {auditLogs.map((log, i: number) => (
                                             <div key={i} className="flex flex-col gap-1 border-b pb-2 last:border-0">
                                                 <div className="flex justify-between items-start">
                                                     <div className="flex items-center gap-2">

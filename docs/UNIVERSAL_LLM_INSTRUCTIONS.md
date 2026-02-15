@@ -76,11 +76,12 @@ borg/
 
 ## 4. Versioning & Documentation Protocol
 
-### A. Version Number
+### A. Version Number (CRITICAL)
 - `VERSION.md` at the repo root is the **SINGLE source of truth**.
 - All `package.json` files MUST reference this version.
 - The version MUST be displayed in the WebUI dashboard About page.
 - Every build/commit that changes functionality MUST increment the version.
+- **NEVER hardcode versions in code** — always read from `VERSION.md` or `package.json`.
 - Versioning: MAJOR.MINOR.PATCH (semver).
 
 ### B. Changelog

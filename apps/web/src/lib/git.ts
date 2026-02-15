@@ -13,6 +13,8 @@ export interface SubmoduleInfo {
     lastCommit?: string;
     lastCommitDate?: string;
     lastCommitMessage?: string;
+    version?: string;
+    pkgName?: string;
 }
 
 export async function getSubmodules(workspaceRoot: string): Promise<SubmoduleInfo[]> {
@@ -86,12 +88,27 @@ async function checkSubmoduleStatus(fullPath: string, info: SubmoduleInfo): Prom
         // Get Message
         const { stdout: message } = await execAsync('git log -1 --format=%s', { cwd: fullPath });
 
+        // Try to read package.json for version/name
+        let version = 'unknown';
+        let pkgName = '';
+        try {
+            const pkgPath = path.join(fullPath, 'package.json');
+            const pkgContent = await fs.readFile(pkgPath, 'utf-8');
+            const pkg = JSON.parse(pkgContent);
+            version = pkg.version || 'unknown';
+            pkgName = pkg.name || '';
+        } catch {
+            // Not a Node.js repo or no package.json
+        }
+
         return {
             ...info,
             status: isDirty ? 'dirty' : 'clean',
             lastCommit: head.trim(),
             lastCommitDate: date.trim(),
-            lastCommitMessage: message.trim()
+            lastCommitMessage: message.trim(),
+            version,
+            pkgName
         };
 
     } catch (e) {

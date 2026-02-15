@@ -3,8 +3,12 @@
 import fs from 'fs/promises';
 import path from 'path';
 
-// Adjust path relative to apps/web
-const CONFIG_PATH = path.resolve(process.cwd(), '../../packages/core/config/council.json');
+// Resolve the monorepo root safely without overly broad path traversals
+function getMonorepoRoot(): string {
+    return process.env.BORG_ROOT || path.resolve(process.cwd(), '..', '..');
+}
+
+const CONFIG_PATH = path.join(getMonorepoRoot(), 'packages', 'core', 'config', 'council.json');
 
 export async function getCouncilConfig() {
     try {

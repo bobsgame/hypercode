@@ -3,16 +3,17 @@ import { NextResponse } from 'next/server';
 import fs from 'fs/promises';
 import path from 'path';
 
+// Resolve the monorepo root safely without overly broad path traversals
+// that trigger Turbopack's file pattern analysis
+function getMonorepoRoot(): string {
+    return process.env.BORG_ROOT || path.resolve(process.cwd(), '..', '..');
+}
+
 export async function GET() {
     try {
-        let rootDir = process.cwd();
-        if (rootDir.endsWith('web')) {
-            rootDir = path.join(rootDir, '../../');
-        } else if (rootDir.endsWith('apps')) {
-            rootDir = path.join(rootDir, '../');
-        }
+        const rootDir = getMonorepoRoot();
 
-        const brainDir = path.join(rootDir, '.borg/brain');
+        const brainDir = path.join(rootDir, '.borg', 'brain');
         let brainCount = 0;
         const recentCount = 0;
 

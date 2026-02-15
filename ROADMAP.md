@@ -1,7 +1,7 @@
 # Borg Project Roadmap
 
 > **Status**: Phase 63 (Codebase Hardening) - **IN PROGRESS**
-> **Version**: 2.6.1 (canonical from `VERSION.md`)
+> **Version**: 2.6.2 (canonical from `VERSION.md`)
 > **Codename**: AIOS (AI Operating System)
 
 ---
@@ -122,6 +122,19 @@
     - [ ] NotebookLM/computer-use/web-search/spec tooling mostly referenced but not fully end-to-end represented
 
   ### 63.B P0 — Critical UX and Trust Gaps
+
+  - [~] **Web build stabilization (2026-02-15 continuation)**
+    - [x] Hardened unknown payload handling in:
+      - `apps/web/src/app/dashboard/workflows/page.tsx`
+      - `apps/web/src/components/CouncilWidget.tsx`
+      - `apps/web/src/components/DirectorChat.tsx`
+      - `apps/web/src/components/GlobalSearch.tsx`
+      - `apps/web/src/components/IndexingStatus.tsx`
+      - `apps/web/src/components/TraceViewer.tsx`
+      - `packages/ui/src/components/ChroniclePage.tsx`
+    - [x] Resolved Mermaid remote-import bundling failure by switching from CDN import to local `mermaid` package in `apps/web/src/components/Mermaid.tsx`
+    - [ ] Remaining strict-type build blockers still present in other UI surfaces (latest observed: `packages/ui/src/components/ContextPanel.tsx`)
+    - [ ] Turbopack-specific ENOENT artifact instability on Windows remains intermittently reproducible in this workspace; webpack mode was used to isolate app-level type errors
 
   - [x] **Auth completion**: implemented submit flows + backend API routes for:
     - `apps/web/src/components/auth/LoginForm.tsx`

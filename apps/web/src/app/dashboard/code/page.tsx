@@ -73,12 +73,12 @@ export default function CodeDashboard() {
                 <ScrollArea className="flex-1 p-4">
                     {isPending && <div className="text-gray-500 animate-pulse">Loading symbols...</div>}
 
-                    {!isPending && (!results || results.length === 0) && (
+                    {!isPending && (!results || (Array.isArray(results) && results.length === 0)) && (
                         <div className="text-gray-500 italic">No symbols found. Try indexing the project.</div>
                     )}
 
                     <div className="space-y-2">
-                        {results?.map((symbol: any, idx: number) => (
+                        {Array.isArray(results) && results.map((symbol: any, idx: number) => (
                             <div key={idx} className="flex items-center justify-between p-2 rounded hover:bg-gray-700/50 group border border-transparent hover:border-gray-600 transition-colors">
                                 <div className="flex items-center gap-3">
                                     <span className={`text-xs px-1.5 py-0.5 rounded border ${symbol.kind === 6 ? 'bg-blue-900/30 text-blue-400 border-blue-800' : // Method

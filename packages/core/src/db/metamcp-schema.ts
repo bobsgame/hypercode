@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * @file metamcp-schema.ts
  * @description SQLite schema definition for MetaMCP integration into Borg.

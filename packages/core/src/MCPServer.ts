@@ -136,6 +136,8 @@ const __dirname = path.dirname(__filename);
 import { AgentAdapter } from "./orchestrator/AgentAdapter.js";
 import { ClaudeAdapter } from "./orchestrator/adapters/ClaudeAdapter.js";
 import { GeminiAdapter } from "./orchestrator/adapters/GeminiAdapter.js";
+import { MetaMCPController } from "./services/MetaMCPController.js";
+import { Tool, CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 
 interface ToolRequest {
     params: {
@@ -1904,757 +1906,764 @@ export class MCPServer {
         }
     }
 
-    private setupHandlers(serverInstance: Server) {
-        serverInstance.setRequestHandler(ListToolsRequestSchema, async () => {
-            const internalTools = [
-                {
-                    name: "router_status",
-                    description: "Check the status of the Borg Router",
-                    inputSchema: { type: "object", properties: {} },
-                },
-                {
-                    name: "mcpm_search",
-                    description: "Search for skills in the module registry",
-                    inputSchema: {
-                        type: "object",
-                        properties: {
-                            query: { type: "string" }
-                        },
-                        required: ["query"]
+    private async getNativeTools(): Promise<Tool[]> {
+        const internalTools: any[] = [
+            {
+                name: "router_status",
+                description: "Check the status of the Borg Router",
+                inputSchema: { type: "object", properties: {} },
+            },
+            {
+                name: "mcpm_search",
+                description: "Search for skills in the module registry",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        query: { type: "string" }
                     },
+                    required: ["query"]
                 },
-                {
-                    name: "mcpm_install",
-                    description: "Install a skill from the registry (via git)",
-                    inputSchema: {
-                        type: "object",
-                        properties: {
-                            name: { type: "string" }
-                        },
-                        required: ["name"]
+            },
+            {
+                name: "mcpm_install",
+                description: "Install a skill from the registry (via git)",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        name: { type: "string" }
                     },
-                },
-                {
-                    name: "mcp_add_server",
-                    description: "Add a new downstream MCP server (via git clone + config update)",
-                    inputSchema: {
-                        type: "object",
-                        properties: {
-                            name: { type: "string" },
-                            repoUrl: { type: "string" },
-                            command: { type: "string", description: "Command to start server (e.g. 'node')" },
-                            args: { type: "array", items: { type: "string" }, description: "Args for command (e.g. ['dist/index.js'])" },
-                            env: { type: "object", description: "Environment variables" }
-                        },
-                        required: ["name", "repoUrl", "command", "args"]
-                    }
-                },
-                {
-                    name: "system_status",
-                    description: "Get current system metrics (CPU, Memory, Uptime)",
-                    inputSchema: { type: "object", properties: {} },
-                },
-                {
-                    name: "system_diagnostics",
-                    description: "Run advanced health checks on Core, Web UI, and Bridges",
-                    inputSchema: { type: "object", properties: {} },
-                },
-                {
-                    name: "assimilate_skill",
-                    description: "Convert a research item into a functional Borg Skill (runbook)",
-                    inputSchema: {
-                        type: "object",
-                        properties: {
-                            id: { type: "string" },
-                            name: { type: "string" },
-                            url: { type: "string" },
-                            summary: { type: "string" },
-                            relevance: { type: "string" }
-                        },
-                        required: ["name", "url", "summary", "relevance"]
-                    }
-                },
-                {
-                    name: "memorize_page",
-                    description: "Save the current browser page content to long-term memory",
-                    inputSchema: { type: "object", properties: {} },
-                },
-                {
-                    name: "browser_screenshot",
-                    description: "Capture a screenshot of the current browser page",
-                    inputSchema: { type: "object", properties: {} }
-                },
-                {
-                    name: "memory_index_codebase",
-                    description: "Deep Data Search: Index a directory for semantic code search",
-                    inputSchema: {
-                        type: "object",
-                        properties: {
-                            path: { type: "string", description: "Absolute path to directory to index (default: cwd)" }
-                        }
-                    }
-                },
-                {
-                    name: "memory_search",
-                    description: "Semantic search across indexed code and memories",
-                    inputSchema: {
-                        type: "object",
-                        properties: {
-                            query: { type: "string" },
-                            limit: { type: "number" }
-                        },
-                        required: ["query"]
-                    }
-                },
-                {
-                    name: "browser_get_history",
-                    description: "Get browser history from the connected browser extension",
-                    inputSchema: {
-                        properties: {
-                            query: { type: "string", description: "Search query for history items" },
-                            maxResults: { type: "number", description: "Maximum number of results to return (default 20)" }
-                        }
-                    }
-                },
-                {
-                    name: "browser_debug",
-                    description: "Deep browser debugging via CDP (Chrome DevTools Protocol)",
-                    inputSchema: {
-                        type: "object",
-                        properties: {
-                            action: { type: "string", enum: ["attach", "detach", "command"], description: "Action to perform" },
-                            method: { type: "string", description: "CDP method to call (e.g. Runtime.evaluate)" },
-                            params: { type: "object", description: "CDP parameters" }
-                        },
-                        required: ["action"]
-                    }
-                },
-                {
-                    name: "browser_proxy_fetch",
-                    description: "Perform a network fetch through the browser extension (bypasses CORS, reaches local servers)",
-                    inputSchema: {
-                        type: "object",
-                        properties: {
-                            url: { type: "string", description: "URL to fetch" },
-                            options: { type: "object", description: "Fetch options (method, headers, body)" }
-                        },
-                        required: ["url"]
-                    }
-                },
-                {
-                    name: "spawn_agent",
-                    description: "Spawn a specialized sub-agent for a parallel task",
-                    inputSchema: {
-                        type: "object",
-                        properties: {
-                            type: { type: "string", enum: ["research", "code", "custom"], description: "Agent type" },
-                            task: { type: "string", description: "Detailed task description for the agent" }
-                        },
-                        required: ["type", "task"]
-                    }
-                },
-                {
-                    name: "list_agents",
-                    description: "List all active sub-agents in the swarm",
-                    inputSchema: { type: "object", properties: {} }
-                },
-                {
-                    name: "kill_agent",
-                    description: "Terminate a running sub-agent",
-                    inputSchema: {
-                        type: "object",
-                        properties: {
-                            agentId: { type: "string", description: "UUID of the agent to kill" }
-                        },
-                        required: ["agentId"]
-                    }
-                },
-                {
-                    name: "get_agent_result",
-                    description: "Retrieve the final result of a completed agent task",
-                    inputSchema: {
-                        type: "object",
-                        properties: {
-                            agentId: { type: "string", description: "UUID of the agent" }
-                        },
-                        required: ["agentId"]
-                    }
-                },
-                {
-                    name: "start_task",
-                    description: "Start an autonomous task with the Director Agent",
-                    inputSchema: {
-                        type: "object",
-                        properties: {
-                            goal: { type: "string" },
-                            maxSteps: { type: "number" }
-                        },
-                        required: ["goal"]
-                    }
-                },
-                {
-                    name: "start_autotest",
-                    description: "Start the Auto-Test Watcher (runs tests on file save)",
-                    inputSchema: { type: "object", properties: {} },
-                },
-                {
-                    name: "stop_autotest",
-                    description: "Stop the Auto-Test Watcher",
-                    inputSchema: { type: "object", properties: {} },
-                },
-                {
-                    name: "execute_sandbox",
-                    description: "Execute code in a secure Docker container (Python/Node)",
-                    inputSchema: {
-                        type: "object",
-                        properties: {
-                            language: { type: "string", enum: ["python", "node"] },
-                            code: { type: "string" }
-                        },
-                        required: ["language", "code"]
-                    }
-                },
-                {
-                    name: "start_watchdog",
-                    description: "Start the Supervisor Watchdog to auto-approve terminal prompts",
-                    inputSchema: {
-                        type: "object",
-                        properties: {
-                            maxCycles: { type: "number", description: "Number of 5s cycles to run (default 20)" }
-                        }
-                    }
-                },
-                {
-                    name: "start_chat_daemon",
-                    description: "Start the Director in Chat Daemon mode (Auto-Approves & Reads Selection)",
-                    inputSchema: { type: "object", properties: {} }
-                },
-                {
-                    name: "start_auto_drive",
-                    description: "Start the Autonomous Development Loop (Reads task.md, Drives Chat, Auto-Approves)",
-                    inputSchema: { type: "object", properties: {} }
-                },
-                {
-                    name: "stop_auto_drive",
-                    description: "Stop the Autonomous Development Loop",
-                    inputSchema: { type: "object", properties: {} }
-                },
-                {
-                    name: "set_autonomy",
-                    description: "Set the autonomy level (low, medium, high)",
-                    inputSchema: {
-                        type: "object",
-                        properties: {
-                            level: { type: "string", enum: ["low", "medium", "high"] }
-                        },
-                        required: ["level"]
-                    }
-                },
-                {
-                    name: "chat_reply",
-                    description: "Insert text into the active browser chat (Web Bridge)",
-                    inputSchema: {
-                        type: "object",
-                        properties: {
-                            text: { type: "string" }
-                        },
-                        required: ["text"]
-                    }
-                },
-                {
-                    name: "chat_submit",
-                    description: "Simulate pressing Enter in the chat input",
-                    inputSchema: { type: "object", properties: {} }
-                },
-                {
-                    name: "click_element",
-                    description: "Click a button or link on the page by identifying text",
-                    inputSchema: {
-                        type: "object",
-                        properties: {
-                            target: { type: "string", description: "Text content of the button/link to click" }
-                        },
-                        required: ["target"]
-                    }
-                },
-                {
-                    name: "click_at",
-                    description: "Click at specific X,Y coordinates on the page (for Vision capabilities)",
-                    inputSchema: {
-                        type: "object",
-                        properties: {
-                            x: { type: "number" },
-                            y: { type: "number" }
-                        },
-                        required: ["x", "y"]
-                    }
-                },
-                {
-                    name: "native_input",
-                    description: "Simulate global keyboard input (for Native Apps/IDE)",
-                    inputSchema: {
-                        type: "object",
-                        properties: {
-                            keys: { type: "string", description: "Keys: enter, esc, ctrl+r, f5, etc." }
-                        },
-                        required: ["keys"]
-                    }
-                },
-                {
-                    name: "vscode_execute_command",
-                    description: "Execute a VS Code command via the installed extension",
-                    inputSchema: {
-                        type: "object",
-                        properties: {
-                            command: { type: "string", description: "Command ID (e.g. workbench.action.files.save)" },
-                            args: { type: "array", description: "Optional arguments", items: { type: "string" } }
-                        },
-                        required: ["command"]
-                    }
-                },
-                {
-                    name: "read_page",
-                    description: "Read the text content of the active browser tab",
-                    inputSchema: { type: "object", properties: {} }
-                },
-                {
-                    name: "use_agent",
-                    description: "Delegate a task to an external AI Agent (Claude, Gemini)",
-                    inputSchema: {
-                        type: "object",
-                        properties: {
-                            name: { type: "string", enum: ["claude", "gemini"], description: "Name of the agent to use" },
-                            prompt: { type: "string", description: "The task or prompt to send to the agent" }
-                        },
-                        required: ["name", "prompt"]
-                    }
-                },
-                {
-                    name: "research_recursively",
-                    description: "Perform deep, recursive research on a topic using sub-agents/sub-tasks.",
-                    inputSchema: {
-                        type: "object",
-                        properties: {
-                            topic: { type: "string", description: "The main topic to research" },
-                            depth: { type: "number", description: "Depth of recursion (def: 2)" },
-                            breadth: { type: "number", description: "Breadth of related topics (def: 3)" }
-                        },
-                        required: ["topic"]
-                    }
-                },
-                {
-                    name: "take_screenshot",
-                    description: "Capture a screenshot of the active browser tab",
-                    inputSchema: { type: "object", properties: {} }
-                },
-                {
-                    name: "analyze_screenshot",
-                    description: "Capture and analyze a screenshot of the active browser tab using Vision AI",
-                    inputSchema: {
-                        type: "object",
-                        properties: {
-                            prompt: { type: "string", description: "Question or instruction about the screenshot" }
-                        },
-                        required: ["prompt"]
-                    }
-                },
-                {
-                    name: "vscode_get_status",
-                    description: "Get the current status of the VS Code editor (Active File, Terminal, etc.)",
-                    inputSchema: { type: "object", properties: {} }
-                },
-                {
-                    name: "vscode_read_selection",
-                    description: "Read the currently selected text or the entire active document from VS Code",
-                    inputSchema: { type: "object", properties: {} }
-                },
-                {
-                    name: "vscode_read_terminal",
-                    description: "Read the content of the active terminal (Uses Clipboard: SelectAll -> Copy)",
-                    inputSchema: { type: "object", properties: {} }
-                },
-                {
-                    name: "vscode_get_notifications",
-                    description: "Read the latest notification/status message from VS Code",
-                    inputSchema: { type: "object", properties: {} }
-                },
-                {
-                    name: "vscode_submit_chat",
-                    description: "Submit the current text in the chat input (Simulates Enter)",
-                    inputSchema: { type: "object", properties: {} }
-                },
-                {
-                    name: "index_codebase",
-                    description: "Scan code files and populate the semantic memory (vector store)",
-                    inputSchema: {
-                        type: "object",
-                        properties: {
-                            path: { type: "string", description: "Root directory to index (defaults to cwd)" }
-                        }
-                    }
-                },
-                {
-                    name: "search_codebase",
-                    description: "Semantically search the codebase for relevant snippets",
-                    inputSchema: {
-                        type: "object",
-                        properties: {
-                            query: { type: "string", description: "Natural language query (e.g. 'Where is authentication?')" }
-                        },
-                        required: ["query"]
-                    }
-                },
-                {
-                    name: "chain_tools",
-                    description: "Execute a sequence of tools where outputs can be piped to inputs. Use {{prev.content[0].text}} for variable substitution.",
-                    inputSchema: {
-                        type: "object",
-                        properties: {
-                            tools: {
-                                type: "array",
-                                items: {
-                                    type: "object",
-                                    properties: {
-                                        toolName: { type: "string" },
-                                        args: { type: "object" }
-                                    },
-                                    required: ["toolName"]
-                                }
-                            }
-                        },
-                        required: ["tools"]
-                    }
-                },
-                {
-                    name: "get_knowledge_graph",
-                    description: "Retrieve the interconnected knowledge graph for visualization.",
-                    inputSchema: {
-                        type: "object",
-                        properties: {
-                            query: { type: "string", description: "Optional topic to focus the graph around" },
-                            depth: { type: "number", description: "Traversal depth (default: 1)" }
-                        }
-                    }
-                },
-                // Phase 51: LSP Tools
-                {
-                    name: "find_symbol",
-                    description: "Find a symbol (function, class, variable) by name in a file",
-                    inputSchema: {
-                        type: "object",
-                        properties: {
-                            file_path: { type: "string", description: "Relative path to the file" },
-                            symbol_name: { type: "string", description: "Name of the symbol to find" }
-                        },
-                        required: ["file_path", "symbol_name"]
-                    }
-                },
-                {
-                    name: "find_references",
-                    description: "Find all references to a symbol at a position",
-                    inputSchema: {
-                        type: "object",
-                        properties: {
-                            file_path: { type: "string" },
-                            line: { type: "number", description: "Line number (0-indexed)" },
-                            character: { type: "number", description: "Character position (0-indexed)" }
-                        },
-                        required: ["file_path", "line", "character"]
-                    }
-                },
-                {
-                    name: "go_to_definition",
-                    description: "Navigate to the definition of a symbol at a position",
-                    inputSchema: {
-                        type: "object",
-                        properties: {
-                            file_path: { type: "string" },
-                            line: { type: "number" },
-                            character: { type: "number" }
-                        },
-                        required: ["file_path", "line", "character"]
-                    }
-                },
-                {
-                    name: "get_symbols",
-                    description: "Get all symbols (functions, classes, variables) in a file",
-                    inputSchema: {
-                        type: "object",
-                        properties: {
-                            file_path: { type: "string", description: "Relative path to the file" }
-                        },
-                        required: ["file_path"]
-                    }
-                },
-                {
-                    name: "rename_symbol",
-                    description: "Rename a symbol across the entire project (semantic rename)",
-                    inputSchema: {
-                        type: "object",
-                        properties: {
-                            file_path: { type: "string" },
-                            line: { type: "number" },
-                            character: { type: "number" },
-                            new_name: { type: "string", description: "New name for the symbol" }
-                        },
-                        required: ["file_path", "line", "character", "new_name"]
-                    }
-                },
-                {
-                    name: "search_symbols",
-                    description: "Search for symbols by name across the entire project",
-                    inputSchema: {
-                        type: "object",
-                        properties: {
-                            query: { type: "string", description: "Search query for symbol names" }
-                        },
-                        required: ["query"]
-                    }
-                },
-                // Phase 51: Plan/Build Mode Tools
-                {
-                    name: "plan_mode",
-                    description: "Switch to PLAN mode - explore/propose changes without applying",
-                    inputSchema: { type: "object", properties: {} }
-                },
-                {
-                    name: "build_mode",
-                    description: "Switch to BUILD mode - approved changes can be applied",
-                    inputSchema: { type: "object", properties: {} }
-                },
-                {
-                    name: "propose_change",
-                    description: "Propose a file change (staged in diff sandbox)",
-                    inputSchema: {
-                        type: "object",
-                        properties: {
-                            file_path: { type: "string", description: "Path to file to change" },
-                            content: { type: "string", description: "New file content" },
-                            description: { type: "string", description: "Description of the change" }
-                        },
-                        required: ["file_path", "content"]
-                    }
-                },
-                {
-                    name: "review_changes",
-                    description: "View all pending changes in the diff sandbox",
-                    inputSchema: { type: "object", properties: {} }
-                },
-                {
-                    name: "approve_change",
-                    description: "Approve a pending diff by ID",
-                    inputSchema: {
-                        type: "object",
-                        properties: {
-                            diff_id: { type: "string", description: "ID of the diff to approve" }
-                        },
-                        required: ["diff_id"]
-                    }
-                },
-                {
-                    name: "apply_changes",
-                    description: "Apply all approved changes to filesystem (BUILD mode only)",
-                    inputSchema: { type: "object", properties: {} }
-                },
-                {
-                    name: "plan_status",
-                    description: "Get current mode (PLAN/BUILD) and diff sandbox status",
-                    inputSchema: { type: "object", properties: {} }
-                },
-                {
-                    name: "create_checkpoint",
-                    description: "Create a checkpoint for rollback",
-                    inputSchema: {
-                        type: "object",
-                        properties: {
-                            name: { type: "string", description: "Checkpoint name" },
-                            description: { type: "string", description: "Optional description" }
-                        },
-                        required: ["name"]
-                    }
-                },
-                {
-                    name: "rollback",
-                    description: "Rollback to a previous checkpoint",
-                    inputSchema: {
-                        type: "object",
-                        properties: {
-                            checkpoint_id: { type: "string", description: "ID of checkpoint to restore" }
-                        },
-                        required: ["checkpoint_id"]
-                    }
-                },
-                // Phase 53: Memory Tools
-                {
-                    name: "add_memory",
-                    description: "Add a memory to the agent's knowledge base",
-                    inputSchema: {
-                        type: "object",
-                        properties: {
-                            content: { type: "string", description: "Memory content to store" },
-                            type: { type: "string", enum: ["session", "working", "long_term"], description: "Memory tier (default: working)" },
-                            namespace: { type: "string", enum: ["user", "agent", "project"], description: "Memory namespace (default: project)" },
-                            source: { type: "string", description: "Source of the memory" },
-                            tags: { type: "array", items: { type: "string" }, description: "Tags for categorization" }
-                        },
-                        required: ["content"]
-                    }
-                },
-                {
-                    name: "search_memory",
-                    description: "Search memories by content similarity",
-                    inputSchema: {
-                        type: "object",
-                        properties: {
-                            query: { type: "string", description: "Search query" },
-                            type: { type: "string", enum: ["session", "working", "long_term"], description: "Filter by memory tier" },
-                            namespace: { type: "string", enum: ["user", "agent", "project"], description: "Filter by namespace" },
-                            limit: { type: "number", description: "Max results (default: 10)" }
-                        },
-                        required: ["query"]
-                    }
-                },
-                {
-                    name: "get_recent_memories",
-                    description: "Get most recently accessed memories",
-                    inputSchema: {
-                        type: "object",
-                        properties: {
-                            limit: { type: "number", description: "Max results (default: 10)" },
-                            type: { type: "string", enum: ["session", "working", "long_term"] },
-                            namespace: { type: "string", enum: ["user", "agent", "project"] }
-                        }
-                    }
-                },
-                {
-                    name: "memory_stats",
-                    description: "Get memory system statistics",
-                    inputSchema: { type: "object", properties: {} }
-                },
-                {
-                    name: "clear_session_memory",
-                    description: "Clear all ephemeral session memories",
-                    inputSchema: { type: "object", properties: {} }
-                },
-                // Phase 54: Workflow Tools
-                {
-                    name: "run_workflow",
-                    description: "Run a registered workflow with input",
-                    inputSchema: {
-                        type: "object",
-                        properties: {
-                            workflow_id: { type: "string", description: "ID of the workflow to run" },
-                            input: { type: "object", description: "Input data for the workflow" }
-                        },
-                        required: ["workflow_id"]
-                    }
-                },
-                {
-                    name: "list_workflows",
-                    description: "List all registered workflows",
-                    inputSchema: { type: "object", properties: {} }
-                },
-                {
-                    name: "workflow_status",
-                    description: "Get the status of a workflow run",
-                    inputSchema: {
-                        type: "object",
-                        properties: {
-                            run_id: { type: "string", description: "ID of the workflow run" }
-                        },
-                        required: ["run_id"]
-                    }
-                },
-                {
-                    name: "approve_workflow",
-                    description: "Approve or reject a workflow waiting for human-in-the-loop",
-                    inputSchema: {
-                        type: "object",
-                        properties: {
-                            run_id: { type: "string", description: "ID of the workflow run" },
-                            approved: { type: "boolean", description: "Whether to approve (true) or reject (false)" }
-                        },
-                        required: ["run_id"]
-                    }
-                },
-                // Phase 55: Code Mode Tools
-                {
-                    name: "execute_code",
-                    description: "Execute JavaScript/TypeScript code in a sandboxed environment with tool access",
-                    inputSchema: {
-                        type: "object",
-                        properties: {
-                            code: { type: "string", description: "JavaScript/TypeScript code to execute" },
-                            context: { type: "object", description: "Additional context variables to inject" }
-                        },
-                        required: ["code"]
-                    }
-                },
-                {
-                    name: "enable_code_mode",
-                    description: "Enable Code Mode for efficient tool calling via code execution",
-                    inputSchema: { type: "object", properties: {} }
-                },
-                {
-                    name: "disable_code_mode",
-                    description: "Disable Code Mode",
-                    inputSchema: { type: "object", properties: {} }
-                },
-                {
-                    name: "code_mode_status",
-                    description: "Get Code Mode status, registered tools, and context reduction stats",
-                    inputSchema: { type: "object", properties: {} }
-                },
-                {
-                    name: "list_code_tools",
-                    description: "List tools available in Code Mode",
-                    inputSchema: { type: "object", properties: {} }
-                },
-                // Phase 60: The Mesh tools
-                {
-                    name: "swarm_broadcast",
-                    description: "Broadcast a message to the Borg P2P Swarm",
-                    inputSchema: {
-                        type: "object",
-                        properties: {
-                            type: { type: "string", description: "Message Type (TASK_OFFER, etc.)" },
-                            payload: { type: "object", description: "Payload data" }
-                        },
-                        required: ["type"]
+                    required: ["name"]
+                },
+            },
+            {
+                name: "mcp_add_server",
+                description: "Add a new downstream MCP server (via git clone + config update)",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        name: { type: "string" },
+                        repoUrl: { type: "string" },
+                        command: { type: "string", description: "Command to start server (e.g. 'node')" },
+                        args: { type: "array", items: { type: "string" }, description: "Args for command (e.g. ['dist/index.js'])" },
+                        env: { type: "object", description: "Environment variables" }
+                    },
+                    required: ["name", "repoUrl", "command", "args"]
+                }
+            },
+            {
+                name: "system_status",
+                description: "Get current system metrics (CPU, Memory, Uptime)",
+                inputSchema: { type: "object", properties: {} },
+            },
+            {
+                name: "system_diagnostics",
+                description: "Run advanced health checks on Core, Web UI, and Bridges",
+                inputSchema: { type: "object", properties: {} },
+            },
+            {
+                name: "assimilate_skill",
+                description: "Convert a research item into a functional Borg Skill (runbook)",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        id: { type: "string" },
+                        name: { type: "string" },
+                        url: { type: "string" },
+                        summary: { type: "string" },
+                        relevance: { type: "string" }
+                    },
+                    required: ["name", "url", "summary", "relevance"]
+                }
+            },
+            {
+                name: "memorize_page",
+                description: "Save the current browser page content to long-term memory",
+                inputSchema: { type: "object", properties: {} },
+            },
+            {
+                name: "browser_screenshot",
+                description: "Capture a screenshot of the current browser page",
+                inputSchema: { type: "object", properties: {} }
+            },
+            {
+                name: "memory_index_codebase",
+                description: "Deep Data Search: Index a directory for semantic code search",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        path: { type: "string", description: "Absolute path to directory to index (default: cwd)" }
                     }
                 }
-            ];
+            },
+            {
+                name: "memory_search",
+                description: "Semantic search across indexed code and memories",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        query: { type: "string" },
+                        limit: { type: "number" }
+                    },
+                    required: ["query"]
+                }
+            },
+            {
+                name: "browser_get_history",
+                description: "Get browser history from the connected browser extension",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        query: { type: "string", description: "Search query for history items" },
+                        maxResults: { type: "number", description: "Maximum number of results to return (default 20)" }
+                    }
+                }
+            },
+            {
+                name: "browser_debug",
+                description: "Deep browser debugging via CDP (Chrome DevTools Protocol)",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        action: { type: "string", enum: ["attach", "detach", "command"], description: "Action to perform" },
+                        method: { type: "string", description: "CDP method to call (e.g. Runtime.evaluate)" },
+                        params: { type: "object", description: "CDP parameters" }
+                    },
+                    required: ["action"]
+                }
+            },
+            {
+                name: "browser_proxy_fetch",
+                description: "Perform a network fetch through the browser extension (bypasses CORS, reaches local servers)",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        url: { type: "string", description: "URL to fetch" },
+                        options: { type: "object", description: "Fetch options (method, headers, body)" }
+                    },
+                    required: ["url"]
+                }
+            },
+            {
+                name: "spawn_agent",
+                description: "Spawn a specialized sub-agent for a parallel task",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        type: { type: "string", enum: ["research", "code", "custom"], description: "Agent type" },
+                        task: { type: "string", description: "Detailed task description for the agent" }
+                    },
+                    required: ["type", "task"]
+                }
+            },
+            {
+                name: "list_agents",
+                description: "List all active sub-agents in the swarm",
+                inputSchema: { type: "object", properties: {} }
+            },
+            {
+                name: "kill_agent",
+                description: "Terminate a running sub-agent",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        agentId: { type: "string", description: "UUID of the agent to kill" }
+                    },
+                    required: ["agentId"]
+                }
+            },
+            {
+                name: "get_agent_result",
+                description: "Retrieve the final result of a completed agent task",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        agentId: { type: "string", description: "UUID of the agent" }
+                    },
+                    required: ["agentId"]
+                }
+            },
+            {
+                name: "start_task",
+                description: "Start an autonomous task with the Director Agent",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        goal: { type: "string" },
+                        maxSteps: { type: "number" }
+                    },
+                    required: ["goal"]
+                }
+            },
+            {
+                name: "start_autotest",
+                description: "Start the Auto-Test Watcher (runs tests on file save)",
+                inputSchema: { type: "object", properties: {} },
+            },
+            {
+                name: "stop_autotest",
+                description: "Stop the Auto-Test Watcher",
+                inputSchema: { type: "object", properties: {} },
+            },
+            {
+                name: "execute_sandbox",
+                description: "Execute code in a secure Docker container (Python/Node)",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        language: { type: "string", enum: ["python", "node"] },
+                        code: { type: "string" }
+                    },
+                    required: ["language", "code"]
+                }
+            },
+            {
+                name: "start_watchdog",
+                description: "Start the Supervisor Watchdog to auto-approve terminal prompts",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        maxCycles: { type: "number", description: "Number of 5s cycles to run (default 20)" }
+                    }
+                }
+            },
+            {
+                name: "start_chat_daemon",
+                description: "Start the Director in Chat Daemon mode (Auto-Approves & Reads Selection)",
+                inputSchema: { type: "object", properties: {} }
+            },
+            {
+                name: "start_auto_drive",
+                description: "Start the Autonomous Development Loop (Reads task.md, Drives Chat, Auto-Approves)",
+                inputSchema: { type: "object", properties: {} }
+            },
+            {
+                name: "stop_auto_drive",
+                description: "Stop the Autonomous Development Loop",
+                inputSchema: { type: "object", properties: {} }
+            },
+            {
+                name: "set_autonomy",
+                description: "Set the autonomy level (low, medium, high)",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        level: { type: "string", enum: ["low", "medium", "high"] }
+                    },
+                    required: ["level"]
+                }
+            },
+            {
+                name: "chat_reply",
+                description: "Insert text into the active browser chat (Web Bridge)",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        text: { type: "string" }
+                    },
+                    required: ["text"]
+                }
+            },
+            {
+                name: "chat_submit",
+                description: "Simulate pressing Enter in the chat input",
+                inputSchema: { type: "object", properties: {} }
+            },
+            {
+                name: "click_element",
+                description: "Click a button or link on the page by identifying text",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        target: { type: "string", description: "Text content of the button/link to click" }
+                    },
+                    required: ["target"]
+                }
+            },
+            {
+                name: "click_at",
+                description: "Click at specific X,Y coordinates on the page (for Vision capabilities)",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        x: { type: "number" },
+                        y: { type: "number" }
+                    },
+                    required: ["x", "y"]
+                }
+            },
+            {
+                name: "native_input",
+                description: "Simulate global keyboard input (for Native Apps/IDE)",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        keys: { type: "string", description: "Keys: enter, esc, ctrl+r, f5, etc." }
+                    },
+                    required: ["keys"]
+                }
+            },
+            {
+                name: "vscode_execute_command",
+                description: "Execute a VS Code command via the installed extension",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        command: { type: "string", description: "Command ID (e.g. workbench.action.files.save)" },
+                        args: { type: "array", description: "Optional arguments", items: { type: "string" } }
+                    },
+                    required: ["command"]
+                }
+            },
+            {
+                name: "read_page",
+                description: "Read the text content of the active browser tab",
+                inputSchema: { type: "object", properties: {} }
+            },
+            {
+                name: "use_agent",
+                description: "Delegate a task to an external AI Agent (Claude, Gemini)",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        name: { type: "string", enum: ["claude", "gemini"], description: "Name of the agent to use" },
+                        prompt: { type: "string", description: "The task or prompt to send to the agent" }
+                    },
+                    required: ["name", "prompt"]
+                }
+            },
+            {
+                name: "research_recursively",
+                description: "Perform deep, recursive research on a topic using sub-agents/sub-tasks.",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        topic: { type: "string", description: "The main topic to research" },
+                        depth: { type: "number", description: "Depth of recursion (def: 2)" },
+                        breadth: { type: "number", description: "Breadth of related topics (def: 3)" }
+                    },
+                    required: ["topic"]
+                }
+            },
+            {
+                name: "take_screenshot",
+                description: "Capture a screenshot of the active browser tab",
+                inputSchema: { type: "object", properties: {} }
+            },
+            {
+                name: "analyze_screenshot",
+                description: "Capture and analyze a screenshot of the active browser tab using Vision AI",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        prompt: { type: "string", description: "Question or instruction about the screenshot" }
+                    },
+                    required: ["prompt"]
+                }
+            },
+            {
+                name: "vscode_get_status",
+                description: "Get the current status of the VS Code editor (Active File, Terminal, etc.)",
+                inputSchema: { type: "object", properties: {} }
+            },
+            {
+                name: "vscode_read_selection",
+                description: "Read the currently selected text or the entire active document from VS Code",
+                inputSchema: { type: "object", properties: {} }
+            },
+            {
+                name: "vscode_read_terminal",
+                description: "Read the content of the active terminal (Uses Clipboard: SelectAll -> Copy)",
+                inputSchema: { type: "object", properties: {} }
+            },
+            {
+                name: "vscode_get_notifications",
+                description: "Read the latest notification/status message from VS Code",
+                inputSchema: { type: "object", properties: {} }
+            },
+            {
+                name: "vscode_submit_chat",
+                description: "Submit the current text in the chat input (Simulates Enter)",
+                inputSchema: { type: "object", properties: {} }
+            },
+            {
+                name: "index_codebase",
+                description: "Scan code files and populate the semantic memory (vector store)",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        path: { type: "string", description: "Root directory to index (defaults to cwd)" }
+                    }
+                }
+            },
+            {
+                name: "search_codebase",
+                description: "Semantically search the codebase for relevant snippets",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        query: { type: "string", description: "Natural language query (e.g. 'Where is authentication?')" }
+                    },
+                    required: ["query"]
+                }
+            },
+            {
+                name: "chain_tools",
+                description: "Execute a sequence of tools where outputs can be piped to inputs. Use {{prev.content[0].text}} for variable substitution.",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        tools: {
+                            type: "array",
+                            items: {
+                                type: "object",
+                                properties: {
+                                    toolName: { type: "string" },
+                                    args: { type: "object" }
+                                },
+                                required: ["toolName"]
+                            }
+                        }
+                    },
+                    required: ["tools"]
+                }
+            },
+            {
+                name: "get_knowledge_graph",
+                description: "Retrieve the interconnected knowledge graph for visualization.",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        query: { type: "string", description: "Optional topic to focus the graph around" },
+                        depth: { type: "number", description: "Traversal depth (default: 1)" }
+                    }
+                }
+            },
+            // Phase 51: LSP Tools
+            {
+                name: "find_symbol",
+                description: "Find a symbol (function, class, variable) by name in a file",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        file_path: { type: "string", description: "Relative path to the file" },
+                        symbol_name: { type: "string", description: "Name of the symbol to find" }
+                    },
+                    required: ["file_path", "symbol_name"]
+                }
+            },
+            {
+                name: "find_references",
+                description: "Find all references to a symbol at a position",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        file_path: { type: "string" },
+                        line: { type: "number", description: "Line number (0-indexed)" },
+                        character: { type: "number", description: "Character position (0-indexed)" }
+                    },
+                    required: ["file_path", "line", "character"]
+                }
+            },
+            {
+                name: "go_to_definition",
+                description: "Navigate to the definition of a symbol at a position",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        file_path: { type: "string" },
+                        line: { type: "number" },
+                        character: { type: "number" }
+                    },
+                    required: ["file_path", "line", "character"]
+                }
+            },
+            {
+                name: "get_symbols",
+                description: "Get all symbols (functions, classes, variables) in a file",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        file_path: { type: "string", description: "Relative path to the file" }
+                    },
+                    required: ["file_path"]
+                }
+            },
+            {
+                name: "rename_symbol",
+                description: "Rename a symbol across the entire project (semantic rename)",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        file_path: { type: "string" },
+                        line: { type: "number" },
+                        character: { type: "number" },
+                        new_name: { type: "string", description: "New name for the symbol" }
+                    },
+                    required: ["file_path", "line", "character", "new_name"]
+                }
+            },
+            {
+                name: "search_symbols",
+                description: "Search for symbols by name across the entire project",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        query: { type: "string", description: "Search query for symbol names" }
+                    },
+                    required: ["query"]
+                }
+            },
+            // Phase 51: Plan/Build Mode Tools
+            {
+                name: "plan_mode",
+                description: "Switch to PLAN mode - explore/propose changes without applying",
+                inputSchema: { type: "object", properties: {} }
+            },
+            {
+                name: "build_mode",
+                description: "Switch to BUILD mode - approved changes can be applied",
+                inputSchema: { type: "object", properties: {} }
+            },
+            {
+                name: "propose_change",
+                description: "Propose a file change (staged in diff sandbox)",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        file_path: { type: "string", description: "Path to file to change" },
+                        content: { type: "string", description: "New file content" },
+                        description: { type: "string", description: "Description of the change" }
+                    },
+                    required: ["file_path", "content"]
+                }
+            },
+            {
+                name: "review_changes",
+                description: "View all pending changes in the diff sandbox",
+                inputSchema: { type: "object", properties: {} }
+            },
+            {
+                name: "approve_change",
+                description: "Approve a pending diff by ID",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        diff_id: { type: "string", description: "ID of the diff to approve" }
+                    },
+                    required: ["diff_id"]
+                }
+            },
+            {
+                name: "apply_changes",
+                description: "Apply all approved changes to filesystem (BUILD mode only)",
+                inputSchema: { type: "object", properties: {} }
+            },
+            {
+                name: "plan_status",
+                description: "Get current mode (PLAN/BUILD) and diff sandbox status",
+                inputSchema: { type: "object", properties: {} }
+            },
+            {
+                name: "create_checkpoint",
+                description: "Create a checkpoint for rollback",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        name: { type: "string", description: "Checkpoint name" },
+                        description: { type: "string", description: "Optional description" }
+                    },
+                    required: ["name"]
+                }
+            },
+            {
+                name: "rollback",
+                description: "Rollback to a previous checkpoint",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        checkpoint_id: { type: "string", description: "ID of checkpoint to restore" }
+                    },
+                    required: ["checkpoint_id"]
+                }
+            },
+            // Phase 53: Memory Tools
+            {
+                name: "add_memory",
+                description: "Add a memory to the agent's knowledge base",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        content: { type: "string", description: "Memory content to store" },
+                        type: { type: "string", enum: ["session", "working", "long_term"], description: "Memory tier (default: working)" },
+                        namespace: { type: "string", enum: ["user", "agent", "project"], description: "Memory namespace (default: project)" },
+                        source: { type: "string", description: "Source of the memory" },
+                        tags: { type: "array", items: { type: "string" }, description: "Tags for categorization" }
+                    },
+                    required: ["content"]
+                }
+            },
+            {
+                name: "search_memory",
+                description: "Search memories by content similarity",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        query: { type: "string", description: "Search query" },
+                        type: { type: "string", enum: ["session", "working", "long_term"], description: "Filter by memory tier" },
+                        namespace: { type: "string", enum: ["user", "agent", "project"], description: "Filter by namespace" },
+                        limit: { type: "number", description: "Max results (default: 10)" }
+                    },
+                    required: ["query"]
+                }
+            },
+            {
+                name: "get_recent_memories",
+                description: "Get most recently accessed memories",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        limit: { type: "number", description: "Max results (default: 10)" },
+                        type: { type: "string", enum: ["session", "working", "long_term"] },
+                        namespace: { type: "string", enum: ["user", "agent", "project"] }
+                    }
+                }
+            },
+            {
+                name: "memory_stats",
+                description: "Get memory system statistics",
+                inputSchema: { type: "object", properties: {} }
+            },
+            {
+                name: "clear_session_memory",
+                description: "Clear all ephemeral session memories",
+                inputSchema: { type: "object", properties: {} }
+            },
+            // Phase 54: Workflow Tools
+            {
+                name: "run_workflow",
+                description: "Run a registered workflow with input",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        workflow_id: { type: "string", description: "ID of the workflow to run" },
+                        input: { type: "object", description: "Input data for the workflow" }
+                    },
+                    required: ["workflow_id"]
+                }
+            },
+            {
+                name: "list_workflows",
+                description: "List all registered workflows",
+                inputSchema: { type: "object", properties: {} }
+            },
+            {
+                name: "workflow_status",
+                description: "Get the status of a workflow run",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        run_id: { type: "string", description: "ID of the workflow run" }
+                    },
+                    required: ["run_id"]
+                }
+            },
+            {
+                name: "approve_workflow",
+                description: "Approve or reject a workflow waiting for human-in-the-loop",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        run_id: { type: "string", description: "ID of the workflow run" },
+                        approved: { type: "boolean", description: "Whether to approve (true) or reject (false)" }
+                    },
+                    required: ["run_id"]
+                }
+            },
+            // Phase 55: Code Mode Tools
+            {
+                name: "execute_code",
+                description: "Execute JavaScript/TypeScript code in a sandboxed environment with tool access",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        code: { type: "string", description: "JavaScript/TypeScript code to execute" },
+                        context: { type: "object", description: "Additional context variables to inject" }
+                    },
+                    required: ["code"]
+                }
+            },
+            {
+                name: "enable_code_mode",
+                description: "Enable Code Mode for efficient tool calling via code execution",
+                inputSchema: { type: "object", properties: {} }
+            },
+            {
+                name: "disable_code_mode",
+                description: "Disable Code Mode",
+                inputSchema: { type: "object", properties: {} }
+            },
+            {
+                name: "code_mode_status",
+                description: "Get Code Mode status, registered tools, and context reduction stats",
+                inputSchema: { type: "object", properties: {} }
+            },
+            {
+                name: "list_code_tools",
+                description: "List tools available in Code Mode",
+                inputSchema: { type: "object", properties: {} }
+            },
+            // Phase 60: The Mesh tools
+            {
+                name: "swarm_broadcast",
+                description: "Broadcast a message to the Borg P2P Swarm",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        type: { type: "string", description: "Message Type (TASK_OFFER, etc.)" },
+                        payload: { type: "object", description: "Payload data" }
+                    },
+                    required: ["type"]
+                }
+            }
+        ];
 
-            // Standard Library Tools
-            const terminalTools = this.terminalService.getTools();
-            const standardTools = [...FileSystemTools, ...terminalTools, ...MemoryTools, ...TunnelTools, ...LogTools, ...ConfigTools, ...SearchTools, ...ReaderTools, ...WorktreeTools].map(t => ({
-                name: t.name,
-                description: t.description,
-                inputSchema: t.inputSchema
-            }));
+        // Standard Library Tools
+        const terminalTools = this.terminalService.getTools();
+        const standardTools = [...FileSystemTools, ...terminalTools, ...MemoryTools, ...TunnelTools, ...LogTools, ...ConfigTools, ...SearchTools, ...ReaderTools, ...WorktreeTools].map(t => ({
+            name: t.name,
+            description: t.description,
+            inputSchema: t.inputSchema
+        }));
 
-            // Skills
-            const skillTools = this.skillRegistry.getSkillTools();
+        // Skills
+        const skillTools = this.skillRegistry.getSkillTools();
 
-            // Aggregation: Fetch tools from all connected sub-MCPs
-            const externalTools = await this.router.listTools();
-            const aggregatedTools = await this.mcpAggregator.listAggregatedTools();
+        // Aggregation: Fetch tools from all connected sub-MCPs
+        const externalTools = await this.router.listTools();
+        const aggregatedTools = await this.mcpAggregator.listAggregatedTools();
 
-            return {
-                tools: [
-                    ...internalTools,
-                    ...standardTools,
-                    ...skillTools,
-                    ...externalTools,
-                    ...aggregatedTools
-                ],
-            };
-        });
+        return [
+            ...internalTools,
+            ...standardTools,
+            ...skillTools,
+            ...externalTools,
+            ...aggregatedTools
+        ] as Tool[];
+    }
 
-        serverInstance.setRequestHandler(CallToolRequestSchema, async (request) => {
-            this.lastUserActivityTime = Date.now();
-            return await this.executeTool(request.params.name, request.params.arguments);
-        });
+    private async setupHandlers(serverInstance: Server) {
+        // Initialize MetaMCP Controller which wraps the server
+        console.log("[MCPServer] Delegating tool handling to MetaMCPController...");
+        const nativeTools = await this.getNativeTools();
+
+        await MetaMCPController.getInstance().initialize(
+            serverInstance,
+            nativeTools,
+            async (name, args) => {
+                this.lastUserActivityTime = Date.now();
+                return await this.executeTool(name, args);
+            }
+        );
     }
 
     async start() {

@@ -7,7 +7,8 @@ export function ContextWidget() {
     const [filePath, setFilePath] = useState('');
     const utils = trpc.useContext();
 
-    const { data: files, isLoading } = trpc.borgContext.list.useQuery();
+    const { data: rawFiles, isLoading } = trpc.borgContext.list.useQuery();
+    const files = rawFiles as string[] | undefined;
     const addMutation = trpc.borgContext.add.useMutation({
         onSuccess: () => {
             utils.borgContext.list.invalidate();

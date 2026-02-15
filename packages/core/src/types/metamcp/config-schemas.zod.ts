@@ -162,7 +162,20 @@ export const ConfigKeyValidators = {
     SESSION_LIFETIME: SessionLifetimeConfigValueSchema,
 } as const;
 
+// Define the Enum for runtime usage (matching config.service.ts expectations)
+export const ConfigKeyEnum = z.enum([
+    "DISABLE_SIGNUP",
+    "DISABLE_SSO_SIGNUP",
+    "DISABLE_BASIC_AUTH",
+    "MCP_RESET_TIMEOUT_ON_PROGRESS",
+    "MCP_TIMEOUT",
+    "MCP_MAX_TOTAL_TIMEOUT",
+    "MCP_MAX_ATTEMPTS",
+    "SESSION_LIFETIME",
+]);
+
 export type ConfigKeyValidator = keyof typeof ConfigKeyValidators;
+export type ConfigKey = z.infer<typeof ConfigKeyEnum>;
 
 // ============================================================================
 // Validation Result Types

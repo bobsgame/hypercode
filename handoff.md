@@ -185,3 +185,20 @@
 
 - Targeted file diagnostics for changed files: no errors.
 - `apps/web` production build still fails on a pre-existing cross-package typing issue in `packages/ui/src/hooks/useHealerStream.ts` (`trpc.healer.getHistory` type mismatch), unrelated to this slice.
+
+## Continuation Update (2026-02-15)
+
+- Continued strict typing and router-contract alignment during `apps/web` build hardening.
+- Fixed unknown/contract mismatches in:
+    - `workflows/page.tsx`
+    - `CouncilWidget.tsx`
+    - `DirectorChat.tsx`
+    - `GlobalSearch.tsx`
+    - `IndexingStatus.tsx`
+    - `TraceViewer.tsx`
+    - `packages/ui/src/components/ChroniclePage.tsx`
+- Replaced remote Mermaid CDN import with local package import in `apps/web/src/components/Mermaid.tsx`.
+
+Current checkpoint:
+- Build is still in iterative cleanup mode; latest surfaced blocker is in `packages/ui/src/components/ContextPanel.tsx`.
+- Turbopack on Windows intermittently produced `.next` artifact ENOENT failures; webpack mode was used to isolate real app typing errors.

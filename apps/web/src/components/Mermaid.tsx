@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
+import mermaid from 'mermaid';
 
 export default function Mermaid({ chart }: { chart: string }) {
     const ref = useRef<HTMLDivElement>(null);
@@ -13,10 +14,6 @@ export default function Mermaid({ chart }: { chart: string }) {
         const render = async () => {
             if (!chart) return;
             try {
-                // Dynamic Import from CDN (Bypass local install issues)
-                // @ts-ignore
-                const mermaid = (await import('https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs')).default;
-
                 mermaid.initialize({
                     startOnLoad: false,
                     theme: 'dark',
@@ -30,9 +27,12 @@ export default function Mermaid({ chart }: { chart: string }) {
                     setSvg(svg);
                     setError('');
                 }
-            } catch (e: any) {
+            } catch (e: unknown) {
                 console.error("Mermaid Render Error:", e);
-                if (mounted) setError(e.message);
+                if (mounted) {
+                    const message = e instanceof Error ? e.message : String(e);
+                    setError(message);
+                }
             }
         };
 

@@ -3,14 +3,31 @@
 import { useEffect, useRef, useState } from 'react';
 import { trpc } from '@/utils/trpc';
 
+type TraceLog = {
+    timestamp?: number;
+    level?: string;
+    action?: string;
+    message?: string;
+    agentId?: string;
+};
+
+function normalizeTraceLogs(value: unknown): TraceLog[] {
+    if (!Array.isArray(value)) {
+        return [];
+    }
+
+    return value.filter((item): item is TraceLog => typeof item === 'object' && item !== null);
+}
+
 export function TraceViewer() {
     const [autoScroll, setAutoScroll] = useState(true);
     const bottomRef = useRef<HTMLDivElement>(null);
 
-    const { data: logs, isLoading } = trpc.audit.query.useQuery(
+    const { data: rawLogs, isLoading } = trpc.audit.list.useQuery(
         { limit: 100 },
         { refetchInterval: 3000 } // Poll every 3s for live feel
     );
+    const logs = normalizeTraceLogs(rawLogs);
 
     useEffect(() => {
         if (autoScroll && bottomRef.current) {
@@ -47,7 +64,7 @@ export function TraceViewer() {
                     </div>
                 ) : logs && logs.length > 0 ? (
                     <div className="space-y-1">
-                        {logs.map((log: any, i: number) => (
+                        {logs.map((log, i: number) => (
                             <div key={i} className="flex gap-2">
                                 <span className="text-gray-600 shrink-0">
                                     {log.timestamp ? new Date(log.timestamp).toLocaleTimeString() : '??:??:??'}

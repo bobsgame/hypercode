@@ -2,9 +2,11 @@ import { z } from 'zod';
 import { t, publicProcedure, getContextManager } from '../lib/trpc-core.js';
 
 export const contextRouter = t.router({
-    list: publicProcedure.query(() => {
-        return getContextManager()?.list() ?? [];
-    }),
+    list: publicProcedure
+        .output(z.array(z.string()))
+        .query(() => {
+            return getContextManager()?.list() ?? [];
+        }),
 
     add: publicProcedure.input(z.object({
         filePath: z.string()

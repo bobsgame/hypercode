@@ -37,9 +37,16 @@ export default function KnowledgeDashboard() {
         researchMutation.mutate({ query: researchQuery, depth: researchDepth, breadth: 3 });
     };
 
+
     // Coder State
     const [coderTask, setCoderTask] = useState("");
-    const coderMutation = trpcWithExpert.expert.code.useMutation();
+    const coderMutation = trpcWithExpert.expert.code.useMutation({
+        onSuccess: () => {
+            toast.success("Coder task started");
+            setCoderTask("");
+        },
+        onError: (err) => toast.error("Coder task failed: " + err.message)
+    });
 
     const handleCode = () => {
         if (!coderTask) return;

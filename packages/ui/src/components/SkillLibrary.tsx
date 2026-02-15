@@ -8,6 +8,25 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/
 import { Loader2, Book, Plus, Save, Edit, Code } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
 
+function getSkillContentText(value: unknown): string | null {
+    if (!value || typeof value !== 'object') {
+        return null;
+    }
+
+    const record = value as Record<string, unknown>;
+    if (!Array.isArray(record.content) || record.content.length === 0) {
+        return null;
+    }
+
+    const first = record.content[0];
+    if (!first || typeof first !== 'object') {
+        return null;
+    }
+
+    const firstRecord = first as Record<string, unknown>;
+    return typeof firstRecord.text === 'string' ? firstRecord.text : null;
+}
+
 export function SkillLibrary() {
     const { data: skills, isLoading, refetch } = trpc.skills.list.useQuery();
     const createSkill = trpc.skills.create.useMutation();
@@ -23,8 +42,9 @@ export function SkillLibrary() {
     );
 
     React.useEffect(() => {
-        if (skillData?.content && skillData.content[0].text) {
-            setSkillContent(skillData.content[0].text);
+        const nextSkillContent = getSkillContentText(skillData);
+        if (nextSkillContent) {
+            setSkillContent(nextSkillContent);
         } else if (selectedSkill && !skillData) {
             setSkillContent('Loading...');
         }

@@ -116,7 +116,7 @@ export default function EvolutionPage() {
                         </CardHeader>
                         <CardContent>
                             <ScrollArea className="h-[400px]">
-                                {status?.mutations.map((m: any) => (
+                                {(status as any)?.mutations?.map((m: any) => (
                                     <div key={m.id} className="border-b p-4 last:border-0 hover:bg-muted/50 cursor-pointer" onClick={() => setSelectedMutation(m.id)}>
                                         <div className="flex justify-between items-center mb-2">
                                             <Badge variant="outline" className="font-mono">{m.id}</Badge>
@@ -178,7 +178,7 @@ export default function EvolutionPage() {
                         </CardHeader>
                         <CardContent>
                             <ScrollArea className="h-[400px]">
-                                {status?.experiments.map((e: any) => (
+                                {(status as any)?.experiments?.map((e: any) => (
                                     <div key={e.id} className="border-b p-4 last:border-0">
                                         <div className="flex justify-between items-center mb-2">
                                             <div className="flex items-center gap-2">

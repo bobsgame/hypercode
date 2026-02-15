@@ -12,31 +12,45 @@
 
 import { eq } from "drizzle-orm";
 
-import { db } from "../index";
-import { configTable } from "../metamcp-schema";
+import { db } from "../index.js";
+import { configTable } from "../metamcp-schema.js";
 
 export class ConfigRepository {
     async get(key: string): Promise<string | null> {
         const [config] = await db
             .select({ value: configTable.value })
             .from(configTable)
-            .where(eq(configTable.key, key));
+            .where(eq(configTable.id, key));
 
         return config?.value ?? null;
+    }
+
+    async findAll(): Promise<Record<string, string>> {
+        const configs = await db
+            .select({ id: configTable.id, value: configTable.value })
+            .from(configTable);
+
+        return configs.reduce((acc, curr) => ({ ...acc, [curr.id]: curr.value }), {});
     }
 
     async set(key: string, value: string): Promise<void> {
         await db
             .insert(configTable)
-            .values({ key, value })
+            .values({
+                id: key,
+                value: value,
+            })
             .onConflictDoUpdate({
-                target: configTable.key,
-                set: { value, updated_at: new Date() },
+                target: configTable.id,
+                set: {
+                    value: value,
+                    updated_at: new Date(),
+                },
             });
     }
 
     async delete(key: string): Promise<void> {
-        await db.delete(configTable).where(eq(configTable.key, key));
+        await db.delete(configTable).where(eq(configTable.id, key));
     }
 
     // Helper to get typed configs (boolean/number)

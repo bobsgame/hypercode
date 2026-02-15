@@ -3,9 +3,12 @@ import { NextResponse } from 'next/server';
 import fs from 'fs/promises';
 import path from 'path';
 
-// Define path relative to project root
-// In dev, usually process.cwd() is project root.
-const PROMPTS_DIR = path.join(process.cwd(), '../../.borg/prompts');
+// Resolve the monorepo root safely without overly broad path traversals
+function getMonorepoRoot(): string {
+    return process.env.BORG_ROOT || path.resolve(process.cwd(), '..', '..');
+}
+
+const PROMPTS_DIR = path.join(getMonorepoRoot(), '.borg', 'prompts');
 
 export async function GET() {
     try {

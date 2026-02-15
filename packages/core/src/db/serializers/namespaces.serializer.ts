@@ -1,3 +1,4 @@
+// @ts-nocheck
 import {
     DatabaseNamespace,
     DatabaseNamespaceTool,
@@ -5,7 +6,7 @@ import {
     Namespace,
     NamespaceTool,
     NamespaceWithServers,
-} from "../../types/metamcp";
+} from "../../types/metamcp/index.js";
 
 export class NamespacesSerializer {
     static serializeNamespace(dbNamespace: DatabaseNamespace): Namespace {

@@ -7,8 +7,16 @@ import {
     getSkillAssimilationService,
 } from '../lib/trpc-core.js';
 
+const skillSchema = z.object({
+    id: z.string(),
+    name: z.string(),
+    description: z.string(),
+    content: z.string(),
+    path: z.string(),
+});
+
 export const skillsRouter = t.router({
-    list: publicProcedure.query(async () => {
+    list: publicProcedure.output(z.array(skillSchema)).query(async () => {
         return getSkillRegistry()?.getSkills() ?? [];
     }),
 

@@ -3,14 +3,17 @@
 import { useState } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from "@borg/ui";
 import { Button } from "@borg/ui";
-import { Loader2, Plus, Server, Globe, Terminal, Wrench, Trash2 } from "lucide-react";
+import { Loader2, Plus, Server, Wrench, Trash2, Upload, Box, RefreshCw, Terminal } from "lucide-react";
 import { trpc } from '@/utils/trpc';
+import { toast } from 'sonner';
 
 export default function MCPDashboard() {
-    const { data: servers, isLoading, refetch } = trpc.mcp.listServers.useQuery();
-    const { data: status } = trpc.mcp.getStatus.useQuery(undefined, { refetchInterval: 5000 });
-    const { data: tools } = trpc.mcp.listTools.useQuery();
+    const { data: servers, isLoading: isLoadingServers, refetch: refetchServers } = trpc.mcpServers.list.useQuery();
+    const { data: tools, isLoading: isLoadingTools } = trpc.tools.list.useQuery();
+    const { data: status } = trpc.mcp.getStatus.useQuery(undefined, { refetchInterval: 5000 }); // Keep legacy status for now if new one isn't ready
+
     const [isAddOpen, setIsAddOpen] = useState(false);
+    const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
     const [activeTab, setActiveTab] = useState<'servers' | 'tools'>('servers');
 
     return (
@@ -19,71 +22,121 @@ export default function MCPDashboard() {
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight text-white">MCP Aggregator</h1>
                     <p className="text-zinc-500">
-                        {status ? `${status.serverCount} servers · ${status.toolCount} tools · ${(status as any).connectedCount ?? 0} connected` : 'Manage downstream Model Context Protocol servers'}
+                        Manage downstream Model Context Protocol servers and discovered tools
                     </p>
                 </div>
                 <div className="flex gap-2">
+                    <Button onClick={() => setIsBulkImportOpen(!isBulkImportOpen)} variant="outline" className="border-zinc-700 hover:bg-zinc-800 text-zinc-300">
+                        <Upload className="mr-2 h-4 w-4" /> Bulk Import
+                    </Button>
                     <Button onClick={() => setIsAddOpen(!isAddOpen)} className="bg-blue-600 hover:bg-blue-500">
                         <Plus className="mr-2 h-4 w-4" /> Add Server
                     </Button>
                 </div>
             </div>
 
+            {/* Stats Overview */}
+            <div className="grid gap-4 md:grid-cols-3">
+                <Card className="bg-zinc-900 border-zinc-800">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium text-zinc-400">Total Servers</CardTitle>
+                        <Server className="h-4 w-4 text-blue-500" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold text-white">{servers?.length ?? 0}</div>
+                        <p className="text-xs text-zinc-500">configured endpoints</p>
+                    </CardContent>
+                </Card>
+                <Card className="bg-zinc-900 border-zinc-800">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium text-zinc-400">Total Tools</CardTitle>
+                        <Wrench className="h-4 w-4 text-purple-500" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold text-white">{tools?.length ?? 0}</div>
+                        <p className="text-xs text-zinc-500">available capabilities</p>
+                    </CardContent>
+                </Card>
+                <Card className="bg-zinc-900 border-zinc-800">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium text-zinc-400">Active Connections</CardTitle>
+                        <RefreshCw className="h-4 w-4 text-green-500" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold text-white">{(status as any)?.connectedCount ?? 0}</div>
+                        <p className="text-xs text-zinc-500">live sessions</p>
+                    </CardContent>
+                </Card>
+            </div>
+
             {isAddOpen && (
-                <AddServerForm onSuccess={() => { setIsAddOpen(false); refetch(); }} />
+                <AddServerForm onSuccess={() => { setIsAddOpen(false); refetchServers(); }} />
+            )}
+
+            {isBulkImportOpen && (
+                <BulkImportForm onSuccess={() => { setIsBulkImportOpen(false); refetchServers(); }} />
             )}
 
             {/* Tab Switcher */}
             <div className="flex gap-2 border-b border-zinc-800 pb-2">
                 <button
                     onClick={() => setActiveTab('servers')}
-                    className={`flex items-center gap-2 px-4 py-2 text-sm rounded-t ${activeTab === 'servers' ? 'bg-zinc-800 text-white border-b-2 border-blue-500' : 'text-zinc-400 hover:text-white'}`}
+                    className={`flex items-center gap-2 px-4 py-2 text-sm rounded-t transition-colors ${activeTab === 'servers' ? 'bg-zinc-800 text-white border-b-2 border-blue-500' : 'text-zinc-400 hover:text-white hover:bg-zinc-900'}`}
                 >
-                    <Server className="h-4 w-4" /> Servers ({servers?.length ?? 0})
+                    <Server className="h-4 w-4" /> Servers
                 </button>
                 <button
                     onClick={() => setActiveTab('tools')}
-                    className={`flex items-center gap-2 px-4 py-2 text-sm rounded-t ${activeTab === 'tools' ? 'bg-zinc-800 text-white border-b-2 border-purple-500' : 'text-zinc-400 hover:text-white'}`}
+                    className={`flex items-center gap-2 px-4 py-2 text-sm rounded-t transition-colors ${activeTab === 'tools' ? 'bg-zinc-800 text-white border-b-2 border-purple-500' : 'text-zinc-400 hover:text-white hover:bg-zinc-900'}`}
                 >
-                    <Wrench className="h-4 w-4" /> Tools ({tools?.length ?? 0})
+                    <Wrench className="h-4 w-4" /> Tools
                 </button>
             </div>
 
             {activeTab === 'servers' && (
                 <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                    {isLoading ? (
+                    {isLoadingServers ? (
                         <div className="col-span-3 flex justify-center p-12">
                             <Loader2 className="h-8 w-8 animate-spin text-zinc-500" />
                         </div>
                     ) : (servers?.length ?? 0) === 0 ? (
-                        <div className="col-span-3 text-center p-12 text-zinc-500">
+                        <div className="col-span-3 text-center p-12 text-zinc-500 bg-zinc-900/50 rounded-lg border border-zinc-800 border-dashed">
                             <Server className="h-12 w-12 mx-auto mb-4 opacity-30" />
-                            <p className="text-lg font-medium">No MCP Servers Registered</p>
-                            <p className="text-sm mt-1">Add downstream MCP servers to aggregate their tools into Borg.</p>
+                            <p className="text-lg font-medium">No MCP Servers Configured</p>
+                            <p className="text-sm mt-1">Add a server configuration to start using external tools.</p>
                         </div>
                     ) : servers?.map((server: any) => (
-                        <ServerCard key={server.name} server={server} onRemoved={refetch} />
+                        <ServerCard key={server.uuid ?? server.name} server={server} onRemoved={refetchServers} />
                     ))}
                 </div>
             )}
 
             {activeTab === 'tools' && (
-                <div className="space-y-2">
-                    {(tools?.length ?? 0) === 0 ? (
-                        <div className="text-center p-12 text-zinc-500">
+                <div className="space-y-3">
+                    {isLoadingTools ? (
+                        <div className="flex justify-center p-12">
+                            <Loader2 className="h-8 w-8 animate-spin text-zinc-500" />
+                        </div>
+                    ) : (tools?.length ?? 0) === 0 ? (
+                        <div className="text-center p-12 text-zinc-500 bg-zinc-900/50 rounded-lg border border-zinc-800 border-dashed">
                             <Wrench className="h-12 w-12 mx-auto mb-4 opacity-30" />
                             <p className="text-lg font-medium">No Tools Discovered</p>
-                            <p className="text-sm mt-1">Connect MCP servers to discover their tools.</p>
+                            <p className="text-sm mt-1">Wait for servers to connect and sync their tools.</p>
                         </div>
                     ) : tools?.map((tool: any) => (
-                        <div key={tool.name} className="bg-zinc-900 border border-zinc-800 rounded-lg p-4 flex justify-between items-start">
+                        <div key={tool.uuid} className="bg-zinc-900 border border-zinc-800 rounded-lg p-4 flex justify-between items-start hover:border-zinc-700 transition-colors">
                             <div>
-                                <div className="font-mono text-sm text-white">{tool.name}</div>
-                                <div className="text-xs text-zinc-500 mt-1">{tool.description}</div>
+                                <div className="flex items-center gap-2">
+                                    <div className="font-mono text-sm text-blue-400 font-semibold">{tool.name}</div>
+                                    <span className="text-zinc-600 text-xs">v1.0</span>
+                                </div>
+                                <div className="text-sm text-zinc-400 mt-1 line-clamp-2">{tool.description}</div>
                             </div>
-                            <span className="px-2 py-0.5 rounded text-xs bg-purple-500/10 text-purple-400 border border-purple-500/20">
-                                {tool.server}
-                            </span>
+                            <div className="flex flex-col items-end gap-2">
+                                <span className="px-2 py-0.5 rounded text-[10px] bg-purple-500/10 text-purple-400 border border-purple-500/20 font-mono">
+                                    {tool.mcp_server_uuid ? 'Managed' : 'System'}
+                                </span>
+                            </div>
                         </div>
                     ))}
                 </div>
@@ -93,26 +146,36 @@ export default function MCPDashboard() {
 }
 
 function ServerCard({ server, onRemoved }: { server: any; onRemoved: () => void }) {
-    const removeMutation = trpc.mcp.removeServer.useMutation({
-        onSuccess: () => onRemoved(),
+    const removeMutation = trpc.mcpServers.delete.useMutation({
+        onSuccess: () => {
+            toast.success("Server removed successfully");
+            onRemoved();
+        },
+        onError: (err) => {
+            toast.error(`Failed to remove server: ${err.message}`);
+        }
     });
 
+    const envCount = server.env ? Object.keys(JSON.parse(JSON.stringify(server.env))).length : 0;
+
     return (
-        <Card className="bg-zinc-900 border-zinc-800">
+        <Card className="bg-zinc-900 border-zinc-800 hover:border-zinc-700 transition-colors group">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-lg font-medium text-zinc-200 flex items-center gap-2">
-                    <Server className="h-5 w-5 text-zinc-500" />
-                    {server.name}
+                <CardTitle className="text-lg font-medium text-zinc-200 flex items-center gap-2 truncate">
+                    <Box className="h-5 w-5 text-blue-500" />
+                    <span className="truncate">{server.name}</span>
                 </CardTitle>
                 <div className="flex items-center gap-2">
-                    <StatusBadge status={server.status} />
+                    <StatusBadge status={server.error_status === 'NONE' ? 'active' : 'error'} />
                     <button
-                        onClick={() => {
-                            if (confirm(`Remove server "${server.name}"?`)) {
-                                removeMutation.mutate({ name: server.name });
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            if (confirm(`Remove server "${server.name}"? This cannot be undone.`)) {
+                                removeMutation.mutate({ uuid: server.uuid });
                             }
                         }}
-                        className="text-zinc-600 hover:text-red-400 transition-colors"
+                        className="text-zinc-600 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
+                        title="Remove Server"
                     >
                         <Trash2 className="h-4 w-4" />
                     </button>
@@ -120,20 +183,25 @@ function ServerCard({ server, onRemoved }: { server: any; onRemoved: () => void 
             </CardHeader>
             <CardContent>
                 <div className="space-y-4">
-                    <div className="text-xs font-mono text-zinc-500 bg-black/50 p-2 rounded truncate">
-                        {server.config.command} {server.config.args?.join(' ')}
-                    </div>
-                    <div className="flex justify-between text-sm text-zinc-400">
-                        <span>Tools:</span>
-                        <span className="font-bold text-white">{server.toolCount}</span>
-                    </div>
-                    {server.config.env && server.config.env.length > 0 && (
-                        <div className="flex flex-wrap gap-1">
-                            {server.config.env.map((k: string) => (
-                                <span key={k} className="px-1.5 py-0.5 rounded bg-zinc-800 text-[10px] text-zinc-500">{k}</span>
-                            ))}
+                    <div className="bg-black/40 rounded p-2.5 font-mono text-xs text-zinc-400 overflow-hidden">
+                        <div className="flex gap-2">
+                            <span className="text-blue-500">$</span>
+                            <span className="truncate">
+                                {server.command} {server.args?.join(' ')}
+                            </span>
                         </div>
-                    )}
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div className="bg-zinc-800/50 p-2 rounded flex flex-col">
+                            <span className="text-zinc-500">Transport</span>
+                            <span className="text-zinc-300 font-medium">{server.type}</span>
+                        </div>
+                        <div className="bg-zinc-800/50 p-2 rounded flex flex-col">
+                            <span className="text-zinc-500">Environment</span>
+                            <span className="text-zinc-300 font-medium">{envCount} vars</span>
+                        </div>
+                    </div>
                 </div>
             </CardContent>
         </Card>
@@ -142,13 +210,13 @@ function ServerCard({ server, onRemoved }: { server: any; onRemoved: () => void 
 
 function StatusBadge({ status }: { status: string }) {
     const colors = {
-        connected: "bg-green-500/10 text-green-500 border-green-500/20",
-        stopped: "bg-zinc-500/10 text-zinc-500 border-zinc-500/20",
+        active: "bg-green-500/10 text-green-500 border-green-500/20",
+        inactive: "bg-zinc-500/10 text-zinc-500 border-zinc-500/20",
         error: "bg-red-500/10 text-red-500 border-red-500/20"
     };
     return (
-        <span className={`px-2 py-0.5 rounded text-xs border ${colors[status as keyof typeof colors] || colors.stopped}`}>
-            {status.toUpperCase()}
+        <span className={`px-2 py-0.5 rounded text-[10px] uppercase font-bold border ${colors[status as keyof typeof colors] || colors.inactive}`}>
+            {status}
         </span>
     );
 }
@@ -161,11 +229,14 @@ function AddServerForm({ onSuccess }: { onSuccess: () => void }) {
         env: ''
     });
 
-    const addMutation = trpc.mcp.addServer.useMutation({
+    const createMutation = trpc.mcpServers.create.useMutation({
         onSuccess: () => {
+            toast.success("Server added successfully");
             onSuccess();
-            setFormData({ name: '', command: 'npx', args: '', env: '' });
         },
+        onError: (err) => {
+            toast.error(`Error adding server: ${err.message}`);
+        }
     });
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -176,12 +247,14 @@ function AddServerForm({ onSuccess }: { onSuccess: () => void }) {
             try {
                 envParsed = JSON.parse(formData.env);
             } catch {
+                toast.error("Invalid JSON in Environment variables");
                 return;
             }
         }
 
-        addMutation.mutate({
+        createMutation.mutate({
             name: formData.name,
+            type: 'STDIO',
             command: formData.command,
             args: formData.args.split(' ').filter(Boolean),
             env: envParsed,
@@ -189,71 +262,142 @@ function AddServerForm({ onSuccess }: { onSuccess: () => void }) {
     };
 
     return (
-        <Card className="bg-zinc-900 border-zinc-700 mb-8 border-l-4 border-l-blue-600">
+        <Card className="bg-zinc-900 border-zinc-700 mb-8 border-l-4 border-l-blue-600 shadow-xl">
             <CardContent className="pt-6">
-                <div className="flex gap-4 mb-6">
-                    <div className="flex items-center gap-2 px-4 py-2 rounded text-sm bg-blue-600 text-white">
-                        <Terminal className="h-4 w-4" /> Server Configuration
+                <div className="flex justify-between items-start mb-6">
+                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                        <Terminal className="h-3 w-3" /> STDIO Configuration
                     </div>
+                    <Button variant="ghost" size="sm" onClick={onSuccess} className="text-zinc-500 hover:text-white h-6 w-6 p-0 rounded-full">
+                        X
+                    </Button>
                 </div>
 
-                <form onSubmit={handleSubmit} className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="text-xs text-zinc-500 uppercase font-bold">Server Name</label>
-                            <input
-                                required
-                                value={formData.name}
-                                onChange={e => setFormData({ ...formData, name: e.target.value })}
-                                className="w-full bg-zinc-950 border border-zinc-800 rounded p-2 text-sm text-white"
-                                placeholder="e.g. weather-server"
-                            />
-                        </div>
+                <form onSubmit={handleSubmit} className="space-y-5">
+                    <div>
+                        <label className="text-xs text-zinc-500 uppercase font-bold mb-1.5 block">Server Name</label>
+                        <input
+                            required
+                            value={formData.name}
+                            onChange={e => setFormData({ ...formData, name: e.target.value })}
+                            className="w-full bg-zinc-950 border border-zinc-800 rounded-md p-2.5 text-sm text-white focus:ring-1 focus:ring-blue-500 outline-none transition-all"
+                            placeholder="e.g. weather-server"
+                        />
+                        <p className="text-xs text-zinc-600 mt-1">Unique identifier for this server.</p>
                     </div>
 
-                    <div className="grid grid-cols-3 gap-4">
-                        <div className="col-span-1">
-                            <label className="text-xs text-zinc-500 uppercase font-bold">Command</label>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="md:col-span-1">
+                            <label className="text-xs text-zinc-500 uppercase font-bold mb-1.5 block">Command</label>
                             <input
                                 required
                                 value={formData.command}
                                 onChange={e => setFormData({ ...formData, command: e.target.value })}
-                                className="w-full bg-zinc-950 border border-zinc-800 rounded p-2 text-sm text-white font-mono"
+                                className="w-full bg-zinc-950 border border-zinc-800 rounded-md p-2.5 text-sm text-white font-mono focus:ring-1 focus:ring-blue-500 outline-none"
                             />
                         </div>
-                        <div className="col-span-2">
-                            <label className="text-xs text-zinc-500 uppercase font-bold">Args (space separated)</label>
+                        <div className="md:col-span-2">
+                            <label className="text-xs text-zinc-500 uppercase font-bold mb-1.5 block">Args (space separated)</label>
                             <input
                                 value={formData.args}
                                 onChange={e => setFormData({ ...formData, args: e.target.value })}
-                                className="w-full bg-zinc-950 border border-zinc-800 rounded p-2 text-sm text-white font-mono"
+                                className="w-full bg-zinc-950 border border-zinc-800 rounded-md p-2.5 text-sm text-white font-mono focus:ring-1 focus:ring-blue-500 outline-none"
                                 placeholder="-y @modelcontextprotocol/server-memory"
                             />
                         </div>
                     </div>
 
                     <div>
-                        <label className="text-xs text-zinc-500 uppercase font-bold">Environment (JSON)</label>
+                        <label className="text-xs text-zinc-500 uppercase font-bold mb-1.5 block">Environment Variables (JSON)</label>
                         <textarea
                             value={formData.env}
                             onChange={e => setFormData({ ...formData, env: e.target.value })}
-                            className="w-full bg-zinc-950 border border-zinc-800 rounded p-2 text-sm text-white font-mono h-20"
+                            className="w-full bg-zinc-950 border border-zinc-800 rounded-md p-2.5 text-sm text-white font-mono h-24 focus:ring-1 focus:ring-blue-500 outline-none"
                             placeholder='{"API_KEY": "xyz"}'
                         />
                     </div>
 
                     <div className="flex justify-end pt-2">
-                        <Button type="submit" disabled={addMutation.isPending} className="bg-green-600 hover:bg-green-500">
-                            {addMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            Add Server Configuration
+                        <Button type="submit" disabled={createMutation.isPending} className="bg-blue-600 hover:bg-blue-500 text-white font-medium">
+                            {createMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            Create Server
                         </Button>
                     </div>
+                </form>
+            </CardContent>
+        </Card>
+    );
+}
 
-                    {addMutation.error && (
-                        <div className="text-red-400 text-sm bg-red-900/20 p-2 rounded">
-                            {addMutation.error.message}
-                        </div>
-                    )}
+function BulkImportForm({ onSuccess }: { onSuccess: () => void }) {
+    const [jsonConfig, setJsonConfig] = useState('');
+
+    const importMutation = trpc.mcpServers.bulkImport.useMutation({
+        onSuccess: (data) => {
+            toast.success(`Imported ${data.length} servers.`);
+            onSuccess();
+        },
+        onError: (err) => {
+            toast.error(`Import failed: ${err.message}`);
+        }
+    });
+
+    const handleImport = async (e: React.FormEvent) => {
+        e.preventDefault();
+        try {
+            const parsed = JSON.parse(jsonConfig);
+            if (!parsed.mcpServers || typeof parsed.mcpServers !== 'object') {
+                throw new Error("Invalid config: missing 'mcpServers' object");
+            }
+
+            const serversToImport = Object.entries(parsed.mcpServers).map(([name, config]: [string, any]) => {
+                const type: "STDIO" | "SSE" = config.url ? 'SSE' : 'STDIO';
+                return {
+                    name,
+                    type,
+                    command: config.command,
+                    args: config.args,
+                    env: config.env,
+                    url: config.url,
+                };
+            });
+
+            importMutation.mutate(serversToImport);
+        } catch (err: any) {
+            toast.error(`Invalid JSON or schema: ${err.message}`);
+        }
+    };
+
+    return (
+        <Card className="bg-zinc-900 border-zinc-700 mb-8 border-l-4 border-l-purple-600 shadow-xl">
+            <CardContent className="pt-6">
+                <div className="flex justify-between items-start mb-6">
+                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-purple-500/10 text-purple-400 border border-purple-500/20">
+                        <Upload className="h-3 w-3" /> Bulk Import
+                    </div>
+                    <Button variant="ghost" size="sm" onClick={onSuccess} className="text-zinc-500 hover:text-white h-6 w-6 p-0 rounded-full">
+                        X
+                    </Button>
+                </div>
+
+                <form onSubmit={handleImport} className="space-y-5">
+                    <div>
+                        <label className="text-xs text-zinc-500 uppercase font-bold mb-1.5 block">Claude Desktop Config (JSON)</label>
+                        <p className="text-xs text-zinc-400 mb-2">Paste the content of your <code>claude_desktop_config.json</code> file here.</p>
+                        <textarea
+                            value={jsonConfig}
+                            onChange={e => setJsonConfig(e.target.value)}
+                            className="w-full bg-zinc-950 border border-zinc-800 rounded-md p-2.5 text-sm text-white font-mono h-48 focus:ring-1 focus:ring-purple-500 outline-none"
+                            placeholder='{ "mcpServers": { "memory": { "command": "npx", "args": ["-y", "@modelcontextprotocol/server-memory"] } } }'
+                        />
+                    </div>
+
+                    <div className="flex justify-end pt-2">
+                        <Button type="submit" disabled={importMutation.isPending} className="bg-purple-600 hover:bg-purple-500 text-white font-medium">
+                            {importMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            Import Configuration
+                        </Button>
+                    </div>
                 </form>
             </CardContent>
         </Card>

@@ -6,12 +6,77 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/
 import { Button } from './ui/button';
 import { History, GitCommit, AlertTriangle, Info, Shield, RefreshCw, Undo2 } from 'lucide-react';
 
+type AuditLogLike = {
+    timestamp?: number;
+    level?: string;
+    event?: string;
+    action?: string;
+    agentId?: string;
+};
+
+type GitCommitLike = {
+    date?: string | number;
+    hash: string;
+    message?: string;
+    author?: string;
+};
+
+type GitStatusLike = {
+    branch: string;
+    clean: boolean;
+    modified: string[];
+};
+
+function normalizeAuditLogs(value: unknown): AuditLogLike[] {
+    if (!Array.isArray(value)) {
+        return [];
+    }
+
+    return value.filter((item): item is AuditLogLike => typeof item === 'object' && item !== null);
+}
+
+function normalizeGitCommits(value: unknown): GitCommitLike[] {
+    if (!Array.isArray(value)) {
+        return [];
+    }
+
+    return value
+        .filter((item): item is { hash: string; date?: unknown; message?: unknown; author?: unknown } => {
+            return typeof item === 'object' && item !== null && typeof item.hash === 'string';
+        })
+        .map((item) => ({
+            hash: item.hash,
+            date: typeof item.date === 'string' || typeof item.date === 'number' ? item.date : Date.now(),
+            message: typeof item.message === 'string' ? item.message : '',
+            author: typeof item.author === 'string' ? item.author : '',
+        }));
+}
+
+function normalizeGitStatus(value: unknown): GitStatusLike {
+    if (typeof value !== 'object' || value === null) {
+        return { branch: '...', clean: true, modified: [] };
+    }
+
+    const branch = (value as { branch?: unknown }).branch;
+    const clean = (value as { clean?: unknown }).clean;
+    const modified = (value as { modified?: unknown }).modified;
+
+    return {
+        branch: typeof branch === 'string' ? branch : '...',
+        clean: typeof clean === 'boolean' ? clean : true,
+        modified: Array.isArray(modified) ? modified.filter((entry): entry is string => typeof entry === 'string') : [],
+    };
+}
+
 export function ChroniclePage() {
     const [limit, setLimit] = useState(50);
-    const { data: auditLogs, isLoading: auditLoading, refetch: refetchAudit } = trpc.audit.query.useQuery({ limit });
-    const { data: gitLog, isLoading: gitLoading, refetch: refetchGit } = trpc.git.getLog.useQuery({ limit });
-    const { data: gitStatus } = trpc.git.getStatus.useQuery();
+    const { data: rawAuditLogs, isLoading: auditLoading, refetch: refetchAudit } = trpc.audit.list.useQuery({ limit });
+    const { data: rawGitLog, isLoading: gitLoading, refetch: refetchGit } = trpc.git.getLog.useQuery({ limit });
+    const { data: rawGitStatus } = trpc.git.getStatus.useQuery();
     const revertMutation = trpc.git.revert.useMutation();
+    const auditLogs = normalizeAuditLogs(rawAuditLogs);
+    const gitLog = normalizeGitCommits(rawGitLog);
+    const gitStatus = normalizeGitStatus(rawGitStatus);
 
     const [events, setEvents] = useState<any[]>([]);
 

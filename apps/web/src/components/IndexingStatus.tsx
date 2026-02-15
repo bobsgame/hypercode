@@ -2,10 +2,32 @@
 import { trpc } from "../utils/trpc";
 import { motion } from 'framer-motion';
 
+type IndexingStatusData = {
+    status: string;
+    filesIndexed: number;
+    totalFiles: number;
+};
+
+function normalizeIndexingStatus(value: unknown): IndexingStatusData | null {
+    if (typeof value !== 'object' || value === null) {
+        return null;
+    }
+
+    const status = (value as { status?: unknown }).status;
+    const filesIndexed = (value as { filesIndexed?: unknown }).filesIndexed;
+    const totalFiles = (value as { totalFiles?: unknown }).totalFiles;
+
+    return {
+        status: typeof status === 'string' ? status : 'loading',
+        filesIndexed: typeof filesIndexed === 'number' ? filesIndexed : 0,
+        totalFiles: typeof totalFiles === 'number' ? totalFiles : 0,
+    };
+}
+
 export default function IndexingStatus() {
     const status = trpc.indexingStatus.useQuery(undefined, { refetchInterval: 3000 });
+    const statusData = normalizeIndexingStatus(status.data);
 
-    const statusData = status.data as any;
     const progress = statusData
         ? Math.round((statusData.filesIndexed / Math.max(statusData.totalFiles || 1, 1)) * 100)
         : 0;
@@ -25,11 +47,11 @@ export default function IndexingStatus() {
                     </h2>
                     <span className={`px-2 py-1 rounded-full text-xs font-bold ${isComplete ? 'bg-cyan-500/20 text-cyan-400' : 'bg-purple-500/20 text-purple-400'
                         }`}>
-                        {status.data?.status?.toUpperCase() || 'LOADING'}
+                        {statusData?.status?.toUpperCase() || 'LOADING'}
                     </span>
                 </div>
 
-                {!status.data ? (
+                {!statusData ? (
                     <div className="flex items-center gap-2 text-zinc-400">
                         <motion.div
                             animate={{ rotate: 360 }}

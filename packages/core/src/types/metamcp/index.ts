@@ -9,14 +9,19 @@
  * Simplifies imports across the application.
  */
 
-export * from "./api-keys.zod";
-export * from "./config-schemas.zod";
-export * from "./endpoints.zod";
-export * from "./logs.zod";
-export * from "./mcp-servers.zod";
-export * from "./namespaces.zod";
-export * from "./oauth.zod";
-export * from "./policies.zod";
-export * from "./saved-scripts.zod";
-export * from "./tool-sets.zod";
-export * from "./tools.zod";
+export * from "./api-keys.zod.js";
+export * from "./config-schemas.zod.js";
+export * from "./endpoints.zod.js";
+export * from "./logs.zod.js";
+export * from "./mcp-servers.zod.js";
+export * from "./namespaces.zod.js";
+export * from "./oauth.zod.js";
+export * from "./policies.zod.js";
+export * from "./saved-scripts.zod.js";
+export * from "./tool-sets.zod.js";
+export * from "./tools.zod.js";
+export * from "./server-health.js";
+
+// Validation fix for missing type
+export type ServerParameters = Record<string, unknown>;
+

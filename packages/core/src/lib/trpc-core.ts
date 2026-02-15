@@ -96,9 +96,29 @@ export type CouncilOrchestratorRuntime = {
     lastResult: unknown;
 };
 
+export type CouncilSessionRuntime = {
+    id: string;
+    topic: string;
+    status: 'active' | 'concluded';
+    round: number;
+    opinions: Array<{
+        agentId: string;
+        content: string;
+        timestamp: number;
+        round: number;
+    }>;
+    votes: Array<{
+        agentId: string;
+        choice: string;
+        reason: string;
+        timestamp: number;
+    }>;
+    createdAt: number;
+};
+
 export type CouncilServiceRuntime = {
-    listSessions: () => Promise<unknown[]>;
-    getSession: (id: string) => Promise<unknown>;
+    listSessions: () => CouncilSessionRuntime[];
+    getSession: (id: string) => CouncilSessionRuntime | undefined;
 };
 
 export type MemoryManagerRuntime = {

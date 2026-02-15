@@ -4,14 +4,13 @@ import { getSubmodules, SubmoduleInfo } from '@/lib/git';
 import path from 'path';
 import fs from 'fs/promises';
 
-// Hardcoded workspace root for now - ideally passed via env or config
-// Since this ends up running in the Next.js server, we need to know where the repo root is relative to CWD.
-// CWD is usually apps/web or workspace root depending on how it's started.
-// We'll assume process.cwd() is .../apps/web, so we go up two levels.
+// Resolve the monorepo root safely without overly broad path traversals
+function getMonorepoRoot(): string {
+    return process.env.BORG_ROOT || path.resolve(process.cwd(), '..', '..');
+}
 
 export async function fetchSubmodulesAction(): Promise<SubmoduleInfo[]> {
-    const root = path.resolve(process.cwd(), '../../');
-    // Safety check: ensure .gitmodules exists here
+    const root = getMonorepoRoot();
     console.log("Scanning submodules in:", root);
     return await getSubmodules(root);
 }
@@ -22,7 +21,7 @@ export interface LinkCategory {
 }
 
 export async function fetchUserLinksAction(): Promise<LinkCategory[]> {
-    const root = path.resolve(process.cwd(), '../../');
+    const root = getMonorepoRoot();
     const linksPath = path.join(root, 'docs', 'USER_LINKS_ARCHIVE.md');
 
     try {
@@ -54,7 +53,7 @@ export async function fetchUserLinksAction(): Promise<LinkCategory[]> {
 }
 
 export async function healSubmodulesAction(): Promise<{ success: boolean, message: string }> {
-    const root = path.resolve(process.cwd(), '../../');
+    const root = getMonorepoRoot();
     const { exec } = await import('child_process');
     const { promisify } = await import('util');
     const execAsync = promisify(exec);

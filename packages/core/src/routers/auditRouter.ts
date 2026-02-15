@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { t, getAuditService } from '../lib/trpc-core.js';
 
 export const auditRouter = t.router({
-    query: t.procedure.input(z.object({ limit: z.number().optional() })).query(async ({ input }) => {
+    list: t.procedure.input(z.object({ limit: z.number().optional() })).query(async ({ input }) => {
         return getAuditService().getLogs(input.limit || 50);
     }),
     log: t.procedure.input(z.object({

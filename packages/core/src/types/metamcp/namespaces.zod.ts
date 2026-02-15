@@ -21,8 +21,8 @@ import {
     McpServerErrorStatusEnum,
     McpServerSchema,
     McpServerStatusEnum,
-} from "./mcp-servers.zod";
-import { ToolSchema, ToolStatusEnum } from "./tools.zod";
+} from "./mcp-servers.zod.js";
+import { ToolSchema, ToolStatusEnum } from "./tools.zod.js";
 
 const ToolAnnotationsSchema = z.record(z.unknown());
 

@@ -9,6 +9,81 @@ import { trpc } from '@/utils/trpc';
 import { Play, Pause, RotateCcw, Activity } from 'lucide-react';
 import { toast } from 'sonner';
 
+interface WorkflowListItem {
+    id: string;
+    name: string;
+}
+
+interface WorkflowExecution {
+    id: string;
+    status: string;
+    currentNode: string;
+}
+
+interface WorkflowGraphData {
+    nodes: unknown[];
+    edges: unknown[];
+}
+
+interface StartWorkflowResult {
+    id: string;
+}
+
+function normalizeWorkflows(value: unknown): WorkflowListItem[] {
+    if (!Array.isArray(value)) {
+        return [];
+    }
+
+    return value
+        .filter((item): item is { id: string; name?: string } => {
+            return typeof item === 'object' && item !== null && typeof (item as { id?: unknown }).id === 'string';
+        })
+        .map((item) => ({
+            id: item.id,
+            name: typeof item.name === 'string' ? item.name : item.id,
+        }));
+}
+
+function normalizeExecutions(value: unknown): WorkflowExecution[] {
+    if (!Array.isArray(value)) {
+        return [];
+    }
+
+    return value
+        .filter((item): item is { id: string; status?: string; currentNode?: string } => {
+            return typeof item === 'object' && item !== null && typeof (item as { id?: unknown }).id === 'string';
+        })
+        .map((item) => ({
+            id: item.id,
+            status: typeof item.status === 'string' ? item.status : 'unknown',
+            currentNode: typeof item.currentNode === 'string' ? item.currentNode : 'unknown',
+        }));
+}
+
+function normalizeGraphData(value: unknown): WorkflowGraphData | null {
+    if (typeof value !== 'object' || value === null) {
+        return null;
+    }
+
+    const nodes = (value as { nodes?: unknown }).nodes;
+    const edges = (value as { edges?: unknown }).edges;
+
+    if (!Array.isArray(nodes) || !Array.isArray(edges)) {
+        return null;
+    }
+
+    return { nodes, edges };
+}
+
+function getStartResultId(value: unknown): string | null {
+    if (typeof value !== 'object' || value === null) {
+        return null;
+    }
+
+    const id = (value as { id?: unknown }).id;
+    return typeof id === 'string' ? id : null;
+}
+
 export default function WorkflowsPage() {
     const [selectedWorkflowId, setSelectedWorkflowId] = useState<string | null>(null);
     const [activeExecutionId, setActiveExecutionId] = useState<string | null>(null);
@@ -30,10 +105,20 @@ export default function WorkflowsPage() {
         refetchInterval: 2000 // Poll for updates
     });
 
+    const workflowList = normalizeWorkflows(workflows);
+    const executionList = normalizeExecutions(executions);
+    const normalizedGraphData = normalizeGraphData(graphData);
+
     const startMutation = trpc.workflow.start.useMutation({
         onSuccess: (data) => {
-            toast.success("Workflow started: " + data.id);
-            setActiveExecutionId(data.id);
+            const executionId = getStartResultId(data);
+            if (!executionId) {
+                toast.error("Workflow started, but execution ID was missing in response.");
+                return;
+            }
+
+            toast.success("Workflow started: " + executionId);
+            setActiveExecutionId(executionId);
             refetchExecutions();
         }
     });
@@ -42,7 +127,7 @@ export default function WorkflowsPage() {
     const pauseMutation = trpc.workflow.pause.useMutation();
 
     // Determine active node from active execution
-    const activeExecution = executions?.find((e: any) => e.id === activeExecutionId);
+    const activeExecution = executionList.find((execution) => execution.id === activeExecutionId);
 
     return (
         <div className="p-6 space-y-6">
@@ -63,18 +148,18 @@ export default function WorkflowsPage() {
                         <CardTitle>Library</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-2">
-                        {workflows?.length === 0 && (
+                        {workflowList.length === 0 && (
                             <div className="text-sm text-muted-foreground">No workflows found.</div>
                         )}
-                        {workflows?.map((w: any) => (
+                        {workflowList.map((workflow) => (
                             <Button
-                                key={w.id}
-                                variant={selectedWorkflowId === w.id ? "secondary" : "ghost"}
+                                key={workflow.id}
+                                variant={selectedWorkflowId === workflow.id ? "secondary" : "ghost"}
                                 className="w-full justify-start"
-                                onClick={() => setSelectedWorkflowId(w.id)}
+                                onClick={() => setSelectedWorkflowId(workflow.id)}
                             >
                                 <Activity className="w-4 h-4 mr-2" />
-                                {w.name}
+                                {workflow.name}
                             </Button>
                         ))}
 
@@ -109,9 +194,9 @@ export default function WorkflowsPage() {
                             </div>
                         </CardHeader>
                         <CardContent className="flex-1 p-0 relative">
-                            {graphData ? (
+                            {normalizedGraphData ? (
                                 <WorkflowVisualizer
-                                    data={graphData}
+                                    data={normalizedGraphData}
                                     activeNodeId={activeExecution?.currentNode}
                                     className="h-full border-0"
                                 />
@@ -130,7 +215,7 @@ export default function WorkflowsPage() {
                         </CardHeader>
                         <CardContent>
                             <div className="space-y-2">
-                                {executions?.map((exec: any) => (
+                                {executionList.map((exec) => (
                                     <div key={exec.id} className="flex items-center justify-between p-2 border rounded hover:bg-muted/50 cursor-pointer" onClick={() => setActiveExecutionId(exec.id)}>
                                         <div className="flex items-center gap-2">
                                             <Badge variant={exec.status === 'running' ? 'default' : 'secondary'}>
@@ -153,7 +238,7 @@ export default function WorkflowsPage() {
                                         </div>
                                     </div>
                                 ))}
-                                {executions?.length === 0 && <div className="text-sm text-muted-foreground">No active executions.</div>}
+                                {executionList.length === 0 && <div className="text-sm text-muted-foreground">No active executions.</div>}
                             </div>
                         </CardContent>
                     </Card>

@@ -1,19 +1,44 @@
 "use client";
 import React, { useState } from 'react';
 import { trpc } from '../utils/trpc';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
+
+interface TranscriptEntry {
+    speaker: string;
+    text: string;
+}
+
+function normalizeTranscripts(value: unknown): TranscriptEntry[] {
+    if (typeof value !== 'object' || value === null) {
+        return [];
+    }
+
+    const transcripts = (value as { transcripts?: unknown }).transcripts;
+    if (!Array.isArray(transcripts)) {
+        return [];
+    }
+
+    return transcripts
+        .filter((item): item is { speaker: string; text: string } => {
+            return (
+                typeof item === 'object' &&
+                item !== null &&
+                typeof (item as { speaker?: unknown }).speaker === 'string' &&
+                typeof (item as { text?: unknown }).text === 'string'
+            );
+        })
+        .map((item) => ({ speaker: item.speaker, text: item.text }));
+}
 
 export const CouncilWidget: React.FC = () => {
     const [topic, setTopic] = useState('');
     const [isDebating, setIsDebating] = useState(false);
 
-    // @ts-ignore
     const { data: latestSession, refetch } = trpc.council.getLatestSession.useQuery(undefined, {
         enabled: true,
         refetchInterval: isDebating ? 1000 : 5000
     });
 
-    // @ts-ignore
     const runSessionMutation = trpc.council.runSession.useMutation({
         onSuccess: () => {
             setIsDebating(false);
@@ -29,6 +54,8 @@ export const CouncilWidget: React.FC = () => {
         setIsDebating(true);
         runSessionMutation.mutate({ proposal: topic });
     };
+
+    const transcriptEntries = normalizeTranscripts(latestSession);
 
     return (
         <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4 flex flex-col h-[500px]">
@@ -49,7 +76,7 @@ export const CouncilWidget: React.FC = () => {
 
                 {latestSession && (
                     <div className="space-y-4">
-                        {latestSession.transcripts.map((entry: any, idx: number) => (
+                        {transcriptEntries.map((entry, idx) => (
                             <motion.div
                                 key={idx}
                                 initial={{ opacity: 0, x: -10 }}

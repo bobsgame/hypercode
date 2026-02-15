@@ -27,7 +27,7 @@ export const DockerSessionStatusEnum = z.enum([
     "NOT_FOUND",
 ]);
 
-export const McpServerErrorStatusEnum = z.enum(["NONE", "ERROR"]);
+export const McpServerErrorStatusEnum = z.enum(["NONE", "ERROR", "CONNECTION_FAILED", "TIMEOUT", "INTERNAL_ERROR"]);
 
 // Define the form schema (includes UI-specific fields)
 export const createServerFormSchema = z

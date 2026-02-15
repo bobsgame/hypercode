@@ -4,8 +4,8 @@ import { t, publicProcedure, getContextManager } from '../lib/trpc-core.js';
 export const contextRouter = t.router({
     list: publicProcedure
         .output(z.array(z.string()))
-        .query(() => {
-            return getContextManager()?.list() ?? [];
+        .query((): string[] => {
+            return (getContextManager()?.list() ?? []) as string[];
         }),
 
     add: publicProcedure.input(z.object({

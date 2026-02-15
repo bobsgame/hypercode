@@ -4,13 +4,18 @@ import { SearchService } from '@borg/search';
 import { MemoryManager } from './MemoryManager.js';
 import type { MCPServer } from '../MCPServer.js';
 
-// Dynamically import WebSearchTool if needed, or define interface
-// We'll rely on our own internal 'search' helper that uses the SearchService if strictly compliant,
-// BUT SearchService is local ripgrep.
-// We need external search.
-// If WebSearchTool is in core, we import it. If not, we mock it or use a different service.
-// Let's assume for this overwrite we try to find it, but if not, we use a placeholder.
-// Ideally usage: const search = new WebSearchTool();
+/** Minimal interface for the server reference used by DeepResearchService */
+interface BorgServerRef {
+    executeTool(name: string, args: Record<string, unknown>): Promise<{ content?: { text: string }[] }>;
+    wssInstance?: {
+        clients: Set<{ readyState: number; send(data: string): void }>;
+    };
+}
+
+interface SearchResultEntry {
+    title?: string;
+    url?: string;
+}
 
 export interface ResearchResult {
     topic: string;
@@ -22,12 +27,11 @@ export interface ResearchResult {
 export class DeepResearchService {
     private llm: LLMService;
     private memory: MemoryManager;
-    private server: any;
+    private server: BorgServerRef;
 
-    constructor(server: any, llm: LLMService, _search: SearchService, memory: MemoryManager) {
+    constructor(server: BorgServerRef, llm: LLMService, _search: SearchService, memory: MemoryManager) {
         this.server = server;
         this.llm = llm;
-        // SearchService ignored for now as it's local. We need Web Search.
         this.memory = memory;
     }
 
@@ -82,7 +86,7 @@ export class DeepResearchService {
                     const result = await WebSearchTool.handler({ query: q });
                     const text = result.content[0].text;
 
-                    let parsed: any[] = [];
+                    let parsed: unknown[] = [];
                     try {
                         parsed = JSON.parse(text);
                     } catch {
@@ -90,10 +94,11 @@ export class DeepResearchService {
                     }
 
                     if (Array.isArray(parsed)) {
-                        parsed.slice(0, 3).forEach((r: any) => {
-                            if (r.url) {
-                                allUrls.add(r.url);
-                                sources.push({ title: r.title, url: r.url });
+                        parsed.slice(0, 3).forEach((r: unknown) => {
+                            const entry = r as SearchResultEntry;
+                            if (entry.url) {
+                                allUrls.add(entry.url);
+                                sources.push({ title: entry.title || '', url: entry.url });
                             }
                         });
                     }
@@ -234,15 +239,16 @@ export class DeepResearchService {
             this.broadcast('RESEARCH_UPDATE', { status: 'memorized', target: url, id: ctxId });
             return `MEMORIZED: ${url} (ID: ${ctxId})`;
 
-        } catch (e: any) {
-            this.broadcast('RESEARCH_UPDATE', { status: 'error', target: url, error: e.message });
-            return `ERROR: ${e.message}`;
+        } catch (e: unknown) {
+            const message = e instanceof Error ? e.message : String(e);
+            this.broadcast('RESEARCH_UPDATE', { status: 'error', target: url, error: message });
+            return `ERROR: ${message}`;
         }
     }
 
-    private broadcast(type: string, payload: any) {
+    private broadcast(type: string, payload: Record<string, unknown>) {
         if (this.server.wssInstance) {
-            this.server.wssInstance.clients.forEach((client: any) => {
+            this.server.wssInstance.clients.forEach((client) => {
                 if (client.readyState === 1) {
                     client.send(JSON.stringify({ type, payload }));
                 }

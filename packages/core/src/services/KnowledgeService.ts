@@ -36,7 +36,7 @@ export class KnowledgeService {
     /**
      * Retrieves the Knowledge Graph (generic)
      */
-    public async getGraph(query?: string, depth: number = 1): Promise<{ content: any[] }> {
+    public async getGraph(query?: string, depth: number = 1): Promise<{ content: { type: string; text: string }[] }> {
         // If no query, return full graph
         if (!query && this.memory.graph && this.isSnapshotCapableGraph(this.memory.graph)) {
             const snapshot = this.memory.graph.getSnapshot();

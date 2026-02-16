@@ -27,6 +27,51 @@ Current unresolved blockers:
 - Webpack build still reports additional strict-type issues in shared UI components (latest observed in `packages/ui/src/components/ContextPanel.tsx`).
 - Turbopack on Windows still intermittently fails with `.next` artifact ENOENT in this workspace; webpack mode was used for deterministic type-error surfacing.
 
+### 1.1 Session Delta — 2026-02-16 (Index Ingestion Scale Pass)
+
+Completed in this pass:
+- Implemented `scripts/sync_master_index.mjs` to normalize and synchronize `BORG_MASTER_INDEX.jsonc` from `scripts/resources-list.json` plus ingestion outcomes.
+- Added failure/progress seed tracking file: `scripts/ingestion-status.json`.
+- Upgraded master index schema to `borg-master-index/v2` with explicit queue telemetry:
+	- `stats.processed`, `stats.pending`, `stats.failed`
+	- `ingestion.queue` and `ingestion.sources`
+	- Per-entry ingestion fields (`fetch_status`, `fetch_error`, `fetch_attempts`, `last_checked_at`, `processed_at`, `normalized_url`, `discovered_from`).
+- Synced corpus scale into canonical index:
+	- `total_links`: **565**
+	- `processed`: **6**
+	- `pending`: **558**
+	- `failed`: **1**
+
+Operational note:
+- This establishes an incremental, scriptable ingestion baseline for large URL corpora and provides deterministic processed/pending/failed visibility for follow-on retries and prioritization.
+
+### 1.2 Session Delta — 2026-02-16 (Queue UX + Retry Wiring)
+
+Completed in this pass:
+- Added incremental ingestion outcome updater: `scripts/update_ingestion_status.mjs`.
+- Added npm script alias: `index:update`.
+- Extended `researchRouter` with queue operations:
+	- `ingestionQueue` (processed/pending/failed queue snapshot from file + index metadata)
+	- `retryFailed` (move a failed URL back to pending for reprocessing)
+	- `retryAllFailed` (bulk move all failed URLs to pending)
+- Wired `/dashboard/research` to live queue endpoints:
+	- Real-time queue counters (processed/pending/failed)
+	- Failed URL list with error message, attempts, and per-item retry action
+	- Bulk retry-all action in the failures panel header
+	- Queue freshness indicator
+
+Validation:
+- Type diagnostics on updated files reported no errors:
+	- `apps/web/src/app/dashboard/research/page.tsx`
+	- `packages/core/src/routers/researchRouter.ts`
+
+UX hardening update:
+- Added inline success/error operator feedback in `/dashboard/research` for both `retryFailed` and `retryAllFailed` actions.
+- Added 5-second auto-dismiss for queue feedback banners and `Last queue action` timestamp in Queue Status.
+
+Validation note:
+- Repository `pnpm typecheck` currently fails before execution due to missing Turbo task wiring (`Could not find task \`typecheck\` in project`); file-level diagnostics remain clean for changed files.
+
 Borg is a monorepo AI Operating System with **47 registered tRPC routers**, **62+ dashboard pages**, and **23 backend services**. The codebase is in a "build-stable but partially wired" state — most subsystems have both backend and frontend representations, but several lack end-to-end data flow (static placeholders, hardcoded data, or TODO stubs remain).
 
 **Overall Health**: 🟡 Build-Stable, Feature-Incomplete

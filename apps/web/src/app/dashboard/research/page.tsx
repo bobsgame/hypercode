@@ -5,7 +5,7 @@ import { Button } from "@borg/ui";
 import { Input } from "@borg/ui";
 import { Badge } from "@borg/ui";
 import { ScrollArea } from "@borg/ui";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Loader2, Search, BookOpen, GitBranch, ExternalLink, Network } from "lucide-react";
 import { trpc } from '@/utils/trpc';
 
@@ -22,8 +22,44 @@ export default function ResearchPage() {
     const [depth, setDepth] = useState(2);
     const [loading, setLoading] = useState(false);
     const [result, setResult] = useState<ResearchNode | null>(null);
+    const [queueMessage, setQueueMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+    const [lastQueueActionAt, setLastQueueActionAt] = useState<string | null>(null);
 
     const conductMutation = trpc.research.conduct.useMutation();
+    const queueQuery = trpc.research.ingestionQueue.useQuery(undefined, {
+        refetchInterval: 10000,
+    });
+    const retryMutation = trpc.research.retryFailed.useMutation({
+        onSuccess: () => {
+            setQueueMessage({ type: 'success', text: 'URL moved to pending queue.' });
+            setLastQueueActionAt(new Date().toISOString());
+            queueQuery.refetch();
+        },
+        onError: (error) => {
+            setQueueMessage({ type: 'error', text: error.message || 'Failed to retry URL.' });
+            setLastQueueActionAt(new Date().toISOString());
+        }
+    });
+    const retryAllMutation = trpc.research.retryAllFailed.useMutation({
+        onSuccess: (data) => {
+            setQueueMessage({ type: 'success', text: data.message || 'Failed URLs moved to pending queue.' });
+            setLastQueueActionAt(new Date().toISOString());
+            queueQuery.refetch();
+        },
+        onError: (error) => {
+            setQueueMessage({ type: 'error', text: error.message || 'Failed to retry all URLs.' });
+            setLastQueueActionAt(new Date().toISOString());
+        }
+    });
+
+    useEffect(() => {
+        if (!queueMessage) return;
+        const timer = window.setTimeout(() => {
+            setQueueMessage(null);
+        }, 5000);
+
+        return () => window.clearTimeout(timer);
+    }, [queueMessage]);
 
     const handleResearch = async () => {
         if (!topic) return;
@@ -98,6 +134,21 @@ export default function ResearchPage() {
                     </div>
                 </div>
 
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div className="rounded-md border border-emerald-500/30 bg-emerald-950/20 px-3 py-2">
+                        <div className="text-xs uppercase tracking-wide text-emerald-300/80">Processed</div>
+                        <div className="text-2xl font-semibold text-emerald-300">{queueQuery.data?.totals.processed ?? 0}</div>
+                    </div>
+                    <div className="rounded-md border border-amber-500/30 bg-amber-950/20 px-3 py-2">
+                        <div className="text-xs uppercase tracking-wide text-amber-300/80">Pending</div>
+                        <div className="text-2xl font-semibold text-amber-300">{queueQuery.data?.totals.pending ?? 0}</div>
+                    </div>
+                    <div className="rounded-md border border-rose-500/30 bg-rose-950/20 px-3 py-2">
+                        <div className="text-xs uppercase tracking-wide text-rose-300/80">Failed</div>
+                        <div className="text-2xl font-semibold text-rose-300">{queueQuery.data?.totals.failed ?? 0}</div>
+                    </div>
+                </div>
+
                 <div className="flex gap-4 items-end bg-muted/20 p-4 rounded-lg border border-border/50">
                     <div className="flex-1 space-y-2">
                         <label className="text-sm font-medium">Research Topic</label>
@@ -157,23 +208,83 @@ export default function ResearchPage() {
                 <div className="space-y-6">
                     <Card>
                         <CardHeader>
-                            <CardTitle className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Previous Runs</CardTitle>
+                            <div className="flex items-center justify-between gap-2">
+                                <CardTitle className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Ingestion Failures</CardTitle>
+                                <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-7 text-xs"
+                                    disabled={(queueQuery.data?.queue.failed.length ?? 0) === 0 || retryAllMutation.isPending}
+                                    onClick={() => retryAllMutation.mutate()}
+                                >
+                                    {retryAllMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Retry All'}
+                                </Button>
+                            </div>
+                            {queueMessage ? (
+                                <div
+                                    className={`mt-2 rounded-md border px-2 py-1 text-xs ${queueMessage.type === 'success'
+                                            ? 'border-emerald-500/30 bg-emerald-950/20 text-emerald-300'
+                                            : 'border-rose-500/30 bg-rose-950/20 text-rose-300'
+                                        }`}
+                                >
+                                    {queueMessage.text}
+                                </div>
+                            ) : null}
                         </CardHeader>
                         <CardContent>
-                            <div className="text-sm text-muted-foreground text-center py-4">
-                                No history available.
-                            </div>
+                            {queueQuery.isLoading ? (
+                                <div className="text-sm text-muted-foreground flex items-center gap-2 py-4">
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                    Loading queue...
+                                </div>
+                            ) : (queueQuery.data?.queue.failed.length ?? 0) === 0 ? (
+                                <div className="text-sm text-muted-foreground text-center py-4">
+                                    No failed URLs. Queue is healthy.
+                                </div>
+                            ) : (
+                                <ScrollArea className="h-64 pr-2">
+                                    <div className="space-y-3">
+                                        {queueQuery.data?.queue.failed.slice(0, 20).map((item) => (
+                                            <div key={item.url} className="rounded-md border border-border/50 p-2 bg-muted/20">
+                                                <div className="text-xs font-medium text-foreground truncate" title={item.name}>{item.name}</div>
+                                                <div className="text-[11px] text-muted-foreground truncate" title={item.url}>{item.url}</div>
+                                                <div className="text-[11px] text-rose-300 mt-1 line-clamp-2">{item.error}</div>
+                                                <div className="flex items-center justify-between mt-2">
+                                                    <Badge variant="outline" className="text-[10px]">attempts: {item.attempts}</Badge>
+                                                    <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        className="h-7 text-xs"
+                                                        disabled={retryMutation.isPending}
+                                                        onClick={() => retryMutation.mutate({ url: item.url })}
+                                                    >
+                                                        {retryMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Retry'}
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </ScrollArea>
+                            )}
                         </CardContent>
                     </Card>
 
                     <Card className="bg-blue-950/10 border-blue-900/30">
                         <CardHeader>
-                            <CardTitle className="text-sm font-medium text-blue-400">Agent Status</CardTitle>
+                            <CardTitle className="text-sm font-medium text-blue-400">Queue Status</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-2">
                             <div className="flex justify-between text-sm">
-                                <span>The Explorer</span>
-                                <Badge variant="outline" className="text-green-500 border-green-900/50">IDLE</Badge>
+                                <span>Indexer Sync</span>
+                                <Badge variant="outline" className="text-green-500 border-green-900/50">READY</Badge>
+                            </div>
+                            <div className="flex justify-between text-xs text-muted-foreground">
+                                <span>Last queue action</span>
+                                <span>{lastQueueActionAt ? new Date(lastQueueActionAt).toLocaleTimeString() : '—'}</span>
+                            </div>
+                            <div className="flex justify-between text-xs text-muted-foreground">
+                                <span>Last refresh</span>
+                                <span>{queueQuery.data?.updatedAt ? new Date(queueQuery.data.updatedAt).toLocaleTimeString() : '—'}</span>
                             </div>
                         </CardContent>
                     </Card>

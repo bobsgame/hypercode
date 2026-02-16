@@ -110,6 +110,22 @@
     - [ ] No simulated result payloads in production orchestration path.
     - [ ] Execution traces include provider/model/tool metadata.
 
+### 6.2) Scale external link ingestion with queue telemetry
+
+- **Files:**
+    - `scripts/sync_master_index.mjs`
+    - `scripts/resources-list.json`
+    - `scripts/ingestion-status.json`
+    - `BORG_MASTER_INDEX.jsonc`
+- **Current issue:** Corpus growth outpaced manual index updates; queue state (processed/pending/failed) lacked canonical tracking.
+- **Deliverable:** Deterministic synchronization pipeline with per-entry ingestion status and queue metrics.
+- **Acceptance criteria:**
+    - [x] Canonical index synchronization script exists and runs from repo root.
+    - [x] `BORG_MASTER_INDEX` includes queue telemetry fields and per-entry fetch status metadata.
+    - [x] Known fetch failures can be persisted independently of manual edits.
+    - [ ] Incremental fetch outcome writer appends live status updates automatically.
+    - [ ] Dashboard surface renders ingestion queue and retry actions.
+
 ---
 
 ## P2 — Technical Debt with Delivery Impact

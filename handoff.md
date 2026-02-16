@@ -202,3 +202,19 @@
 Current checkpoint:
 - Build is still in iterative cleanup mode; latest surfaced blocker is in `packages/ui/src/components/ContextPanel.tsx`.
 - Turbopack on Windows intermittently produced `.next` artifact ENOENT failures; webpack mode was used to isolate real app typing errors.
+
+## Continuation Update (2026-02-16)
+
+- Implemented scalable external-link ingestion/index synchronization:
+    - Added `scripts/sync_master_index.mjs`
+    - Added `scripts/ingestion-status.json`
+    - Added root script shortcut: `npm run index:sync`
+- Upgraded `BORG_MASTER_INDEX.jsonc` to schema `borg-master-index/v2` with:
+    - queue metrics (`processed/pending/failed`)
+    - source telemetry (`ingestion.sources`)
+    - per-entry ingestion metadata (`fetch_status`, `fetch_error`, `fetch_attempts`, `last_checked_at`, `processed_at`, `normalized_url`, `discovered_from`)
+- Synced corpus into canonical index from `scripts/resources-list.json`:
+    - `total_links=565`, `processed=6`, `pending=558`, `failed=1`
+- Next immediate follow-on:
+    - automate append-only outcome logging from live fetch runs into `scripts/ingestion-status.json`
+    - expose queue + retry controls in dashboard UI

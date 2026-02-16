@@ -102,6 +102,12 @@
     - [ ] **Submodule Dashboard V2**: Comprehensive list of all submodules/versions/dates/builds with directory structure explanation. (Priority: High)
     - [ ] **Jules Autopilot Integration**: Dashboard for Google Jules cloud dev env.
     - [ ] **AI Tools Dashboard**: Billing/Usage/OAuth status for all AI tools (OpenAI, Anthropic, Gemini, etc).
+  - **Ecosystem Link Ingestion (User Request)**:
+    - [x] Baseline scalable ingestion/index synchronization pipeline (`scripts/sync_master_index.mjs`) wired to canonical corpus (`scripts/resources-list.json`).
+    - [x] Added processed/pending/failed queue telemetry and per-entry fetch status fields in `BORG_MASTER_INDEX.jsonc` (schema `borg-master-index/v2`).
+    - [x] Added retry/failure seed tracking (`scripts/ingestion-status.json`).
+    - [ ] Add incremental fetch runner that appends live outcomes into ingestion status store automatically.
+    - [ ] Add UI surface for ingestion queue (`processed/pending/failed`) with retry controls.
   - **Documentation Overhaul (User Request)**:
     - [ ] "Universal LLM Instructions" consolidation (CLAUDE.md, GEMINI.md, etc).
     - [ ] `VISION.md` update with "Ultimate Goal" text.

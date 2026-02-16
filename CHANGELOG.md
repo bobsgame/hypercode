@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Added
+
+- **Scalable Link Ingestion Sync**:
+  - Added `scripts/sync_master_index.mjs` to normalize and synchronize `BORG_MASTER_INDEX.jsonc` from `scripts/resources-list.json` and `scripts/ingestion-status.json`.
+  - Added `scripts/ingestion-status.json` for explicit processed/pending/failed outcome tracking and failure retry seeds.
+  - Added root script alias: `npm run index:sync`.
+
+### Changed
+
+- **Master Index Schema Upgrade**:
+  - Upgraded `BORG_MASTER_INDEX.jsonc` to schema `borg-master-index/v2`.
+  - Added ingestion telemetry (`ingestion.sources`, `ingestion.queue`) and expanded per-entry metadata (`fetch_status`, `fetch_error`, `fetch_attempts`, `last_checked_at`, `processed_at`, `normalized_url`, `discovered_from`).
+  - Synced canonical corpus to 565 tracked links with queue visibility (`processed=6`, `pending=558`, `failed=1`).
+
 ## [2.6.2] - 2026-02-12
 
 ### Fixed

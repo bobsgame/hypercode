@@ -12,6 +12,8 @@
     "lint": "turbo run lint",
     "test": "turbo run test",
     "check:placeholders": "node scripts/check-placeholder-regressions.mjs",
+    "index:sync": "node scripts/sync_master_index.mjs",
+    "index:update": "node scripts/update_ingestion_status.mjs",
     "clean": "turbo run clean",
     "typecheck": "turbo run typecheck"
   },

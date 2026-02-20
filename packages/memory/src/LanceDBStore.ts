@@ -2,8 +2,9 @@ import { connect } from '@lancedb/lancedb';
 import { pipeline } from '@xenova/transformers';
 import path from 'path';
 import fs from 'fs';
+import { IVectorStore } from './IVectorStore.js';
 
-export class VectorStore {
+export class LanceDBStore implements IVectorStore {
     private dbPath: string;
     private db: any; // Type as any for now to avoid strict typing issues with lancedb
     private embedder: any;

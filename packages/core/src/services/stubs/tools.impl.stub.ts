@@ -1,3 +1,3 @@
 export const toolsImplementations = {
-    create: async (_args: any) => Promise.resolve(),
+    create: async (_args: unknown) => Promise.resolve(),
 };

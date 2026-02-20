@@ -97,6 +97,17 @@ interface ApiActivity {
   [key: string]: unknown;
 }
 
+type SessionSyncLogEntry = {
+  sessionId: string;
+  targetStatus?: Session['status'];
+  outcome: 'success' | 'fallback' | 'error';
+  message: string;
+  timestamp: string;
+};
+
+const JULES_SYNC_LOG_STORAGE_KEY = 'jules-session-sync-log-v1';
+const JULES_SYNC_LOG_LIMIT = 40;
+
 export class JulesAPIError extends Error {
   constructor(
     message: string,
@@ -114,6 +125,19 @@ export class JulesClient {
 
   constructor(apiKey: string) {
     this.apiKey = apiKey;
+  }
+
+  private appendSyncLog(entry: SessionSyncLogEntry): void {
+    if (typeof window === 'undefined') return;
+
+    try {
+      const existingRaw = window.localStorage.getItem(JULES_SYNC_LOG_STORAGE_KEY);
+      const existing: SessionSyncLogEntry[] = existingRaw ? JSON.parse(existingRaw) : [];
+      const next = [entry, ...existing].slice(0, JULES_SYNC_LOG_LIMIT);
+      window.localStorage.setItem(JULES_SYNC_LOG_STORAGE_KEY, JSON.stringify(next));
+    } catch {
+      // Ignore telemetry persistence failures.
+    }
   }
 
   private async request<T>(
@@ -358,9 +382,76 @@ export class JulesClient {
   }
 
   async updateSession(id: string, data: Partial<Session>): Promise<Session> {
-    // TODO: Implement actual API call when available
-    console.warn('updateSession not implemented in API client', id, data);
-    return this.getSession(id);
+    const patchBody: Record<string, unknown> = {};
+
+    if (typeof data.title === 'string') {
+      patchBody.title = data.title;
+    }
+
+    if (typeof data.status === 'string') {
+      const statusToState: Record<Session['status'], string> = {
+        active: 'ACTIVE',
+        paused: 'PAUSED',
+        completed: 'COMPLETED',
+        failed: 'FAILED',
+        awaiting_approval: 'AWAITING_PLAN_APPROVAL',
+      };
+      patchBody.state = statusToState[data.status];
+    }
+
+    try {
+      if (Object.keys(patchBody).length > 0) {
+        const response = await this.request<ApiSession>(`/sessions/${id}`, {
+          method: 'PATCH',
+          body: JSON.stringify(patchBody),
+        });
+
+        this.appendSyncLog({
+          sessionId: id,
+          targetStatus: data.status,
+          outcome: 'success',
+          message: 'PATCH /sessions succeeded.',
+          timestamp: new Date().toISOString(),
+        });
+
+        return this.transformSession(response);
+      }
+
+      return this.getSession(id);
+    } catch (error) {
+      if (error instanceof JulesAPIError && [404, 405, 501].includes(error.status || 0)) {
+        // Graceful fallback for API versions without PATCH support.
+        if (data.status === 'active') {
+          await this.resumeSession(id).catch(() => undefined);
+        }
+
+        this.appendSyncLog({
+          sessionId: id,
+          targetStatus: data.status,
+          outcome: 'fallback',
+          message: `PATCH unsupported (status ${error.status ?? 'unknown'}). Applied local fallback.`,
+          timestamp: new Date().toISOString(),
+        });
+
+        const current = await this.getSession(id);
+        return {
+          ...current,
+          ...data,
+          updatedAt: new Date().toISOString(),
+        };
+      }
+
+      const message = error instanceof Error ? error.message : 'Unknown sync error';
+      this.appendSyncLog({
+        sessionId: id,
+        targetStatus: data.status,
+        outcome: 'error',
+        message,
+        timestamp: new Date().toISOString(),
+      });
+
+      throw error;
+    }
   }
 
   async approvePlan(sessionId: string): Promise<void> {

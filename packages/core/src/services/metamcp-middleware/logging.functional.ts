@@ -1,8 +1,8 @@
-// @ts-nocheck
 import { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { db } from "../../db/index.js";
-import { toolCallLogsTable } from "../../db/schema.js";
+import { toolCallLogsTable } from "../../db/metamcp-schema.js";
 import { CallToolMiddleware } from "./functional-middleware.js";
+import { randomUUID } from "node:crypto";
 
 export function createLoggingMiddleware(options?: {
     enabled?: boolean;
@@ -16,11 +16,13 @@ export function createLoggingMiddleware(options?: {
 
         const startTime = Date.now();
         let result: CallToolResult | null = null;
-        let error: any = null;
+        let error: unknown = null;
 
         // Check for parent call ID in _meta (passed from run_code recursion)
-        // @ts-ignore - _meta is not in CallToolRequest params type officially but we use it
-        const parentCallUuid = request.params._meta?.parentCallUuid as string | undefined;
+        const paramsWithMeta = request.params as typeof request.params & {
+            _meta?: { parentCallUuid?: string };
+        };
+        const parentCallUuid = paramsWithMeta._meta?.parentCallUuid;
 
         try {
             result = await next(request, context);
@@ -32,16 +34,16 @@ export function createLoggingMiddleware(options?: {
             const duration = Date.now() - startTime;
 
             // Log to DB asynchronously
-            // Forced cast to any to bypass TS overloading errors
             db.insert(toolCallLogsTable).values({
+                uuid: randomUUID(),
                 session_id: context.sessionId,
                 tool_name: request.params.name,
-                arguments: request.params.arguments as Record<string, unknown>,
-                result: result as unknown as Record<string, unknown>, // Casting for JSONB compatibility
+                args: (request.params.arguments as Record<string, unknown> | undefined) ?? null,
+                result: (result as Record<string, unknown> | null) ?? null,
                 error: error ? String(error) : null,
-                duration_ms: String(duration),
+                duration_ms: duration,
                 parent_call_uuid: parentCallUuid,
-            } as any).catch(err => {
+            }).catch((err) => {
                 console.error("Failed to persist tool call log:", err);
             });
         }

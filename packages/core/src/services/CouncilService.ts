@@ -25,13 +25,15 @@ export interface CouncilSession {
     createdAt: number;
 }
 
+export type CouncilAgent = unknown;
+
 export class CouncilService {
     private sessions: Map<string, CouncilSession> = new Map();
-    private agents: Map<string, any> = new Map();
+    private agents: Map<string, CouncilAgent> = new Map();
 
     constructor() { }
 
-    public registerAgent(role: string, agent: any): void {
+    public registerAgent(role: string, agent: CouncilAgent): void {
         this.agents.set(role, agent);
     }
 

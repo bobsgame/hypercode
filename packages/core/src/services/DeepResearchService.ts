@@ -4,19 +4,28 @@ import { SearchService } from '@borg/search';
 import { MemoryManager } from './MemoryManager.js';
 import type { MCPServer } from '../MCPServer.js';
 
-/** Minimal interface for the server reference used by DeepResearchService */
-interface BorgServerRef {
-    executeTool(name: string, args: Record<string, unknown>): Promise<{ content?: { text: string }[] }>;
-    wssInstance?: {
-        clients: Set<{ readyState: number; send(data: string): void }>;
-    };
-}
+/**
+ * Minimal server interface — only the methods DeepResearchService actually needs.
+ * Uses structural typing so we don't need a full MCPServer reference (avoids circular deps).
+ */
+type DeepResearchServer = {
+    executeTool: MCPServer['executeTool'];
+    wssInstance?: MCPServer['wssInstance'];
+};
 
+/** WebSocket client shape for broadcasting research progress events */
+type WebSocketLikeClient = {
+    readyState: number;
+    send(data: string): void;
+};
+
+/** Individual search result entry from WebSearchTool */
 interface SearchResultEntry {
     title?: string;
     url?: string;
 }
 
+/** Structured output of a research operation */
 export interface ResearchResult {
     topic: string;
     summary: string;
@@ -24,14 +33,41 @@ export interface ResearchResult {
     relatedTopics: string[];
 }
 
+/**
+ * DeepResearchService
+ *
+ * The core research engine powering ResearcherAgent and the /research tRPC route.
+ *
+ * Pipeline:
+ * 1. **Query Generation** — LLM generates 3 targeted search queries from the topic
+ * 2. **Web Search** — WebSearchTool (DuckDuckGo via duck-duck-scrape) executes queries
+ * 3. **Source Collection** — Top results are gathered with titles and URLs
+ * 4. **LLM Synthesis** — A high-complexity model synthesizes findings into a structured report
+ * 5. **Memory Storage** — Report is saved to MemoryManager for future context retrieval
+ * 6. **Recursive Expansion** — Related topics are explored recursively (depth/breadth controlled)
+ *
+ * Dependencies:
+ * - `LLMService` — for query generation and synthesis (uses ModelSelector for model choice)
+ * - `MemoryManager` — for persisting research reports as retrievable context
+ * - `WebSearchTool` — dynamically imported from `../tools/WebSearchTool.js`
+ * - `MCPServer` (via DeepResearchServer) — for `ingest()` tool execution and WebSocket broadcasting
+ *
+ * Note: `SearchService` (local ripgrep) is accepted in constructor but intentionally unused.
+ * Web search is handled by `WebSearchTool` which provides external internet access.
+ */
 export class DeepResearchService {
+    /** LLM service for query generation and report synthesis */
     private llm: LLMService;
+    /** Memory system for persisting research reports */
     private memory: MemoryManager;
-    private server: BorgServerRef;
+    /** Server reference for tool execution (ingest) and WebSocket broadcasting */
+    private server: DeepResearchServer;
 
-    constructor(server: BorgServerRef, llm: LLMService, _search: SearchService, memory: MemoryManager) {
+    constructor(server: DeepResearchServer, llm: LLMService, _search: SearchService, memory: MemoryManager) {
         this.server = server;
         this.llm = llm;
+        // Note: SearchService is local ripgrep — not used for web research.
+        // Web search is handled by dynamically importing WebSearchTool.
         this.memory = memory;
     }
 
@@ -247,8 +283,8 @@ export class DeepResearchService {
     }
 
     private broadcast(type: string, payload: Record<string, unknown>) {
-        if (this.server.wssInstance) {
-            this.server.wssInstance.clients.forEach((client) => {
+        if (this.server.wssInstance && this.server.wssInstance.clients) {
+            this.server.wssInstance.clients.forEach((client: WebSocketLikeClient) => {
                 if (client.readyState === 1) {
                     client.send(JSON.stringify({ type, payload }));
                 }

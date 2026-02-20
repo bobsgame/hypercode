@@ -1,9 +1,26 @@
 import { z } from 'zod';
-import { t, getDirectorRuntime } from '../lib/trpc-core.js';
+import { t, getDirectorRuntime, getMcpServer } from '../lib/trpc-core.js';
 
 export const directorConfigRouter = t.router({
     get: t.procedure.query(async () => {
         return getDirectorRuntime().getConfig?.() ?? null;
+    }),
+    test: t.procedure.query(async () => {
+        const director = getDirectorRuntime();
+        const mcp = getMcpServer();
+
+        const status = director.getStatus?.() ?? null;
+        const llmServiceReady = Boolean(mcp.llmService);
+        const sessionState = mcp.sessionManager?.getState?.() ?? null;
+
+        return {
+            success: true,
+            timestamp: new Date().toISOString(),
+            directorReady: Boolean(director),
+            llmServiceReady,
+            status,
+            sessionState,
+        };
     }),
     update: t.procedure.input(z.object({
         defaultTopic: z.string().optional(),

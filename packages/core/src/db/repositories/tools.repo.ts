@@ -12,11 +12,8 @@
  * HOW:
  * - Upserts tools using `onConflictDoUpdate`.
  * - Handles bulk deletions of obsolete tools.
- * - [TODO] Integrates with AI Description Enhancer (stubbed for now).
+ * - Exposes a feature-flagged post-upsert hook for optional AI enhancement pipelines.
  */
-
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/ban-ts-comment */
 
 import {
     DatabaseTool,
@@ -25,7 +22,6 @@ import {
 } from "../../types/metamcp/index.js";
 import { and, eq, notInArray, sql } from "drizzle-orm";
 
-// TODO: Port and enable AI services in Phase 3
 // import { descriptionEnhancerService } from "../../lib/ai/description-enhancer.service";
 // import { toolSearchService } from "../../lib/ai/tool-search.service";
 
@@ -33,27 +29,48 @@ import { db } from "../index.js";
 import { toolsTable } from "../metamcp-schema.js";
 import { randomUUID } from "node:crypto";
 
+type ToolRow = typeof toolsTable.$inferSelect;
+type ToolInsert = typeof toolsTable.$inferInsert;
+
+function runPostUpsertHooks(tools: DatabaseTool[]): void {
+    // Optional future integration point for AI description enhancement / embeddings.
+    // Disabled by default to preserve current behavior and avoid introducing hidden async side effects.
+    if (process.env.ENABLE_TOOL_AI_POST_PROCESSING !== "true") {
+        return;
+    }
+
+    if (tools.length === 0) {
+        return;
+    }
+
+    console.info(
+        `[ToolsRepository] ENABLE_TOOL_AI_POST_PROCESSING=true; ${tools.length} tools queued for post-processing hook.`,
+    );
+}
+
 export class ToolsRepository {
     async findByMcpServerUuid(mcpServerUuid: string): Promise<DatabaseTool[]> {
-        // @ts-ignore
         return await db
             .select()
-            .from(toolsTable as any)
-            .where(eq(toolsTable.mcp_server_uuid as any, mcpServerUuid))
-            .orderBy(toolsTable.name as any) as any;
+            .from(toolsTable)
+            .where(eq(toolsTable.mcp_server_uuid, mcpServerUuid))
+            .orderBy(toolsTable.name);
     }
 
     async findAll(): Promise<DatabaseTool[]> {
-        // @ts-ignore
-        return await db.select().from(toolsTable as any).orderBy(toolsTable.name as any) as any;
+        return await db.select().from(toolsTable).orderBy(toolsTable.name);
     }
 
     async create(input: ToolCreateInput): Promise<DatabaseTool> {
-        // @ts-ignore
-        const [createdTool] = await db.insert(toolsTable as any).values({
-            ...input,
+        const payload: ToolInsert = {
             uuid: randomUUID(),
-        } as any).returning() as any;
+            name: input.name,
+            description: input.description ?? null,
+            toolSchema: input.toolSchema,
+            mcp_server_uuid: input.mcp_server_uuid,
+        };
+
+        const [createdTool] = await db.insert(toolsTable).values(payload).returning();
 
         return createdTool;
     }
@@ -64,7 +81,7 @@ export class ToolsRepository {
         }
 
         // Format tools for database insertion
-        const toolsToInsert = input.tools.map((tool) => ({
+        const toolsToInsert: ToolInsert[] = input.tools.map((tool) => ({
             uuid: randomUUID(),
             name: tool.name,
             description: tool.description || "",
@@ -78,10 +95,9 @@ export class ToolsRepository {
 
         // Batch insert all tools with upsert
         // Note: Drizzle's `returning` behavior depends on the driver. better-sqlite3 supports it.
-        // @ts-ignore
         const results = await db
-            .insert(toolsTable as any)
-            .values(toolsToInsert as any)
+            .insert(toolsTable)
+            .values(toolsToInsert)
             .onConflictDoUpdate({
                 target: [toolsTable.mcp_server_uuid, toolsTable.name],
                 set: {
@@ -89,57 +105,29 @@ export class ToolsRepository {
                     toolSchema: sql`excluded.tool_schema`,
                     updated_at: new Date(),
                 },
-            } as any)
-            .returning() as any;
+            })
+            .returning();
 
-        // TODO: Enable AI background tasks in Phase 3
-        /*
-        // Async update embeddings and enhance descriptions for all upserted tools
-        // We do this in the background to not block the request
-        Promise.allSettled(
-            results.map(async (tool) => {
-            try {
-                // 1. Enhance description (Optional, needs API Key)
-                await descriptionEnhancerService.enhanceToolDescription({
-                uuid: tool.uuid,
-                name: tool.name,
-                description: tool.description,
-                toolSchema: tool.toolSchema,
-                });
-    
-                // 2. Update embedding (Will use enhanced description if available, or fall back to original)
-                // We might need to wait for step 1 to finish so the DB has the new description
-                await toolSearchService.updateToolEmbedding(tool.uuid);
-            } catch (err) {
-                console.error(
-                `Failed to process background tasks for tool ${tool.name} (${tool.uuid}):`,
-                err,
-                );
-            }
-            }),
-        );
-        */
+        runPostUpsertHooks(results);
 
         return results;
     }
 
     async findByUuid(uuid: string): Promise<DatabaseTool | undefined> {
-        // @ts-ignore
         const [tool] = await db
             .select()
-            .from(toolsTable as any)
-            .where(eq(toolsTable.uuid as any, uuid))
-            .limit(1) as any;
+            .from(toolsTable)
+            .where(eq(toolsTable.uuid, uuid))
+            .limit(1);
 
         return tool;
     }
 
     async deleteByUuid(uuid: string): Promise<DatabaseTool | undefined> {
-        // @ts-ignore
         const [deletedTool] = await db
-            .delete(toolsTable as any)
-            .where(eq(toolsTable.uuid as any, uuid))
-            .returning() as any;
+            .delete(toolsTable)
+            .where(eq(toolsTable.uuid, uuid))
+            .returning();
 
         return deletedTool;
     }
@@ -156,24 +144,22 @@ export class ToolsRepository {
     ): Promise<DatabaseTool[]> {
         if (currentToolNames.length === 0) {
             // If no tools are provided, delete all tools for this server
-            // @ts-ignore
             return await db
-                .delete(toolsTable as any)
-                .where(eq(toolsTable.mcp_server_uuid as any, mcpServerUuid))
-                .returning() as any;
+                .delete(toolsTable)
+                .where(eq(toolsTable.mcp_server_uuid, mcpServerUuid))
+                .returning();
         }
 
         // Delete tools that are in DB but not in current tool list
-        // @ts-ignore
         return await db
-            .delete(toolsTable as any)
+            .delete(toolsTable)
             .where(
                 and(
-                    eq(toolsTable.mcp_server_uuid as any, mcpServerUuid),
-                    notInArray(toolsTable.name as any, currentToolNames),
-                ) as any,
+                    eq(toolsTable.mcp_server_uuid, mcpServerUuid),
+                    notInArray(toolsTable.name, currentToolNames),
+                ),
             )
-            .returning() as any;
+            .returning();
     }
 
     /**

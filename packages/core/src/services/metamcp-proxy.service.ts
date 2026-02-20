@@ -26,13 +26,13 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 
-// Stubs
-import { toolsImplementations } from "./stubs/tools.impl.stub.js";
-import { toolSearchService } from "./stubs/tool-search.service.stub.js";
-import { agentService } from "./stubs/agent.service.stub.js";
-import { codeExecutorService } from "./stubs/code-executor.service.stub.js";
-import { savedScriptService } from "./stubs/saved-script.service.stub.js";
 import { toonSerializer } from "./stubs/toon.serializer.stub.js";
+import { jsonConfigProvider } from "./config/JsonConfigProvider.js";
+import { toolRegistry } from "./ToolRegistry.js";
+import { SavedScriptConfig } from "../interfaces/IConfigProvider.js";
+
+import { codeExecutorService } from "./CodeExecutorService.js";
+// DB Repositories removed
 
 // Ported Services
 import { configImportService } from "./config-import.service.js";
@@ -43,8 +43,8 @@ import { getMcpServers } from "./fetch-metamcp.service.js";
 import { mcpServerPool } from "./mcp-server-pool.service.js";
 import { toolsSyncCache } from "./tools-sync-cache.service.js";
 import { parseToolName } from "./tool-name-parser.service.js";
-import { sanitizeName } from "./utils.service.js";
-import { getAgentMemoryService } from "../lib/trpc-core.js"; // Import memory service
+import { sanitizeName } from "./common-utils.js";
+import { getAgentMemoryService, getMcpServer } from "../lib/trpc-core.js";
 
 // Middleware
 import {
@@ -64,6 +64,106 @@ import {
     createToolOverridesListToolsMiddleware,
     mapOverrideNameToOriginal,
 } from "./metamcp-middleware/tool-overrides.functional.js";
+
+const toolsImplementations = {
+    create: async ({
+        tools,
+        mcpServerUuid,
+        serverName
+    }: {
+        tools: Tool[];
+        mcpServerUuid: string;
+        serverName: string;
+    }) => {
+        // Register tools in memory
+        toolRegistry.registerTools(tools, mcpServerUuid, serverName);
+    },
+};
+
+const agentService = {
+    // ... (unchanged) ...
+    runAgent: async (
+        task: string,
+        toolCallback: (toolName: string, toolArgs: unknown, meta?: Record<string, unknown>) => Promise<unknown>,
+        _policyId?: string,
+    ) => {
+        const mcp = getMcpServer();
+        const llm = mcp.llmService;
+
+        const model = await llm.modelSelector.selectModel({ taskComplexity: 'medium' });
+        const prompt = `You are an autonomous tool-using assistant.\nTask: ${task}\n\nReturn JSON only:\n{\n  "analysis": "short plan",\n  "tool": { "name": "optional_tool_name", "arguments": {} },\n  "final": "final response"\n}`;
+        const response = await llm.generateText(
+            model.provider,
+            model.modelId,
+            'You are a precise JSON-only planner. Use a tool only when required.',
+            prompt,
+        );
+
+        const raw = response.content?.trim() ?? '{}';
+        let parsed: {
+            analysis?: string;
+            tool?: { name?: string; arguments?: unknown };
+            final?: string;
+        };
+
+        try {
+            parsed = JSON.parse(raw);
+        } catch {
+            const fenced = raw.match(/```json\s*([\s\S]*?)```/i)?.[1];
+            parsed = fenced ? JSON.parse(fenced) : { final: raw };
+        }
+
+        let toolResult: unknown = null;
+        if (parsed.tool?.name) {
+            toolResult = await toolCallback(parsed.tool.name, parsed.tool.arguments ?? {}, {});
+        }
+
+        return {
+            analysis: parsed.analysis ?? 'No analysis provided.',
+            toolResult,
+            final: parsed.final ?? 'Task processed.',
+            rawModelOutput: raw,
+        };
+    },
+};
+const toolSearchService = {
+    searchTools: async (query: string, limit: number = 10) => {
+        const q = query.trim().toLowerCase();
+        const all = toolRegistry.getAllTools(); // Use registry
+        const filtered = all
+            .filter((rt) => {
+                const name = String(rt.tool.name ?? '').toLowerCase();
+                const description = String(rt.tool.description ?? '').toLowerCase();
+                return name.includes(q) || description.includes(q);
+            })
+            .slice(0, Math.max(1, limit));
+
+        return filtered.map((rt) => ({
+            name: rt.tool.name,
+            description: rt.tool.description,
+            mcpServerUuid: rt.mcpServerUuid,
+        }));
+    },
+};
+
+const savedScriptService = {
+    listScripts: async (): Promise<SavedScriptConfig[]> => {
+        return jsonConfigProvider.loadScripts();
+    },
+    getScript: async (name: string) => {
+        const scripts = await savedScriptService.listScripts();
+        return scripts.find((script: SavedScriptConfig) => script.name === name) ?? null;
+    },
+    saveScript: async (name: string, code: string, description?: string) => {
+        const script: SavedScriptConfig = {
+            name,
+            code,
+            description: description ?? null,
+        };
+        await jsonConfigProvider.saveScript(script);
+        return script;
+    },
+};
 
 /**
  * Filter out tools that are overrides of existing tools to prevent duplicates in database
@@ -120,7 +220,7 @@ export const attachTo = async (
     namespaceUuid: string,
     sessionId: string,
     nativeToolDefinitions: Tool[],
-    nativeToolHandler: (name: string, args: any) => Promise<CallToolResult>,
+    nativeToolHandler: (name: string, args: unknown) => Promise<CallToolResult>,
     includeInactiveServers: boolean = false,
 ) => {
     const toolToClient: Record<string, ConnectedClient> = {};
@@ -377,7 +477,7 @@ export const attachTo = async (
         // Fetch user-defined saved scripts and expose them as tools
         try {
             const savedScripts = await savedScriptService.listScripts();
-            const scriptTools: Tool[] = savedScripts.map(script => ({
+            const scriptTools: Tool[] = savedScripts.map((script: SavedScriptConfig) => ({
                 name: `script__${script.name}`,
                 description: `[Saved Script] ${script.description || "No description"}`,
                 inputSchema: {
@@ -456,10 +556,16 @@ export const attachTo = async (
                                 serverName
                             );
                             if (toolsToSave.length > 0) {
-                                await toolsImplementations.create({
-                                    tools: toolsToSave,
-                                    mcpServerUuid: mcpServerUuid,
-                                });
+                                // Use in-memory registry with namespaced names to match Proxy/Dashboard expectations
+                                const namespacedTools = toolsToSave.map(t => ({
+                                    ...t,
+                                    name: `${sanitizeName(serverName)}__${t.name}`
+                                }));
+                                toolRegistry.registerTools(
+                                    namespacedTools,
+                                    mcpServerUuid,
+                                    serverName
+                                );
                             }
                         } catch (e) {
                             console.error("DB Save Error", e);
@@ -606,38 +712,17 @@ export const attachTo = async (
 
         if (name === "run_python") {
             const { code } = args as { code: string };
-            // We import the execution logic from the handler, but we need to inject dependencies here?
-            // Wait, the handler implementation I wrote earlier (execution.handler.ts) contained the logic.
-            // But here I'm using an inline implementation pattern for run_code.
-            // Let's import the handleExecutionTools logic or reimplement it here for consistency?
-            // Let's use the implementation I restored in execution.handler.ts by importing it.
-
-            // TODO: Port execution.handler logic or stub if complex.
-            // const { handleExecutionTools } = await import("./handlers/execution.handler");
-
-            // Prepare context
-            const context: any = { // Ideally should match MetaToolContext interface
-                sessionId,
-                namespaceUuid,
-                toolToClient,
-                loadedTools,
-                addToLoadedTools,
-                recursiveHandler: async (n: string, a: any, m: any) => {
-                    const res = await delegateHandler({
-                        method: "tools/call",
-                        params: { name: n, arguments: a, _meta: m }
-                    }, handlerContext);
-                    return res;
-                }
-            };
-
-            // Stubbed execution result for now
-            // const result = await handleExecutionTools(name, args, meta, context);
-            const result = { content: [{ type: "text", text: "Python execution stubbed in Phase 2." }] }; // STUB
-
-            if (result) return formatResult(result as CallToolResult);
-
-            return { content: [{ type: "text", text: "Python execution failed to return result." }], isError: true };
+            try {
+                const output = await codeExecutorService.executeCode(code);
+                return {
+                    content: [{ type: "text", text: output }]
+                };
+            } catch (error: any) {
+                return {
+                    content: [{ type: "text", text: `Execution failed: ${error.message}` }],
+                    isError: true
+                };
+            }
         }
 
         if (name === "save_tool_set") {
@@ -1024,7 +1109,6 @@ export const attachTo = async (
         const visitedServers = new Set<string>();
 
         // Filter out self-referencing servers before processing
-        // @ts-ignore
         const validPromptServers = Object.entries(serverParams).filter(
             ([uuid, params]) => {
                 // Skip if we've already visited this server to prevent circular references
@@ -1125,7 +1209,6 @@ export const attachTo = async (
         const visitedServers = new Set<string>();
 
         // Filter out self-referencing servers before processing
-        // @ts-ignore
         const validResourceServers = Object.entries(serverParams).filter(
             ([uuid, params]) => {
                 // Skip if we've already visited this server to prevent circular references
@@ -1256,7 +1339,6 @@ export const attachTo = async (
             const visitedServers = new Set<string>();
 
             // Filter out self-referencing servers before processing
-            // @ts-ignore
             const validTemplateServers = Object.entries(serverParams).filter(
                 ([uuid, params]) => {
                     // Skip if we've already visited this server to prevent circular references

@@ -5,6 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { ScrollArea } from "./ui/scroll-area";
 import { Bot, User, BrainCircuit, ShieldAlert, Cpu } from "lucide-react";
+import { resolveCouncilWsUrl } from '../lib/endpoints';
+import { createReconnectPolicy, getReconnectDelayMs, shouldRetryReconnect } from '../lib/connection-policy';
 
 interface Transcript {
     speaker: string;
@@ -16,41 +18,73 @@ export function CouncilDebateWidget() {
     const [transcripts, setTranscripts] = useState<Transcript[]>([]);
     const [activeSpeaker, setActiveSpeaker] = useState<string | null>(null);
     const scrollRef = useRef<HTMLDivElement>(null);
+    const wsRef = useRef<WebSocket | null>(null);
+    const reconnectAttemptsRef = useRef(0);
+    const reconnectTimerRef = useRef<number | null>(null);
+    const reconnectPolicy = createReconnectPolicy();
 
     useEffect(() => {
-        const ws = new WebSocket('ws://localhost:3000');
+        const wsUrl = resolveCouncilWsUrl(process.env.NEXT_PUBLIC_COUNCIL_WS_URL);
 
-        ws.onmessage = (event) => {
-            try {
-                const data = JSON.parse(event.data);
+        const connect = () => {
+            const ws = new WebSocket(wsUrl);
 
-                // Handle COUNCIL events (Request/Response format might differ based on ADK)
-                // If broadcastRequest uses a specific envelope, handle it.
-                // Assuming direct payload for now or wrapped in 'type'.
+            ws.onopen = () => {
+                reconnectAttemptsRef.current = 0;
+            };
 
-                if (data.type === 'COUNCIL_START') {
-                    setTopic(data.topic);
-                    setTranscripts([]);
-                    setActiveSpeaker(null);
-                }
-                else if (data.type === 'COUNCIL_THINKING') {
-                    setActiveSpeaker(data.speaker);
-                }
-                else if (data.type === 'COUNCIL_TRANSCRIPT') {
-                    setTranscripts(prev => [...prev, { speaker: data.speaker, text: data.text }]);
-                    setActiveSpeaker(null);
-                }
-                else if (data.type === 'COUNCIL_END') {
-                    setActiveSpeaker(null);
-                }
+            ws.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
 
-            } catch (e) {
-                console.error("Council Widget WS Error:", e);
-            }
+                    // Handle COUNCIL events (Request/Response format might differ based on ADK)
+                    // If broadcastRequest uses a specific envelope, handle it.
+                    // Assuming direct payload for now or wrapped in 'type'.
+
+                    if (data.type === 'COUNCIL_START') {
+                        setTopic(data.topic);
+                        setTranscripts([]);
+                        setActiveSpeaker(null);
+                    }
+                    else if (data.type === 'COUNCIL_THINKING') {
+                        setActiveSpeaker(data.speaker);
+                    }
+                    else if (data.type === 'COUNCIL_TRANSCRIPT') {
+                        setTranscripts(prev => [...prev, { speaker: data.speaker, text: data.text }]);
+                        setActiveSpeaker(null);
+                    }
+                    else if (data.type === 'COUNCIL_END') {
+                        setActiveSpeaker(null);
+                    }
+
+                } catch (e) {
+                    console.error("Council Widget WS Error:", e);
+                }
+            };
+
+            ws.onerror = () => {
+                ws.close();
+            };
+
+            ws.onclose = () => {
+                wsRef.current = null;
+                if (shouldRetryReconnect(reconnectAttemptsRef.current, reconnectPolicy)) {
+                    reconnectAttemptsRef.current += 1;
+                    const delayMs = getReconnectDelayMs(reconnectAttemptsRef.current, reconnectPolicy);
+                    reconnectTimerRef.current = window.setTimeout(connect, delayMs);
+                }
+            };
+
+            wsRef.current = ws;
         };
 
+        connect();
+
         return () => {
-            ws.close();
+            if (reconnectTimerRef.current !== null) {
+                window.clearTimeout(reconnectTimerRef.current);
+            }
+            wsRef.current?.close();
         };
     }, []);
 

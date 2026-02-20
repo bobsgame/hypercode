@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * @file mcp-servers.repo.ts
  * @module packages/core/src/db/repositories/mcp-servers.repo
@@ -15,9 +14,6 @@
  * - Manages 'ACTIVE'/'INACTIVE' status.
  */
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/ban-ts-comment */
-
 import {
     DatabaseMcpServer,
     McpServerCreateInput,
@@ -29,12 +25,26 @@ import { and, eq, isNull, or } from "drizzle-orm";
 import { z } from "zod";
 
 import { randomUUID } from "node:crypto";
+import * as fs from "fs/promises";
+import * as path from "path";
 
-// import logger from "@/utils/logger"; // TODO: Port logger or use console
+
+// Keep console-backed logger until centralized logger wiring is introduced in this package.
 const logger = console;
 
 import { db } from "../index.js";
 import { mcpServersTable } from "../metamcp-schema.js";
+
+type McpServerRow = typeof mcpServersTable.$inferSelect;
+type McpServerInsert = typeof mcpServersTable.$inferInsert;
+
+function normalizeErrorStatus(
+    status: z.infer<typeof McpServerErrorStatusEnum>,
+): McpServerInsert["error_status"] {
+    // The shared Zod enum includes "ERROR" for legacy compatibility,
+    // but the DB column only accepts concrete error categories.
+    return status === "ERROR" ? "INTERNAL_ERROR" : status;
+}
 
 // Helper function to handle Database errors (PostgreSQL & SQLite)
 function handleDatabaseError(
@@ -66,17 +76,30 @@ function handleDatabaseError(
 }
 
 export class McpServersRepository {
-    async create(input: McpServerCreateInput): Promise<DatabaseMcpServer> {
+    async create(input: McpServerCreateInput, options?: { skipSync?: boolean }): Promise<DatabaseMcpServer> {
         try {
-            // @ts-ignore
-            const [createdServer] = await db
-                .insert(mcpServersTable as any)
-                .values({
-                    uuid: randomUUID(),
-                    ...input,
-                } as any)
-                .returning() as any;
+            const payload: McpServerInsert = {
+                uuid: randomUUID(),
+                name: input.name,
+                description: input.description ?? null,
+                type: input.type,
+                command: input.command ?? null,
+                args: input.args ?? [],
+                env: input.env ?? {},
+                url: input.url ?? null,
+                bearerToken: input.bearerToken ?? null,
+                headers: input.headers ?? {},
+                user_id: input.user_id ?? "system",
+            };
 
+            const [createdServer] = await db
+                .insert(mcpServersTable)
+                .values(payload)
+                .returning();
+
+            if (!options?.skipSync) {
+                await this.syncToMcpJson();
+            }
             return createdServer;
         } catch (error) {
             handleDatabaseError(error, "create", input.name);
@@ -86,14 +109,12 @@ export class McpServersRepository {
     async findAll(userId?: string): Promise<DatabaseMcpServer[]> {
         try {
             if (userId) {
-                // @ts-ignore
                 return await db
                     .select()
-                    .from(mcpServersTable as any)
-                    .where(eq(mcpServersTable.user_id as any, userId)) as any;
+                    .from(mcpServersTable)
+                    .where(eq(mcpServersTable.user_id, userId));
             }
-            // @ts-ignore
-            return await db.select().from(mcpServersTable as any) as any;
+            return await db.select().from(mcpServersTable);
         } catch (error) {
             handleDatabaseError(error, "findAll");
         }
@@ -101,11 +122,10 @@ export class McpServersRepository {
 
     async findPublicMcpServers(): Promise<DatabaseMcpServer[]> {
         try {
-            // @ts-ignore
             return await db
                 .select()
-                .from(mcpServersTable as any)
-                .where(isNull(mcpServersTable.user_id as any)) as any;
+                .from(mcpServersTable)
+                .where(isNull(mcpServersTable.user_id));
         } catch (error) {
             handleDatabaseError(error, "findPublicMcpServers");
         }
@@ -113,16 +133,15 @@ export class McpServersRepository {
 
     async findAccessibleToUser(userId: string): Promise<DatabaseMcpServer[]> {
         try {
-            // @ts-ignore
             return await db
                 .select()
-                .from(mcpServersTable as any)
+                .from(mcpServersTable)
                 .where(
                     or(
-                        eq(mcpServersTable.user_id as any, userId),
-                        isNull(mcpServersTable.user_id as any),
-                    ) as any,
-                ) as any;
+                        eq(mcpServersTable.user_id, userId),
+                        isNull(mcpServersTable.user_id),
+                    ),
+                );
         } catch (error) {
             handleDatabaseError(error, "findAccessibleToUser");
         }
@@ -130,11 +149,10 @@ export class McpServersRepository {
 
     async findByUuid(uuid: string): Promise<DatabaseMcpServer | undefined> {
         try {
-            // @ts-ignore
             const [server] = await db
                 .select()
-                .from(mcpServersTable as any)
-                .where(eq(mcpServersTable.uuid as any, uuid)) as any;
+                .from(mcpServersTable)
+                .where(eq(mcpServersTable.uuid, uuid));
             return server;
         } catch (error) {
             handleDatabaseError(error, "findByUuid");
@@ -143,11 +161,10 @@ export class McpServersRepository {
 
     async findByName(name: string): Promise<DatabaseMcpServer | undefined> {
         try {
-            // @ts-ignore
             const [server] = await db
                 .select()
-                .from(mcpServersTable as any)
-                .where(eq(mcpServersTable.name as any, name)) as any;
+                .from(mcpServersTable)
+                .where(eq(mcpServersTable.name, name));
             return server;
         } catch (error) {
             handleDatabaseError(error, "findByName");
@@ -161,16 +178,16 @@ export class McpServersRepository {
     ): Promise<DatabaseMcpServer | undefined> {
         const [server] = await db
             .select() // .select() implicit returns all fields in Drizzle usually, but better to be safe
-            .from(mcpServersTable as any)
+            .from(mcpServersTable)
             .where(
                 and(
-                    eq(mcpServersTable.name as any, name),
+                    eq(mcpServersTable.name, name),
                     userId
-                        ? eq(mcpServersTable.user_id as any, userId)
-                        : isNull(mcpServersTable.user_id as any),
-                ) as any,
+                        ? eq(mcpServersTable.user_id, userId)
+                        : isNull(mcpServersTable.user_id),
+                ),
             )
-            .limit(1) as any;
+            .limit(1);
 
         return server;
     }
@@ -180,16 +197,15 @@ export class McpServersRepository {
         userId: string,
     ): Promise<DatabaseMcpServer | undefined> {
         try {
-            // @ts-ignore
             const [server] = await db
                 .select()
-                .from(mcpServersTable as any)
+                .from(mcpServersTable)
                 .where(
                     and(
-                        eq(mcpServersTable.uuid as any, uuid),
-                        eq(mcpServersTable.user_id as any, userId),
-                    ) as any,
-                ) as any;
+                        eq(mcpServersTable.uuid, uuid),
+                        eq(mcpServersTable.user_id, userId),
+                    ),
+                );
             return server;
         } catch (error) {
             handleDatabaseError(error, "findByUuidAndUser");
@@ -198,31 +214,37 @@ export class McpServersRepository {
 
     async deleteByUuid(uuid: string): Promise<DatabaseMcpServer | undefined> {
         const [deletedServer] = await db
-            .delete(mcpServersTable as any)
-            .where(eq(mcpServersTable.uuid as any, uuid))
-            .returning() as any;
+            .delete(mcpServersTable)
+            .where(eq(mcpServersTable.uuid, uuid))
+            .returning();
 
+        await this.syncToMcpJson();
         return deletedServer;
     }
 
-    async update(input: McpServerUpdateInput): Promise<DatabaseMcpServer> {
+    async update(input: McpServerUpdateInput, options?: { skipSync?: boolean }): Promise<DatabaseMcpServer> {
         try {
-            // @ts-ignore
+            const { uuid, user_id, ...updates } = input;
+            const payload: Partial<McpServerInsert> = {
+                ...updates,
+                ...(user_id === undefined
+                    ? {}
+                    : { user_id: user_id ?? "system" }),
+            };
+
             const [updatedServer] = await db
-                .update(mcpServersTable as any)
-                .set({
-                    ...input,
-                    ...(input.error_status === null
-                        ? { error_status: "NONE" } // Reset error status if null passed or logic dictates
-                        : {}),
-                } as any)
-                .where(eq(mcpServersTable.uuid as any, input.uuid))
-                .returning() as any;
+                .update(mcpServersTable)
+                .set(payload)
+                .where(eq(mcpServersTable.uuid, uuid))
+                .returning();
 
             if (!updatedServer) {
                 throw new Error(`MCP Server with UUID ${input.uuid} not found.`);
             }
 
+            if (!options?.skipSync) {
+                await this.syncToMcpJson();
+            }
             return updatedServer;
         } catch (error) {
             handleDatabaseError(error, "update", input.name);
@@ -231,14 +253,13 @@ export class McpServersRepository {
 
     async updateErrorStatus(
         uuid: string,
-        status: McpServerErrorStatusEnum,
+        status: z.infer<typeof McpServerErrorStatusEnum>,
     ): Promise<void> {
         try {
-            // @ts-ignore
             await db
-                .update(mcpServersTable as any)
-                .set({ error_status: status } as any)
-                .where(eq(mcpServersTable.uuid as any, uuid)) as any;
+                .update(mcpServersTable)
+                .set({ error_status: normalizeErrorStatus(status) })
+                .where(eq(mcpServersTable.uuid, uuid));
         } catch (error) {
             handleDatabaseError(error, "updateErrorStatus");
         }
@@ -248,7 +269,23 @@ export class McpServersRepository {
         servers: McpServerCreateInput[],
     ): Promise<DatabaseMcpServer[]> {
         try {
-            return await db.insert(mcpServersTable as any).values(servers as any).returning() as any;
+            const payload: McpServerInsert[] = servers.map((server) => ({
+                uuid: randomUUID(),
+                name: server.name,
+                description: server.description ?? null,
+                type: server.type,
+                command: server.command ?? null,
+                args: server.args ?? [],
+                env: server.env ?? {},
+                url: server.url ?? null,
+                bearerToken: server.bearerToken ?? null,
+                headers: server.headers ?? {},
+                user_id: server.user_id ?? "system",
+            }));
+
+            const result = await db.insert(mcpServersTable).values(payload).returning();
+            await this.syncToMcpJson();
+            return result;
         } catch (error: unknown) {
             // Simplified bulk error handling
             console.error("Database error in bulk create:", error);
@@ -261,16 +298,55 @@ export class McpServersRepository {
     async updateServerErrorStatus(input: {
         serverUuid: string;
         errorStatus: z.infer<typeof McpServerErrorStatusEnum>;
-    }) {
+    }): Promise<McpServerRow | undefined> {
         const [updatedServer] = await db
-            .update(mcpServersTable as any)
+            .update(mcpServersTable)
             .set({
-                error_status: input.errorStatus as any,
-            } as any)
-            .where(eq(mcpServersTable.uuid as any, input.serverUuid))
-            .returning() as any;
+                error_status: normalizeErrorStatus(input.errorStatus),
+            })
+            .where(eq(mcpServersTable.uuid, input.serverUuid))
+            .returning();
 
+        // Note: We generally don't sync status updates to mcp.json as it's a configuration file
         return updatedServer;
+    }
+
+    public async syncToMcpJson(): Promise<void> {
+        try {
+            const allServers = await this.findAll();
+            const jsonOutput: Record<string, any> = { mcpServers: {} };
+
+            for (const server of allServers) {
+                // Skip if name is invalid or missing
+                if (!server.name) continue;
+
+                const config: any = {
+                    command: server.command,
+                    args: server.args,
+                    env: server.env,
+                };
+
+                // Only include fields if they are relevant/present
+                if (!config.command) delete config.command;
+                if (!config.args || config.args.length === 0) delete config.args;
+                if (!config.env || Object.keys(config.env).length === 0) delete config.env;
+
+                // Handle different types if needed (e.g. SSE url)
+                if (server.type !== 'STDIO' && server.url) {
+                    config.url = server.url;
+                }
+
+                // If specialized type, might iterate on schema
+                // For now, mapping simplified 'stdio' style config
+                jsonOutput.mcpServers[server.name] = config;
+            }
+
+            const mcpJsonPath = path.resolve(process.cwd(), "mcp.json");
+            await fs.writeFile(mcpJsonPath, JSON.stringify(jsonOutput, null, 2), "utf-8");
+        } catch (error) {
+            console.error("Failed to sync mcp.json:", error);
+            // Don't throw, as DB operation succeeded
+        }
     }
 }
 

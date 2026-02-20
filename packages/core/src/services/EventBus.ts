@@ -13,10 +13,10 @@ export type SystemEventType =
     | 'terminal:error';
 
 export interface SystemEvent {
-    type: SystemEventType;
+    type: SystemEventType | string;
     timestamp: number;
     source: string; // Agent ID or Service Name
-    payload: any;
+    payload: unknown;
 }
 
 export class EventBus extends EventEmitter {
@@ -36,13 +36,13 @@ export class EventBus extends EventEmitter {
             this.wildcardListeners.push({ pattern: regex, listener });
         } else {
             // Standard exact match — EventEmitter expects string|symbol
-            super.on(pattern, listener as (...args: any[]) => void);
+            super.on(pattern, listener as (...args: unknown[]) => void);
         }
     }
 
-    public emitEvent(type: SystemEventType | string, source: string, payload: any) {
+    public emitEvent(type: SystemEventType | string, source: string, payload: unknown) {
         const event: SystemEvent = {
-            type: type as SystemEventType,
+            type,
             timestamp: Date.now(),
             source,
             payload

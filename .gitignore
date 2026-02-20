@@ -61,3 +61,6 @@ packages/ui/ui.log
 **/.borg/*.json
 
 **/.borg/*.log
+
+.chunkhound/
+**/.chunkhound/

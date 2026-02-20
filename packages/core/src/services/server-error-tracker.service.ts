@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { McpServerErrorStatusEnum } from "../types/metamcp/index.js";
 import { mcpServersRepository } from "../db/repositories/index.js";
 import { configService } from "./config.service.js";

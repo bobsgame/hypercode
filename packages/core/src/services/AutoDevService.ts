@@ -32,13 +32,17 @@ export interface ActiveLoop {
     lastOutput: string;
 }
 
+interface AutoDevDirector {
+    executeTask(goal: string, maxSteps?: number): Promise<unknown>;
+}
+
 export class AutoDevService {
     private activeLoops: Map<string, ActiveLoop> = new Map();
     private loopCounter = 0;
-    private director: any; // Director type avoided to prevent circular dep issues if any, but better to import interface
+    private director?: AutoDevDirector;
     private rootDir: string;
 
-    constructor(rootDir: string, director?: any) {
+    constructor(rootDir: string, director?: AutoDevDirector) {
         this.rootDir = rootDir;
         this.director = director;
     }
@@ -121,8 +125,16 @@ export class AutoDevService {
                 console.log(`[AutoDev] ✅ ${config.type} passed on attempt ${loop.currentAttempt}`);
                 return;
 
-            } catch (error: any) {
-                loop.lastOutput = error.stdout || error.stderr || error.message;
+            } catch (error: unknown) {
+                const errorRecord = error && typeof error === 'object'
+                    ? (error as Record<string, unknown>)
+                    : null;
+
+                const stdout = typeof errorRecord?.stdout === 'string' ? errorRecord.stdout : '';
+                const stderr = typeof errorRecord?.stderr === 'string' ? errorRecord.stderr : '';
+                const message = error instanceof Error ? error.message : String(error);
+
+                loop.lastOutput = stdout || stderr || message;
 
                 if (loop.status !== 'running') {
                     // Cancelled

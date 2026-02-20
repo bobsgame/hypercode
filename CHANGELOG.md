@@ -11,12 +11,92 @@ All notable changes to this project will be documented in this file.
   - Added `scripts/ingestion-status.json` for explicit processed/pending/failed outcome tracking and failure retry seeds.
   - Added root script alias: `npm run index:sync`.
 
+### Fixed
+
+- **API Router Refactoring (Database Decoupling)**:
+  - Refactored `toolsRouter` to use `ToolRegistry` instead of direct DB storage, resolving persistent type errors and aligning with MetaMCP architecture.
+  - Refactored `savedScriptsRouter` to use `JsonConfigProvider`, utilizing `mcp.json` as the single source of truth for script storage.
+  - Standardized tool naming convention to `server__tool` across `MetaMCPController` and `ToolRegistry`.
+  - Created `common-utils.ts` to fully decouple utility functions from lingering database dependencies.
+
 ### Changed
 
 - **Master Index Schema Upgrade**:
   - Upgraded `BORG_MASTER_INDEX.jsonc` to schema `borg-master-index/v2`.
   - Added ingestion telemetry (`ingestion.sources`, `ingestion.queue`) and expanded per-entry metadata (`fetch_status`, `fetch_error`, `fetch_attempts`, `last_checked_at`, `processed_at`, `normalized_url`, `discovered_from`).
   - Synced canonical corpus to 565 tracked links with queue visibility (`processed=6`, `pending=558`, `failed=1`).
+
+## [2.7.0] - 2026-02-19
+
+### Added
+
+- **Phase 67: MetaMCP Submodule Assimilation**:
+  - Added `https://github.com/robertpelloni/MetaMCP` as a Git submodule at `external/MetaMCP/`.
+  - Registered `external/MetaMCP/packages/*` and `external/MetaMCP/apps/*` in `pnpm-workspace.yaml` as first-class workspace members.
+  - Resolved 100+ `<<<<<<< HEAD` merge conflict markers across MetaMCP TypeScript source files via automated script.
+  - Modified `external/MetaMCP/apps/backend/tsup.config.ts` to emit a separate library bundle at `dist/metamcp.js` alongside the main Express server.
+  - Created `packages/core/src/services/MetaMCPBridgeService.ts` — a typed HTTP client allowing Borg to communicate with the MetaMCP backend at `http://localhost:12009`.
+  - Added 4 new TRPC procedures to `mcpServersRouter`: `listFromMetaMCP`, `metamcpStatus`, `createInMetaMCP`, `deleteFromMetaMCP`.
+  - Created ambient TypeScript declaration shim `packages/core/src/types/backend-metamcp.d.ts`.
+
+- **Phase 66: AI Command Center & Dashboards**:
+  - Jules Autopilot Dashboard (`/dashboard/jules`) with API key controls and live connectivity testing.
+  - OpenCode Autopilot Dashboard integrated into Borg web.
+  - Master AI Billing & API Key Dashboard.
+  - Installed AI Tool Detector & Usage Tracker at `/dashboard/mcp/ai-tools`.
+
+- **Phase 65: Marketplace & Ecosystem (follow-ups)**:
+  - End-to-end Plugin Execution Engine verification completed.
+  - MCP Marketplace UI updated with 1000+ server registry.
+
+### Fixed
+
+- `@borg/core` TypeScript build: restored missing `@borg/adk` dependency, resolved all merge conflict artifacts, confirmed `tsc` exits with code `0`.
+
+## [2.6.3] - 2026-02-16
+
+
+### Fixed
+
+- **Monorepo watch-mode output stability**:
+  - Updated `packages/opencode-autopilot/packages/shared/package.json` `dev` script to `tsc --watch --preserveWatchOutput`.
+  - Updated `packages/claude-mem/gemini-cli-extension/package.json` `dev` script to `tsc --watch --preserveWatchOutput`.
+  - Prevented TypeScript watch sessions from clearing terminal history during `pnpm run dev`.
+- **Dashboard runtime stability under partial backend availability**:
+  - Fixed `NaN` depth input propagation in `/dashboard/research` by introducing string-backed numeric input parsing + clamping.
+  - Removed Chronicle render loop (`Maximum update depth`) by switching merged timeline derivation to memoized computation.
+  - Added same-origin Next.js tRPC route (`/api/trpc`) and updated `TRPCProvider` fallback resolution to avoid default cross-origin `:4000` failures.
+  - Hardened websocket-heavy dashboard widgets (`TrafficInspector`, `MirrorView`, `ResearchPanel`, `CouncilDebateWidget`) with configurable URLs and bounded reconnect behavior.
+  - Centralized runtime endpoint resolution in `packages/ui/src/lib/endpoints.ts` and migrated dashboard/terminal consumers to shared helpers (`resolveTrpcHttpUrl`, `resolveCoreWsUrl`, `resolveCouncilWsUrl`, `resolveTerminalWsUrl`, `resolveCliApiBaseUrl`).
+  - Added shared reconnect policy utilities in `packages/ui/src/lib/connection-policy.ts` (`createReconnectPolicy`, `shouldRetryReconnect`, `getReconnectDelayMs`, `normalizeNumericInput`) and migrated websocket widgets to exponential backoff + capped retries.
+- **Backend realism closure (P0 implementation pass)**:
+  - Replaced simulated `savedScripts.execute` with real `CodeExecutorService` execution + structured timing metadata.
+  - Replaced OAuth exchange stub with live provider token exchange flow in `oauthRouter.exchange` (session/client validation, token request, schema-validated persistence).
+  - Rewired `agentRouter.chat` to live `llmService` generation with graceful degraded fallback behavior.
+  - Replaced `agents/Researcher` stub output generation with model-backed synthesis + JSON extraction fallback.
+  - Replaced key MetaMCP proxy stub adapters for code execution, saved script CRUD/execution, tool search, and tool persistence with repository/service-backed implementations.
+  - Replaced MetaMCP `run_agent` stub path with LLM-backed orchestration and removed dead run_python stub branch.
+- **Jules dashboard accessibility in Borg Web**:
+  - Added `/dashboard/jules` in `apps/web` with embedded Jules Autopilot launch surface.
+  - Added `apps/web` Jules API proxy route (`/api/jules`) for authenticated Jules API passthrough.
+  - Added Jules card on dashboard home for direct discoverability.
+  - Added `PATCH` support to Jules proxy routes (`apps/web` and `packages/ui`) for session updates.
+  - Implemented baseline `updateSession` support in `packages/ui/src/lib/jules/client.ts` with graceful fallback for API versions lacking `PATCH`.
+  - Wired Kanban drag/drop status transitions to attempt Jules cloud sync while retaining local persistence fallback.
+  - Added in-page Jules connectivity controls on `/dashboard/jules` (save/clear API key + live `/api/jules` proxy test + status feedback).
+  - Added "Last Sync Results" panel on `/dashboard/jules` backed by persisted session update telemetry for quick troubleshooting.
+
+### Changed
+
+- **Canonical documentation/version synchronization**:
+  - Promoted canonical version to `2.6.3` in `VERSION.md`.
+  - Reconciled roadmap/todo/handoff status language with current Phase 63 execution state.
+  - Replaced `docs/SUBMODULE_DASHBOARD.md` placeholder content with governance-focused dashboard guidance that points to `SUBMODULES.md` as the generated source of truth.
+- **Backend service exposure hardening**:
+  - Added new `browser` tRPC router with runtime status and page lifecycle controls.
+  - Added new `mesh` tRPC router with runtime status and broadcast capability.
+  - Added typed Browser/Mesh service helper accessors in `trpc-core` and lightweight status helpers in both services.
+  - Wired `/dashboard/mcp/system` to live `browser.status` and `mesh.status` with runtime actions (`browser.closeAll`, `mesh.broadcast` heartbeat).
 
 ## [2.6.2] - 2026-02-12
 

@@ -120,7 +120,6 @@ async function getToolStatus(
                 and(
                     eq(namespaceToolMappingsTable.namespace_uuid, namespaceUuid),
                     eq(toolsTable.name, toolName),
-                    // @ts-ignore
                     eq(namespaceToolMappingsTable.mcp_server_uuid, serverUuid),
                 ),
             );
@@ -150,7 +149,6 @@ async function getServerUuidByName(serverName: string): Promise<string | null> {
         const [server] = await db
             .select({ uuid: mcpServersTable.uuid })
             .from(mcpServersTable)
-            // @ts-ignore
             .where(eq(mcpServersTable.name, serverName));
 
         return server?.uuid || null;
@@ -305,10 +303,12 @@ export function createFilterCallToolMiddleware(
         return async (request, context) => {
             // Extract tool name and server info from the request
             const toolName = request.params.name;
+            const paramsWithMeta = request.params as typeof request.params & {
+                _meta?: { allowedTools?: string[] };
+            };
 
             // Check for dynamic tool whitelist in _meta (from Agent/Subagent context)
-            // @ts-ignore
-            const allowedTools = request.params._meta?.allowedTools as string[] | undefined;
+            const allowedTools = paramsWithMeta._meta?.allowedTools;
             if (allowedTools && Array.isArray(allowedTools)) {
                 if (!allowedTools.includes(toolName)) {
                     return {

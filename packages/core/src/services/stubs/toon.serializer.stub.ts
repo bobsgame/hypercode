@@ -1,3 +1,3 @@
 export const toonSerializer = {
-    serialize: (_data: any) => JSON.stringify(_data),
+    serialize: (_data: unknown) => JSON.stringify(_data),
 };

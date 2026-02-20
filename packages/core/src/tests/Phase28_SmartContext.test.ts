@@ -32,7 +32,6 @@ describe('Phase 28: Smart Context Retrieval', () => {
         graph.addEdge({ source: 'Root', target: 'ChildB', relation: 'imports' });
         graph.addEdge({ source: 'ChildA', target: 'GrandChild', relation: 'calls' });
 
-        // @ts-ignore
         const memory = new MockMemoryManager(graph) as unknown as MemoryManager;
         service = new KnowledgeService(memory);
     });

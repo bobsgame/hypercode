@@ -1,122 +1,132 @@
-# Borg — Master TODO List
+# Borg — Master TODO List (Implementor Edition)
 
-> **Generated**: 2026-02-15 | **Version**: 2.6.2 | **Phase**: 63 (Codebase Hardening)
-> **Priority**: P0 (Critical) → P1 (High) → P2 (Medium) → P3 (Low)
-
----
-
-## P0 — Critical (Build & Trust)
-
-### Build Stability
-- [x] **Fix Mermaid webpack import compatibility** in `apps/web/src/components/Mermaid.tsx` (replaced CDN `https://` import with local package import)
-- [ ] **Continue strict-typing cleanup in shared UI components**
-  - Latest observed blocker: `packages/ui/src/components/ContextPanel.tsx`
-  - Prior blockers resolved in workflows/council/director/search/indexing/trace/chronicle surfaces
-- [x] **Fix 3 remaining `@ts-ignore`** in `council/page.tsx` — replaced with `CouncilSession` interface + safe cast
-- [x] **Verify `apps/web` build** — `tsc --noEmit` passes (exit 0), `next build` passes with 8GB heap
-- [x] **Fix `skill: any` cast** in `skills/page.tsx` — already has `normalizeSkills()` + `SkillListItem` interface
-
-### Auth Completion
-- [x] **Auth submit flows already wired** — `LoginForm.tsx` calls `/api/auth/login` via fetch; all 3 API routes (`login`, `signup`, `forgot-password`) fully implemented with `authStore` library
-
-### Dashboard Data Integrity
-- [x] **Replaced `super-assistant/page.tsx`** — now shows real MCP data (tools, servers, skills) via tRPC
-- [x] **Fixed Turbopack broad-pattern warnings** — 7 path traversals in 5 files replaced with `getMonorepoRoot()` helper
+> **Updated**: 2026-02-19 | **Version**: 2.7.0 | **Phase**: 64 (Release Readiness)
+> **Execution Order**: P0 (must close before release) → P1 (critical feature parity) → P2 (quality/polish) → P3 (future)
 
 ---
 
-## P1 — High Priority (Feature Completion)
+## P0 — Backend Reality Closure (Blockers)
 
-### Phase 62: Ignition (Real Agent Capabilities)
-- [ ] **CoderAgent real LLM integration** — `expertRouter.code` procedure uses `AutoDevService` but needs verified end-to-end task execution
-- [ ] **ResearcherAgent DeepResearch integration** — `expertRouter.research` calls `DeepResearchService.recursiveResearch()` — verify with live API key
-- [ ] **Fix Skill Registry API mismatch** — `skills.list` endpoint exists but frontend comment says "Placeholder for now until list endpoint is robust"
-- [ ] **Real Memory Graph Visualization** — remove any mock data in `brain/page.tsx`, wire to `agentMemory` router
+### 1) Remove stub/simulated execution paths
+- [x] **Replace simulated Saved Script execution with real runner path**
+  - File: `packages/core/src/routers/savedScriptsRouter.ts`
+  - Status: now executes via `CodeExecutorService` and returns structured execution metadata.
 
-### Phase 63.B: Backend Realism
-- [ ] **Wire MetaMCP execution handler** — `metamcp-proxy.service.ts:615` has TODO for execution.handler logic
-- [ ] **Implement MemoryManager VectorProvider abstraction** — `MemoryManager.ts:302` TODO
-- [ ] **Add context pruning summary messages** — `ContextPruner.ts:97` TODO
-- [ ] **Improve functional-middleware typing** — `functional-middleware.ts:88` TODO
+- [x] **Implement baseline OAuth token exchange flow (provider-specific)**
+  - File: `packages/core/src/routers/oauthRouter.ts`
+  - Status: now validates session/client context, performs provider token POST, parses/validates token payload, and persists tokens.
+  - Follow-up hardening: encrypted token-at-rest + stricter state nonce contract.
 
-### Submodule Dashboard V2 (DONE ✅)
-- [x] **Backend**: `git.ts` reads `package.json` for version/name
-- [x] **Frontend**: `submodules/page.tsx` displays Package and Version columns
+- [x] **Finish agent chat orchestration wiring**
+  - File: `packages/core/src/routers/agentRouter.ts`
+  - Status: route now uses live `llmService` generation with graceful degraded fallback.
 
-### Documentation
-- [ ] **Create `docs/DEPLOY.md`** — deployment guide with Node 22 vs 24 advice, `better-sqlite3` bindings warning
-- [ ] **Create `docs/MEMORY.md`** — memory system architecture, backend selection, configuration
-- [ ] **Create `docs/SUBMODULE_MAP.md`** — list every reference repo and its location in `references/`
-- [ ] **Update `VISION.md`** — add completion percentages for each pillar
+- [x] **Replace Researcher stub output with model-backed synthesis**
+  - File: `packages/core/src/agents/Researcher.ts`
+  - Status: now uses model-selected `generateText`, JSON extraction, and fallback tool-shape normalization.
 
----
+- [x] **Remove remaining MetaMCP proxy stub branches/imports**
+  - File: `packages/core/src/services/metamcp-proxy.service.ts`
+  - Status: `run_code`, `run_python`, `save_script`, saved-script execution, tool search/sync, and `run_agent` now use live services/repositories or LLM-backed orchestration.
+  - Residual note: `toon.serializer.stub` naming remains, but is now a utility concern rather than a runtime execution stub blocker.
 
-## P2 — Medium Priority (Feature Expansion)
+### 2) Hybrid Storage Migration (Postgres + JSON)
+- [x] **Migrate MCP server configurations to `mcp.json`**
+  - Scope: `packages/core/src/db/repositories/mcp-servers.repo.ts`, `McpConfigService.ts`
+  - Status: Dual-write implemented, startup sync active. `mcp.json` is now the source of truth for MCP config, with Postgres for auth/memory.
+  - Verification: `scripts/verify-sync.ts` created and logic unit-tested.
 
-### New Dashboard Pages
-- [ ] **AI Tools Dashboard** (`/dashboard/mcp/ai-tools`) — billing/usage/OAuth for OpenAI, Anthropic, Gemini, xAI
-- [ ] **Jules Integration** (`/dashboard/jules`) — cloud dev environment management
-- [ ] **Policy Editor Enhancement** — real-time policy testing in `/dashboard/mcp/policies`
-
-### Service Exposure
-- [ ] **Expose `MeshService`** via new `meshRouter` — P2P agent coordination (Phase 64 preview)
-- [ ] **Expose `BrowserService`** via new `browserRouter` — browser automation control
-- [ ] **Expose `CodeModeService`** via dedicated router — currently indirect through `autoDev`
-
-### Type Hardening (Continued)
-- [ ] **Type `DeepResearchService` constructor** — replace `server: any` with typed `MCPServer` reference
-- [ ] **Type `KnowledgeService.getGraph` return** — replace `content: any[]` with structured type
-
-### Verify Orphaned Dashboard Pages (ALL VERIFIED ✅)
-- [x] **`/dashboard/chronicle`** — static `@borg/ui` component
-- [x] **`/dashboard/events`** — wired to `pulse.getLatestEvents`
-- [x] **`/dashboard/library`** — static `@borg/ui` component
-- [x] **`/dashboard/manual`** — static documentation page
-- [x] **`/dashboard/reader`** — wired to `executeTool` mutation
-- [x] **`/dashboard/security`** — wired to `audit.list` + `autonomy.setLevel`
-- [x] **`/dashboard/mcp/observability`** — wired to `logs.list` (real analytics)
-- [x] **`/dashboard/mcp/search`** — wired to `tools.list` (client-side filter)
-- [x] **`/dashboard/mcp/registry`** — mock data (hardcoded server list)
-- [x] **`/dashboard/mcp/docs`** — static documentation
-- [x] **`/dashboard/mcp/inspector`** — wired to `tools.list` + `agent.runTool`
+### 2) Type-safety debt in persistence layer
+- [x] **Eliminate broad `@ts-ignore` usage in repository layer**
+  - Scope: `packages/core/src/db/repositories/*.ts`
+  - Status: Completed in Phase 63 type-hardening batches I-XVI.
+  - Validation: `rg -n "@ts-(ignore|nocheck)" packages/core/src` returns no matches.
 
 ---
 
-## P3 — Low Priority (Polish & Future)
+## P1 — Frontend Representation Parity (Critical UX)
 
-### Browser Extension
-- [ ] **Implement MCP bridge** in `apps/extension` — full browser↔Borg WebSocket connectivity
-- [ ] **Memory sync** — store/retrieve memories from browser browsing sessions
-- [ ] **Manual test** — Chrome extension connection to `ws://localhost:3001`
+### 1) Dashboard route parity with backend capability map
+- [x] **Create baseline AI Tools dashboard route with live core data**
+  - Implemented: `apps/web/src/app/dashboard/mcp/ai-tools/page.tsx`
+  - Live sources: `tools.list`, `mcpServers.list`, `apiKeys.list` + namespace coverage widgets (`expert.getStatus`, `session.getState`, `agentMemory.stats`, `serverHealth.check`, `shell.getSystemHistory`).
+  - Remaining follow-up: provider-level billing/usage/OAuth matrix.
+  - Target route: `/dashboard/mcp/ai-tools`
+  - Remaining gap: nearest broader tools page (`packages/ui/src/app/dashboard/tools/page.tsx`) still enriches with mock status data.
+  - Acceptance (advanced): provider auth/install/usage/billing are driven by live API responses.
 
-### Session Management
-- [ ] **Cloud session parity** — transfer/broadcast workflows (Sessions § 2.6 in VISION.md)
-- [ ] **Auto-start previous sessions on boot**
-- [ ] **Mobile-responsive remote management**
+- [x] **Add Jules dashboard route and wire baseline backend access**
+  - Target route: `/dashboard/jules`
+  - Implemented in `apps/web`:
+    - `apps/web/src/app/dashboard/jules/page.tsx` (embedded Jules autopilot launch surface)
+    - `apps/web/src/app/api/jules/route.ts` (Jules API proxy)
+    - dashboard home card entry for discoverability
+  - Follow-up completed: `packages/ui/src/lib/jules/client.ts` now has baseline `updateSession` (`PATCH`) support with graceful fallback for unsupported API versions.
+  - Follow-up completed: `packages/ui/src/components/kanban-board.tsx` now attempts cloud sync on drag/drop status changes while preserving local persistence.
 
-### RAG Pipeline
-- [ ] **Multiple chunking strategies** — code-aware, semantic, fixed (§ 2.9 in VISION.md)
-- [ ] **Google Docs/Drive integration**
-- [ ] **OCR for image intake**
+### 2) Router namespace coverage gap closure
+- [x] **Add explicit UI usage surfaces for baseline coverage of**:
+  - `agentMemory`, `expert`, `serverHealth`, `session`, `shell`
+  - Source baseline: router usage audit from `packages/core/src/trpc.ts` vs `trpc.*` UI usage.
+  - Implemented in: `apps/web/src/app/dashboard/mcp/ai-tools/page.tsx`
+  - Follow-up: deepen controls/actions per namespace beyond baseline observability.
 
-### Advanced Features (Phase 64+)
-- [ ] **Phase 64: The Mesh** — P2P agent swarm coordination
-- [ ] **Phase 65: The Marketplace** — decentralized tool/agent marketplace
-- [ ] **Phase 66: The Neural Link** — BCI integration patterns
-- [ ] **Phase 67: The Hive Mind** — shared learning across instances
+### 3) UI TODO/hardcoded fallback cleanup
+- [ ] **Resolve Director endpoint test TODO**
+  - File: `apps/web/src/components/DirectorConfig.tsx`
+- [ ] **Resolve MCP namespace placeholder behavior**
+  - File: `apps/web/src/components/mcp/EditEndpoint.tsx`
+- [ ] **Complete prompt variable extraction implementation**
+  - File: `apps/web/src/app/api/prompts/route.ts`
 
 ---
 
-## Verification Checklist
+## P2 — Robustness, Security, and Extension Completion
 
-Before any release:
-- [ ] `apps/web` builds with zero errors (`npm run build`)
-- [ ] `packages/core` compiles (`npx tsc --noEmit`)
-- [ ] No `@ts-ignore` in dashboard pages
-- [ ] `pnpm run check:placeholders` passes
-- [ ] `VERSION.md`, all `package.json` versions, and `CHANGELOG.md` are in sync
-- [ ] `HANDOFF_ANTIGRAVITY.md` is current
+### 0) First-party marker sweep follow-through (2026-02-16 audit)
+- [ ] **Reduce remaining critical-path “for now/mock/placeholder” assumptions in first-party source**
+  - Scope anchors from latest scan:
+    - `packages/core/src/services/*` (`DeepResearchService`, `KnowledgeService`, `HealerService`, `MetaMCPController`, selected adapters)
+    - `apps/web/src/app/dashboard/*` (monitoring/workflows/research/mcp pages with mock/fallback comments)
+    - `packages/ui/src/components/*` (dashboard/tools/security/visualization placeholders)
+  - Acceptance: production-path assumptions are replaced with explicit capability checks, telemetry, or completed implementations.
+
+### 1) Browser extension completion
+- [ ] **Finish fuzzy text matching click action**
+  - File: `packages/browser-extension/background.js`
+- [ ] **End-to-end MCP bridge validation**
+  - Scope: extension ↔ Borg websocket bridge, memory sync hooks, reconnect behavior.
+
+### 2) Shared UI `@ts-ignore` reduction pass
+- [ ] **Remove remaining `@ts-ignore` in user-facing components**
+  - Scope: `apps/web/src/components/*`, `packages/ui/src/components/*`
+  - Acceptance: annotated temporary waivers only where upstream typing cannot yet be corrected.
+
+### 3) Canonical docs consistency hardening
+- [ ] **Keep `ROADMAP.md`, `TODO.md`, `STATUS.md`, `HANDOFF.md`, `CHANGELOG.md` synchronized after each merged fix batch**
+  - Acceptance: no stale contradiction between code reality and canonical docs.
 
 ---
 
-*Generated by Antigravity during comprehensive deep analysis session.*
+## P3 — Future Phases (Post-63)
+
+- [x] **Phase 64: Release Readiness (v2.7.0)** — Documentation Freeze + E2E builds verified
+- [x] **Phase 65: Marketplace & Ecosystem** — MCP registry, plugin engine, skills repos
+- [x] **Phase 66: AI Command Center & Dashboards** — Jules, OpenCode, Billing, Tool Detector
+- [x] **Phase 67: MetaMCP Submodule Assimilation** — Git submodule + MetaMCPBridgeService
+- [ ] **Phase 68: Memory System Multi-Backend** — selectable vector stores, import/export
+- [ ] **Phase 69: RAG Pipeline & Context Harvesting** — document intake, chunking, embedding
+
+---
+
+## Release Verification Checklist (Gate)
+
+- [ ] `apps/web` typecheck + build pass
+- [ ] `packages/core` typecheck pass
+- [ ] `pnpm run check:placeholders` passes (or equivalent placeholder scan)
+- [ ] No unresolved stub/simulated critical execution paths in P0 scope
+- [ ] Canonical docs + version markers (`VERSION.md`, `package.json`, `CHANGELOG.md`) are synchronized
+
+---
+
+*This file is intentionally execution-ordered for implementor-model handoff and should be treated as the active backlog source of truth for Phase 63 closure.*

@@ -1,7 +1,6 @@
 # OpenCode Interactive Launcher with Model Selection and Agent Manager
 
-# Clear screen for better UX
-Clear-Host
+# Console clear disabled to preserve startup logs/history
 
 # Resolve OpenQode paths
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -37,7 +36,7 @@ if (-not (Test-Path $AgentDir)) {
 }
 
 function Show-MainMenu {
-    Clear-Host
+    # Console clear disabled to preserve startup logs/history
     Write-Host "🤖 OpenQode v1.01 - Main Menu" -ForegroundColor Cyan
     Write-Host "==============================" -ForegroundColor Cyan
     Write-Host ""
@@ -52,7 +51,7 @@ function Show-MainMenu {
 }
 
 function Show-ModelMenu {
-    Clear-Host
+    # Console clear disabled to preserve startup logs/history
     Write-Host "🎯 Select AI Model" -ForegroundColor Cyan
     Write-Host "==================" -ForegroundColor Cyan
     Write-Host ""
@@ -69,7 +68,7 @@ function Show-ModelMenu {
 }
 
 function Show-AgentManager {
-    Clear-Host
+    # Console clear disabled to preserve startup logs/history
     Write-Host "🤖 Agent Manager" -ForegroundColor Cyan
     Write-Host "=================" -ForegroundColor Cyan
     Write-Host ""
@@ -103,7 +102,7 @@ function Show-AgentManager {
 }
 
 function Create-Agent {
-    Clear-Host
+    # Console clear disabled to preserve startup logs/history
     Write-Host "➕ Create New Agent" -ForegroundColor Cyan
     Write-Host "===================" -ForegroundColor Cyan
     Write-Host ""

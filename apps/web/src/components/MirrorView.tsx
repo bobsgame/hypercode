@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from 'react';
+import { createReconnectPolicy, getReconnectDelayMs, resolveCoreWsUrl, shouldRetryReconnect } from '@borg/ui';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export function MirrorView() {
@@ -8,38 +9,57 @@ export function MirrorView() {
     const [isMirroring, setIsMirroring] = useState(false);
     const [isConnected, setIsConnected] = useState(false);
     const wsRef = useRef<WebSocket | null>(null);
+    const reconnectAttemptsRef = useRef(0);
+    const reconnectPolicy = createReconnectPolicy();
+    const wsUrlRef = useRef<string | null>(null);
 
-    useEffect(() => {
-        const connect = () => {
-            const ws = new WebSocket('ws://localhost:3001');
+    if (!wsUrlRef.current && typeof window !== 'undefined') {
+        wsUrlRef.current = resolveCoreWsUrl(process.env.NEXT_PUBLIC_CORE_WS_URL);
+    }
 
-            ws.onopen = () => {
-                setIsConnected(true);
-                // If mirroring was previously active (e.g. on reconnect), re-enable
-                if (isMirroring) {
-                    ws.send(JSON.stringify({ type: 'SET_MIRROR_ACTIVE', active: true }));
-                }
-            };
+    const connect = () => {
+        if (!wsUrlRef.current) {
+            return;
+        }
 
-            ws.onclose = () => {
-                setIsConnected(false);
-                setTimeout(connect, 3000);
-            };
+        const ws = new WebSocket(wsUrlRef.current);
 
-            ws.onmessage = (event) => {
-                try {
-                    const msg = JSON.parse(event.data);
-                    if (msg.type === 'BROWSER_MIRROR_UPDATE') {
-                        setScreenshot(msg.screenshot);
-                    }
-                } catch (e) { }
-            };
-
-            wsRef.current = ws;
+        ws.onopen = () => {
+            setIsConnected(true);
+            reconnectAttemptsRef.current = 0;
+            // If mirroring was previously active (e.g. on reconnect), re-enable
+            if (isMirroring) {
+                ws.send(JSON.stringify({ type: 'SET_MIRROR_ACTIVE', active: true }));
+            }
         };
 
-        connect();
+        ws.onclose = () => {
+            setIsConnected(false);
+            wsRef.current = null;
+            if (isMirroring && shouldRetryReconnect(reconnectAttemptsRef.current, reconnectPolicy)) {
+                reconnectAttemptsRef.current += 1;
+                const delayMs = getReconnectDelayMs(reconnectAttemptsRef.current, reconnectPolicy);
+                setTimeout(connect, delayMs);
+            }
+        };
 
+        ws.onerror = () => {
+            ws.close();
+        };
+
+        ws.onmessage = (event) => {
+            try {
+                const msg = JSON.parse(event.data);
+                if (msg.type === 'BROWSER_MIRROR_UPDATE') {
+                    setScreenshot(msg.screenshot);
+                }
+            } catch (e) { }
+        };
+
+        wsRef.current = ws;
+    };
+
+    useEffect(() => {
         return () => {
             if (wsRef.current?.readyState === WebSocket.OPEN) {
                 wsRef.current.send(JSON.stringify({ type: 'SET_MIRROR_ACTIVE', active: false }));
@@ -48,9 +68,25 @@ export function MirrorView() {
         };
     }, []);
 
+    useEffect(() => {
+        if (isMirroring && !wsRef.current) {
+            connect();
+        }
+
+        if (!isMirroring && wsRef.current?.readyState === WebSocket.OPEN) {
+            wsRef.current.send(JSON.stringify({ type: 'SET_MIRROR_ACTIVE', active: false }));
+        }
+    }, [isMirroring]);
+
     const toggleMirror = () => {
         const nextState = !isMirroring;
         setIsMirroring(nextState);
+
+        if (nextState && !wsRef.current) {
+            connect();
+            return;
+        }
+
         if (wsRef.current?.readyState === WebSocket.OPEN) {
             wsRef.current.send(JSON.stringify({
                 type: 'SET_MIRROR_ACTIVE',

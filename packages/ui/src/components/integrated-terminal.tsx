@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import type { Terminal } from "@xterm/xterm";
 import type { FitAddon } from "@xterm/addon-fit";
 import type { Socket } from "socket.io-client";
+import { resolveTerminalWsUrl } from "../lib/endpoints";
 
 interface IntegratedTerminalProps {
   sessionId: string;
@@ -101,11 +102,7 @@ export function IntegratedTerminal({
 
       // Connect to terminal server
       // Use same hostname as current page for remote access support
-      const wsUrl =
-        process.env.NEXT_PUBLIC_TERMINAL_WS_URL ||
-        (typeof window !== "undefined"
-          ? `ws://${window.location.hostname}:8081`
-          : "ws://localhost:8081");
+      const wsUrl = resolveTerminalWsUrl(process.env.NEXT_PUBLIC_TERMINAL_WS_URL);
 
       console.log("Connecting to terminal server:", wsUrl);
 

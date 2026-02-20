@@ -248,23 +248,11 @@ export class MemoryManager {
         if (!this.initialized) await this.initialize();
         if (!this.provider) return [];
 
-        // Check if provider has listDocuments (it does if it's our VectorStore adapter)
-        // Since we are using an adapter pattern in initialize(), we need to cast or access the internal store
-        // But wait, the adapter defined in initialize() (lines 30-62) DOES NOT expose listDocuments!
-        // We need to update the adapter definition in MemoryManager.ts first.
-
-        // Actually, let's update the Adapter interface or just cheat for now by re-instantiating store?
-        // No, that's bad.
-        // Let's update `initialize` method to expose `list` in the provider object.
-        // But `VectorProvider` interface likely doesn't have `list`.
-
-        // Workaround: We will import VectorStore directly here for this specific operation if provider doesn't support it,
-        // OR we cast provider to any.
-
-        // Let's update `initialize` to add `list` to the provider object, casting it to any for now.
         if (this.hasList(this.provider)) {
             return await this.provider.list("hash = 'symbol'", 5000);
         }
+
+        console.warn("[MemoryManager] Provider does not support list capability.");
         return [];
     }
 
@@ -278,10 +266,25 @@ export class MemoryManager {
         console.log(`[MemoryManager] Indexing symbols at ${rootDir}...`);
 
         // Lazy load Indexer from @borg/memory
-        const { Indexer, VectorStore } = await import('@borg/memory') as unknown as IndexerModule;
+        const { Indexer } = await import('@borg/memory') as unknown as IndexerModule;
 
-        const store = new VectorStore(this.dbPath);
-        const indexer = new Indexer(store);
+        // Adapter to make VectorProvider look like IndexerStorage
+        const storageAdapter = {
+            initialize: async () => { /* provider assumed initialized */ },
+            addDocuments: async (docs: any[]) => {
+                await this.provider!.add(docs.map(doc => ({
+                    id: doc.id,
+                    content: doc.content,
+                    metadata: {
+                        path: doc.file_path,
+                        hash: doc.hash,
+                        ...doc.metadata
+                    }
+                })));
+            }
+        };
+
+        const indexer = new Indexer(storageAdapter);
 
         if (!indexer.indexSymbols) {
             throw new Error("Indexer does not utilize indexSymbols (check build?)");
@@ -296,12 +299,25 @@ export class MemoryManager {
         console.log(`[MemoryManager] Indexing codebase at ${rootDir}...`);
 
         // Lazy load Indexer from @borg/memory
-        const { Indexer, VectorStore } = await import('@borg/memory') as unknown as IndexerModule;
+        const { Indexer } = await import('@borg/memory') as unknown as IndexerModule;
 
-        // Re-instantiate internal VectorStore for Indexer (Indexer expects concrete VectorStore, not Provider)
-        // TODO: Refactor Indexer to accept VectorProvider interface in future
-        const store = new VectorStore(this.dbPath);
-        const indexer = new Indexer(store);
+        // Adapter to make VectorProvider look like IndexerStorage
+        const storageAdapter = {
+            initialize: async () => { /* provider assumed initialized or auto-init */ },
+            addDocuments: async (docs: any[]) => {
+                await this.provider!.add(docs.map(doc => ({
+                    id: doc.id,
+                    content: doc.content,
+                    metadata: {
+                        path: doc.file_path,
+                        hash: doc.hash,
+                        ...doc.metadata
+                    }
+                })));
+            }
+        };
+
+        const indexer = new Indexer(storageAdapter);
 
         return await indexer.indexDirectory(rootDir);
     }

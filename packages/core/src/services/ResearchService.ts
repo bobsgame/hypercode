@@ -3,6 +3,35 @@ import { MemoryManager } from '../services/MemoryManager.js';
 import type { MCPServer } from '../MCPServer.js';
 import { search, SafeSearchType } from 'duck-duck-scrape';
 
+type ToolTextEnvelope = {
+    content?: Array<{ text?: string }>;
+};
+
+type BroadcastPayload = Record<string, unknown>;
+
+type WebSocketLikeClient = {
+    readyState: number;
+    send(data: string): void;
+};
+
+function getFirstTextContent(value: unknown): string {
+    if (!value || typeof value !== 'object') {
+        return '';
+    }
+
+    const envelope = value as ToolTextEnvelope;
+    const first = envelope.content?.[0];
+    return typeof first?.text === 'string' ? first.text : '';
+}
+
+function getErrorMessage(error: unknown): string {
+    if (error instanceof Error) {
+        return error.message;
+    }
+
+    return typeof error === 'string' ? error : String(error);
+}
+
 /**
  * Deep Research Service
  * Autonomously research a topic by searching, reading, and memorizing.
@@ -55,7 +84,7 @@ export class ResearchService {
 
                 // Then scrape
                 const result = await this.server.executeTool("read_page", { url: target.url });
-                const contentText = result.content?.[0]?.text || "";
+                const contentText = getFirstTextContent(result);
 
                 if (contentText.startsWith("Error")) {
                     report.push(`- [FAILED] ${target.title}: ${contentText}`);
@@ -76,10 +105,11 @@ export class ResearchService {
                 report.push(`- [MEMORIZED] ${target.title} (ID: ${ctxId})`);
                 this.broadcast('RESEARCH_UPDATE', { status: 'memorized', target: target.title, id: ctxId });
 
-            } catch (err: any) {
+            } catch (err: unknown) {
+                const errorMessage = getErrorMessage(err);
                 console.error(`[Research] Failed to process ${target.url}:`, err);
-                report.push(`- [ERROR] ${target.title}: ${err.message}`);
-                this.broadcast('RESEARCH_UPDATE', { status: 'error', target: target.title, error: err.message });
+                report.push(`- [ERROR] ${target.title}: ${errorMessage}`);
+                this.broadcast('RESEARCH_UPDATE', { status: 'error', target: target.title, error: errorMessage });
             }
         }
 
@@ -102,7 +132,7 @@ export class ResearchService {
         try {
             await this.server.executeTool("navigate", { url });
             const result = await this.server.executeTool("read_page", { url });
-            const contentText = result.content?.[0]?.text || "";
+            const contentText = getFirstTextContent(result);
 
             if (contentText.startsWith("Error")) {
                 this.broadcast('RESEARCH_UPDATE', { status: 'error', target: url, error: contentText });
@@ -121,15 +151,16 @@ export class ResearchService {
             this.broadcast('RESEARCH_UPDATE', { status: 'memorized', target: url, id: ctxId });
             return `MEMORIZED: ${url} (ID: ${ctxId})`;
 
-        } catch (e: any) {
-            this.broadcast('RESEARCH_UPDATE', { status: 'error', target: url, error: e.message });
-            return `ERROR: ${e.message}`;
+        } catch (e: unknown) {
+            const errorMessage = getErrorMessage(e);
+            this.broadcast('RESEARCH_UPDATE', { status: 'error', target: url, error: errorMessage });
+            return `ERROR: ${errorMessage}`;
         }
     }
 
-    private broadcast(type: string, payload: any) {
-        if (this.server.wssInstance) {
-            this.server.wssInstance.clients.forEach((client: any) => {
+    private broadcast(type: string, payload: BroadcastPayload) {
+        if (this.server.wssInstance && this.server.wssInstance.clients) {
+            this.server.wssInstance.clients.forEach((client: WebSocketLikeClient) => {
                 if (client.readyState === 1) {
                     client.send(JSON.stringify({ type, payload }));
                 }

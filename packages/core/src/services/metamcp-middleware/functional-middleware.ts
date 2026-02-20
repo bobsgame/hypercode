@@ -85,12 +85,14 @@ export function createFunctionalMiddleware<TRequest, TResponse>(options: {
 /**
  * Compose multiple middleware functions together
  */
-// TODO better typing for middleware design
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function compose<T extends (...args: any[]) => any>(
-    ...middlewares: Array<(handler: T) => T>
-): (handler: T) => T {
-    return (handler: T) => {
+type Handler<TArgs extends unknown[], TResult> = (...args: TArgs) => TResult;
+
+export function compose<TArgs extends unknown[], TResult>(
+    ...middlewares: Array<
+        (handler: Handler<TArgs, TResult>) => Handler<TArgs, TResult>
+    >
+): (handler: Handler<TArgs, TResult>) => Handler<TArgs, TResult> {
+    return (handler: Handler<TArgs, TResult>) => {
         return middlewares.reduceRight(
             (wrapped, middleware) => middleware(wrapped),
             handler,

@@ -1,10 +1,10 @@
 export interface Policy { }
 
 export const policyService = {
-    getPolicy: async (_policyId: string): Promise<any> => {
+    getPolicy: async (_policyId: string): Promise<Policy | null> => {
         return null;
     },
-    evaluateAccess: (_policy: any, _toolName: string): boolean => {
+    evaluateAccess: (_policy: unknown, _toolName: string): boolean => {
         return true;
     }
 };

@@ -8,3 +8,5 @@ packages:
   - 'packages/MCP-SuperAssistant/packages/*'
   - 'submodules/mcpenetes'
   - 'submodules/bobcoin'
+  - 'external/MetaMCP/packages/*'
+  - 'external/MetaMCP/apps/*'

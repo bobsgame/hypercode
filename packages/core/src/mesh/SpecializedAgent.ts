@@ -1,6 +1,36 @@
 import { MeshService } from '../services/MeshService.js';
 import { SwarmMessage, SwarmMessageType } from './SwarmProtocol.js';
 
+interface TaskOffer {
+    task: string;
+    requirements?: string[];
+    [key: string]: unknown;
+}
+
+function getErrorMessage(error: unknown): string {
+    return error instanceof Error ? error.message : String(error);
+}
+
+function parseTaskOffer(payload: unknown): TaskOffer | null {
+    if (!payload || typeof payload !== 'object') {
+        return null;
+    }
+
+    const record = payload as Record<string, unknown>;
+    if (typeof record.task !== 'string') {
+        return null;
+    }
+
+    if (
+        record.requirements !== undefined &&
+        (!Array.isArray(record.requirements) || !record.requirements.every(req => typeof req === 'string'))
+    ) {
+        return null;
+    }
+
+    return record as TaskOffer;
+}
+
 export abstract class SpecializedAgent {
     protected mesh: MeshService;
     public nodeId: string;
@@ -34,7 +64,12 @@ export abstract class SpecializedAgent {
 
             // 2. Handle Task Offers
             if (msg.type === SwarmMessageType.TASK_OFFER) {
-                const offer = msg.payload;
+                const offer = parseTaskOffer(msg.payload);
+                if (!offer) {
+                    console.warn(`[${this.role}] ⚠️ Ignoring malformed task offer from ${msg.sender.slice(0, 8)}...`);
+                    return;
+                }
+
                 if (this.canHandle(offer)) {
                     console.log(`[${this.role}] 🤝 Accepting Task Offer: ${offer.task}`);
                     this.mesh.sendResponse(msg, SwarmMessageType.TASK_ACCEPT, { task: offer.task });
@@ -55,10 +90,10 @@ export abstract class SpecializedAgent {
                             originalTaskId: msg.id,
                             result
                         });
-                    } catch (e: any) {
+                    } catch (e: unknown) {
                         this.mesh.sendDirect(msg.sender, SwarmMessageType.TASK_RESULT, {
                             originalTaskId: msg.id,
-                            error: e.message
+                            error: getErrorMessage(e)
                         });
                     }
                 }
@@ -66,7 +101,7 @@ export abstract class SpecializedAgent {
         });
     }
 
-    private canHandle(offer: any): boolean {
+    private canHandle(offer: TaskOffer): boolean {
         if (offer.requirements) {
             return offer.requirements.every((req: string) => this.capabilities.includes(req) || this.role === req);
         }
@@ -76,7 +111,7 @@ export abstract class SpecializedAgent {
     /**
      * Abstract method to be implemented by specific agents (Coder, Researcher)
      */
-    protected abstract handleTask(offer: any): Promise<any>;
+    protected abstract handleTask(offer: TaskOffer): Promise<unknown>;
 
     public async destroy() {
         await this.mesh.destroy();

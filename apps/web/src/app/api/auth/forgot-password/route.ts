@@ -10,8 +10,22 @@ export async function POST(req: Request) {
             return NextResponse.json({ ok: false, error: 'Please provide a valid email address.' }, { status: 400 });
         }
 
-        await markResetRequested(email);
-        return NextResponse.json({ ok: true, message: 'If this account exists, a reset link has been queued.' });
+        const result = await markResetRequested(email);
+
+        const payload: {
+            ok: true;
+            message: string;
+            resetUrl?: string;
+        } = {
+            ok: true,
+            message: 'If this account exists, a reset link has been queued.',
+        };
+
+        if (result.resetToken) {
+            payload.resetUrl = `/reset-password?token=${encodeURIComponent(result.resetToken)}`;
+        }
+
+        return NextResponse.json(payload);
     } catch {
         return NextResponse.json({ ok: false, error: 'Invalid request payload.' }, { status: 400 });
     }

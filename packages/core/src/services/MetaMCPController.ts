@@ -18,7 +18,7 @@ export class MetaMCPController {
     public async initialize(
         server: Server,
         nativeTools: Tool[],
-        nativeHandler: (name: string, args: any) => Promise<CallToolResult>
+        nativeHandler: (name: string, args: unknown) => Promise<CallToolResult>
     ) {
         console.log("[MetaMCPController] Initializing MetaMCP Proxy extensions...");
 

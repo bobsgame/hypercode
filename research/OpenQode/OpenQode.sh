@@ -43,7 +43,7 @@ fi
 echo -e "${GREEN}[OK]${NC} Dependencies ready"
 
 show_menu() {
-    clear
+    # Console clear disabled to preserve startup logs/history
     echo ""
     echo -e "${CYAN}========================================"
     echo "  OPENQODE v1.01 - LAUNCH MENU"

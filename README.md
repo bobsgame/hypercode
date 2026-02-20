@@ -1,6 +1,10 @@
-# EXTREME WIP ALPHA DEVELOPED "IN THE OPEN," DON'T BOTHER TRYING TO USE IT UNLESS YOU PLAN ON HACKING ON IT TO GET IT WORKING
-
 # BORG (previously AIOS): The Universal AI Operating System
+
+> **Status**: Phase 64 (Release Readiness v0.8.0-rc1) - **IN PROGRESS**
+> **Version**: 2.6.4 (RC1)
+> **Codename**: AIOS (AI Operating System)
+
+---
 
 A unified operating system for PC-based local AI tools. Manage everything from tool installation to autonomous multi-agent orchestration in a single, high-fidelity dashboard.
 
@@ -38,6 +42,16 @@ A unified operating system for PC-based local AI tools. Manage everything from t
 - **Responsive Design:** Fully mobile-compatible Mission Control interface.
 
 ## 📦 Installation
+
+### Option 1: Docker (Recommended)
+You can spin up the entire stack (Core, Web, Postgres, Redis) with a single command:
+
+```bash
+docker-compose up --build
+```
+Access the Dashboard at `http://localhost:3001`.
+
+### Option 2: Local Development
 ```bash
 # Clone
 git clone https://github.com/robertpelloni/borg.git

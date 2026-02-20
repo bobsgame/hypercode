@@ -1,11 +1,121 @@
 "use client";
 
-import { useState } from 'react';
+import Link from 'next/link';
+import { useEffect, useMemo, useState } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from "@borg/ui";
 import { Button } from "@borg/ui";
-import { Loader2, Plus, Server, Wrench, Trash2, Upload, Box, RefreshCw, Terminal } from "lucide-react";
+import { Loader2, Plus, Server, Wrench, Trash2, Upload, Box, RefreshCw, Terminal, Layers, Globe, Key, Shield, FileCode, Activity, Zap, Bot, Search, Sparkles, ExternalLink } from "lucide-react";
+import { DndContext, DragEndEvent, PointerSensor, closestCenter, useSensor, useSensors } from '@dnd-kit/core';
+import { SortableContext, arrayMove, rectSortingStrategy, useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { trpc } from '@/utils/trpc';
 import { toast } from 'sonner';
+
+const PANEL_STORAGE_KEY = 'metamcp_panel_order_v1';
+
+const DEFAULT_PANEL_ORDER = [
+    'autopilot',
+    'namespaces',
+    'endpoints',
+    'api-keys',
+    'tool-sets',
+    'policies',
+    'scripts',
+    'ai-tools',
+    'logs',
+    'observability',
+    'agent',
+    'search',
+] as const;
+
+type PanelId = (typeof DEFAULT_PANEL_ORDER)[number];
+
+const PANEL_META: Record<PanelId, { title: string; href: string; icon: any; description: string; accent: string }> = {
+    'autopilot': {
+        title: 'OpenCode Autopilot',
+        href: '/dashboard/autopilot',
+        icon: Sparkles,
+        description: 'Launch governance and multi-model autopilot workflows.',
+        accent: 'text-fuchsia-400',
+    },
+    'namespaces': {
+        title: 'Namespaces',
+        href: '/dashboard/mcp/namespaces',
+        icon: Box,
+        description: 'Organize tenant boundaries and routing scope.',
+        accent: 'text-blue-400',
+    },
+    'endpoints': {
+        title: 'Endpoints',
+        href: '/dashboard/mcp/endpoints',
+        icon: Globe,
+        description: 'Manage MCP endpoint registrations and status.',
+        accent: 'text-cyan-400',
+    },
+    'api-keys': {
+        title: 'API Keys',
+        href: '/dashboard/mcp/api-keys',
+        icon: Key,
+        description: 'Issue and rotate scoped integration keys.',
+        accent: 'text-yellow-400',
+    },
+    'tool-sets': {
+        title: 'Tool Sets',
+        href: '/dashboard/mcp/tool-sets',
+        icon: Layers,
+        description: 'Compose capability bundles by environment.',
+        accent: 'text-purple-400',
+    },
+    'policies': {
+        title: 'Policies',
+        href: '/dashboard/mcp/policies',
+        icon: Shield,
+        description: 'Enforce tool permissions and governance.',
+        accent: 'text-green-400',
+    },
+    'scripts': {
+        title: 'Internal Scripts',
+        href: '/dashboard/mcp/scripts',
+        icon: FileCode,
+        description: 'Review and run managed automation scripts.',
+        accent: 'text-orange-400',
+    },
+    'ai-tools': {
+        title: 'AI Tools',
+        href: '/dashboard/mcp/ai-tools',
+        icon: Bot,
+        description: 'Audit tool inventory, providers, and API key readiness.',
+        accent: 'text-fuchsia-400',
+    },
+    'logs': {
+        title: 'Logs',
+        href: '/dashboard/mcp/logs',
+        icon: Activity,
+        description: 'Inspect runtime activity and errors.',
+        accent: 'text-rose-400',
+    },
+    'observability': {
+        title: 'Observability',
+        href: '/dashboard/mcp/observability',
+        icon: Zap,
+        description: 'Track health signals and live metrics.',
+        accent: 'text-indigo-400',
+    },
+    'agent': {
+        title: 'Agent Playground',
+        href: '/dashboard/mcp/agent',
+        icon: Bot,
+        description: 'Test orchestration and agent tool usage.',
+        accent: 'text-pink-400',
+    },
+    'search': {
+        title: 'Search',
+        href: '/dashboard/mcp/search',
+        icon: Search,
+        description: 'Explore tools, routes, and MCP resources.',
+        accent: 'text-teal-400',
+    },
+};
 
 export default function MCPDashboard() {
     const { data: servers, isLoading: isLoadingServers, refetch: refetchServers } = trpc.mcpServers.list.useQuery();
@@ -15,17 +125,74 @@ export default function MCPDashboard() {
     const [isAddOpen, setIsAddOpen] = useState(false);
     const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
     const [activeTab, setActiveTab] = useState<'servers' | 'tools'>('servers');
+    const [showAutopilotEmbed, setShowAutopilotEmbed] = useState(false);
+    const [panelOrder, setPanelOrder] = useState<PanelId[]>([...DEFAULT_PANEL_ORDER]);
+    const autopilotUrl = process.env.NEXT_PUBLIC_AUTOPILOT_DASHBOARD_URL || 'http://localhost:3847';
+
+    useEffect(() => {
+        try {
+            const raw = localStorage.getItem(PANEL_STORAGE_KEY);
+            if (!raw) {
+                return;
+            }
+            const parsed = JSON.parse(raw);
+            if (!Array.isArray(parsed)) {
+                return;
+            }
+            const filtered = parsed.filter((id): id is PanelId => id in PANEL_META);
+            const merged = [...new Set([...filtered, ...DEFAULT_PANEL_ORDER])];
+            setPanelOrder(merged as PanelId[]);
+        } catch {
+            // no-op, fallback to defaults
+        }
+    }, []);
+
+    const sensors = useSensors(
+        useSensor(PointerSensor, {
+            activationConstraint: { distance: 6 },
+        })
+    );
+
+    const orderedPanels = useMemo(() => panelOrder.filter((id) => id in PANEL_META), [panelOrder]);
+
+    const handlePanelDragEnd = (event: DragEndEvent) => {
+        const { active, over } = event;
+        if (!over || active.id === over.id) {
+            return;
+        }
+
+        setPanelOrder((current) => {
+            const oldIndex = current.indexOf(active.id as PanelId);
+            const newIndex = current.indexOf(over.id as PanelId);
+            if (oldIndex < 0 || newIndex < 0) {
+                return current;
+            }
+            const next = arrayMove(current, oldIndex, newIndex);
+            localStorage.setItem(PANEL_STORAGE_KEY, JSON.stringify(next));
+            return next;
+        });
+    };
+
+    const resetPanelOrder = () => {
+        const next = [...DEFAULT_PANEL_ORDER];
+        setPanelOrder(next);
+        localStorage.setItem(PANEL_STORAGE_KEY, JSON.stringify(next));
+        toast.success('MetaMCP panel layout reset.');
+    };
 
     return (
         <div className="p-8 space-y-8">
             <div className="flex justify-between items-center">
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight text-white">MCP Aggregator</h1>
+                    <h1 className="text-3xl font-bold tracking-tight text-white">MetaMCP Core Dashboard</h1>
                     <p className="text-zinc-500">
-                        Manage downstream Model Context Protocol servers and discovered tools
+                        Main dashboard interface for tools, subpages, and MCP operations
                     </p>
                 </div>
                 <div className="flex gap-2">
+                    <Button onClick={resetPanelOrder} variant="outline" className="border-zinc-700 hover:bg-zinc-800 text-zinc-300">
+                        <RefreshCw className="mr-2 h-4 w-4" /> Reset Panels
+                    </Button>
                     <Button onClick={() => setIsBulkImportOpen(!isBulkImportOpen)} variant="outline" className="border-zinc-700 hover:bg-zinc-800 text-zinc-300">
                         <Upload className="mr-2 h-4 w-4" /> Bulk Import
                     </Button>
@@ -34,6 +201,83 @@ export default function MCPDashboard() {
                     </Button>
                 </div>
             </div>
+
+            <Card className="bg-zinc-900 border-zinc-800">
+                <CardHeader>
+                    <CardTitle className="text-white">Tool Panels (Draggable + Auto-Saved)</CardTitle>
+                    <p className="text-xs text-zinc-500">Drag cards to reorder; layout is saved locally for this browser.</p>
+                </CardHeader>
+                <CardContent>
+                    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handlePanelDragEnd}>
+                        <SortableContext items={orderedPanels} strategy={rectSortingStrategy}>
+                            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                                {orderedPanels.map((id) => {
+                                    const panel = PANEL_META[id];
+                                    return (
+                                        <SortablePanelLink
+                                            key={id}
+                                            id={id}
+                                            title={panel.title}
+                                            href={panel.href}
+                                            description={panel.description}
+                                            icon={panel.icon}
+                                            accent={panel.accent}
+                                        />
+                                    );
+                                })}
+                            </div>
+                        </SortableContext>
+                    </DndContext>
+                </CardContent>
+            </Card>
+
+            <Card className="bg-zinc-900 border-zinc-800 overflow-hidden">
+                <CardHeader className="flex flex-row items-start justify-between gap-3">
+                    <div>
+                        <CardTitle className="text-white flex items-center gap-2">
+                            <Sparkles className="h-4 w-4 text-fuchsia-400" />
+                            OpenCode Autopilot (Patched into MetaMCP)
+                        </CardTitle>
+                        <p className="text-xs text-zinc-500 mt-1">Use embedded mode below or launch full Autopilot dashboard.</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <Button
+                            variant="outline"
+                            className="border-zinc-700 hover:bg-zinc-800 text-zinc-300"
+                            onClick={() => setShowAutopilotEmbed((v) => !v)}
+                        >
+                            {showAutopilotEmbed ? 'Hide Embed' : 'Show Embed'}
+                        </Button>
+                        <Link
+                            href="/dashboard/autopilot"
+                            className="inline-flex items-center rounded-md bg-fuchsia-700 px-3 py-2 text-xs font-medium text-white hover:bg-fuchsia-600 transition-colors"
+                        >
+                            Open Subpage
+                        </Link>
+                        <a
+                            href={autopilotUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 rounded-md bg-zinc-800 px-3 py-2 text-xs font-medium text-zinc-100 hover:bg-zinc-700 transition-colors"
+                        >
+                            <ExternalLink className="h-3.5 w-3.5" />
+                            Standalone
+                        </a>
+                    </div>
+                </CardHeader>
+                {showAutopilotEmbed ? (
+                    <CardContent className="pt-0">
+                        <div className="h-[520px] rounded-lg border border-zinc-800 overflow-hidden bg-black">
+                            <iframe
+                                src={autopilotUrl}
+                                className="w-full h-full border-none"
+                                title="OpenCode Autopilot Embedded"
+                                allow="clipboard-read; clipboard-write"
+                            />
+                        </div>
+                    </CardContent>
+                ) : null}
+            </Card>
 
             {/* Stats Overview */}
             <div className="grid gap-4 md:grid-cols-3">
@@ -141,6 +385,57 @@ export default function MCPDashboard() {
                     ))}
                 </div>
             )}
+        </div>
+    );
+}
+
+function SortablePanelLink({
+    id,
+    title,
+    href,
+    description,
+    icon: Icon,
+    accent,
+}: {
+    id: string;
+    title: string;
+    href: string;
+    description: string;
+    icon: any;
+    accent: string;
+}) {
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+    };
+
+    return (
+        <div
+            ref={setNodeRef}
+            style={style}
+            className={`rounded-lg border border-zinc-800 bg-zinc-950/70 hover:border-zinc-700 transition-colors ${isDragging ? 'opacity-70 ring-1 ring-blue-500' : ''}`}
+        >
+            <div className="flex items-start justify-between gap-3 p-4">
+                <Link href={href} className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                        <Icon className={`h-4 w-4 ${accent}`} />
+                        <span className="text-sm font-semibold text-zinc-100">{title}</span>
+                    </div>
+                    <p className="text-xs text-zinc-500 leading-relaxed">{description}</p>
+                </Link>
+                <button
+                    type="button"
+                    {...attributes}
+                    {...listeners}
+                    className="text-zinc-500 hover:text-zinc-200 text-xs px-2 py-1 rounded border border-zinc-700 hover:border-zinc-500 cursor-grab active:cursor-grabbing"
+                    title="Drag to reorder"
+                    aria-label={`Drag ${title} panel`}
+                >
+                    Drag
+                </button>
+            </div>
         </div>
     );
 }

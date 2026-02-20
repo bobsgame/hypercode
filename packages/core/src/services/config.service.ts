@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { ConfigKey, ConfigKeyEnum } from "../types/metamcp/index.js";
 import { configRepo } from "../db/repositories/index.js";
 

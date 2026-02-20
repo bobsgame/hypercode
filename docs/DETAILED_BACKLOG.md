@@ -1,7 +1,7 @@
 # Detailed Backlog (Borg Primary Audit)
 
 **Last Updated:** 2026-02-13  
-**Version Context:** 2.6.1 (`VERSION.md` source of truth; changelog contains drifted 2.6.2 entries)  
+**Version Context:** 2.6.3 (`VERSION.md` source of truth)  
 **Purpose:** Implementation-ready queue for unfinished/partial Borg features discovered in the primary audit.
 
 ---

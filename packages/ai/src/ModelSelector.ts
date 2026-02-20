@@ -27,7 +27,7 @@ interface ModelStatus {
 const DEFAULT_CHAINS = {
     worker: [
         { provider: 'google', modelId: 'gemini-2.0-flash' },
-        { provider: 'anthropic', modelId: 'claude-3-5-sonnet-latest' },
+        { provider: 'anthropic', modelId: 'claude-sonnet-4-20250514' },
         { provider: 'openai', modelId: 'gpt-4o' },
         { provider: 'deepseek', modelId: 'deepseek-chat' },
         { provider: 'lmstudio', modelId: 'local' },
@@ -35,7 +35,7 @@ const DEFAULT_CHAINS = {
     ],
     supervisor: [
         { provider: 'openai', modelId: 'gpt-4o' },
-        { provider: 'anthropic', modelId: 'claude-3-5-sonnet-latest' },
+        { provider: 'anthropic', modelId: 'claude-sonnet-4-20250514' },
         { provider: 'google', modelId: 'gemini-1.5-pro' },
         { provider: 'lmstudio', modelId: 'local' }
     ]

@@ -3,8 +3,57 @@
 import { trpc } from "../utils/trpc";
 import { useState } from "react";
 
+type SkillListItem = {
+    id: string;
+    name: string;
+    description: string;
+    content: string;
+    path: string;
+};
+
+function normalizeSkillList(value: unknown): SkillListItem[] {
+    if (!Array.isArray(value)) {
+        return [];
+    }
+
+    return value.filter((entry): entry is SkillListItem => {
+        if (!entry || typeof entry !== "object") {
+            return false;
+        }
+
+        const skill = entry as Partial<SkillListItem>;
+        return (
+            typeof skill.id === "string" &&
+            typeof skill.name === "string" &&
+            typeof skill.description === "string" &&
+            typeof skill.content === "string" &&
+            typeof skill.path === "string"
+        );
+    });
+}
+
+function extractSkillContent(value: unknown): string {
+    if (!value || typeof value !== "object") {
+        return "No content.";
+    }
+
+    const record = value as Record<string, unknown>;
+    if (!Array.isArray(record.content) || record.content.length === 0) {
+        return "No content.";
+    }
+
+    const first = record.content[0];
+    if (!first || typeof first !== "object") {
+        return "No content.";
+    }
+
+    const firstRecord = first as Record<string, unknown>;
+    return typeof firstRecord.text === "string" ? firstRecord.text : "No content.";
+}
+
 export function SkillsViewer() {
-    const skillsQuery = trpc.skills.list.useQuery();
+    const { data: rawSkills, isLoading } = trpc.skills.list.useQuery();
+    const skills = normalizeSkillList(rawSkills);
     const [selectedSkill, setSelectedSkill] = useState<string | null>(null);
 
     return (
@@ -14,14 +63,14 @@ export function SkillsViewer() {
                     📚 Skills Library
                 </h2>
                 <div className="text-xs text-zinc-500 uppercase font-bold tracking-wider">
-                    {skillsQuery.data?.length || 0} Available
+                    {skills.length} Available
                 </div>
             </div>
 
-            {skillsQuery.isLoading && <div className="text-zinc-500 animate-pulse">Loading skills...</div>}
+            {isLoading && <div className="text-zinc-500 animate-pulse">Loading skills...</div>}
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {skillsQuery.data?.map((skill: any) => (
+                {skills.map((skill) => (
                     <div
                         key={skill.name}
                         onClick={() => setSelectedSkill(skill.name === selectedSkill ? null : skill.name)}
@@ -55,8 +104,7 @@ function SkillDetails({ name }: { name: string }) {
 
     if (details.isLoading) return <div className="text-zinc-500">Loading definition...</div>;
 
-    // @ts-ignore
-    const content = details.data?.content?.[0]?.text || "No content.";
+    const content = extractSkillContent(details.data);
 
     return (
         <div className="whitespace-pre-wrap">

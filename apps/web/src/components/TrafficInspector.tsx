@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from 'react';
+import { createReconnectPolicy, getReconnectDelayMs, resolveCoreWsUrl, shouldRetryReconnect } from '@borg/ui';
 import { trpc } from '@/utils/trpc';
 
 interface Packet {
@@ -17,21 +18,44 @@ interface Packet {
 export function TrafficInspector() {
     const [packets, setPackets] = useState<Packet[]>([]);
     const [isConnected, setIsConnected] = useState(false);
+    const [customWsUrl, setCustomWsUrl] = useState<string>('');
+    const [connectTrigger, setConnectTrigger] = useState(0); // Used to force reconnect
     const wsRef = useRef<WebSocket | null>(null);
+    const reconnectAttemptsRef = useRef(0);
+    const reconnectPolicy = createReconnectPolicy();
 
     useEffect(() => {
+        // Prefer custom URL if set, otherwise fallback to env
+        const targetUrl = customWsUrl || process.env.NEXT_PUBLIC_CORE_WS_URL || 'ws://localhost:3000';
+        const wsUrl = resolveCoreWsUrl(targetUrl);
+
+        console.log(`[TrafficInspector] Connecting to: ${wsUrl}`);
+
         const connect = () => {
+            if (wsRef.current?.readyState === WebSocket.OPEN) {
+                wsRef.current.close();
+            }
+
             // Connect to Borg Core Bridge
-            const ws = new WebSocket('ws://localhost:3001');
+            const ws = new WebSocket(wsUrl);
 
             ws.onopen = () => {
                 setIsConnected(true);
-                // console.log("Inspector connected");
+                reconnectAttemptsRef.current = 0;
             };
 
             ws.onclose = () => {
                 setIsConnected(false);
-                setTimeout(connect, 3000); // Reconnect
+                if (shouldRetryReconnect(reconnectAttemptsRef.current, reconnectPolicy)) {
+                    reconnectAttemptsRef.current += 1;
+                    const delayMs = getReconnectDelayMs(reconnectAttemptsRef.current, reconnectPolicy);
+                    setTimeout(connect, delayMs); // Reconnect with capped backoff
+                }
+            };
+
+            ws.onerror = () => {
+                // Let onclose handle capped retries.
+                ws.close();
             };
 
             ws.onmessage = (event) => {
@@ -52,41 +76,10 @@ export function TrafficInspector() {
 
         connect();
 
-        // Load History
-        const fetchHistory = async () => {
-            // @ts-ignore
-            const history = await utils.client.audit.query.query({ limit: 50 });
-            const historicalPackets: Packet[] = history.map((entry: any) => {
-                if (entry.event === 'TOOL_START') {
-                    return {
-                        id: entry.metadata?.id || Math.random().toString(36),
-                        type: 'TOOL_CALL_START',
-                        tool: entry.details?.tool,
-                        args: entry.details?.args,
-                        timestamp: new Date(entry.timestamp).getTime()
-                    };
-                }
-                if (entry.event === 'TOOL_END') {
-                    return {
-                        id: entry.metadata?.id || Math.random().toString(36),
-                        type: 'TOOL_CALL_END',
-                        result: JSON.stringify(entry.details?.result),
-                        success: entry.metadata?.success,
-                        duration: entry.metadata?.duration,
-                        timestamp: new Date(entry.timestamp).getTime()
-                    };
-                }
-                return null;
-            }).filter(Boolean) as Packet[];
-
-            setPackets(prev => [...historicalPackets, ...prev]);
-        };
-        fetchHistory();
-
         return () => {
             wsRef.current?.close();
         };
-    }, []);
+    }, [connectTrigger]);
 
     const addPacket = (packet: Packet) => {
         setPackets(prev => {
@@ -107,23 +100,42 @@ export function TrafficInspector() {
     return (
         <div className="bg-black/80 rounded-xl border border-zinc-800 overflow-hidden flex flex-col h-[600px]">
             {/* Header */}
-            <div className="p-4 border-b border-zinc-800 bg-zinc-900/50 flex justify-between items-center">
-                <div className="flex items-center gap-2">
-                    <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} />
-                    <h2 className="font-mono font-bold text-zinc-300">NETWORK TRAFFIC (MCP)</h2>
+            <div className="p-4 border-b border-zinc-800 bg-zinc-900/50 flex flex-col gap-2">
+                <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-2">
+                        <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} />
+                        <h2 className="font-mono font-bold text-zinc-300">NETWORK TRAFFIC (MCP)</h2>
+                    </div>
+                    <div className="flex gap-2">
+                        <button
+                            onClick={handleReplay}
+                            className="text-xs px-2 py-1 bg-blue-900/30 text-blue-400 hover:bg-blue-900/50 rounded"
+                        >
+                            REPLAY LOGS
+                        </button>
+                        <button
+                            onClick={() => setPackets([])}
+                            className="text-xs text-zinc-500 hover:text-white"
+                        >
+                            CLEAR
+                        </button>
+                    </div>
                 </div>
-                <div className="flex gap-2">
+
+                {/* Connection Config Bar */}
+                <div className="flex gap-2 items-center">
+                    <input
+                        type="text"
+                        value={customWsUrl}
+                        onChange={(e) => setCustomWsUrl(e.target.value)}
+                        placeholder="ws://localhost:3000"
+                        className="flex-1 bg-black/50 border border-zinc-800 rounded px-2 py-1 text-xs font-mono text-zinc-400 focus:border-blue-500 outline-none"
+                    />
                     <button
-                        onClick={handleReplay}
-                        className="text-xs px-2 py-1 bg-blue-900/30 text-blue-400 hover:bg-blue-900/50 rounded"
+                        onClick={() => setConnectTrigger(prev => prev + 1)}
+                        className="text-xs px-3 py-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded font-mono"
                     >
-                        REPLAY LOGS
-                    </button>
-                    <button
-                        onClick={() => setPackets([])}
-                        className="text-xs text-zinc-500 hover:text-white"
-                    >
-                        CLEAR
+                        CONNECT
                     </button>
                 </div>
             </div>

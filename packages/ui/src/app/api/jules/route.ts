@@ -106,3 +106,36 @@ export async function DELETE(request: NextRequest) {
     );
   }
 }
+
+export async function PATCH(request: NextRequest) {
+  try {
+    const apiKey = request.headers.get("x-jules-api-key");
+    if (!apiKey) {
+      return NextResponse.json({ error: "API key required" }, { status: 401 });
+    }
+
+    const path = request.nextUrl.searchParams.get("path") || "";
+    const url = `${JULES_API_BASE}${path}`;
+    const body = await request.text();
+
+    const response = await fetch(url, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Goog-Api-Key": apiKey,
+      },
+      body: body || undefined,
+    });
+
+    const data = await response.json().catch(() => ({}));
+    return NextResponse.json(data, { status: response.status });
+  } catch (error) {
+    return NextResponse.json(
+      {
+        error: "Proxy error",
+        message: error instanceof Error ? error.message : "Unknown",
+      },
+      { status: 500 },
+    );
+  }
+}

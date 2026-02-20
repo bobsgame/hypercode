@@ -9,15 +9,13 @@
  * Helper repository for updating statuses and overrides in many-to-many link tables.
  */
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/ban-ts-comment */
-
 import {
     NamespaceServerStatusUpdate,
     NamespaceToolOverridesUpdate,
     NamespaceToolStatusUpdate,
 } from "../../types/metamcp/index.js";
 import { and, eq, sql } from "drizzle-orm";
+import { randomUUID } from "node:crypto";
 
 import { db } from "../index.js";
 import {
@@ -25,77 +23,77 @@ import {
     namespaceToolMappingsTable,
 } from "../metamcp-schema.js";
 
+type NamespaceServerMappingRow = typeof namespaceServerMappingsTable.$inferSelect;
+type NamespaceToolMappingRow = typeof namespaceToolMappingsTable.$inferSelect;
+type NamespaceToolMappingInsert = typeof namespaceToolMappingsTable.$inferInsert;
+
 export class NamespaceMappingsRepository {
-    async updateServerStatus(input: NamespaceServerStatusUpdate) {
-        // @ts-ignore
+    async updateServerStatus(input: NamespaceServerStatusUpdate): Promise<NamespaceServerMappingRow | undefined> {
         const [updatedMapping] = await db
-            .update(namespaceServerMappingsTable as any)
+            .update(namespaceServerMappingsTable)
             .set({
                 status: input.status,
-            } as any)
+            })
             .where(
                 and(
-                    eq(namespaceServerMappingsTable.namespace_uuid as any, input.namespaceUuid),
-                    eq(namespaceServerMappingsTable.mcp_server_uuid as any, input.serverUuid),
-                ) as any,
+                    eq(namespaceServerMappingsTable.namespace_uuid, input.namespaceUuid),
+                    eq(namespaceServerMappingsTable.mcp_server_uuid, input.serverUuid),
+                ),
             )
-            .returning() as any;
+            .returning();
 
         return updatedMapping;
     }
 
-    async updateToolStatus(input: NamespaceToolStatusUpdate) {
-        // @ts-ignore
+    async updateToolStatus(input: NamespaceToolStatusUpdate): Promise<NamespaceToolMappingRow | undefined> {
         const [updatedMapping] = await db
-            .update(namespaceToolMappingsTable as any)
+            .update(namespaceToolMappingsTable)
             .set({
                 status: input.status,
-            } as any)
+            })
             .where(
                 and(
-                    eq(namespaceToolMappingsTable.namespace_uuid as any, input.namespaceUuid),
-                    eq(namespaceToolMappingsTable.tool_uuid as any, input.toolUuid),
-                    eq(namespaceToolMappingsTable.mcp_server_uuid as any, input.serverUuid),
-                ) as any,
+                    eq(namespaceToolMappingsTable.namespace_uuid, input.namespaceUuid),
+                    eq(namespaceToolMappingsTable.tool_uuid, input.toolUuid),
+                    eq(namespaceToolMappingsTable.mcp_server_uuid, input.serverUuid),
+                ),
             )
-            .returning() as any;
+            .returning();
 
         return updatedMapping;
     }
 
-    async updateToolOverrides(input: NamespaceToolOverridesUpdate) {
-        // @ts-ignore
+    async updateToolOverrides(input: NamespaceToolOverridesUpdate): Promise<NamespaceToolMappingRow | undefined> {
         const [updatedMapping] = await db
-            .update(namespaceToolMappingsTable as any)
+            .update(namespaceToolMappingsTable)
             .set({
                 override_name: input.overrideName,
                 override_title: input.overrideTitle,
                 override_description: input.overrideDescription,
                 override_annotations: input.overrideAnnotations,
-            } as any)
+            })
             .where(
                 and(
-                    eq(namespaceToolMappingsTable.namespace_uuid as any, input.namespaceUuid),
-                    eq(namespaceToolMappingsTable.tool_uuid as any, input.toolUuid),
-                    eq(namespaceToolMappingsTable.mcp_server_uuid as any, input.serverUuid),
-                ) as any,
+                    eq(namespaceToolMappingsTable.namespace_uuid, input.namespaceUuid),
+                    eq(namespaceToolMappingsTable.tool_uuid, input.toolUuid),
+                    eq(namespaceToolMappingsTable.mcp_server_uuid, input.serverUuid),
+                ),
             )
-            .returning() as any;
+            .returning();
 
         return updatedMapping;
     }
 
-    async findServerMapping(namespaceUuid: string, serverUuid: string) {
-        // @ts-ignore
+    async findServerMapping(namespaceUuid: string, serverUuid: string): Promise<NamespaceServerMappingRow | undefined> {
         const [mapping] = await db
             .select()
-            .from(namespaceServerMappingsTable as any)
+            .from(namespaceServerMappingsTable)
             .where(
                 and(
-                    eq(namespaceServerMappingsTable.namespace_uuid as any, namespaceUuid),
-                    eq(namespaceServerMappingsTable.mcp_server_uuid as any, serverUuid),
-                ) as any,
-            ) as any;
+                    eq(namespaceServerMappingsTable.namespace_uuid, namespaceUuid),
+                    eq(namespaceServerMappingsTable.mcp_server_uuid, serverUuid),
+                ),
+            );
 
         return mapping;
     }
@@ -104,26 +102,24 @@ export class NamespaceMappingsRepository {
      * Find all namespace UUIDs that use a specific MCP server
      */
     async findNamespacesByServerUuid(serverUuid: string): Promise<string[]> {
-        // @ts-ignore
         const mappings = await db
             .select({
                 namespace_uuid: namespaceServerMappingsTable.namespace_uuid,
-            } as any)
-            .from(namespaceServerMappingsTable as any)
-            .where(eq(namespaceServerMappingsTable.mcp_server_uuid as any, serverUuid)) as any;
+            })
+            .from(namespaceServerMappingsTable)
+            .where(eq(namespaceServerMappingsTable.mcp_server_uuid, serverUuid));
 
-        return mappings.map((mapping: any) => mapping.namespace_uuid);
+        return mappings.map((mapping) => mapping.namespace_uuid);
     }
 
     /**
      * Get all existing tool mappings for a namespace
      */
-    async findToolMappingsByNamespace(namespaceUuid: string) {
-        // @ts-ignore
+    async findToolMappingsByNamespace(namespaceUuid: string): Promise<NamespaceToolMappingRow[]> {
         const mappings = await db
             .select()
-            .from(namespaceToolMappingsTable as any)
-            .where(eq(namespaceToolMappingsTable.namespace_uuid as any, namespaceUuid)) as any;
+            .from(namespaceToolMappingsTable)
+            .where(eq(namespaceToolMappingsTable.namespace_uuid, namespaceUuid));
 
         return mappings;
     }
@@ -132,18 +128,17 @@ export class NamespaceMappingsRepository {
         namespaceUuid: string,
         toolUuid: string,
         serverUuid: string,
-    ) {
-        // @ts-ignore
+    ): Promise<NamespaceToolMappingRow | undefined> {
         const [mapping] = await db
             .select()
-            .from(namespaceToolMappingsTable as any)
+            .from(namespaceToolMappingsTable)
             .where(
                 and(
-                    eq(namespaceToolMappingsTable.namespace_uuid as any, namespaceUuid),
-                    eq(namespaceToolMappingsTable.tool_uuid as any, toolUuid),
-                    eq(namespaceToolMappingsTable.mcp_server_uuid as any, serverUuid),
-                ) as any,
-            ) as any;
+                    eq(namespaceToolMappingsTable.namespace_uuid, namespaceUuid),
+                    eq(namespaceToolMappingsTable.tool_uuid, toolUuid),
+                    eq(namespaceToolMappingsTable.mcp_server_uuid, serverUuid),
+                ),
+            );
 
         return mapping;
     }
@@ -159,12 +154,13 @@ export class NamespaceMappingsRepository {
             serverUuid: string;
             status?: "ACTIVE" | "INACTIVE";
         }>;
-    }) {
+    }): Promise<NamespaceToolMappingRow[]> {
         if (!input.toolMappings || input.toolMappings.length === 0) {
             return [];
         }
 
-        const mappingsToInsert = input.toolMappings.map((mapping) => ({
+        const mappingsToInsert: NamespaceToolMappingInsert[] = input.toolMappings.map((mapping) => ({
+            uuid: randomUUID(),
             namespace_uuid: input.namespaceUuid,
             tool_uuid: mapping.toolUuid,
             mcp_server_uuid: mapping.serverUuid,
@@ -172,10 +168,9 @@ export class NamespaceMappingsRepository {
         }));
 
         // Upsert the mappings - if they exist, update the status; if not, insert them
-        // @ts-ignore
         return await db
-            .insert(namespaceToolMappingsTable as any)
-            .values(mappingsToInsert as any)
+            .insert(namespaceToolMappingsTable)
+            .values(mappingsToInsert)
             .onConflictDoUpdate({
                 target: [
                     namespaceToolMappingsTable.namespace_uuid,
@@ -185,8 +180,8 @@ export class NamespaceMappingsRepository {
                     status: sql`excluded.status`,
                     mcp_server_uuid: sql`excluded.mcp_server_uuid`,
                 },
-            } as any)
-            .returning() as any;
+            })
+            .returning();
     }
 }
 

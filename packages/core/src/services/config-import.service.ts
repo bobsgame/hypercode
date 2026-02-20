@@ -1,24 +1,60 @@
-// @ts-nocheck
-import { McpServerTypeEnum } from "../types/metamcp";
-import { mcpServersRepository } from "../db/repositories/mcp-servers.repo";
+import { McpServerCreateInput, McpServerTypeEnum } from "../types/metamcp/index.js";
+import { mcpServersRepository } from "../db/repositories/mcp-servers.repo.js";
+
+interface ClaudeMcpServerDefinition {
+    command?: string;
+    args?: string[];
+    env?: Record<string, string>;
+    url?: string;
+}
+
+interface ConfigImportResult {
+    imported: number;
+    skipped: string[];
+}
+
+function normalizeServerDefinition(value: unknown): ClaudeMcpServerDefinition {
+    if (!value || typeof value !== "object") {
+        return {};
+    }
+
+    const record = value as Record<string, unknown>;
+    const args = Array.isArray(record.args)
+        ? record.args.filter((arg): arg is string => typeof arg === "string")
+        : [];
+
+    const env = record.env && typeof record.env === "object"
+        ? Object.fromEntries(
+            Object.entries(record.env as Record<string, unknown>).filter(
+                ([, val]) => typeof val === "string",
+            ) as Array<[string, string]>,
+        )
+        : {};
+
+    return {
+        command: typeof record.command === "string" ? record.command : undefined,
+        args,
+        env,
+        url: typeof record.url === "string" ? record.url : undefined,
+    };
+}
 
 export class ConfigImportService {
-    async importClaudeConfig(configJson: string, userId?: string | null): Promise<any> {
+    async importClaudeConfig(configJson: string, userId?: string | null): Promise<ConfigImportResult> {
         try {
             const config = JSON.parse(configJson);
             if (!config.mcpServers || typeof config.mcpServers !== "object") {
                 throw new Error("Invalid configuration: 'mcpServers' object not found.");
             }
 
-            const serversToCreate = [];
-            const errors = [];
+            const serversToCreate: McpServerCreateInput[] = [];
+            const errors: string[] = [];
 
             for (const [name, definition] of Object.entries(config.mcpServers)) {
                 // Validate name format (alphanumeric + underscore/hyphen)
                 const safeName = name.replace(/[^a-zA-Z0-9_-]/g, "_");
 
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                const def = definition as any;
+                const def = normalizeServerDefinition(definition);
 
                 if (def.command) {
                     // Stdio Server
@@ -44,12 +80,6 @@ export class ConfigImportService {
             }
 
             if (serversToCreate.length > 0) {
-                // @ts-ignore - Assuming bulkCreate exists or I need to loop create
-                // mcpServersRepository usually has create, not bulkCreate unless I added it.
-                // Let's check mcpServersRepo capabilities.
-                // In Step 5176 I viewed mcp-servers.repo.ts, it had `create` and `findAllAccessibleToUser`.
-                // I didn't see `bulkCreate`. I should probably implement it or loop.
-                // For now, I'll loop.
                 for (const server of serversToCreate) {
                     await mcpServersRepository.create(server);
                 }

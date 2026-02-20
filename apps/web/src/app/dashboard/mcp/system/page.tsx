@@ -2,14 +2,37 @@
 
 import { Card, CardContent } from "@borg/ui";
 import { Button } from "@borg/ui";
-import { Loader2, Server, Globe, Activity, Shield, Cpu, HardDrive, Network } from "lucide-react";
+import { Activity, Server, Cpu, HardDrive, Network, Globe, Radio } from "lucide-react";
 import { trpc } from '@/utils/trpc';
 import { toast } from 'sonner';
+import type { ComponentType } from 'react';
 
 export default function SystemStatusDashboard() {
-    const { data: status, isLoading, refetch } = trpc.mcp.getStatus.useQuery();
-    // In a real app we'd have a systemRouter for CPU/RAM/Disk, 
-    // but we can mock or use what we have for now.
+    const { data: status, refetch } = trpc.mcp.getStatus.useQuery();
+    const { data: browserStatus, refetch: refetchBrowser } = trpc.browser.status.useQuery(undefined, { refetchInterval: 5000 });
+    const { data: meshStatus, refetch: refetchMesh } = trpc.mesh.status.useQuery(undefined, { refetchInterval: 5000 });
+
+    const closeAllPages = trpc.browser.closeAll.useMutation({
+        onSuccess: () => {
+            toast.success('Closed all browser pages.');
+            void refetchBrowser();
+        },
+        onError: (err) => toast.error(`Failed to close pages: ${err.message}`),
+    });
+
+    const broadcastHeartbeat = trpc.mesh.broadcast.useMutation({
+        onSuccess: () => {
+            toast.success('Mesh heartbeat broadcast sent.');
+            void refetchMesh();
+        },
+        onError: (err) => toast.error(`Mesh broadcast failed: ${err.message}`),
+    });
+
+    const handleRefresh = () => {
+        void refetch();
+        void refetchBrowser();
+        void refetchMesh();
+    };
 
     return (
         <div className="p-8 space-y-8 h-full overflow-y-auto">
@@ -20,7 +43,7 @@ export default function SystemStatusDashboard() {
                         Infrastructure health and resource usage
                     </p>
                 </div>
-                <Button onClick={() => refetch()} variant="outline" className="border-zinc-700 hover:bg-zinc-800">
+                <Button onClick={handleRefresh} variant="outline" className="border-zinc-700 hover:bg-zinc-800">
                     <Activity className="mr-2 h-4 w-4" /> Refresh Status
                 </Button>
             </div>
@@ -55,6 +78,85 @@ export default function SystemStatusDashboard() {
                 />
             </div>
 
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <Card className="bg-zinc-900 border-zinc-800">
+                    <CardContent className="p-6 space-y-4">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <h3 className="text-lg font-medium text-white">Browser Runtime</h3>
+                                <p className="text-xs text-zinc-500 mt-1">Live status from `browserRouter`</p>
+                            </div>
+                            <Globe className="h-5 w-5 text-cyan-400" />
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-2 text-sm">
+                            <div className="bg-zinc-950 border border-zinc-800 rounded p-3">
+                                <div className="text-zinc-500 text-xs">Available</div>
+                                <div className="text-white font-semibold">{browserStatus?.available ? 'Yes' : 'No'}</div>
+                            </div>
+                            <div className="bg-zinc-950 border border-zinc-800 rounded p-3">
+                                <div className="text-zinc-500 text-xs">Active</div>
+                                <div className="text-white font-semibold">{browserStatus?.active ? 'Yes' : 'No'}</div>
+                            </div>
+                            <div className="bg-zinc-950 border border-zinc-800 rounded p-3">
+                                <div className="text-zinc-500 text-xs">Pages</div>
+                                <div className="text-white font-semibold">{browserStatus?.pageCount ?? 0}</div>
+                            </div>
+                        </div>
+
+                        <div className="flex justify-end">
+                            <Button
+                                onClick={() => closeAllPages.mutate()}
+                                disabled={!browserStatus?.available || closeAllPages.isPending}
+                                variant="outline"
+                                className="border-zinc-700 hover:bg-zinc-800"
+                            >
+                                Close All Pages
+                            </Button>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <Card className="bg-zinc-900 border-zinc-800">
+                    <CardContent className="p-6 space-y-4">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <h3 className="text-lg font-medium text-white">Mesh Runtime</h3>
+                                <p className="text-xs text-zinc-500 mt-1">Live status from `meshRouter`</p>
+                            </div>
+                            <Radio className="h-5 w-5 text-emerald-400" />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2 text-sm">
+                            <div className="bg-zinc-950 border border-zinc-800 rounded p-3">
+                                <div className="text-zinc-500 text-xs">Available</div>
+                                <div className="text-white font-semibold">{meshStatus?.available ? 'Yes' : 'No'}</div>
+                            </div>
+                            <div className="bg-zinc-950 border border-zinc-800 rounded p-3">
+                                <div className="text-zinc-500 text-xs">Peers</div>
+                                <div className="text-white font-semibold">{meshStatus?.peerCount ?? 0}</div>
+                            </div>
+                        </div>
+
+                        <div className="bg-zinc-950 border border-zinc-800 rounded p-3">
+                            <div className="text-zinc-500 text-xs mb-1">Node ID</div>
+                            <div className="text-xs text-zinc-300 font-mono break-all">{meshStatus?.nodeId ?? 'N/A'}</div>
+                        </div>
+
+                        <div className="flex justify-end">
+                            <Button
+                                onClick={() => broadcastHeartbeat.mutate({ type: 'HEARTBEAT', payload: { source: 'dashboard/mcp/system', ts: Date.now() } })}
+                                disabled={!meshStatus?.available || broadcastHeartbeat.isPending}
+                                variant="outline"
+                                className="border-zinc-700 hover:bg-zinc-800"
+                            >
+                                Broadcast Heartbeat
+                            </Button>
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
+
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 <Card className="bg-zinc-900 border-zinc-800">
                     <CardContent className="p-6">
@@ -62,6 +164,8 @@ export default function SystemStatusDashboard() {
                         <div className="space-y-4">
                             <HealthRow name="Core API" status="Operational" latency="12ms" />
                             <HealthRow name="MCP Aggregator" status="Operational" latency="4ms" />
+                            <HealthRow name="Browser Runtime" status={browserStatus?.available ? 'Operational' : 'Unavailable'} latency="-" />
+                            <HealthRow name="Mesh Runtime" status={meshStatus?.available ? 'Operational' : 'Unavailable'} latency="-" />
                             <HealthRow name="Vector Store" status="Operational" latency="45ms" />
                             <HealthRow name="Task Queue" status="Idle" latency="-" />
                         </div>
@@ -96,7 +200,7 @@ export default function SystemStatusDashboard() {
     );
 }
 
-function StatusCard({ title, status, icon: Icon, color, detail }: any) {
+function StatusCard({ title, status, icon: Icon, color, detail }: { title: string; status: string; icon: ComponentType<{ className?: string }>; color: string; detail?: string }) {
     return (
         <Card className="bg-zinc-900 border-zinc-800">
             <CardContent className="p-6">
@@ -111,16 +215,17 @@ function StatusCard({ title, status, icon: Icon, color, detail }: any) {
     );
 }
 
-function HealthRow({ name, status, latency }: any) {
+function HealthRow({ name, status, latency }: { name: string; status: string; latency: string }) {
+    const isHealthy = status === 'Operational' || status === 'Healthy' || status === 'Active';
     return (
         <div className="flex items-center justify-between p-3 bg-zinc-950 rounded border border-zinc-800">
             <div className="flex items-center gap-3">
-                <div className="h-2 w-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]" />
+                <div className={`h-2 w-2 rounded-full ${isHealthy ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]' : 'bg-yellow-500 shadow-[0_0_8px_rgba(234,179,8,0.5)]'}`} />
                 <span className="text-zinc-200 font-medium">{name}</span>
             </div>
             <div className="flex items-center gap-4 text-sm">
                 <span className="text-zinc-500">{latency}</span>
-                <span className="text-green-400">{status}</span>
+                <span className={isHealthy ? 'text-green-400' : 'text-yellow-400'}>{status}</span>
             </div>
         </div>
     );

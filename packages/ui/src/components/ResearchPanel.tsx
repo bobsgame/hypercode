@@ -6,65 +6,96 @@ import { Card } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { ScrollArea } from './ui/scroll-area';
-
-// Simple mock for socket (Next.js client-side)
-// In a real app, use a Context or Hook
-let socket: WebSocket | null = null;
+import { resolveCoreWsUrl } from '../lib/endpoints';
+import { createReconnectPolicy, getReconnectDelayMs, normalizeNumericInput, shouldRetryReconnect } from '../lib/connection-policy';
 
 export default function ResearchPanel() {
     const [topic, setTopic] = useState('');
     const [depth, setDepth] = useState(3);
+    const [depthInput, setDepthInput] = useState('3');
     const [logs, setLogs] = useState<any[]>([]);
     const [status, setStatus] = useState('idle'); // idle, researching, complete
     const [progress, setProgress] = useState(0);
     const scrollRef = useRef<HTMLDivElement>(null);
+    const socketRef = useRef<WebSocket | null>(null);
+    const reconnectAttemptsRef = useRef(0);
+    const reconnectTimerRef = useRef<number | null>(null);
+    const reconnectPolicy = createReconnectPolicy();
 
     useEffect(() => {
-        // Connect to Borg Core WS
-        socket = new WebSocket('ws://localhost:3001');
+        const wsUrl = resolveCoreWsUrl(process.env.NEXT_PUBLIC_CORE_WS_URL);
 
-        socket.onopen = () => {
-            console.log('Connected to Borg Core');
-            setLogs(prev => [...prev, { type: 'system', message: 'Connected to Borg Core' }]);
-        };
+        const connect = () => {
+            const ws = new WebSocket(wsUrl);
 
-        socket.onmessage = (event: MessageEvent) => {
-            try {
-                const data = JSON.parse(event.data);
+            ws.onopen = () => {
+                reconnectAttemptsRef.current = 0;
+                setLogs(prev => [...prev, { type: 'system', message: 'Connected to Borg Core' }]);
+            };
 
-                if (data.type === 'RESEARCH_UPDATE') {
-                    const payload = data.payload;
-                    setLogs(prev => [...prev, payload]);
-                    if (payload.progress) setProgress(payload.progress);
-                    if (scrollRef.current) {
-                        scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+            ws.onmessage = (event: MessageEvent) => {
+                try {
+                    const data = JSON.parse(event.data);
+
+                    if (data.type === 'RESEARCH_UPDATE') {
+                        const payload = data.payload;
+                        setLogs(prev => [...prev, payload]);
+                        if (payload.progress) setProgress(payload.progress);
+                        if (scrollRef.current) {
+                            scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+                        }
                     }
-                }
 
-                if (data.type === 'RESEARCH_COMPLETE') {
-                    setStatus('complete');
-                    setLogs(prev => [...prev, { type: 'success', message: 'Research Complete!', report: data.payload.report }]);
-                    setProgress(100);
+                    if (data.type === 'RESEARCH_COMPLETE') {
+                        setStatus('complete');
+                        setLogs(prev => [...prev, { type: 'success', message: 'Research Complete!', report: data.payload.report }]);
+                        setProgress(100);
+                    }
+                } catch (e) { }
+            };
+
+            ws.onerror = () => {
+                ws.close();
+            };
+
+            ws.onclose = () => {
+                socketRef.current = null;
+                if (shouldRetryReconnect(reconnectAttemptsRef.current, reconnectPolicy)) {
+                    reconnectAttemptsRef.current += 1;
+                    const delayMs = getReconnectDelayMs(reconnectAttemptsRef.current, reconnectPolicy);
+                    reconnectTimerRef.current = window.setTimeout(connect, delayMs);
                 }
-            } catch (e) { }
+            };
+
+            socketRef.current = ws;
         };
+
+        connect();
 
         return () => {
-            if (socket) socket.close();
+            if (reconnectTimerRef.current !== null) {
+                window.clearTimeout(reconnectTimerRef.current);
+            }
+            socketRef.current?.close();
         };
     }, []);
 
     const startResearch = () => {
         if (!topic) return;
+
+        const normalizedDepth = normalizeNumericInput(depthInput, 3, 1, 10);
+
+        setDepth(normalizedDepth);
+        setDepthInput(String(normalizedDepth));
         setStatus('researching');
         setLogs([]);
         setProgress(0);
 
-        if (socket) {
-            socket.send(JSON.stringify({
+        if (socketRef.current?.readyState === WebSocket.OPEN) {
+            socketRef.current.send(JSON.stringify({
                 jsonrpc: '2.0',
                 method: 'research',
-                params: { topic, depth },
+                params: { topic, depth: normalizedDepth },
                 id: Date.now()
             }));
         }
@@ -85,8 +116,12 @@ export default function ResearchPanel() {
                     />
                     <Input
                         type="number"
-                        value={depth}
-                        onChange={e => setDepth(parseInt(e.target.value))}
+                        value={depthInput}
+                        onChange={(e) => {
+                            const nextValue = e.target.value;
+                            setDepthInput(nextValue);
+                            setDepth(normalizeNumericInput(nextValue, 3, 1, 10));
+                        }}
                         className="w-24"
                         min={1}
                         max={10}

@@ -10,32 +10,31 @@
  * Stores tokens securely (encrypted at rest ideally, but here just storage).
  */
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/ban-ts-comment */
-
 import {
     OAuthSessionCreateInput,
     // OAuthSessionUpdateInput, // Unused
 } from "../../types/metamcp/index.js";
 import { desc, eq } from "drizzle-orm";
+import { randomUUID } from "node:crypto";
 
 import { db } from "../index.js";
 import { oauthSessionsTable } from "../metamcp-schema.js";
 
+type OAuthSessionRow = typeof oauthSessionsTable.$inferSelect;
+type OAuthSessionInsert = typeof oauthSessionsTable.$inferInsert;
+
 export class OAuthSessionsRepository {
-    async upsert(input: OAuthSessionCreateInput) {
+    async upsert(input: OAuthSessionCreateInput): Promise<OAuthSessionRow> {
         // Check if session exists
-        // @ts-ignore
         const [existingSession] = await db
             .select()
-            .from(oauthSessionsTable as any)
-            .where(eq(oauthSessionsTable.mcp_server_uuid as any, input.mcp_server_uuid)) as any;
+            .from(oauthSessionsTable)
+            .where(eq(oauthSessionsTable.mcp_server_uuid, input.mcp_server_uuid));
 
         if (existingSession) {
             // Update
-            // @ts-ignore
             const [updatedSession] = await db
-                .update(oauthSessionsTable as any)
+                .update(oauthSessionsTable)
                 .set({
                     // Merge input fields, keep existing if undefined in input (partial update logic handled by service usually, but here strict)
                     client_information:
@@ -43,53 +42,52 @@ export class OAuthSessionsRepository {
                     tokens: input.tokens ?? existingSession.tokens,
                     code_verifier: input.code_verifier ?? existingSession.code_verifier,
                     updated_at: new Date(),
-                } as any)
-                .where(eq(oauthSessionsTable.uuid as any, existingSession.uuid))
-                .returning() as any;
+                })
+                .where(eq(oauthSessionsTable.uuid, existingSession.uuid))
+                .returning();
 
             return updatedSession;
         } else {
             // Create
-            // @ts-ignore
+            const payload: OAuthSessionInsert = {
+                uuid: randomUUID(),
+                mcp_server_uuid: input.mcp_server_uuid,
+                tokens: input.tokens ?? null,
+                code_verifier: input.code_verifier ?? null,
+                ...(input.client_information ? { client_information: input.client_information } : {}),
+            };
+
             const [createdSession] = await db
-                .insert(oauthSessionsTable as any)
-                .values({
-                    mcp_server_uuid: input.mcp_server_uuid,
-                    client_information: input.client_information,
-                    tokens: input.tokens,
-                    code_verifier: input.code_verifier,
-                } as any)
-                .returning() as any;
+                .insert(oauthSessionsTable)
+                .values(payload)
+                .returning();
 
             return createdSession;
         }
     }
 
-    async findByMcpServerUuid(mcpServerUuid: string) {
-        // @ts-ignore
+    async findByMcpServerUuid(mcpServerUuid: string): Promise<OAuthSessionRow | undefined> {
         const [session] = await db
             .select()
-            .from(oauthSessionsTable as any)
-            .where(eq(oauthSessionsTable.mcp_server_uuid as any, mcpServerUuid)) as any;
+            .from(oauthSessionsTable)
+            .where(eq(oauthSessionsTable.mcp_server_uuid, mcpServerUuid));
 
         return session;
     }
 
     // Find all sessions (maintenance/admin)
-    async findAll() {
-        // @ts-ignore
+    async findAll(): Promise<OAuthSessionRow[]> {
         return await db
             .select()
-            .from(oauthSessionsTable as any)
-            .orderBy(desc(oauthSessionsTable.updated_at as any)) as any;
+            .from(oauthSessionsTable)
+            .orderBy(desc(oauthSessionsTable.updated_at));
     }
 
-    async delete(uuid: string) {
-        // @ts-ignore
+    async delete(uuid: string): Promise<OAuthSessionRow | undefined> {
         const [deletedSession] = await db
-            .delete(oauthSessionsTable as any)
-            .where(eq(oauthSessionsTable.uuid as any, uuid))
-            .returning() as any;
+            .delete(oauthSessionsTable)
+            .where(eq(oauthSessionsTable.uuid, uuid))
+            .returning();
 
         return deletedSession;
     }

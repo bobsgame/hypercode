@@ -1,4 +1,3 @@
-// @ts-nocheck
 import {
     DatabaseNamespace,
     DatabaseNamespaceTool,
@@ -47,7 +46,6 @@ export class NamespacesSerializer {
                 env: server.env || {},
                 bearerToken: server.bearerToken,
                 headers: server.headers || {},
-                error_status: server.error_status,
                 created_at: server.created_at.toISOString(),
                 user_id: server.user_id,
                 status: server.status,

@@ -21,7 +21,9 @@ export const createCouncilTools = (councilService: CouncilService) => [
         description: "List active Council debate sessions.",
         inputSchema: z.object({}),
         handler: async () => {
-            const sessions = councilService.listSessions().filter((s: any) => s.status === 'active');
+            const sessions = councilService
+                .listSessions()
+                .filter((s) => s.status === 'active');
             return {
                 content: [{ type: "text", text: JSON.stringify(sessions, null, 2) }]
             };

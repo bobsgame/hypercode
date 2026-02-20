@@ -3268,3 +3268,24 @@
 [submodule "external/tools/theme-context"]
 	path = external/tools/theme-context
 	url = https://github.com/bidfox/themecontextmcp
+[submodule "packages/mcp-directory/general/awesome-ai-apps"]
+	path = packages/mcp-directory/general/awesome-ai-apps
+	url = https://github.com/Arindam200/awesome-ai-apps
+[submodule "packages/skills/skills"]
+	path = packages/skills/skills
+	url = https://github.com/TheNoeTrevino/dotfiles
+[submodule "packages/skills/gemini-claude-skills"]
+	path = packages/skills/gemini-claude-skills
+	url = https://github.com/stared/gemini-claude-skills
+[submodule "packages/skills/claude-code-tips"]
+	path = packages/skills/claude-code-tips
+	url = https://github.com/ykdojo/claude-code-tips
+[submodule "packages/mcp-directory/orchestration/metamcp"]
+	path = packages/mcp-directory/orchestration/metamcp
+	url = https://github.com/robertpelloni/metamcp
+[submodule "packages/mcp-directory/orchestration/blog.md"]
+	path = packages/mcp-directory/orchestration/blog.md
+	url = https://github.com/The-Pocket/PocketFlow-Tutorial-Cursor
+[submodule "external/MetaMCP"]
+	path = external/MetaMCP
+	url = https://github.com/robertpelloni/MetaMCP

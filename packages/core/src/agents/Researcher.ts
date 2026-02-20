@@ -50,6 +50,36 @@ export class Researcher {
         console.log("[Researcher] Batch complete.");
     }
 
+    private extractJsonObject(text: string): Record<string, unknown> | null {
+        const trimmed = text.trim();
+
+        try {
+            return JSON.parse(trimmed) as Record<string, unknown>;
+        } catch {
+            // continue
+        }
+
+        const fencedMatch = trimmed.match(/```json\s*([\s\S]*?)```/i);
+        if (fencedMatch?.[1]) {
+            try {
+                return JSON.parse(fencedMatch[1].trim()) as Record<string, unknown>;
+            } catch {
+                // continue
+            }
+        }
+
+        const objectMatch = trimmed.match(/\{[\s\S]*\}/);
+        if (objectMatch?.[0]) {
+            try {
+                return JSON.parse(objectMatch[0]) as Record<string, unknown>;
+            } catch {
+                return null;
+            }
+        }
+
+        return null;
+    }
+
     private async processTarget(target: ResearchTarget) {
         console.log(`[Researcher] Analyzing: ${target.name} (${target.url})`);
 
@@ -65,11 +95,7 @@ export class Researcher {
             // Simple text extraction
             const text = html.replace(/<[^>]+>/g, ' ').substring(0, 5000);
 
-            // 2. Synthesize using LLM (via Director chat or direct model)
-            // We need to ask the LLM: "Extract tool capabilities from this text into JSON"
-            // We'll use the Director's chat for this to leverage the existing LLM connection.
-            // Or better, directly use ModelSelector if we want to be "pure". 
-            // Let's use Director.
+            // 2. Synthesize using LLM
 
             const prompt = `
                 I am researching a tool called "${target.name}".
@@ -90,23 +116,33 @@ export class Researcher {
                 }
             `;
 
-            // Simulating LLM call for this MVP step (since I can't await Director easily here without complex setup)
-            // In a real run, this would call server.modelSelector.selectModel().chat(...)
-            // For now, we create a stub file.
+            const model = await this.server.llmService.modelSelector.selectModel({ taskComplexity: 'high' });
+            const llmResult = await this.server.llmService.generateText(
+                model.provider,
+                model.modelId,
+                'You are a tool research analyst. Output valid JSON only.',
+                prompt,
+            );
+
+            const modelText = llmResult?.content?.trim() || '';
+            const parsed = this.extractJsonObject(modelText);
 
             const skillDef = {
-                name: target.name,
-                description: target.description,
+                name: String(parsed?.name ?? target.name),
+                description: String(parsed?.description ?? target.description),
                 category: target.category,
-                tools: [
-                    {
-                        name: `${target.name.toLowerCase()}_info`,
-                        description: `Get info about ${target.name}`,
-                        inputSchema: { type: "object", properties: {} }
-                    }
-                ],
+                tools: Array.isArray(parsed?.tools) && parsed.tools.length > 0
+                    ? parsed.tools
+                    : [
+                        {
+                            name: `${target.name.toLowerCase().replace(/[^a-z0-9]/g, '_')}_info`,
+                            description: `Get info about ${target.name}`,
+                            inputSchema: { type: 'object', properties: {} },
+                        },
+                    ],
                 _source: target.url,
-                _researchedAt: new Date().toISOString()
+                _researchedAt: new Date().toISOString(),
+                _modelOutput: modelText,
             };
 
             // 3. Save

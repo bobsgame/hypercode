@@ -1,3 +1,3 @@
 export const codeExecutorService = {
-    executeCode: async (_code: string, _toolCallHandler: any) => Promise.resolve(""),
+    executeCode: async (_code: string, _toolCallHandler: unknown) => Promise.resolve(""),
 };

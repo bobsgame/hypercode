@@ -4,7 +4,7 @@ export interface SwarmMessage {
     type: SwarmMessageType;
     sender: string;
     target?: string; // If null, broadcast
-    payload: any;
+    payload: unknown;
     timestamp: number;
     signature?: string; // Ed25519 signature
 }

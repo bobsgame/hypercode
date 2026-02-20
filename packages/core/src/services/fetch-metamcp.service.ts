@@ -1,108 +1,52 @@
-// @ts-nocheck
 import {
     McpServerErrorStatusEnum,
     McpServerStatusEnum,
     ServerParameters,
-} from "../types/metamcp";
-import { and, eq } from "drizzle-orm";
+} from "../types/metamcp/index.js";
+import { jsonConfigProvider } from "./config/JsonConfigProvider.js";
+import { getDefaultEnvironment, IOType } from "./common-utils.js";
+import { v5 as uuidv5 } from 'uuid';
 
-import { db } from "../db/index";
-import { oauthSessionsRepository } from "../db/repositories";
-import { mcpServersTable, namespaceServerMappingsTable } from "../db/metamcp-schema";
-import { getDefaultEnvironment, IOType } from "./utils.service"; // Assume utils will export this
+const NAMESPACE = '1b671a64-40d5-491e-99b0-da01ff1f3341'; // Random namespace for UUID generation
 
 export async function getMcpServers(
     namespaceUuid: string,
     includeInactiveServers: boolean = false,
 ): Promise<Record<string, ServerParameters>> {
     try {
-        // Build the where conditions based on includeInactiveServers flag
-        const whereConditions = [
-            eq(namespaceServerMappingsTable.namespace_uuid, namespaceUuid),
-        ];
-
-        // Only filter by ACTIVE status if includeInactiveServers is false
-        if (!includeInactiveServers) {
-            whereConditions.push(
-                eq(
-                    namespaceServerMappingsTable.status,
-                    McpServerStatusEnum.Enum.ACTIVE,
-                ),
-            );
-        }
-
-        // Always exclude servers with ERROR status (these are crashed servers)
-        whereConditions.push(
-            eq(mcpServersTable.error_status, McpServerErrorStatusEnum.Enum.NONE),
-        );
-
-        // Fetch MCP servers for the specific namespace using a join query
-        const servers = await db
-            .select({
-                uuid: mcpServersTable.uuid,
-                name: mcpServersTable.name,
-                description: mcpServersTable.description,
-                type: mcpServersTable.type,
-                command: mcpServersTable.command,
-                args: mcpServersTable.args,
-                env: mcpServersTable.env,
-                url: mcpServersTable.url,
-                created_at: mcpServersTable.created_at,
-                bearerToken: mcpServersTable.bearerToken,
-                headers: mcpServersTable.headers,
-                status: namespaceServerMappingsTable.status,
-                error_status: mcpServersTable.error_status,
-            })
-            .from(mcpServersTable)
-            .innerJoin(
-                namespaceServerMappingsTable,
-                eq(mcpServersTable.uuid, namespaceServerMappingsTable.mcp_server_uuid),
-            )
-            .where(and(...whereConditions));
-
+        const servers = await jsonConfigProvider.loadMcpServers();
         const serverDict: Record<string, ServerParameters> = {};
-        for (const server of servers) {
-            // Fetch OAuth tokens from OAuth sessions table
-            const oauthSession = await oauthSessionsRepository.findByMcpServerUuid(
-                server.uuid,
-            );
-            let oauthTokens = null;
 
-            if (oauthSession && oauthSession.tokens) {
-                oauthTokens = {
-                    access_token: oauthSession.tokens.access_token,
-                    token_type: oauthSession.tokens.token_type,
-                    expires_in: oauthSession.tokens.expires_in,
-                    scope: oauthSession.tokens.scope,
-                    refresh_token: oauthSession.tokens.refresh_token,
-                };
+        for (const server of servers) {
+            if (server.disabled && !includeInactiveServers) {
+                continue;
             }
 
+            // Generate a stable UUID based on the name
+            const uuid = uuidv5(server.name, NAMESPACE);
+
             const params: ServerParameters = {
-                uuid: server.uuid,
-                // @ts-ignore - name is possibly null in schema but likely not in practice for active checks? Check schema.
-                // Actually schema says name is not null.
+                uuid: uuid,
                 name: server.name,
-                description: server.description || "",
-                type: server.type || "STDIO",
+                description: "", // Config doesn't have description yet
+                type: server.type === 'stdio' ? "STDIO" : "SSE",
                 command: server.command,
                 args: server.args || [],
                 env: server.env || {},
                 url: server.url,
-                headers: server.headers || {},
-                created_at:
-                    server.created_at?.toISOString() || new Date().toISOString(),
-                status: server.status.toLowerCase(),
-                error_status: server.error_status?.toLowerCase(),
+                headers: {},
+                created_at: new Date().toISOString(),
+                status: server.disabled ? "inactive" : "active",
+                error_status: "none",
                 stderr: "inherit" as IOType,
-                oauth_tokens: oauthTokens,
-                bearerToken: server.bearerToken,
+                oauth_tokens: null, // OAuth not supported in JSON config yet
+                bearerToken: undefined,
             };
 
             // Process based on server type
             if (params.type === "STDIO") {
                 if ("args" in params && !params.args) {
-                    params.args = undefined;
+                    params.args = undefined; // SDK expects undefined for empty args sometimes?
                 }
 
                 params.env = {
@@ -119,12 +63,13 @@ export async function getMcpServers(
                 }
             }
 
-            serverDict[server.uuid] = params;
+            serverDict[uuid] = params;
         }
 
         return serverDict;
+
     } catch (error) {
-        console.error("Error fetching active MCP servers from database:", error);
+        console.error("Error fetching MCP servers from config:", error);
         return {};
     }
 }

@@ -10,9 +10,6 @@
  * Implements key generation using `nanoid`.
  */
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/ban-ts-comment */
-
 import {
     ApiKeyCreateInput,
     ApiKeyType,
@@ -24,6 +21,9 @@ import { customAlphabet } from "nanoid";
 import { db } from "../index.js";
 import { apiKeysTable } from "../metamcp-schema.js";
 import { randomUUID } from "node:crypto";
+
+type ApiKeyRow = typeof apiKeysTable.$inferSelect;
+type ApiKeyInsert = typeof apiKeysTable.$inferInsert;
 
 const nanoid = customAlphabet(
     "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz",
@@ -47,19 +47,21 @@ export class ApiKeysRepository {
         key: string;
         user_id: string | null;
         created_at: Date;
+        is_active: boolean;
+        type: ApiKeyType;
     }> {
         const key = this.generateApiKey();
+        const payload: ApiKeyInsert = {
+            uuid: randomUUID(),
+            name: input.name,
+            key,
+            user_id: input.user_id ?? null,
+            is_active: input.is_active ?? true,
+        };
 
-        // @ts-ignore
         const [createdApiKey] = await db
-            .insert(apiKeysTable as any)
-            .values({
-                uuid: randomUUID(),
-                name: input.name,
-                key: key,
-                user_id: input.user_id,
-                is_active: input.is_active ?? true,
-            } as any)
+            .insert(apiKeysTable)
+            .values(payload)
             .returning({
                 uuid: apiKeysTable.uuid,
                 name: apiKeysTable.name,
@@ -67,7 +69,7 @@ export class ApiKeysRepository {
                 user_id: apiKeysTable.user_id,
                 created_at: apiKeysTable.created_at,
                 is_active: apiKeysTable.is_active,
-            } as any) as any;
+            });
 
         if (!createdApiKey) {
             throw new Error("Failed to create API key");
@@ -75,14 +77,12 @@ export class ApiKeysRepository {
 
         return {
             ...createdApiKey,
-            // @ts-ignore - Type requirement from interface might still exist, ignoring for build
             type: "MCP",
             key, // Return the actual key (redundant if returning above, but safe)
-        } as any;
+        };
     }
 
-    async findByUserId(userId: string) {
-        // @ts-ignore
+    async findByUserId(userId: string): Promise<Array<Pick<ApiKeyRow, "uuid" | "name" | "key" | "created_at" | "is_active">>> {
         return await db
             .select({
                 uuid: apiKeysTable.uuid,
@@ -90,15 +90,14 @@ export class ApiKeysRepository {
                 key: apiKeysTable.key,
                 created_at: apiKeysTable.created_at,
                 is_active: apiKeysTable.is_active,
-            } as any)
-            .from(apiKeysTable as any)
-            .where(eq(apiKeysTable.user_id as any, userId))
-            .orderBy(desc(apiKeysTable.created_at as any)) as any;
+            })
+            .from(apiKeysTable)
+            .where(eq(apiKeysTable.user_id, userId))
+            .orderBy(desc(apiKeysTable.created_at));
     }
 
     // Find all API keys (both public and user-owned)
-    async findAll() {
-        // @ts-ignore
+    async findAll(): Promise<Array<Pick<ApiKeyRow, "uuid" | "name" | "key" | "created_at" | "is_active" | "user_id">>> {
         return await db
             .select({
                 uuid: apiKeysTable.uuid,
@@ -107,14 +106,13 @@ export class ApiKeysRepository {
                 created_at: apiKeysTable.created_at,
                 is_active: apiKeysTable.is_active,
                 user_id: apiKeysTable.user_id,
-            } as any)
-            .from(apiKeysTable as any)
-            .orderBy(desc(apiKeysTable.created_at as any)) as any;
+            })
+            .from(apiKeysTable)
+            .orderBy(desc(apiKeysTable.created_at));
     }
 
     // Find public API keys (no user ownership)
-    async findPublicApiKeys() {
-        // @ts-ignore
+    async findPublicApiKeys(): Promise<Array<Pick<ApiKeyRow, "uuid" | "name" | "key" | "created_at" | "is_active" | "user_id">>> {
         return await db
             .select({
                 uuid: apiKeysTable.uuid,
@@ -123,15 +121,14 @@ export class ApiKeysRepository {
                 created_at: apiKeysTable.created_at,
                 is_active: apiKeysTable.is_active,
                 user_id: apiKeysTable.user_id,
-            } as any)
-            .from(apiKeysTable as any)
-            .where(isNull(apiKeysTable.user_id as any))
-            .orderBy(desc(apiKeysTable.created_at as any)) as any;
+            })
+            .from(apiKeysTable)
+            .where(isNull(apiKeysTable.user_id))
+            .orderBy(desc(apiKeysTable.created_at));
     }
 
     // Find API keys accessible to a specific user (public + user's own keys)
-    async findAccessibleToUser(userId: string) {
-        // @ts-ignore
+    async findAccessibleToUser(userId: string): Promise<Array<Pick<ApiKeyRow, "uuid" | "name" | "key" | "created_at" | "is_active" | "user_id">>> {
         return await db
             .select({
                 uuid: apiKeysTable.uuid,
@@ -140,19 +137,18 @@ export class ApiKeysRepository {
                 created_at: apiKeysTable.created_at,
                 is_active: apiKeysTable.is_active,
                 user_id: apiKeysTable.user_id,
-            } as any)
-            .from(apiKeysTable as any)
+            })
+            .from(apiKeysTable)
             .where(
                 or(
-                    isNull(apiKeysTable.user_id as any), // Public API keys
-                    eq(apiKeysTable.user_id as any, userId), // User's own API keys
-                ) as any,
+                    isNull(apiKeysTable.user_id), // Public API keys
+                    eq(apiKeysTable.user_id, userId), // User's own API keys
+                ),
             )
-            .orderBy(desc(apiKeysTable.created_at as any)) as any;
+            .orderBy(desc(apiKeysTable.created_at));
     }
 
-    async findByUuid(uuid: string, userId: string) {
-        // @ts-ignore
+    async findByUuid(uuid: string, userId: string): Promise<Pick<ApiKeyRow, "uuid" | "name" | "key" | "created_at" | "is_active" | "user_id"> | undefined> {
         const [apiKey] = await db
             .select({
                 uuid: apiKeysTable.uuid,
@@ -161,18 +157,17 @@ export class ApiKeysRepository {
                 created_at: apiKeysTable.created_at,
                 is_active: apiKeysTable.is_active,
                 user_id: apiKeysTable.user_id,
-            } as any)
-            .from(apiKeysTable as any)
+            })
+            .from(apiKeysTable)
             .where(
-                and(eq(apiKeysTable.uuid as any, uuid), eq(apiKeysTable.user_id as any, userId)),
-            ) as any;
+                and(eq(apiKeysTable.uuid, uuid), eq(apiKeysTable.user_id, userId)),
+            );
 
         return apiKey;
     }
 
     // Find API key by UUID with access control (user can access their own keys + public keys)
-    async findByUuidWithAccess(uuid: string, userId?: string) {
-        // @ts-ignore
+    async findByUuidWithAccess(uuid: string, userId?: string): Promise<Pick<ApiKeyRow, "uuid" | "name" | "key" | "created_at" | "is_active" | "user_id"> | undefined> {
         const [apiKey] = await db
             .select({
                 uuid: apiKeysTable.uuid,
@@ -181,19 +176,19 @@ export class ApiKeysRepository {
                 created_at: apiKeysTable.created_at,
                 is_active: apiKeysTable.is_active,
                 user_id: apiKeysTable.user_id,
-            } as any)
-            .from(apiKeysTable as any)
+            })
+            .from(apiKeysTable)
             .where(
                 and(
-                    eq(apiKeysTable.uuid as any, uuid),
+                    eq(apiKeysTable.uuid, uuid),
                     userId
                         ? or(
-                            isNull(apiKeysTable.user_id as any), // Public API keys
-                            eq(apiKeysTable.user_id as any, userId), // User's own API keys
+                            isNull(apiKeysTable.user_id), // Public API keys
+                            eq(apiKeysTable.user_id, userId), // User's own API keys
                         )
-                        : isNull(apiKeysTable.user_id as any), // Only public if no user context
-                ) as any,
-            ) as any;
+                        : isNull(apiKeysTable.user_id), // Only public if no user context
+                ),
+            );
 
         return apiKey;
     }
@@ -204,15 +199,14 @@ export class ApiKeysRepository {
         key_uuid?: string;
         type?: ApiKeyType;
     }> {
-        // @ts-ignore
         const [apiKey] = await db
             .select({
                 uuid: apiKeysTable.uuid,
                 user_id: apiKeysTable.user_id,
                 is_active: apiKeysTable.is_active,
-            } as any)
-            .from(apiKeysTable as any)
-            .where(eq(apiKeysTable.key as any, key)) as any;
+            })
+            .from(apiKeysTable)
+            .where(eq(apiKeysTable.key, key));
 
         if (!apiKey) {
             return { valid: false };
@@ -231,20 +225,19 @@ export class ApiKeysRepository {
         };
     }
 
-    async update(uuid: string, userId: string, input: ApiKeyUpdateInput) {
-        // @ts-ignore
+    async update(uuid: string, userId: string, input: ApiKeyUpdateInput): Promise<Pick<ApiKeyRow, "uuid" | "name" | "key" | "created_at" | "is_active">> {
         const [updatedApiKey] = await db
-            .update(apiKeysTable as any)
+            .update(apiKeysTable)
             .set({
                 ...(input.name && { name: input.name }),
                 // ...(input.type && { type: input.type }), // Removed from schema
                 ...(input.is_active !== undefined && { is_active: input.is_active }),
-            } as any)
+            })
             .where(
                 and(
-                    eq(apiKeysTable.uuid as any, uuid),
-                    or(eq(apiKeysTable.user_id as any, userId), isNull(apiKeysTable.user_id as any)),
-                ) as any,
+                    eq(apiKeysTable.uuid, uuid),
+                    or(eq(apiKeysTable.user_id, userId), isNull(apiKeysTable.user_id)),
+                ),
             )
             .returning({
                 uuid: apiKeysTable.uuid,
@@ -252,7 +245,7 @@ export class ApiKeysRepository {
                 key: apiKeysTable.key,
                 created_at: apiKeysTable.created_at,
                 is_active: apiKeysTable.is_active,
-            } as any) as any;
+            });
 
         if (!updatedApiKey) {
             throw new Error("Failed to update API key or API key not found");
@@ -262,19 +255,18 @@ export class ApiKeysRepository {
     }
 
     async delete(uuid: string, userId: string) {
-        // @ts-ignore
         const [deletedApiKey] = await db
-            .delete(apiKeysTable as any)
+            .delete(apiKeysTable)
             .where(
                 and(
-                    eq(apiKeysTable.uuid as any, uuid),
-                    or(eq(apiKeysTable.user_id as any, userId), isNull(apiKeysTable.user_id as any)),
-                ) as any,
+                    eq(apiKeysTable.uuid, uuid),
+                    or(eq(apiKeysTable.user_id, userId), isNull(apiKeysTable.user_id)),
+                ),
             )
             .returning({
                 uuid: apiKeysTable.uuid,
                 name: apiKeysTable.name,
-            } as any) as any;
+            });
 
         if (!deletedApiKey) {
             throw new Error("Failed to delete API key or API key not found");

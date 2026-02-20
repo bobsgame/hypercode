@@ -46,6 +46,8 @@ interface KanbanBoardProps {
   onSelectSession: (session: Session) => void;
 }
 
+const KANBAN_STATUS_OVERRIDES_KEY = 'jules_kanban_status_overrides_v1';
+
 export function KanbanBoard({ onSelectSession }: KanbanBoardProps) {
   const { client } = useJules();
   const [sessions, setSessions] = useState<Session[]>([]);
@@ -53,9 +55,24 @@ export function KanbanBoard({ onSelectSession }: KanbanBoardProps) {
   const [error, setError] = useState<string | null>(null);
   const [archivedSessionIds, setArchivedSessionIds] = useState<Set<string>>(new Set());
   const [selectedRepo, setSelectedRepo] = useState<string>("all");
+  const [statusOverrides, setStatusOverrides] = useState<Record<string, Session["status"]>>({});
 
   useEffect(() => {
     setArchivedSessionIds(getArchivedSessions());
+  }, []);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(KANBAN_STATUS_OVERRIDES_KEY);
+      if (!raw) return;
+
+      const parsed = JSON.parse(raw) as Record<string, Session["status"]>;
+      if (parsed && typeof parsed === 'object') {
+        setStatusOverrides(parsed);
+      }
+    } catch {
+      // ignore invalid persisted state
+    }
   }, []);
 
   const loadSessions = useCallback(async () => {
@@ -111,8 +128,9 @@ export function KanbanBoard({ onSelectSession }: KanbanBoardProps) {
     
     return sessions
       .filter((session) => {
+        const effectiveStatus = statusOverrides[session.id] || session.status;
         const isNotArchived = !archivedSessionIds.has(session.id);
-        const isValidColumn = validColumnIds.has(session.status);
+        const isValidColumn = validColumnIds.has(effectiveStatus);
         const matchesRepo = selectedRepo === "all" || session.sourceId === selectedRepo;
         
         return isNotArchived && isValidColumn && matchesRepo;
@@ -120,10 +138,13 @@ export function KanbanBoard({ onSelectSession }: KanbanBoardProps) {
       .map((session) => ({
         id: session.id,
         name: session.title || "Untitled",
-        column: session.status,
-        session: session,
+        column: statusOverrides[session.id] || session.status,
+        session: {
+          ...session,
+          status: statusOverrides[session.id] || session.status,
+        },
       })) as SessionKanbanItem[];
-  }, [sessions, archivedSessionIds, selectedRepo]);
+  }, [sessions, archivedSessionIds, selectedRepo, statusOverrides]);
 
   const columnCounts = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -134,6 +155,9 @@ export function KanbanBoard({ onSelectSession }: KanbanBoardProps) {
   }, [kanbanData]);
 
   const handleDataChange = (newData: SessionKanbanItem[]) => {
+    const nextOverrides: Record<string, Session["status"]> = { ...statusOverrides };
+    const pendingRemoteUpdates: Array<{ id: string; status: Session["status"] }> = [];
+
     // Merge updated kanban items back into the full sessions list to preserve archived/filtered sessions
     setSessions(prevSessions => {
       const updatedSessions = [...prevSessions];
@@ -141,21 +165,45 @@ export function KanbanBoard({ onSelectSession }: KanbanBoardProps) {
       newData.forEach(item => {
         const index = updatedSessions.findIndex(s => s.id === item.id);
         if (index !== -1) {
+          const previousStatus = updatedSessions[index].status;
           // Only update if status (column) actually changed
-          if (updatedSessions[index].status !== item.column) {
+          if (previousStatus !== item.column) {
             updatedSessions[index] = { 
               ...updatedSessions[index], 
               status: item.column as Session["status"] 
             };
+
+            pendingRemoteUpdates.push({
+              id: item.id,
+              status: item.column as Session["status"],
+            });
           }
+          nextOverrides[item.id] = item.column as Session["status"];
         }
       });
       
       return updatedSessions;
     });
-    
-    // TODO: Implement backend persistence (updateSession API) here.
-    // Status changes are currently local-only and will be lost on refresh.
+
+    setStatusOverrides(nextOverrides);
+    try {
+      localStorage.setItem(KANBAN_STATUS_OVERRIDES_KEY, JSON.stringify(nextOverrides));
+    } catch {
+      // ignore persistence failures
+    }
+
+    if (client && pendingRemoteUpdates.length > 0) {
+      void Promise.allSettled(
+        pendingRemoteUpdates.map((update) =>
+          client.updateSession(update.id, { status: update.status }),
+        ),
+      ).then((results) => {
+        const failed = results.filter((result) => result.status === 'rejected').length;
+        if (failed > 0) {
+          console.warn(`[Kanban] ${failed} session status update(s) failed to sync to Jules API`);
+        }
+      });
+    }
   };
 
   const getStatusColor = (status: string) => {
@@ -227,7 +275,7 @@ export function KanbanBoard({ onSelectSession }: KanbanBoardProps) {
                   </Badge>
                 </TooltipTrigger>
                 <TooltipContent side="bottom" className="bg-zinc-900 border-white/10 text-white text-[10px] max-w-[200px]">
-                  <p>Status changes are currently local-only and will be lost on page refresh. Persistence is coming soon.</p>
+                  <p>Status changes persist locally and now attempt cloud sync via Jules API when supported.</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>

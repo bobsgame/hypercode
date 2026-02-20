@@ -6,11 +6,26 @@ export type MCPServerRuntime = {
         demo_mode?: boolean;
     };
     workflowEngine?: unknown;
+    marketplaceService?: unknown;
     [key: string]: any;
 };
 
 export type WorkflowEngineRuntime = {
-    getGraph: (workflowId: string) => { nodes: unknown[]; edges: unknown[] } | undefined;
+    getGraph: (workflowId: string) => {
+        nodes: Array<{
+            id: string;
+            label: string;
+            data: { description?: string };
+            type: 'checkpoint' | 'default';
+        }>;
+        edges: Array<{
+            id: string;
+            source: string;
+            target: string;
+            animated: boolean;
+            label?: string;
+        }>;
+    } | undefined;
     start: (workflowId: string, initialState: Record<string, unknown>) => Promise<unknown>;
     listExecutions: () => unknown[];
     getExecution: (executionId: string) => unknown;
@@ -180,7 +195,7 @@ export type ShellServiceRuntime = {
 };
 
 export type EventBusRuntime = {
-    getHistory: (limit?: number) => Array<{ timestamp: number; [key: string]: unknown }>;
+    getHistory: (limit?: number) => Array<{ timestamp: number;[key: string]: unknown }>;
 };
 
 export type SuggestionRuntime = {
@@ -279,7 +294,7 @@ export type ResearchServiceRuntime = {
 };
 
 export type KnowledgeGraphResponseRuntime = {
-    content: Array<{ text: string }>;
+    content: Array<{ type: string; text: string }>;
 };
 
 export type KnowledgeServiceRuntime = {
@@ -365,6 +380,38 @@ export type SkillRegistryRuntime = {
 
 export type SkillAssimilationServiceRuntime = {
     assimilate: (request: { topic: string; docsUrl?: string; autoInstall?: boolean }) => Promise<{ success: boolean; toolName?: string; logs: string[] }>;
+};
+
+export type BrowserServiceRuntime = {
+    getStatus: () => { active: boolean; pageCount: number; pageIds: string[] };
+    close: (pageId: string) => Promise<void>;
+    closeAll: () => Promise<void>;
+};
+
+export type MeshServiceRuntime = {
+    nodeId: string;
+    getStatus: () => { nodeId: string; peerCount: number; peerIds: string[] };
+    broadcast: (type: string, payload: unknown) => void;
+};
+
+export type MarketplaceEntryRuntime = {
+    id: string;
+    name: string;
+    description: string;
+    author?: string;
+    type: 'agent' | 'tool' | 'skill';
+    source: 'official' | 'community' | 'local';
+    url?: string;
+    verified: boolean;
+    peerCount: number;
+    installed: boolean;
+    tags: string[];
+};
+
+export type MarketplaceServiceRuntime = {
+    list: (filter?: string) => Promise<MarketplaceEntryRuntime[]>;
+    install: (id: string) => Promise<string>;
+    publish: (manifest: Partial<MarketplaceEntryRuntime>) => Promise<string>;
 };
 
 export const t = initTRPC.create();
@@ -551,4 +598,16 @@ export function getSkillRegistry(): SkillRegistryRuntime | undefined {
 
 export function getSkillAssimilationService(): SkillAssimilationServiceRuntime | undefined {
     return getMcpServer().skillAssimilationService as SkillAssimilationServiceRuntime | undefined;
+}
+
+export function getBrowserService(): BrowserServiceRuntime | undefined {
+    return getMcpServer().browserService as BrowserServiceRuntime | undefined;
+}
+
+export function getMeshService(): MeshServiceRuntime | undefined {
+    return getMcpServer().meshService as MeshServiceRuntime | undefined;
+}
+
+export function getMarketplaceService(): MarketplaceServiceRuntime | undefined {
+    return getMcpServer().marketplaceService as MarketplaceServiceRuntime | undefined;
 }

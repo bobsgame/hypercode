@@ -1,56 +1,56 @@
-// @ts-nocheck
 import { eq, desc } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { db } from "../index.js";
 import { savedScriptsTable } from "../metamcp-schema.js";
+import { SavedScript } from "../../types/metamcp/saved-scripts.zod.js";
+
+type SavedScriptRow = typeof savedScriptsTable.$inferSelect;
+type SavedScriptInsert = typeof savedScriptsTable.$inferInsert;
 
 export class SavedScriptsRepository {
-    async findAll() {
-        // @ts-ignore
-        const scripts = await db.select().from(savedScriptsTable as any).orderBy(desc(savedScriptsTable.created_at as any)) as any;
-        return scripts.map(this.mapToDomain);
+    async findAll(): Promise<SavedScript[]> {
+        const scripts = await db.select().from(savedScriptsTable).orderBy(desc(savedScriptsTable.created_at));
+        return scripts.map((script) => this.mapToDomain(script));
     }
 
-    async findByUuid(uuid: string) {
-        // @ts-ignore
-        const [script] = await db.select().from(savedScriptsTable as any).where(eq(savedScriptsTable.uuid as any, uuid)) as any;
+    async findByUuid(uuid: string): Promise<SavedScript | undefined> {
+        const [script] = await db.select().from(savedScriptsTable).where(eq(savedScriptsTable.uuid, uuid));
         return script ? this.mapToDomain(script) : undefined;
     }
 
-    async create(input: { name: string; description?: string | null; code: string; userId?: string | null }) {
-        // @ts-ignore
-        const [script] = await db.insert(savedScriptsTable as any).values({
+    async create(input: { name: string; description?: string | null; code: string; userId?: string | null }): Promise<SavedScript> {
+        const payload: SavedScriptInsert = {
             uuid: randomUUID(),
             name: input.name,
-            description: input.description,
+            description: input.description ?? null,
             code: input.code,
-            user_id: input.userId,
-        } as any).returning() as any;
+            user_id: input.userId ?? null,
+        };
+
+        const [script] = await db.insert(savedScriptsTable).values(payload).returning();
         return this.mapToDomain(script);
     }
 
-    async update(uuid: string, input: { name?: string; description?: string | null; code?: string }) {
-        // @ts-ignore
-        const [script] = await db.update(savedScriptsTable as any)
+    async update(uuid: string, input: { name?: string; description?: string | null; code?: string }): Promise<SavedScript> {
+        const [script] = await db.update(savedScriptsTable)
             .set({
                 ...(input.name && { name: input.name }),
                 ...(input.description !== undefined && { description: input.description }),
                 ...(input.code && { code: input.code }),
                 updated_at: new Date(),
-            } as any)
-            .where(eq(savedScriptsTable.uuid as any, uuid))
-            .returning() as any;
+            })
+            .where(eq(savedScriptsTable.uuid, uuid))
+            .returning();
 
         if (!script) throw new Error("Script not found");
         return this.mapToDomain(script);
     }
 
-    async delete(uuid: string) {
-        // @ts-ignore
-        await db.delete(savedScriptsTable as any).where(eq(savedScriptsTable.uuid as any, uuid));
+    async delete(uuid: string): Promise<void> {
+        await db.delete(savedScriptsTable).where(eq(savedScriptsTable.uuid, uuid));
     }
 
-    private mapToDomain(dbScript: any) {
+    private mapToDomain(dbScript: SavedScriptRow): SavedScript {
         return {
             uuid: dbScript.uuid,
             name: dbScript.name,

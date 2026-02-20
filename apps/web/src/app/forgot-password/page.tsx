@@ -10,6 +10,7 @@ import { Button, Input } from '@borg/ui';
 export default function ForgotPasswordPage() {
     const [email, setEmail] = useState('');
     const [sent, setSent] = useState(false);
+    const [resetUrl, setResetUrl] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -29,6 +30,7 @@ export default function ForgotPasswordPage() {
                 setError(data?.error ?? 'Unable to process reset request.');
                 return;
             }
+            setResetUrl(typeof data?.resetUrl === 'string' ? data.resetUrl : null);
             setSent(true);
         } catch {
             setError('Network error while requesting reset link.');
@@ -81,6 +83,14 @@ export default function ForgotPasswordPage() {
                         <p className="text-zinc-600 dark:text-zinc-300">
                             Check your email for instructions to reset your password.
                         </p>
+                        {resetUrl && (
+                            <Link
+                                href={resetUrl}
+                                className="inline-flex items-center justify-center px-4 py-2 rounded-md text-sm bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-500/20"
+                            >
+                                Continue to Reset Password
+                            </Link>
+                        )}
                     </div>
                 )}
 

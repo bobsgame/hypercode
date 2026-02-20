@@ -2,6 +2,15 @@
 import { EventBus, SystemEvent } from '../services/EventBus.js';
 import { AutoTestService } from '../services/AutoTestService.js';
 
+function getChangedPath(payload: unknown): string | null {
+    if (!payload || typeof payload !== 'object') {
+        return null;
+    }
+
+    const record = payload as Record<string, unknown>;
+    return typeof record.path === 'string' ? record.path : null;
+}
+
 export class AutoTestReactor {
     private eventBus: EventBus;
     private autoTestService: AutoTestService;
@@ -19,7 +28,10 @@ export class AutoTestReactor {
     }
 
     private async handleFileChange(event: SystemEvent) {
-        const { path: changedPath } = event.payload;
+        const changedPath = getChangedPath(event.payload);
+        if (!changedPath) {
+            return;
+        }
 
         // Only react to TS/TSX files
         if (!changedPath.match(/\.(ts|tsx)$/)) return;

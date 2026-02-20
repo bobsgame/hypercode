@@ -94,7 +94,16 @@ export class ContextPruner {
             currentTokens -= removedTokens;
         }
 
-        // TODO: Insert a "Summary" message here indicating X messages were dropped?
+        const originalMiddleLength = messages.slice(keepFirst, -keepLast).length;
+        const droppedCount = originalMiddleLength - middle.length;
+
+        if (droppedCount > 0) {
+            const summaryMsg: Message = {
+                role: 'system',
+                content: `[System: Context Pruned. ${droppedCount} messages were removed to fit token limits.]`
+            };
+            return [...safeFirst, summaryMsg, ...middle, ...safeLast];
+        }
 
         return [...safeFirst, ...middle, ...safeLast];
     }

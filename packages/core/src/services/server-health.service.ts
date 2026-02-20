@@ -1,4 +1,5 @@
 import {
+    ConfigKey,
     HealthCheckResult,
     ServerHealthInfo,
     ServerHealthStatus,
@@ -190,7 +191,7 @@ export class ServerHealthService {
 
         if (!uuidsToCheck || uuidsToCheck.length === 0) {
             const allServers = await mcpServersRepository.findAll();
-            uuidsToCheck = allServers.map((s: any) => s.uuid);
+            uuidsToCheck = allServers.map((s) => s.uuid);
         }
 
         const results = await Promise.allSettled(
@@ -365,8 +366,9 @@ export class ServerHealthService {
 
     private async getCheckIntervalMs(): Promise<number> {
         try {
-            // @ts-ignore
-            const config = await configService.getConfig("HEALTH_CHECK_INTERVAL");
+            const config = await configService.getConfig(
+                "HEALTH_CHECK_INTERVAL" as ConfigKey,
+            );
             if (config) {
                 const parsed = parseInt(config, 10);
                 if (!isNaN(parsed) && parsed >= 5000) {

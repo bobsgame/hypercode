@@ -20,6 +20,14 @@ export class BrowserService {
         });
     }
 
+    getStatus(): { active: boolean; pageCount: number; pageIds: string[] } {
+        return {
+            active: this.browser !== null,
+            pageCount: this.pages.size,
+            pageIds: Array.from(this.pages.keys()),
+        };
+    }
+
     async navigate(url: string): Promise<{ id: string, title: string, content: string }> {
         if (!this.browser) await this.launch();
         const page = await this.browser!.newPage();

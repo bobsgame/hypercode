@@ -10,6 +10,30 @@ function getMonorepoRoot(): string {
 
 const PROMPTS_DIR = path.join(getMonorepoRoot(), '.borg', 'prompts');
 
+function normalizePromptId(id: string): string {
+    return id.replace(/[^a-zA-Z0-9._-]/g, '_');
+}
+
+function extractTemplateVariables(template: string): string[] {
+    const names = new Set<string>();
+
+    // Match {{variable}} style placeholders
+    const doubleBracePattern = /\{\{\s*([a-zA-Z_][a-zA-Z0-9_.-]*)\s*\}\}/g;
+    for (const match of template.matchAll(doubleBracePattern)) {
+        const name = match[1]?.trim();
+        if (name) names.add(name);
+    }
+
+    // Match ${variable} style placeholders
+    const dollarBracePattern = /\$\{\s*([a-zA-Z_][a-zA-Z0-9_.-]*)\s*\}/g;
+    for (const match of template.matchAll(dollarBracePattern)) {
+        const name = match[1]?.trim();
+        if (name) names.add(name);
+    }
+
+    return Array.from(names).sort((a, b) => a.localeCompare(b));
+}
+
 export async function GET() {
     try {
         await fs.mkdir(PROMPTS_DIR, { recursive: true });
@@ -33,6 +57,8 @@ export async function GET() {
 
 export async function POST(req: Request) {
     try {
+        await fs.mkdir(PROMPTS_DIR, { recursive: true });
+
         const body = await req.json();
         const { id, template, description } = body;
 
@@ -40,7 +66,12 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
         }
 
-        const filePath = path.join(PROMPTS_DIR, `${id}.json`);
+        if (typeof id !== 'string' || typeof template !== 'string') {
+            return NextResponse.json({ error: "Invalid payload types" }, { status: 400 });
+        }
+
+        const safeId = normalizePromptId(id);
+        const filePath = path.join(PROMPTS_DIR, `${safeId}.json`);
 
         // Read existing to bump version
         let version = 1;
@@ -50,11 +81,11 @@ export async function POST(req: Request) {
         } catch { }
 
         const promptData = {
-            id,
+            id: safeId,
             version,
             description: description || "",
             template,
-            variables: [], // TODO: Parse variables from template regex
+            variables: extractTemplateVariables(template),
             updatedAt: new Date().toISOString()
         };
 

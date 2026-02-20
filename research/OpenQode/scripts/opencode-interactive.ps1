@@ -5,7 +5,7 @@ param(
 )
 
 function Show-ModelMenu {
-    Clear-Host
+    # Console clear disabled to preserve startup logs/history
     Write-Host "🤖 OpenCode - Choose Your AI Model" -ForegroundColor Cyan
     Write-Host "======================================" -ForegroundColor Cyan
     Write-Host ""

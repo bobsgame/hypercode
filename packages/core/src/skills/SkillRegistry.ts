@@ -4,22 +4,63 @@ import fs from 'fs/promises';
 import path from 'path';
 import matter from 'gray-matter';
 
+/**
+ * Skill — A portable, self-contained instruction set (runbook).
+ *
+ * Skills are markdown files with YAML frontmatter (name, description) stored
+ * as `SKILL.md` in directories under the configured search paths.
+ *
+ * Example: `.borg/skills/deploy-to-prod/SKILL.md`
+ */
 export interface Skill {
+    /** Unique identifier — derived from frontmatter `name` or parent directory name */
     id: string;
+    /** Human-readable skill name */
     name: string;
+    /** Brief description of what this skill does */
     description: string;
-    content: string; // The markdown instructions
+    /** The full markdown body (instructions) of the skill */
+    content: string;
+    /** Absolute path to the SKILL.md file on disk */
     path: string;
 }
 
+function getErrorMessage(error: unknown): string {
+    return error instanceof Error ? error.message : String(error);
+}
+
+/**
+ * SkillRegistry
+ *
+ * Discovers, loads, and manages Borg's skill library.
+ * Skills are portable runbooks (SKILL.md files with YAML frontmatter) that
+ * agents can read and follow to perform specialized tasks.
+ *
+ * Discovery:
+ * - Scans configured `searchPaths` directories for `SKILL.md` files
+ * - Uses `fast-glob` with max depth 3 to find skill files
+ * - Parses YAML frontmatter via `gray-matter` for metadata
+ *
+ * MCP Tool Exposure:
+ * - `getSkillTools()` returns MCP-compatible tool definitions (list, read, create, update)
+ * - `skillsRouter.ts` exposes skills via tRPC for the dashboard frontend
+ *
+ * Master Index:
+ * - Optional `masterIndexPath` points to a JSONC file cataloging all available
+ *   MCP servers, harnesses, and skills for the library UI.
+ */
 export class SkillRegistry {
+    /** In-memory cache of loaded skills, keyed by skill ID */
     private skills: Map<string, Skill> = new Map();
+    /** Directories to scan for SKILL.md files */
     private searchPaths: string[];
+    /** Optional path to master library index (JSONC) */
     private masterIndexPath?: string;
 
     constructor(searchPaths: string[]) {
         this.searchPaths = searchPaths;
     }
+
 
     setMasterIndexPath(indexPath: string) {
         this.masterIndexPath = indexPath;
@@ -199,8 +240,8 @@ ${description}
             return {
                 content: [{ type: "text", text: `Created skill '${name}' at ${skillFile}` }]
             };
-        } catch (e: any) {
-            return { content: [{ type: "text", text: `Error creating skill: ${e.message}` }] };
+        } catch (e: unknown) {
+            return { content: [{ type: "text", text: `Error creating skill: ${getErrorMessage(e)}` }] };
         }
     }
 
@@ -219,8 +260,8 @@ ${description}
             await this.parseSkill(skill.path);
 
             return { content: [{ type: "text", text: `Saved skill '${id}'.` }] };
-        } catch (e: any) {
-            return { content: [{ type: "text", text: `Error saving skill: ${e.message}` }] };
+        } catch (e: unknown) {
+            return { content: [{ type: "text", text: `Error saving skill: ${getErrorMessage(e)}` }] };
         }
     }
 }

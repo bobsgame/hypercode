@@ -20,6 +20,7 @@ interface ResearchNode {
 export default function ResearchPage() {
     const [topic, setTopic] = useState("");
     const [depth, setDepth] = useState(2);
+    const [depthInput, setDepthInput] = useState("2");
     const [loading, setLoading] = useState(false);
     const [result, setResult] = useState<ResearchNode | null>(null);
     const [queueMessage, setQueueMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -63,12 +64,19 @@ export default function ResearchPage() {
 
     const handleResearch = async () => {
         if (!topic) return;
+        const parsedDepth = Number.parseInt(depthInput, 10);
+        const normalizedDepth = Number.isFinite(parsedDepth)
+            ? Math.min(5, Math.max(1, parsedDepth))
+            : 2;
+
+        setDepth(normalizedDepth);
+        setDepthInput(String(normalizedDepth));
         setLoading(true);
         setResult(null);
 
         try {
-            console.log(`Starting research: ${topic} (Depth: ${depth})`);
-            const response = await conductMutation.mutateAsync({ topic, depth });
+            console.log(`Starting research: ${topic} (Depth: ${normalizedDepth})`);
+            const response = await conductMutation.mutateAsync({ topic, depth: normalizedDepth });
 
             // Assuming response.report matches the ResearchNode structure loosely or is text.
             // If report is a string, we might need to parse it or display it simply.
@@ -165,8 +173,16 @@ export default function ResearchPage() {
                             type="number"
                             min={1}
                             max={5}
-                            value={depth}
-                            onChange={(e) => setDepth(parseInt(e.target.value))}
+                            value={depthInput}
+                            onChange={(e) => {
+                                const nextValue = e.target.value;
+                                setDepthInput(nextValue);
+
+                                const parsed = Number.parseInt(nextValue, 10);
+                                if (Number.isFinite(parsed)) {
+                                    setDepth(Math.min(5, Math.max(1, parsed)));
+                                }
+                            }}
                             className="bg-background"
                         />
                     </div>

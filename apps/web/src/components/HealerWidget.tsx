@@ -1,22 +1,41 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { trpc } from '@/utils/trpc';
 
 interface HealerEvent {
     type: string;
     file: string;
-    timestamp: string;
+    timestamp: number;
     details?: string;
     error?: string;
 }
 
 export function HealerWidget() {
+    const [eventList, setEventList] = useState<HealerEvent[]>([]);
+
+    // 1. Initial Load: Fetch History
     // @ts-ignore
-    const { data: events, isLoading } = trpc.healer.getHistory.useQuery(undefined, {
-        refetchInterval: 5000
+    const { data: history, isLoading } = trpc.healer.getHistory.useQuery(undefined, {
+        refetchOnWindowFocus: false,
+        refetchOnMount: true
     });
 
-    // Legacy support: If undefined, use empty array
-    const eventList = events || [];
+    useEffect(() => {
+        if (history) {
+            setEventList(history as HealerEvent[]);
+        }
+    }, [history]);
+
+    // 2. Real-time Subscription (Live Events)
+    // @ts-ignore
+    trpc.healer.subscribe.useSubscription(undefined, {
+        onData(data: unknown) {
+            const event = data as HealerEvent;
+            setEventList(prev => [event, ...prev]);
+        },
+        onError(err: unknown) {
+            console.error('[HealerWidget] Subscription error:', err);
+        }
+    });
 
     if (isLoading && eventList.length === 0) return <div className="text-sm text-gray-500 p-4">Loading Healer History...</div>;
 
@@ -33,7 +52,7 @@ export function HealerWidget() {
     return (
         <div className="w-full h-full overflow-auto p-2 space-y-2">
             {eventList.map((event: any, i: number) => (
-                <div key={i} className={`p-2 rounded border ${event.type === 'FIX_FAILED' ? 'border-red-500/20 bg-red-500/5' : 'border-green-500/20 bg-green-500/5'}`}>
+                <div key={`${event.timestamp}-${i}`} className={`p-2 rounded border ${event.type === 'FIX_FAILED' ? 'border-red-500/20 bg-red-500/5' : 'border-green-500/20 bg-green-500/5'}`}>
                     <div className="flex justify-between items-start">
                         <span className="font-mono text-xs font-bold uppercase opacity-75">
                             {event.type === 'FIX_APPLIED' ? '🩹 Fixed' : (event.type === 'FIX_FAILED' ? '❌ Failed' : event.type)}

@@ -8,11 +8,16 @@ import crypto from 'crypto';
 // Basic list of extensions to index
 const EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.jsx', '.md', '.json', '.css', '.html']);
 
+export interface IndexerStorage {
+    initialize(): Promise<void>;
+    addDocuments(docs: any[]): Promise<void>;
+}
+
 export class Indexer {
-    private vectorStore: VectorStore;
+    private vectorStore: IndexerStorage;
     private maxChunkSize: number = 500; // chars approx for now? or tokens. Simple chars for speed.
 
-    constructor(vectorStore: VectorStore) {
+    constructor(vectorStore: IndexerStorage) {
         this.vectorStore = vectorStore;
     }
 

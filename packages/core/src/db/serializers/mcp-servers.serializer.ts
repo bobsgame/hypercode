@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { DatabaseMcpServer, McpServer } from "../../types/metamcp/index.js";
 
 export class McpServersSerializer {

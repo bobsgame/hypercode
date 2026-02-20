@@ -1,10 +1,3 @@
-// @ts-nocheck
-import { Logger } from "@borg/utils/logger"; // Assuming Borg has a logger, or I should create a simple one or use console for now.
-// MetaMCP used "@/utils/logger". I'll use console for now or stub Logger.
-// Actually, `packages/core` probably doesn't have `@borg/utils` setup yet.
-// I'll create a simple logger utility in `src/utils/logger.ts` later.
-// For now, I'll use console.
-
 export interface MetaMcpLogEntry {
     id: string;
     timestamp: Date;

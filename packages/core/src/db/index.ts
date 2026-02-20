@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * @file index.ts
  * @module packages/core/src/db/index

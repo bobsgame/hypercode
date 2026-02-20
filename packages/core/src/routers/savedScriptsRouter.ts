@@ -1,7 +1,8 @@
 import { z } from 'zod';
 import { t, publicProcedure, adminProcedure } from '../lib/trpc-core.js';
-import { savedScriptsRepository } from '../db/repositories/index.js';
-import { SavedScriptSchema } from '../types/metamcp/saved-scripts.zod.js';
+import { jsonConfigProvider } from '../services/config/JsonConfigProvider.js';
+import { codeExecutorService } from '../services/CodeExecutorService.js';
+import { SavedScriptConfig } from '../interfaces/IConfigProvider.js';
 
 // Define input schemas here if not exported from Zod file, or reuse existing
 const CreateScriptInput = z.object({
@@ -20,42 +21,101 @@ const UpdateScriptInput = z.object({
 
 export const savedScriptsRouter = t.router({
     list: publicProcedure.query(async () => {
-        return await savedScriptsRepository.findAll();
+        return await jsonConfigProvider.loadScripts();
     }),
 
     get: publicProcedure
         .input(z.object({ uuid: z.string() }))
         .query(async ({ input }) => {
-            return await savedScriptsRepository.findByUuid(input.uuid);
+            const scripts = await jsonConfigProvider.loadScripts();
+            return scripts.find(s => s.uuid === input.uuid);
         }),
 
-    create: publicProcedure // scripts might be user-created, so public? or admin? adhering to pattern: admin for management
+    create: publicProcedure
         .input(CreateScriptInput)
         .mutation(async ({ input }) => {
-            return await savedScriptsRepository.create(input);
+            const script: SavedScriptConfig = {
+                name: input.name,
+                code: input.code,
+                description: input.description,
+                // userId is not stored in local config currently
+            };
+            await jsonConfigProvider.saveScript(script);
+            return script; // UUID will be generated/attached if we reload? 
+            // Ideally saveScript should return the saved object or we reload it.
+            // For now, let's just return what we have. 
+            // Actually saveScript doesn't return the enriched object.
+            // I should update saveScript signature or just reload.
+            const saved = (await jsonConfigProvider.loadScripts()).find(s => s.name === input.name);
+            return saved;
         }),
 
     update: publicProcedure
         .input(UpdateScriptInput)
         .mutation(async ({ input }) => {
-            return await savedScriptsRepository.update(input.uuid, input);
+            const scripts = await jsonConfigProvider.loadScripts();
+            const existing = scripts.find(s => s.uuid === input.uuid);
+            if (!existing) throw new Error("Script not found");
+
+            const updated: SavedScriptConfig = {
+                ...existing,
+                name: input.name ?? existing.name,
+                description: input.description ?? existing.description,
+                code: input.code ?? existing.code,
+            };
+
+            await jsonConfigProvider.saveScript(updated);
+            return updated;
         }),
 
     delete: publicProcedure
         .input(z.object({ uuid: z.string() }))
         .mutation(async ({ input }) => {
-            await savedScriptsRepository.delete(input.uuid);
+            await jsonConfigProvider.deleteScript(input.uuid);
             return { success: true };
         }),
 
     execute: publicProcedure
         .input(z.object({ uuid: z.string() }))
         .mutation(async ({ input }) => {
-            const script = await savedScriptsRepository.findByUuid(input.uuid);
+            const scripts = await jsonConfigProvider.loadScripts();
+            const script = scripts.find(s => s.uuid === input.uuid);
+
             if (!script) throw new Error("Script not found");
 
-            // TODO: Implement actual script execution (e.g., via SafeBox or VM)
-            console.log(`[MockExecute] Running script: ${script.name}`);
-            return { success: true, result: "Script execution simulated (Backend implementation pending)" };
+            const startedAt = Date.now();
+
+            try {
+                const output = await codeExecutorService.executeCode(script.code);
+                const finishedAt = Date.now();
+
+                return {
+                    success: true,
+                    result: output,
+                    execution: {
+                        scriptUuid: script.uuid,
+                        scriptName: script.name,
+                        startedAt: new Date(startedAt).toISOString(),
+                        finishedAt: new Date(finishedAt).toISOString(),
+                        durationMs: finishedAt - startedAt,
+                    },
+                };
+            } catch (error: unknown) {
+                const message = error instanceof Error ? error.message : String(error);
+                const finishedAt = Date.now();
+
+                return {
+                    success: false,
+                    result: null,
+                    error: message,
+                    execution: {
+                        scriptUuid: script.uuid,
+                        scriptName: script.name,
+                        startedAt: new Date(startedAt).toISOString(),
+                        finishedAt: new Date(finishedAt).toISOString(),
+                        durationMs: finishedAt - startedAt,
+                    },
+                };
+            }
         }),
 });

@@ -2,6 +2,11 @@ import { z } from 'zod';
 import { t, publicProcedure, getMcpServer } from '../lib/trpc-core.js';
 import { TRPCError } from '@trpc/server';
 
+function getErrorMessage(error: unknown): string {
+    if (error instanceof Error) return error.message;
+    return typeof error === 'string' ? error : 'Unknown error';
+}
+
 export const agentRouter = t.router({
     /**
      * Run a specific tool by name with arguments.
@@ -48,16 +53,39 @@ export const agentRouter = t.router({
             context: z.any().optional(),
         }))
         .mutation(async ({ input }) => {
-            // This would ideally connect to an LLM service that has access to the MCP tools.
-            // For now, we can stub it or link to the 'expert' system.
-            // Let's reuse the 'expertRouter' logic conceptually or call a service.
+            const server = getMcpServer();
+            if (!server) {
+                throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'MCP Server not initialized' });
+            }
 
-            // Placeholder: Echo back with tool suggestion if we can't call LLM directly here yet.
-            // In a real implementation this calls `mcp.agent.chat(...)`
+            const llm = server.llmService;
+            if (!llm || typeof llm.generate !== 'function') {
+                return {
+                    response: `[Agent] Chat model unavailable. Received: "${input.message}"`,
+                    tool_calls: [],
+                    degraded: true,
+                };
+            }
 
-            return {
-                response: `[Agent] I received: "${input.message}". (LLM integration pending full wiring)`,
-                tool_calls: []
-            };
+            const contextSnippet = input.context ? `\n\nContext:\n${JSON.stringify(input.context).slice(0, 4000)}` : '';
+            const prompt = `You are Borg Agent Chat. Give concise, actionable guidance and suggest tool usage when helpful.\n\nUser:\n${input.message}${contextSnippet}`;
+
+            try {
+                const result = await llm.generate(prompt, {
+                    maxTokens: 600,
+                });
+
+                return {
+                    response: result?.text ?? 'No response generated.',
+                    tool_calls: [],
+                    degraded: false,
+                };
+            } catch (error: unknown) {
+                return {
+                    response: `[Agent] Failed to generate response: ${getErrorMessage(error)}`,
+                    tool_calls: [],
+                    degraded: true,
+                };
+            }
         }),
 });

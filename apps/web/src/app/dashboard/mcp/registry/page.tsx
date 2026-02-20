@@ -7,8 +7,21 @@ import { Loader2, Globe, Download, ExternalLink, Database } from "lucide-react";
 import { trpc } from '@/utils/trpc';
 import { toast } from 'sonner';
 
+type RegistryItem = {
+    id?: string;
+    name: string;
+    description: string;
+    author?: string;
+    command?: string;
+    args?: string[];
+    env?: Record<string, string>;
+    tags: string[];
+    url?: string;
+    category?: string;
+};
+
 // Fallback install templates if live registry has no install metadata
-const QUICK_INSTALL_TEMPLATES = [
+const QUICK_INSTALL_TEMPLATES: RegistryItem[] = [
     {
         name: "filesystem",
         description: "Standard filesystem operations (read/write/list)",
@@ -52,19 +65,6 @@ const QUICK_INSTALL_TEMPLATES = [
         tags: ["official", "database"]
     }
 ];
-
-type RegistryItem = {
-    id?: string;
-    name: string;
-    description: string;
-    author?: string;
-    command?: string;
-    args?: string[];
-    env?: Record<string, string>;
-    tags: string[];
-    url?: string;
-    category?: string;
-};
 
 export default function RegistryDashboard() {
     const [filter, setFilter] = useState('');

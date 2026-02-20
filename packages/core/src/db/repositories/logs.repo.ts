@@ -1,9 +1,11 @@
-// @ts-nocheck
-import { eq, desc, and, gte } from "drizzle-orm";
+import { desc } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { db } from "../index.js";
 import { toolCallLogsTable } from "../metamcp-schema.js";
 import { MetaMcpLogEntry } from "../../types/metamcp/logs.zod.js";
+
+type ToolCallLogRow = typeof toolCallLogsTable.$inferSelect;
+type ToolCallLogInsert = typeof toolCallLogsTable.$inferInsert;
 
 export class LogsRepository {
     async create(input: {
@@ -18,8 +20,7 @@ export class LogsRepository {
         sessionId?: string;
         parentCallUuid?: string;
     }): Promise<void> {
-        // @ts-ignore
-        await db.insert(toolCallLogsTable as any).values({
+        const payload: ToolCallLogInsert = {
             uuid: randomUUID(),
             tool_name: input.toolName,
             // level: input.level, // Schema doesn't have level/message?
@@ -45,35 +46,35 @@ export class LogsRepository {
 
             // Missing: mcp_server_uuid, namespace_uuid, endpoint_uuid.
             // I should accept them if available.
-        } as any);
+        };
+
+        await db.insert(toolCallLogsTable).values(payload);
     }
 
     async findAll(limit = 100): Promise<MetaMcpLogEntry[]> {
-        // @ts-ignore
         const logs = await db
             .select()
-            .from(toolCallLogsTable as any)
-            .orderBy(desc(toolCallLogsTable.created_at as any))
-            .limit(limit) as any;
+            .from(toolCallLogsTable)
+            .orderBy(desc(toolCallLogsTable.created_at))
+            .limit(limit);
 
-        return logs.map((log: any) => ({
+        return logs.map((log: ToolCallLogRow) => ({
             id: log.uuid,
             timestamp: new Date(log.created_at),
             level: log.error ? "error" : "info",
             message: `Tool call: ${log.tool_name}`,
             toolName: log.tool_name,
             error: log.error,
-            arguments: log.args,
-            result: log.result,
+            arguments: log.args ?? undefined,
+            result: log.result ?? undefined,
             durationMs: log.duration_ms?.toString(),
-            sessionId: log.session_id,
-            parentCallUuid: log.parent_call_uuid,
+            sessionId: log.session_id ?? undefined,
+            parentCallUuid: log.parent_call_uuid ?? undefined,
         }));
     }
 
     async clear(): Promise<void> {
-        // @ts-ignore
-        await db.delete(toolCallLogsTable as any);
+        await db.delete(toolCallLogsTable);
     }
 }
 

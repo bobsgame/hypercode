@@ -4,6 +4,10 @@ import path from 'path';
 
 const execAsync = promisify(exec);
 
+function getErrorMessage(error: unknown): string {
+    return error instanceof Error ? error.message : String(error);
+}
+
 export interface CommitLog {
     hash: string;
     author: string;
@@ -77,8 +81,8 @@ export class GitService {
             // Safer: revert command (preserves history).
             const r = await this.run(`revert --no-edit ${hash}`);
             return r;
-        } catch (e: any) {
-            throw new Error(`Failed to revert: ${e.message}`);
+        } catch (e: unknown) {
+            throw new Error(`Failed to revert: ${getErrorMessage(e)}`);
         }
     }
 
@@ -86,8 +90,8 @@ export class GitService {
         try {
             const r = await this.run(`reset --${mode} ${hash}`);
             return r;
-        } catch (e: any) {
-            throw new Error(`Failed to reset: ${e.message}`);
+        } catch (e: unknown) {
+            throw new Error(`Failed to reset: ${getErrorMessage(e)}`);
         }
     }
 }

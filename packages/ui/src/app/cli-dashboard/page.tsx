@@ -12,6 +12,7 @@ import {
   Plus, Search, RefreshCw, Zap, Shield, TrendingUp, Circle
 } from 'lucide-react';
 import { io } from 'socket.io-client';
+import { resolveCliApiBaseUrl } from '@/lib/endpoints';
 
 export interface CLIDashboardBadge {
   label: string;
@@ -77,8 +78,11 @@ export default function CLIDashboard() {
   const [logs, setLogs] = useState<string[]>([]);
   const [isConnected, setIsConnected] = useState(false);
 
+  const getApiBaseUrl = () => resolveCliApiBaseUrl(process.env.NEXT_PUBLIC_API_URL);
+
   useEffect(() => {
-    const socket = io(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001');
+    const baseUrl = getApiBaseUrl();
+    const socket = io(baseUrl);
 
     socket.on('connect', () => {
       setIsConnected(true);
@@ -125,7 +129,7 @@ export default function CLIDashboard() {
 
   const fetchInstances = async () => {
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/cli-supervisor/instances`);
+      const res = await fetch(`${getApiBaseUrl()}/api/cli-supervisor/instances`);
       if (res.ok) {
         const data = await res.json();
         setInstances(data.instances || []);
@@ -150,11 +154,11 @@ export default function CLIDashboard() {
   const handleInstanceAction = async (instanceId: string, action: 'start' | 'stop' | 'restart' | 'pause' | 'resume' | 'delete') => {
     try {
       if (action === 'delete') {
-        await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/cli-supervisor/instances/${instanceId}`, {
+        await fetch(`${getApiBaseUrl()}/api/cli-supervisor/instances/${instanceId}`, {
           method: 'DELETE'
         });
       } else {
-        await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/cli-supervisor/instances/${instanceId}/control`, {
+        await fetch(`${getApiBaseUrl()}/api/cli-supervisor/instances/${instanceId}/control`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ action })
@@ -167,7 +171,7 @@ export default function CLIDashboard() {
 
   const fetchLogs = async (instanceId: string) => {
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/cli-supervisor/instances/${instanceId}/logs`);
+      const res = await fetch(`${getApiBaseUrl()}/api/cli-supervisor/instances/${instanceId}/logs`);
       if (res.ok) {
         const data = await res.json();
         setLogs(data.logs || []);

@@ -1,10 +1,9 @@
-// @ts-nocheck
-import { ServerParameters } from "../types/metamcp";
+import { ServerParameters } from "../types/metamcp/index.js";
 
-import { configService } from "./config.service";
-import { autoReconnectService } from "./auto-reconnect.service";
-import { ConnectedClient, connectMetaMcpClient } from "./mcp-client.service";
-import { serverErrorTracker } from "./server-error-tracker.service";
+import { configService } from "./config.service.js";
+import { autoReconnectService } from "./auto-reconnect.service.js";
+import { ConnectedClient, connectMetaMcpClient } from "./mcp-client.service.js";
+import { serverErrorTracker } from "./server-error-tracker.service.js";
 
 export interface McpServerPoolStatus {
     idle: number;
@@ -646,6 +645,10 @@ export class McpServerPool {
         if (age === undefined) return false;
 
         const sessionLifetime = await configService.getSessionLifetime();
+        if (sessionLifetime === null) {
+            return false;
+        }
+
         return age > sessionLifetime;
     }
 }

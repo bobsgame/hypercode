@@ -7,7 +7,7 @@ import { JSONRPCMessage } from "@modelcontextprotocol/sdk/types.js";
 import spawn from "cross-spawn";
 
 import { ReadBuffer, serializeMessage } from "@modelcontextprotocol/sdk/shared/stdio.js";
-import { getDefaultEnvironment } from "../services/utils.service.js"; // Adjusted import
+import { getDefaultEnvironment } from "../services/utils.service.js";
 
 export type StdioServerParameters = {
     /**
@@ -221,6 +221,5 @@ export class ProcessManagedStdioTransport implements Transport {
 }
 
 function isElectron() {
-    // @ts-ignore
-    return "type" in process;
+    return Boolean(process.versions.electron);
 }

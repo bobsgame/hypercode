@@ -1,12 +1,5 @@
+// DB removed
 import { Tool } from "@modelcontextprotocol/sdk/types.js";
-import { and, eq } from "drizzle-orm";
-
-import { db } from "../../db/index.js";
-import {
-    mcpServersTable,
-    namespaceToolMappingsTable,
-    toolsTable,
-} from "../../db/schema.js";
 import { parseToolName } from "../tool-name-parser.service.js";
 import {
     CallToolMiddleware,
@@ -52,126 +45,7 @@ function mergeAnnotations(
     return baseAnnotations as Tool["annotations"];
 }
 
-/**
- * Tool overrides cache for performance
- */
-class ToolOverridesCache {
-    private overrideCache = new Map<string, ToolOverride>();
-    private reverseNameCache = new Map<string, string>(); // overrideName -> originalName
-    private expiry = new Map<string, number>();
-    private persistentKeys = new Set<string>(); // keys that never expire
-    private ttl: number;
-
-    constructor(ttl: number = 1000) {
-        this.ttl = ttl;
-    }
-
-    private getCacheKey(
-        namespaceUuid: string,
-        serverName: string,
-        toolName: string,
-    ): string {
-        return `${namespaceUuid}:${serverName}:${toolName}`;
-    }
-
-    private getReverseKey(namespaceUuid: string, overrideName: string): string {
-        return `${namespaceUuid}:${overrideName}`;
-    }
-
-    get(
-        namespaceUuid: string,
-        serverName: string,
-        toolName: string,
-    ): ToolOverride | null {
-        const key = this.getCacheKey(namespaceUuid, serverName, toolName);
-
-        // Check if this is a persistent key that never expires
-        if (this.persistentKeys.has(key)) {
-            return this.overrideCache.get(key) || null;
-        }
-
-        const expiry = this.expiry.get(key);
-
-        if (!expiry || Date.now() > expiry) {
-            this.overrideCache.delete(key);
-            this.expiry.delete(key);
-            return null;
-        }
-
-        return this.overrideCache.get(key) || null;
-    }
-
-    set(
-        namespaceUuid: string,
-        serverName: string,
-        toolName: string,
-        override: ToolOverride,
-        isPersistent: boolean = false,
-    ): void {
-        const key = this.getCacheKey(namespaceUuid, serverName, toolName);
-        this.overrideCache.set(key, override);
-
-        if (isPersistent) {
-            // Mark as persistent - never expires
-            this.persistentKeys.add(key);
-        } else {
-            // Set normal expiry
-            this.expiry.set(key, Date.now() + this.ttl);
-        }
-
-        // Also cache reverse lookup if there's an override name
-        if (override.overrideName) {
-            const reverseKey = this.getReverseKey(
-                namespaceUuid,
-                override.overrideName,
-            );
-            this.reverseNameCache.set(reverseKey, `${serverName}__${toolName}`);
-        }
-    }
-
-    getOriginalName(namespaceUuid: string, overrideName: string): string | null {
-        const reverseKey = this.getReverseKey(namespaceUuid, overrideName);
-        return this.reverseNameCache.get(reverseKey) || null;
-    }
-
-    setOriginalName(
-        namespaceUuid: string,
-        overrideName: string,
-        originalName: string,
-    ): void {
-        const reverseKey = this.getReverseKey(namespaceUuid, overrideName);
-        this.reverseNameCache.set(reverseKey, originalName);
-    }
-
-    clear(namespaceUuid?: string): void {
-        if (namespaceUuid) {
-            for (const key of this.overrideCache.keys()) {
-                if (key.startsWith(`${namespaceUuid}:`)) {
-                    this.overrideCache.delete(key);
-                    this.expiry.delete(key);
-                    this.persistentKeys.delete(key);
-                }
-            }
-            for (const key of this.reverseNameCache.keys()) {
-                if (key.startsWith(`${namespaceUuid}:`)) {
-                    this.reverseNameCache.delete(key);
-                }
-            }
-        } else {
-            this.overrideCache.clear();
-            this.reverseNameCache.clear();
-            this.expiry.clear();
-            this.persistentKeys.clear();
-        }
-    }
-}
-
-// Global cache instance
-const toolOverridesCache = new ToolOverridesCache();
-
-/**
- * Get tool overrides from database with caching
- */
+// In-memory stub for overrides
 async function getToolOverrides(
     namespaceUuid: string,
     serverName: string,
@@ -179,77 +53,8 @@ async function getToolOverrides(
     useCache: boolean = true,
     isPersistent: boolean = false,
 ): Promise<ToolOverride | null> {
-    // Check cache first
-    if (useCache) {
-        const cached = toolOverridesCache.get(namespaceUuid, serverName, toolName);
-        if (cached !== null) {
-            return cached;
-        }
-    }
-
-    try {
-        // Get server UUID by name
-        const [server] = await db
-            .select({ uuid: mcpServersTable.uuid })
-            .from(mcpServersTable)
-            // @ts-ignore
-            .where(eq(mcpServersTable.name, serverName));
-
-        if (!server) {
-            return null;
-        }
-
-        // Query database for tool overrides
-        const [toolMapping] = await db
-            .select({
-                overrideName: namespaceToolMappingsTable.override_name,
-                overrideTitle: namespaceToolMappingsTable.override_title,
-                overrideDescription: namespaceToolMappingsTable.override_description,
-                overrideAnnotations: namespaceToolMappingsTable.override_annotations,
-            })
-            .from(namespaceToolMappingsTable)
-            .innerJoin(
-                toolsTable,
-                eq(toolsTable.uuid, namespaceToolMappingsTable.tool_uuid),
-            )
-            .where(
-                and(
-                    eq(namespaceToolMappingsTable.namespace_uuid, namespaceUuid),
-                    eq(toolsTable.name, toolName),
-                    // @ts-ignore
-                    eq(namespaceToolMappingsTable.mcp_server_uuid, server.uuid),
-                ),
-            );
-
-        const override: ToolOverride = {
-            overrideName: toolMapping?.overrideName || null,
-            overrideTitle:
-                typeof toolMapping?.overrideTitle !== "undefined"
-                    ? toolMapping.overrideTitle
-                    : undefined,
-            overrideDescription: toolMapping?.overrideDescription || null,
-            overrideAnnotations: toolMapping?.overrideAnnotations || null,
-        };
-
-        // Cache the result if found and caching is enabled
-        if (toolMapping && useCache) {
-            toolOverridesCache.set(
-                namespaceUuid,
-                serverName,
-                toolName,
-                override,
-                isPersistent,
-            );
-        }
-
-        return override;
-    } catch (error) {
-        console.error(
-            `Error fetching tool overrides for ${toolName} in namespace ${namespaceUuid}:`,
-            error,
-        );
-        return null;
-    }
+    // TODO: Implement JSON-based overrides if needed
+    return null;
 }
 
 /**
@@ -265,100 +70,8 @@ async function applyToolOverrides(
         return tools;
     }
 
-    const overriddenTools: Tool[] = [];
-
-    await Promise.allSettled(
-        tools.map(async (tool) => {
-            try {
-                const parsed = parseToolName(tool.name);
-                if (!parsed) {
-                    // If tool name doesn't follow expected format, include as-is
-                    overriddenTools.push(tool);
-                    return;
-                }
-
-                const override = await getToolOverrides(
-                    namespaceUuid,
-                    parsed.serverName,
-                    parsed.originalToolName,
-                    useCache,
-                    isPersistent,
-                );
-
-                if (!override) {
-                    // No overrides found, include as-is
-                    overriddenTools.push(tool);
-                    return;
-                }
-
-                // Apply overrides - preserve server prefix format
-                // For name: only apply if overrideName is not null and not empty
-                const overriddenName =
-                    override.overrideName && override.overrideName.trim() !== ""
-                        ? `${parsed.serverName}__${override.overrideName}`
-                        : tool.name;
-
-                // For description: apply override if it's not null, even if empty string
-                // This allows users to explicitly set empty descriptions
-                const overriddenDescription =
-                    override.overrideDescription !== null
-                        ? override.overrideDescription
-                        : tool.description;
-
-                // For title: apply override if provided (null means no override)
-                let overriddenTitle: string | undefined = tool.title;
-                if (typeof override.overrideTitle !== "undefined") {
-                    overriddenTitle =
-                        override.overrideTitle === null
-                            ? undefined
-                            : override.overrideTitle;
-                }
-
-                let overriddenAnnotations =
-                    tool.annotations && Object.keys(tool.annotations).length > 0
-                        ? { ...tool.annotations }
-                        : undefined;
-
-                if (overriddenAnnotations && "title" in overriddenAnnotations) {
-                    // Strip legacy title hint to avoid conflicting with top-level title
-
-                    const { title: _removed, ...rest } = overriddenAnnotations;
-                    overriddenAnnotations =
-                        Object.keys(rest).length > 0 ? rest : undefined;
-                }
-
-                overriddenAnnotations = mergeAnnotations(
-                    overriddenAnnotations,
-                    override.overrideAnnotations,
-                );
-
-                const overriddenTool: Tool = {
-                    ...tool,
-                    name: overriddenName,
-                    title: overriddenTitle,
-                    description: overriddenDescription,
-                    annotations: overriddenAnnotations,
-                };
-
-                // Update reverse mapping cache for the new full override name
-                if (override.overrideName && useCache) {
-                    toolOverridesCache.setOriginalName(
-                        namespaceUuid,
-                        override.overrideName,
-                        tool.name,
-                    );
-                }
-
-                overriddenTools.push(overriddenTool);
-            } catch (error) {
-                console.error(`Error applying overrides for tool ${tool.name}:`, error);
-                // On error, include the tool as-is (fail-safe behavior)
-                overriddenTools.push(tool);
-            }
-        }),
-    );
-
-    return overriddenTools;
+    // Pass-through for now as DB is removed
+    return tools;
 }
 
 /**
@@ -369,71 +82,6 @@ export async function mapOverrideNameToOriginal(
     namespaceUuid: string,
     useCache: boolean = true,
 ): Promise<string> {
-    // Parse the tool name to extract server and tool parts
-    const parsed = parseToolName(toolName);
-    if (!parsed) {
-        // If tool name doesn't follow expected format, return as-is
-        return toolName;
-    }
-
-    // First check if this might be an override name using just the tool part
-    if (useCache) {
-        const originalName = toolOverridesCache.getOriginalName(
-            namespaceUuid,
-            parsed.originalToolName,
-        );
-        if (originalName) {
-            return originalName;
-        }
-    }
-
-    // If not found in cache or cache disabled, query database
-    try {
-        const [toolMapping] = await db
-            .select({
-                originalName: toolsTable.name,
-                serverName: mcpServersTable.name,
-            })
-            .from(namespaceToolMappingsTable)
-            .innerJoin(
-                toolsTable,
-                eq(toolsTable.uuid, namespaceToolMappingsTable.tool_uuid),
-            )
-            .innerJoin(
-                mcpServersTable,
-                eq(mcpServersTable.uuid, namespaceToolMappingsTable.mcp_server_uuid),
-            )
-            .where(
-                and(
-                    eq(namespaceToolMappingsTable.namespace_uuid, namespaceUuid),
-                    eq(namespaceToolMappingsTable.override_name, parsed.originalToolName),
-                    // @ts-ignore
-                    eq(mcpServersTable.name, parsed.serverName),
-                ),
-            );
-
-        if (toolMapping) {
-            const originalFullName = `${toolMapping.serverName}__${toolMapping.originalName}`;
-
-            // Cache the reverse mapping using the tool part only
-            if (useCache) {
-                toolOverridesCache.setOriginalName(
-                    namespaceUuid,
-                    parsed.originalToolName,
-                    originalFullName,
-                );
-            }
-
-            return originalFullName;
-        }
-    } catch (error) {
-        console.error(
-            `Error mapping override name ${toolName} to original in namespace ${namespaceUuid}:`,
-            error,
-        );
-    }
-
-    // If no mapping found, return the original name
     return toolName;
 }
 
@@ -507,5 +155,5 @@ export function createToolOverridesCallToolMiddleware(
  * Utility function to clear override cache
  */
 export function clearOverrideCache(namespaceUuid?: string): void {
-    toolOverridesCache.clear(namespaceUuid);
+    // No-op as cache is disabled
 }

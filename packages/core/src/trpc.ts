@@ -50,6 +50,9 @@ import { policiesRouter } from './routers/policiesRouter.js';
 import { savedScriptsRouter } from './routers/savedScriptsRouter.js';
 import { oauthRouter } from './routers/oauthRouter.js';
 import { agentRouter } from './routers/agentRouter.js';
+import { browserRouter } from './routers/browserRouter.js';
+import { meshRouter } from './routers/meshRouter.js';
+import { marketplaceRouter } from './routers/marketplaceRouter.js';
 
 
 // import { type AnyTRPCRouter } from '@trpc/server';
@@ -103,6 +106,9 @@ export const appRouter = t.router({
     savedScripts: savedScriptsRouter,
     oauth: oauthRouter,
     agent: agentRouter,
+    browser: browserRouter,
+    mesh: meshRouter,
+    marketplace: marketplaceRouter,
 });
 
 export type AppRouter = typeof appRouter;

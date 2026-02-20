@@ -127,7 +127,7 @@ export default function SkillsPage() {
                         <div className="h-[400px] overflow-y-auto">
                             {skillList.length === 0 && <p className="text-muted-foreground italic">No custom skills loaded.</p>}
                             <div className="grid grid-cols-1 gap-2">
-                                {skillList.map((skill, i: number) => (
+                                {skillList.map((skill, i) => (
                                     <div key={i} className="flex items-center justify-between p-3 rounded-md border border-zinc-800 bg-zinc-900/50">
                                         <div className="font-medium">{skill.name}</div>
                                         <Badge variant="outline">Active</Badge>

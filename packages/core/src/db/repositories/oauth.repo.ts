@@ -13,9 +13,6 @@
  * - Manages Code and Token lifecycle.
  */
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/ban-ts-comment */
-
 import {
     OAuthAccessToken,
     OAuthAccessTokenCreateInput,
@@ -33,41 +30,47 @@ import {
     oauthClientsTable,
 } from "../metamcp-schema.js";
 
+type OAuthClientInsert = typeof oauthClientsTable.$inferInsert;
+type OAuthAuthorizationCodeInsert = typeof oauthAuthorizationCodesTable.$inferInsert;
+type OAuthAccessTokenInsert = typeof oauthAccessTokensTable.$inferInsert;
+
 export class OAuthRepository {
     // --- OAuth Clients ---
 
     async createClient(input: OAuthClientCreateInput): Promise<OAuthClient> {
-        // @ts-ignore
+        const payload: OAuthClientInsert = {
+            client_id: input.client_id,
+            client_secret: input.client_secret,
+            client_name: input.client_name,
+            redirect_uris: input.redirect_uris,
+            grant_types: input.grant_types,
+            response_types: input.response_types,
+            token_endpoint_auth_method: input.token_endpoint_auth_method,
+            scope: input.scope,
+            client_uri: input.client_uri,
+            logo_uri: input.logo_uri,
+            contacts: input.contacts,
+            tos_uri: input.tos_uri,
+            policy_uri: input.policy_uri,
+            software_id: input.software_id,
+            software_version: input.software_version,
+            created_at: input.created_at,
+            updated_at: input.updated_at,
+        };
+
         const [createdClient] = await db
-            .insert(oauthClientsTable as any)
-            .values({
-                client_id: input.client_id,
-                client_secret: input.client_secret,
-                client_name: input.client_name,
-                redirect_uris: input.redirect_uris,
-                grant_types: input.grant_types,
-                response_types: input.response_types,
-                token_endpoint_auth_method: input.token_endpoint_auth_method,
-                scope: input.scope,
-                client_uri: input.client_uri,
-                logo_uri: input.logo_uri,
-                contacts: input.contacts,
-                tos_uri: input.tos_uri,
-                policy_uri: input.policy_uri,
-                software_id: input.software_id,
-                software_version: input.software_version,
-            } as any)
-            .returning() as any;
+            .insert(oauthClientsTable)
+            .values(payload)
+            .returning();
 
         return createdClient;
     }
 
     async findClientById(clientId: string): Promise<OAuthClient | undefined> {
-        // @ts-ignore
         const [client] = await db
             .select()
-            .from(oauthClientsTable as any)
-            .where(eq(oauthClientsTable.client_id as any, clientId)) as any;
+            .from(oauthClientsTable)
+            .where(eq(oauthClientsTable.client_id, clientId));
 
         return client;
     }
@@ -99,20 +102,21 @@ export class OAuthRepository {
         code: string,
         input: OAuthAuthorizationCodeCreateInput,
     ): Promise<OAuthAuthorizationCode> {
-        // @ts-ignore
+        const payload: OAuthAuthorizationCodeInsert = {
+            code,
+            client_id: input.client_id,
+            redirect_uri: input.redirect_uri,
+            scope: input.scope,
+            user_id: input.user_id,
+            code_challenge: input.code_challenge ?? null,
+            code_challenge_method: input.code_challenge_method ?? null,
+            expires_at: new Date(input.expires_at),
+        };
+
         const [createdCode] = await db
-            .insert(oauthAuthorizationCodesTable as any)
-            .values({
-                code: code,
-                client_id: input.client_id,
-                redirect_uri: input.redirect_uri,
-                scope: input.scope,
-                user_id: input.user_id,
-                code_challenge: input.code_challenge,
-                code_challenge_method: input.code_challenge_method,
-                expires_at: new Date(input.expires_at), // Convert timestamp number to Date
-            } as any)
-            .returning() as any;
+            .insert(oauthAuthorizationCodesTable)
+            .values(payload)
+            .returning();
 
         return createdCode;
     }
@@ -120,11 +124,10 @@ export class OAuthRepository {
     async findAuthorizationCode(
         code: string,
     ): Promise<OAuthAuthorizationCode | undefined> {
-        // @ts-ignore
         const [authCode] = await db
             .select()
-            .from(oauthAuthorizationCodesTable as any)
-            .where(eq(oauthAuthorizationCodesTable.code as any, code)) as any;
+            .from(oauthAuthorizationCodesTable)
+            .where(eq(oauthAuthorizationCodesTable.code, code));
 
         return authCode;
     }
@@ -132,20 +135,18 @@ export class OAuthRepository {
     async deleteAuthorizationCode(
         code: string,
     ): Promise<OAuthAuthorizationCode | undefined> {
-        // @ts-ignore
         const [deletedCode] = await db
-            .delete(oauthAuthorizationCodesTable as any)
-            .where(eq(oauthAuthorizationCodesTable.code as any, code))
-            .returning() as any;
+            .delete(oauthAuthorizationCodesTable)
+            .where(eq(oauthAuthorizationCodesTable.code, code))
+            .returning();
 
         return deletedCode;
     }
 
     async deleteExpiredAuthorizationCodes(): Promise<void> {
-        // @ts-ignore
         await db
-            .delete(oauthAuthorizationCodesTable as any)
-            .where(lt(oauthAuthorizationCodesTable.expires_at as any, new Date())) as any;
+            .delete(oauthAuthorizationCodesTable)
+            .where(lt(oauthAuthorizationCodesTable.expires_at, new Date()));
     }
 
     // --- Access Tokens ---
@@ -155,17 +156,18 @@ export class OAuthRepository {
         accessToken: string,
         input: OAuthAccessTokenCreateInput,
     ): Promise<OAuthAccessToken> {
-        // @ts-ignore
+        const payload: OAuthAccessTokenInsert = {
+            access_token: accessToken,
+            client_id: input.client_id,
+            user_id: input.user_id,
+            scope: input.scope,
+            expires_at: new Date(input.expires_at),
+        };
+
         const [createdToken] = await db
-            .insert(oauthAccessTokensTable as any)
-            .values({
-                access_token: accessToken,
-                client_id: input.client_id,
-                user_id: input.user_id,
-                scope: input.scope,
-                expires_at: new Date(input.expires_at),
-            } as any)
-            .returning() as any;
+            .insert(oauthAccessTokensTable)
+            .values(payload)
+            .returning();
 
         return createdToken;
     }
@@ -173,20 +175,18 @@ export class OAuthRepository {
     async findAccessToken(
         accessToken: string,
     ): Promise<OAuthAccessToken | undefined> {
-        // @ts-ignore
         const [token] = await db
             .select()
-            .from(oauthAccessTokensTable as any)
-            .where(eq(oauthAccessTokensTable.access_token as any, accessToken)) as any;
+            .from(oauthAccessTokensTable)
+            .where(eq(oauthAccessTokensTable.access_token, accessToken));
 
         return token;
     }
 
     async deleteExpiredAccessTokens(): Promise<void> {
-        // @ts-ignore
         await db
-            .delete(oauthAccessTokensTable as any)
-            .where(lt(oauthAccessTokensTable.expires_at as any, new Date())) as any;
+            .delete(oauthAccessTokensTable)
+            .where(lt(oauthAccessTokensTable.expires_at, new Date()));
     }
 }
 

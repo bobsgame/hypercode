@@ -6,8 +6,39 @@ import { Loader2, Save, X, Globe, Shield, Activity } from "lucide-react";
 import { trpc } from '@/utils/trpc';
 import { toast } from 'sonner';
 
+type NamespaceOption = {
+    uuid: string;
+    name: string;
+};
+
+type EndpointLike = {
+    uuid: string;
+    name: string;
+    path?: string;
+    method?: string;
+    namespace?: string;
+    namespace_uuid?: string;
+    authRequired?: boolean;
+    rateLimit?: number | string;
+};
+
+type EndpointMutationPayload = {
+    name: string;
+    description: string | null;
+    namespace_uuid: string;
+    enable_api_key_auth: boolean;
+    enable_oauth: boolean;
+    enable_max_rate: boolean;
+    enable_client_max_rate: boolean;
+    max_rate: number;
+    max_rate_seconds: number;
+    client_max_rate: number;
+    client_max_rate_seconds: number;
+    use_query_param_auth: boolean;
+};
+
 interface EditEndpointProps {
-    endpoint?: any;
+    endpoint?: EndpointLike;
     onSuccess: () => void;
     onCancel: () => void;
 }
@@ -44,30 +75,46 @@ export function EditEndpoint({ endpoint, onSuccess, onCancel }: EditEndpointProp
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        const payload = {
+        const namespaceOptions = (namespaces ?? []) as NamespaceOption[];
+        const selectedNamespace = namespaceOptions.find(
+            (ns) => ns.name === formData.namespace,
+        );
+        const namespaceUuid = selectedNamespace?.uuid || endpoint?.namespace_uuid;
+
+        if (!namespaceUuid) {
+            toast.error('Please select a valid namespace');
+            return;
+        }
+
+        const parsedRateLimit = Number.parseInt(formData.rateLimit, 10);
+        const safeRateLimit = Number.isFinite(parsedRateLimit)
+            ? parsedRateLimit
+            : 60;
+
+        const payload: EndpointMutationPayload = {
             name: formData.name,
-            path: formData.path,
-            method: formData.method,
-            namespace: formData.namespace,
-            authRequired: formData.authRequired,
-            rateLimit: parseInt(formData.rateLimit)
+            description: null,
+            namespace_uuid: namespaceUuid,
+            enable_api_key_auth: formData.authRequired,
+            enable_oauth: false,
+            enable_max_rate: true,
+            enable_client_max_rate: true,
+            max_rate: safeRateLimit,
+            max_rate_seconds: 60,
+            client_max_rate: safeRateLimit,
+            client_max_rate_seconds: 60,
+            use_query_param_auth: false,
         };
 
         if (isEdit) {
             updateMutation.mutate({
-                id: endpoint.id,
+                uuid: endpoint.uuid,
                 ...payload,
-                namespace_uuid: 'default', // TODO: Fetch correct UUID
-                enable_max_rate: true,
-                enable_client_max_rate: true
-            } as any);
+            });
         } else {
             createMutation.mutate({
                 ...payload,
-                namespace_uuid: 'default', // TODO: Fetch correct UUID
-                enable_max_rate: true,
-                enable_client_max_rate: true
-            } as any);
+            });
         }
     };
 
@@ -103,7 +150,7 @@ export function EditEndpoint({ endpoint, onSuccess, onCancel }: EditEndpointProp
                             className="w-full bg-zinc-950 border border-zinc-800 rounded p-2 text-white focus:border-cyan-500 outline-none"
                         >
                             <option value="default">default</option>
-                            {namespaces?.map((ns: any) => (
+                            {(namespaces as NamespaceOption[] | undefined)?.map((ns) => (
                                 <option key={ns.name} value={ns.name}>{ns.name}</option>
                             ))}
                         </select>

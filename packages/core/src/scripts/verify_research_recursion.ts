@@ -3,10 +3,17 @@ import { DeepResearchService } from '../services/DeepResearchService.js';
 import { LLMService } from '@borg/ai';
 import { MemoryManager } from '../services/MemoryManager.js';
 
+type RecursiveResearchResult = {
+    topic: string;
+    summary: string;
+    sources: Array<{ title: string; url: string; keyPoints: string[] }>;
+    relatedTopics: string[];
+    subTopics?: RecursiveResearchResult[];
+};
+
 // Mock dependencies
 const mockLLM = {
     modelSelector: { selectModel: async () => ({ provider: 'mock', modelId: 'mock-model' }) },
-    // @ts-ignore
     generateText: async (p: any, m: any, sys: any, prompt: string) => {
         if (prompt.includes("Generate 3 specific web search queries")) {
             return { content: "Topic Analysis\nLatest News\nDeep Dive" };
@@ -30,11 +37,12 @@ const mockMemory = {
     saveContext: async () => 123
 } as unknown as MemoryManager;
 
+const mockSearch = {} as unknown as import('@borg/search').SearchService;
+
 async function verifyRecursion() {
     console.log("🔍 Verifying Recursive Research...");
 
-    // @ts-ignore
-    const service = new DeepResearchService(mockLLM, null, mockMemory);
+    const service = new DeepResearchService({ executeTool: async () => ({}) as any }, mockLLM, mockSearch, mockMemory);
 
     // Override internal researchTopic to avoid actual web calls/import issues during simple test
     // We just want to test recursion logic
@@ -49,16 +57,14 @@ async function verifyRecursion() {
     };
 
     console.log("--- Starting Recursive Run (Depth 2, Breadth 2) ---");
-    const result = await service.recursiveResearch("Root", 2, 2);
+    const result = await service.recursiveResearch("Root", 2, 2) as RecursiveResearchResult;
 
     console.log("\n--- Result Tree ---");
     printTree(result);
 
-    // @ts-ignore
     if (result.subTopics && result.subTopics.length === 2 && result.subTopics[0].subTopics?.length === 2) {
         console.log("\n✅ Recursion Logic Verified!");
     } else {
-        // @ts-ignore
         console.error(`\n❌ Recursion Logic Failed (Structure mismatch). Expected 2 children each with 2 children. Got children: ${result.subTopics?.length}, Grandchild[0]: ${result.subTopics?.[0]?.subTopics?.length}`);
         process.exit(1);
     }

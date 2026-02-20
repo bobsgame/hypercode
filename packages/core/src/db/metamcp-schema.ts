@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * @file metamcp-schema.ts
  * @description SQLite schema definition for MetaMCP integration into Borg.
@@ -154,7 +153,7 @@ export const usersTable = sqliteTable("users", {
     id: text("id").primaryKey(),
     name: text("name").notNull(),
     email: text("email").notNull().unique(),
-    emailVerified: integer("email_verified", { mode: "boolean" }).notNull().default(0),
+    emailVerified: integer("email_verified", { mode: "boolean" }).notNull().default(false),
     image: text("image"),
     createdAt: integer("created_at", { mode: "timestamp" })
         .notNull()
@@ -257,12 +256,12 @@ export const endpointsTable = sqliteTable(
         namespace_uuid: text("namespace_uuid")
             .notNull()
             .references(() => namespacesTable.uuid, { onDelete: "cascade" }),
-        enable_api_key_auth: integer("enable_api_key_auth", { mode: "boolean" }).notNull().default(1),
-        enable_oauth: integer("enable_oauth", { mode: "boolean" }).notNull().default(0),
-        enable_max_rate: integer("enable_max_rate", { mode: "boolean" }).notNull().default(0),
+        enable_api_key_auth: integer("enable_api_key_auth", { mode: "boolean" }).notNull().default(true),
+        enable_oauth: integer("enable_oauth", { mode: "boolean" }).notNull().default(false),
+        enable_max_rate: integer("enable_max_rate", { mode: "boolean" }).notNull().default(false),
         enable_client_max_rate: integer("enable_client_max_rate", { mode: "boolean" })
             .notNull()
-            .default(0),
+            .default(false),
         max_rate: integer("max_rate"),
         max_rate_seconds: integer("max_rate_seconds"),
         client_max_rate: integer("client_max_rate"),
@@ -271,7 +270,7 @@ export const endpointsTable = sqliteTable(
         client_max_rate_strategy_key: text("client_max_rate_strategy_key"),
         use_query_param_auth: integer("use_query_param_auth", { mode: "boolean" })
             .notNull()
-            .default(0),
+            .default(false),
         created_at: integer("created_at", { mode: "timestamp" })
             .notNull()
             .default(sql`(strftime('%s', 'now'))`),
@@ -377,7 +376,7 @@ export const apiKeysTable = sqliteTable(
         created_at: integer("created_at", { mode: "timestamp" })
             .notNull()
             .default(sql`(strftime('%s', 'now'))`),
-        is_active: integer("is_active", { mode: "boolean" }).notNull().default(1),
+        is_active: integer("is_active", { mode: "boolean" }).notNull().default(true),
     },
     (table) => ({
         userIdIdx: index("api_keys_user_id_idx").on(table.user_id),

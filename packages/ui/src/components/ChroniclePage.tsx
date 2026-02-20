@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useMemo, useState } from 'react';
 import { trpc } from '../utils/trpc';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/card';
 import { Button } from './ui/button';
@@ -78,28 +78,32 @@ export function ChroniclePage() {
     const gitLog = normalizeGitCommits(rawGitLog);
     const gitStatus = normalizeGitStatus(rawGitStatus);
 
-    const [events, setEvents] = useState<any[]>([]);
+    type ChronicleEvent =
+        | { type: 'audit'; date: Date; data: AuditLogLike }
+        | { type: 'git'; date: Date; data: GitCommitLike };
 
-    useEffect(() => {
-        const combined = [];
-        if (auditLogs) {
-            combined.push(...auditLogs.map((log: any) => ({
-                type: 'audit',
-                date: new Date(log.timestamp),
-                data: log
-            })));
-        }
-        if (gitLog) {
-            combined.push(...gitLog.map((commit: any) => ({
-                type: 'git',
-                date: new Date(commit.date),
-                data: commit
-            })));
-        }
-        // Sort descending
+    const events = useMemo<ChronicleEvent[]>(() => {
+        const combined: ChronicleEvent[] = [];
+
+        combined.push(
+            ...auditLogs.map((log) => ({
+                type: 'audit' as const,
+                date: new Date(typeof log.timestamp === 'number' ? log.timestamp : Date.now()),
+                data: log,
+            })),
+        );
+
+        combined.push(
+            ...gitLog.map((commit) => ({
+                type: 'git' as const,
+                date: new Date(commit.date ?? Date.now()),
+                data: commit,
+            })),
+        );
+
         combined.sort((a, b) => b.date.getTime() - a.date.getTime());
-        setEvents(combined);
-    }, [auditLogs, gitLog]);
+        return combined;
+    }, [rawAuditLogs, rawGitLog]);
 
     const handleRevert = async (hash: string) => {
         if (confirm(`Are you sure you want to revert commit ${hash.substring(0, 7)}? This will create a new commit undoing changes.`)) {

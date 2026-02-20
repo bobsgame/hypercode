@@ -6,6 +6,10 @@ import fs from 'fs/promises';
 import path from 'path';
 import { z } from 'zod';
 
+function getErrorMessage(error: unknown): string {
+    return error instanceof Error ? error.message : String(error);
+}
+
 export class SkillAssimilationService {
     private skillRegistry: SkillRegistry;
     private llm: LLMService;
@@ -88,8 +92,8 @@ Constraints:
             // To properly load, we might need to tell SkillRegistry to scan.
             // this.server.skillRegistry.scan();
             log("Tool saved. Restart might be required unless Hot Reload is fully enabled.");
-        } catch (e: any) {
-            log(`Hot reload failed: ${e.message}`);
+        } catch (e: unknown) {
+            log(`Hot reload failed: ${getErrorMessage(e)}`);
         }
 
         return { success: true, toolName: safeName, logs };

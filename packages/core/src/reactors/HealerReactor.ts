@@ -2,6 +2,17 @@
 import { EventBus, SystemEvent } from '../services/EventBus.js';
 import { HealerService } from '../services/HealerService.js';
 
+function getErrorLog(payload: unknown): string {
+    if (!payload || typeof payload !== 'object') {
+        return '';
+    }
+
+    const record = payload as Record<string, unknown>;
+    const message = typeof record.message === 'string' ? record.message : '';
+    const error = typeof record.error === 'string' ? record.error : '';
+    return message || error;
+}
+
 export class HealerReactor {
     private eventBus: EventBus;
     private healerService: HealerService;
@@ -20,7 +31,7 @@ export class HealerReactor {
     }
 
     private async handleError(event: SystemEvent) {
-        const errorLog = event.payload.message || event.payload.error;
+        const errorLog = getErrorLog(event.payload);
 
         // Prevent reaction loops (e.g., if the healer itself causes an error)
         const now = Date.now();

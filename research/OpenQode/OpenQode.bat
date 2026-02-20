@@ -37,7 +37,7 @@ if not exist "bin\goose-ultra-final\node_modules" (
 echo [OK] Dependencies ready
 
 :MENU
-cls
+rem Console clear disabled to preserve startup logs/history
 echo.
 echo ========================================
 echo   OPENQODE v1.01 - LAUNCH MENU

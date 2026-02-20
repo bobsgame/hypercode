@@ -1,4 +1,3 @@
-import { CallToolRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import { CallToolMiddleware } from "./functional-middleware.js";
 import { policyService } from "../stubs/policy.service.stub.js";
 
@@ -6,7 +5,6 @@ export interface PolicyMiddlewareOptions {
     enabled: boolean;
 }
 
-// @ts-ignore
 export const createPolicyMiddleware = (
     options: PolicyMiddlewareOptions,
 ): CallToolMiddleware => {
@@ -15,11 +13,13 @@ export const createPolicyMiddleware = (
             return await next(request, context);
         }
 
-        const { name, _meta } = request.params;
+        const params = request.params as typeof request.params & {
+            _meta?: { policyId?: string };
+        };
+        const { name } = params;
 
         // Check if a policy ID is attached to the request (e.g. from run_agent)
-        // @ts-ignore
-        const policyId = _meta?.policyId as string | undefined;
+        const policyId = params._meta?.policyId;
 
         if (policyId) {
             try {

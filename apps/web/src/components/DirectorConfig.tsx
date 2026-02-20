@@ -14,6 +14,29 @@ export default function DirectorConfig() {
 
     const [formState, setFormState] = useState<any>({});
     const [isEditing, setIsEditing] = useState(false);
+    const [diagnosticStatus, setDiagnosticStatus] = useState<string | null>(null);
+
+    const testQuery = trpc.directorConfig.test.useQuery(undefined, {
+        enabled: false,
+    });
+
+    const handleTestEndpoint = async () => {
+        setDiagnosticStatus(null);
+        try {
+            const result = await testQuery.refetch();
+            if (!result.data) {
+                setDiagnosticStatus('Failed • No response payload');
+                return;
+            }
+
+            const director = result.data.directorReady ? 'ready' : 'offline';
+            const llm = result.data.llmServiceReady ? 'ready' : 'offline';
+            setDiagnosticStatus(`OK • Director ${director} • LLM ${llm}`);
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Unknown error';
+            setDiagnosticStatus(`Failed • ${message}`);
+        }
+    };
 
     // Sync form with data when loaded (only if not editing)
     useEffect(() => {
@@ -322,8 +345,19 @@ export default function DirectorConfig() {
                         >
                             Open LMStudio Web UI
                         </button>
-                        {/* TODO: Add actual tRPC test endpoint */}
+                        <button
+                            onClick={handleTestEndpoint}
+                            disabled={testQuery.isFetching}
+                            className="px-3 py-1 bg-blue-900/60 hover:bg-blue-800 text-xs text-white rounded border border-blue-700 disabled:opacity-50"
+                        >
+                            {testQuery.isFetching ? 'Testing…' : 'Test Director Endpoint'}
+                        </button>
                     </div>
+                    {diagnosticStatus ? (
+                        <div className="text-xs text-gray-300 bg-gray-800/50 border border-gray-700 rounded px-3 py-2">
+                            {diagnosticStatus}
+                        </div>
+                    ) : null}
                 </div>
 
             </div>

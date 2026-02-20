@@ -1,7 +1,5 @@
-// @ts-nocheck
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
-import { StdioServerParameters } from "@modelcontextprotocol/sdk/client/stdio.js"; // Type only
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js"; // Assuming this exists in SDK or similar
 // Actually StreamableHTTPClientTransport might not be in basic SDK. MetaMCP uses it.
 // If not found, I might need to skip HTTP/SSE for now or use standard HTTP.
@@ -10,13 +8,38 @@ import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/
 import { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import { ServerParameters } from "../types/metamcp/index.js";
 
-import { ProcessManagedStdioTransport } from "../transports/process-managed.transport.js";
+import {
+    ProcessManagedStdioTransport,
+    StdioServerParameters,
+} from "../transports/process-managed.transport.js";
 import { metamcpLogStore } from "./log-store.service.js";
 import { serverErrorTracker } from "./server-error-tracker.service.js";
 import { resolveEnvVariables } from "./utils.service.js";
 
 const sleep = (time: number) =>
     new Promise<void>((resolve) => setTimeout(() => resolve(), time));
+
+const toStringEnv = (
+    env: Record<string, unknown> | undefined,
+): Record<string, string> | undefined => {
+    if (!env) {
+        return undefined;
+    }
+
+    const mapped = Object.entries(env).reduce<Record<string, string>>(
+        (acc, [key, value]) => {
+            if (value === undefined || value === null) {
+                return acc;
+            }
+
+            acc[key] = typeof value === "string" ? value : String(value);
+            return acc;
+        },
+        {},
+    );
+
+    return Object.keys(mapped).length > 0 ? mapped : undefined;
+};
 
 export interface ConnectedClient {
     client: Client;
@@ -51,13 +74,12 @@ export const createMetaMcpClient = (
             ? resolveEnvVariables(serverParams.env)
             : undefined;
 
-        const stdioParams = {
+        const stdioParams: StdioServerParameters = {
             command: serverParams.command || "",
             args: serverParams.args || undefined,
-            env: resolvedEnv,
+            env: toStringEnv(resolvedEnv),
             stderr: "pipe",
         };
-        // @ts-ignore - IOType mismatch?
         transport = new ProcessManagedStdioTransport(stdioParams);
 
         // Handle stderr stream when set to "pipe"
@@ -104,8 +126,22 @@ export const createMetaMcpClient = (
         } else {
             transport = new SSEClientTransport(new URL(transformedUrl), {
                 eventSourceInit: {
-                    // @ts-ignore - RequestInit type mismatch?
-                    fetch: (url, init) => fetch(url, { ...init, headers }),
+                    fetch: (
+                        url: Parameters<typeof fetch>[0],
+                        init?: Parameters<typeof fetch>[1],
+                    ) => {
+                        const mergedHeaders: HeadersInit = {
+                            ...(init?.headers
+                                ? Object.fromEntries(new Headers(init.headers).entries())
+                                : {}),
+                            ...headers,
+                        };
+
+                        return fetch(url, {
+                            ...init,
+                            headers: mergedHeaders,
+                        });
+                    },
                 },
                 requestInit: {
                     headers
@@ -128,9 +164,7 @@ export const createMetaMcpClient = (
         },
         {
             capabilities: {
-                prompts: {},
-                resources: { subscribe: true },
-                tools: {},
+                // Intentionally empty: this client does not require optional MCP client capabilities.
             },
         },
     );

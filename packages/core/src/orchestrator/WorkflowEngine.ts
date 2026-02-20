@@ -45,6 +45,30 @@ export interface EdgeDefinition {
     condition?: EdgeCondition;  // Optional condition
 }
 
+export interface WorkflowGraphNode {
+    id: string;
+    label: string;
+    data: { description?: string };
+    type: 'checkpoint' | 'default';
+}
+
+export interface WorkflowGraphEdge {
+    id: string;
+    source: string;
+    target: string;
+    animated: boolean;
+    label?: string;
+}
+
+export interface WorkflowGraph {
+    nodes: WorkflowGraphNode[];
+    edges: WorkflowGraphEdge[];
+}
+
+function getWorkflowGraphNodeType(requiresApproval?: boolean): WorkflowGraphNode['type'] {
+    return requiresApproval ? 'checkpoint' : 'default';
+}
+
 // Workflow execution types
 export interface WorkflowExecution {
     id: string;
@@ -93,12 +117,41 @@ export interface WorkflowEngineOptions {
 export class StateStore {
     private states = new Map<string, WorkflowState>();
     private snapshots = new Map<string, WorkflowState[]>();
+    private readonly maxLoadedEntries = 200;
 
     constructor(private persistDir?: string) {
         if (persistDir) {
             this.ensurePersistDir();
-            // We don't load all states into memory at startup anymore to save RAM
-            // They will be loaded on demand (TODO: Add LRU cache if needed)
+            // We don't load all states into memory at startup anymore to save RAM.
+            // Entries are loaded on demand and bounded via LRU eviction.
+        }
+    }
+
+    private markRecentlyUsed(executionId: string): void {
+        const state = this.states.get(executionId);
+        if (!state) {
+            return;
+        }
+
+        this.states.delete(executionId);
+        this.states.set(executionId, state);
+
+        const snapshots = this.snapshots.get(executionId);
+        if (snapshots) {
+            this.snapshots.delete(executionId);
+            this.snapshots.set(executionId, snapshots);
+        }
+    }
+
+    private enforceMemoryLimit(): void {
+        while (this.states.size > this.maxLoadedEntries) {
+            const oldestExecutionId = this.states.keys().next().value as string | undefined;
+            if (!oldestExecutionId) {
+                break;
+            }
+
+            this.states.delete(oldestExecutionId);
+            this.snapshots.delete(oldestExecutionId);
         }
     }
 
@@ -129,7 +182,10 @@ export class StateStore {
 
     private loadState(id: string): void {
         if (!this.persistDir) return;
-        if (this.states.has(id)) return; // Already loaded
+        if (this.states.has(id)) {
+            this.markRecentlyUsed(id);
+            return;
+        }
 
         const filePath = this.getFilePath(id);
         if (fs.existsSync(filePath)) {
@@ -137,6 +193,8 @@ export class StateStore {
                 const data = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
                 if (data.state) this.states.set(id, data.state);
                 if (data.snapshots) this.snapshots.set(id, data.snapshots);
+                this.markRecentlyUsed(id);
+                this.enforceMemoryLimit();
             } catch (e) {
                 console.error(`[StateStore] Failed to load state ${id}:`, e);
             }
@@ -148,6 +206,7 @@ export class StateStore {
      */
     get(executionId: string): WorkflowState | undefined {
         this.loadState(executionId);
+        this.markRecentlyUsed(executionId);
         return this.states.get(executionId);
     }
 
@@ -156,6 +215,8 @@ export class StateStore {
      */
     set(executionId: string, state: WorkflowState): void {
         this.states.set(executionId, { ...state });
+        this.markRecentlyUsed(executionId);
+        this.enforceMemoryLimit();
         this.persistState(executionId);
     }
 
@@ -180,6 +241,7 @@ export class StateStore {
             this.snapshots.set(executionId, []);
         }
         this.snapshots.get(executionId)!.push({ ...state });
+        this.markRecentlyUsed(executionId);
         this.persistState(executionId);
     }
 
@@ -303,12 +365,12 @@ export class GraphBuilder {
     /**
      * Get the graph structure for UI visualization (React Flow compatible)
      */
-    getGraph(): { nodes: any[], edges: any[] } {
+    getGraph(): WorkflowGraph {
         const nodes = Array.from(this.nodes.values()).map(n => ({
             id: n.id,
             label: n.name,
             data: { description: n.description },
-            type: n.requiresApproval ? 'checkpoint' : 'default'
+            type: getWorkflowGraphNodeType(n.requiresApproval)
         }));
 
         const edges = this.edges.map(e => ({
@@ -369,7 +431,7 @@ export class WorkflowEngine extends EventEmitter {
     /**
      * Get graph definition for UI
      */
-    getGraph(workflowId: string): { nodes: any[], edges: any[] } | undefined {
+    getGraph(workflowId: string): WorkflowGraph | undefined {
         const workflow = this.workflows.get(workflowId);
         if (!workflow) return undefined;
 
@@ -377,7 +439,7 @@ export class WorkflowEngine extends EventEmitter {
             id: n.id,
             label: n.name,
             data: { description: n.description },
-            type: n.requiresApproval ? 'checkpoint' : 'default'
+            type: getWorkflowGraphNodeType(n.requiresApproval)
         }));
 
         const edges = workflow.edges.map(e => ({

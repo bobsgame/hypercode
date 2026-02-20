@@ -22,6 +22,28 @@ export * from "./tool-sets.zod.js";
 export * from "./tools.zod.js";
 export * from "./server-health.js";
 
-// Validation fix for missing type
-export type ServerParameters = Record<string, unknown>;
+export type ServerParameters = {
+	uuid: string;
+	name: string;
+	description?: string;
+	type?: "STDIO" | "SSE" | "STREAMABLE_HTTP";
+	command?: string | null;
+	args?: string[];
+	env?: Record<string, unknown>;
+	url?: string | null;
+	created_at?: string;
+	status?: string;
+	error_status?: string;
+	stderr?: "overlapped" | "pipe" | "ignore" | "inherit";
+	oauth_tokens?: {
+		access_token: string;
+		token_type: string;
+		expires_in?: number;
+		scope?: string;
+		refresh_token?: string;
+	} | null;
+	bearerToken?: string | null;
+	headers?: Record<string, string>;
+	user_id?: string | null;
+};
 

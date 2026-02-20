@@ -1,45 +1,52 @@
-# Submodule Dashboard — Borg Project
+# Submodule Dashboard — Governance View
 
-> **Note**: This dashboard catalogs the 200+ reference implementations and tools integrated into Borg.
-
-## Core Infrastructure
-
-| Submodule | Path | Category | Description |
-|-----------|------|----------|-------------|
-| **PowerTrader_AI** | `submodules/PowerTrader_AI` | Finance | High-frequency trading platform reference |
-| **Azure Cybersecurity** | `submodules/Azure_Cybersecurity` | Security | Enterprise security reference |
-| **Ticktock** | `submodules/Ticktock` | System | Time synchronization and scheduling |
-| **Roq API** | `submodules/Roq_API` | Trading | High-performance C++ trading API |
-
-## Agent Harnesses
-
-| Harness | Path | Description |
-|---------|------|-------------|
-| **CodeMachine-CLI** | `cli-harnesses/CodeMachine-CLI` | CLI wrapper for coding agents |
-| **CodeNomad** | `cli-harnesses/CodeNomad` | Mobile coding agent reference |
-| **GoogleGeminiRouter** | `cli-harnesses/GoogleGeminiRouter` | Gemini API routing logic |
-| **Grok-CLI** | `cli-harnesses/grok-cli` | xAI Grok command line interface |
-| **Goose** | `cli-harnesses/goose` | Block-based agent interaction |
-| **Claude Code MCP** | `cli-harnesses/claude-code-mcp` | MCP server for Claude Code |
-
-## Systems & Protocols
-
-| System | Path | Description |
-|--------|------|-------------|
-| **Bobtorrent** | `submodules/bobtorrent` | P2P storage and transfer protocol |
-| **Bobcoin** | `submodules/bobcoin` | Blockchain and crypto-economy reference |
-| **Bobfilez** | `submodules/bobfilez` | File organization and deduplication |
-| **Chamber.Law** | `submodules/chamber-law` | Legal tech platform reference |
-| **Stone Ledger** | `submodules/stone-ledger` | Immutable ledger implementation |
-
-## Tools & Utilities
-
-| Tool | Path | Description |
-|------|------|-------------|
-| **Browser Tools MCP** | `browsers/browser-tools-mcp` | Browser automation via MCP |
-| **MCPO-2** | `browsers/mcpo-2` | Advanced MCP orchestration |
-| **Workty** | `agents/workty` | Worker thread management |
+> **Version Context**: 2.6.3  
+> **Canonical Inventory Source**: `SUBMODULES.md` (auto-generated)  
+> **Purpose**: Operator-facing map for triage, ownership, and synchronization policy.
 
 ---
 
-*This list is automatically generated and maintained by the Antigravity agent.*
+## 1) Source of truth and update contract
+
+- `SUBMODULES.md` is the authoritative inventory for path/name/commit/description and category rollups.
+- `docs/SUBMODULE_DASHBOARD.md` is intentionally concise and governance-oriented (this file).
+- Any bulk changes to submodules should regenerate/refresh `SUBMODULES.md` first, then update this dashboard only if governance structure changes.
+
+## 2) Current inventory posture
+
+Based on the latest generated inventory:
+
+- **Total tracked modules**: 786
+- **Coverage includes**: MCP servers, memory systems, CLI harnesses, orchestration frameworks, search/indexing stacks, financial tools, and unsorted ecosystem references.
+- **Primary ingestion zones**:
+	- `mcp-servers/`
+	- `memory/`
+	- `external/`
+	- `cli-harnesses/`
+	- `multi-agent/`
+
+## 3) Governance tiers
+
+| Tier | Definition | Expected Action |
+|---|---|---|
+| **Tier A — Runtime-Critical** | Directly used by Borg runtime, dashboard paths, or production workflows | Keep pinned, health-checked, and documented in release notes |
+| **Tier B — Strategic Reference** | Frequently consulted implementation references with active parity goals | Keep categorized, periodically re-sync metadata |
+| **Tier C — Archive/Exploration** | Long-tail experiments and ecosystem mirrors | Track only; defer active maintenance unless promoted |
+
+## 4) Operational workflow
+
+1. **Discover/ingest** new sources via resource lists and submodule updates.  
+2. **Regenerate canonical inventory** (`SUBMODULES.md`).  
+3. **Classify critical entries** (Tier A/B/C) for roadmap impact.  
+4. **Reflect deltas** in `ROADMAP.md`, `TODO.md`, and `HANDOFF.md` when priorities change.  
+5. **Capture release impact** in `CHANGELOG.md` for major category shifts.
+
+## 5) Known gaps to close
+
+- Add explicit Tier A/B/C tagging metadata into the generator pipeline (currently implicit/manual).
+- Add freshness metadata (`last synced`) per major top-level category.
+- Add dashboard/UI surface for high-priority submodule drift (commit lag and health status).
+
+---
+
+For full inventory tables (all modules, paths, commits, descriptions), use `SUBMODULES.md`.

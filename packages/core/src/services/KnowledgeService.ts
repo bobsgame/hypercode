@@ -9,6 +9,15 @@ export interface ContextBundle {
     depth: number;
 }
 
+export interface KnowledgeGraphContentBlock {
+    type: 'text';
+    text: string;
+}
+
+export interface KnowledgeGraphResponse {
+    content: KnowledgeGraphContentBlock[];
+}
+
 interface SnapshotCapableGraph {
     getSnapshot(): unknown;
 }
@@ -36,7 +45,7 @@ export class KnowledgeService {
     /**
      * Retrieves the Knowledge Graph (generic)
      */
-    public async getGraph(query?: string, depth: number = 1): Promise<{ content: { type: string; text: string }[] }> {
+    public async getGraph(query?: string, depth: number = 1): Promise<KnowledgeGraphResponse> {
         // If no query, return full graph
         if (!query && this.memory.graph && this.isSnapshotCapableGraph(this.memory.graph)) {
             const snapshot = this.memory.graph.getSnapshot();

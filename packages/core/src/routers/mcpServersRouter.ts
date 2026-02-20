@@ -7,16 +7,38 @@ import {
     McpServerCreateInputSchema,
     McpServerUpdateInputSchema
 } from '../types/metamcp/index.js';
+import { metaMCPBridge } from '../services/MetaMCPBridgeService.js';
 
 const MASTER_INDEX_PATH = path.join(process.cwd(), 'BORG_MASTER_INDEX.jsonc');
 
 const stripJsonComments = (content: string) =>
     content.replace(/\\"|"(?:\\"|[^"])*"|(\/\/.*|\/\*[\s\S]*?\*\/)/g, (m, g) => g ? '' : m);
 
+function getContextUserId(ctx: unknown): string | undefined {
+    if (!ctx || typeof ctx !== 'object') {
+        return undefined;
+    }
+
+    const session = (ctx as { session?: unknown }).session;
+    if (!session || typeof session !== 'object') {
+        return undefined;
+    }
+
+    const user = (session as { user?: unknown }).user;
+    if (!user || typeof user !== 'object') {
+        return undefined;
+    }
+
+    const userId = (user as { id?: unknown }).id;
+    return typeof userId === 'string' && userId.trim().length > 0
+        ? userId
+        : undefined;
+}
+
 export const mcpServersRouter = t.router({
-    list: publicProcedure.query(async () => {
-        // TODO: Pass userId if auth context available
-        return await mcpServersRepository.findAll();
+    list: publicProcedure.query(async ({ ctx }) => {
+        const userId = getContextUserId(ctx);
+        return await mcpServersRepository.findAll(userId);
     }),
 
     get: publicProcedure
@@ -115,4 +137,50 @@ export const mcpServersRouter = t.router({
             return [];
         }
     }),
+
+    /**
+     * Lists MCP servers from the running MetaMCP backend (port 12009).
+     * Returns an empty array gracefully if MetaMCP is not running.
+     */
+    listFromMetaMCP: publicProcedure.query(async () => {
+        return await metaMCPBridge.listServers();
+    }),
+
+    /**
+     * Returns the availability status of the MetaMCP backend.
+     */
+    metamcpStatus: publicProcedure.query(async () => {
+        const available = await metaMCPBridge.isAvailable();
+        return { available, url: 'http://localhost:12009' };
+    }),
+
+    /**
+     * Registers a new MCP server in MetaMCP's database via the bridge.
+     * MetaMCP handles connection management automatically.
+     */
+    createInMetaMCP: adminProcedure
+        .input(z.object({
+            name: z.string().min(1),
+            description: z.string().optional(),
+            type: z.enum(['STDIO', 'SSE', 'STREAMABLE_HTTP']),
+            command: z.string().optional(),
+            args: z.array(z.string()).optional(),
+            url: z.string().optional(),
+            env: z.record(z.string()).optional(),
+        }))
+        .mutation(async ({ input }) => {
+            const result = await metaMCPBridge.createServer(input);
+            if (!result) throw new Error('MetaMCP backend unavailable or request failed');
+            return result;
+        }),
+
+    /**
+     * Removes an MCP server from MetaMCP's database via the bridge.
+     */
+    deleteFromMetaMCP: adminProcedure
+        .input(z.object({ uuid: z.string() }))
+        .mutation(async ({ input }) => {
+            const ok = await metaMCPBridge.deleteServer(input.uuid);
+            return { success: ok };
+        }),
 });

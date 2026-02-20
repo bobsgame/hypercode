@@ -4,6 +4,10 @@ import path from 'path';
 import { spawn } from 'child_process';
 import { RepoGraphService } from './RepoGraphService.js';
 
+function getErrorMessage(error: unknown): string {
+    return error instanceof Error ? error.message : String(error);
+}
+
 export class AutoTestService {
     private watcher: fs.FSWatcher | null = null;
     private rootDir: string;
@@ -31,8 +35,8 @@ export class AutoTestService {
                 }
             });
             this.isRunning = true;
-        } catch (e: any) {
-            console.error(`[AutoTest] Watch failed: ${e.message}`);
+        } catch (e: unknown) {
+            console.error(`[AutoTest] Watch failed: ${getErrorMessage(e)}`);
         }
     }
 

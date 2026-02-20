@@ -9,9 +9,6 @@
  * Tracks running Docker containers for MCP servers created dynamically.
  */
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/ban-ts-comment */
-
 // Schema definition for Create input (since not in Zod types explicitly yet? check imports)
 // Assuming we match the table insert structure.
 import { eq } from "drizzle-orm"; // Removed desc
@@ -20,50 +17,49 @@ import { db } from "../index.js";
 import { dockerSessionsTable } from "../metamcp-schema.js";
 import { randomUUID } from "node:crypto";
 
+type DockerSessionRow = typeof dockerSessionsTable.$inferSelect;
+type DockerSessionInsert = typeof dockerSessionsTable.$inferInsert;
+
 export class DockerSessionsRepository {
-    async create(input: any): Promise<any> {
-        // @ts-ignore
+    async create(input: Omit<DockerSessionInsert, "uuid">): Promise<DockerSessionRow> {
         const [session] = await db
-            .insert(dockerSessionsTable as any)
+            .insert(dockerSessionsTable)
             .values({
                 ...input,
                 uuid: randomUUID(),
-            } as any)
-            .returning() as any;
+            })
+            .returning();
 
         return session;
     }
 
-    async findByMcpServerUuid(mcpServerUuid: string) {
-        // @ts-ignore
+    async findByMcpServerUuid(mcpServerUuid: string): Promise<DockerSessionRow | undefined> {
         const [session] = await db
             .select()
-            .from(dockerSessionsTable as any)
-            .where(eq(dockerSessionsTable.mcp_server_uuid as any, mcpServerUuid)) as any;
+            .from(dockerSessionsTable)
+            .where(eq(dockerSessionsTable.mcp_server_uuid, mcpServerUuid));
 
         return session;
     }
 
-    async updateStatus(containerId: string, status: string) {
-        // @ts-ignore
+    async updateStatus(containerId: string, status: DockerSessionRow["status"]): Promise<DockerSessionRow | undefined> {
         const [updatedSession] = await db
-            .update(dockerSessionsTable as any)
+            .update(dockerSessionsTable)
             .set({
-                status: status,
+                status,
                 updated_at: new Date(),
-            } as any)
-            .where(eq(dockerSessionsTable.container_id as any, containerId))
-            .returning() as any;
+            })
+            .where(eq(dockerSessionsTable.container_id, containerId))
+            .returning();
 
         return updatedSession;
     }
 
-    async delete(uuid: string) {
-        // @ts-ignore
+    async delete(uuid: string): Promise<DockerSessionRow | undefined> {
         const [deletedSession] = await db
-            .delete(dockerSessionsTable as any)
-            .where(eq(dockerSessionsTable.uuid as any, uuid))
-            .returning() as any;
+            .delete(dockerSessionsTable)
+            .where(eq(dockerSessionsTable.uuid, uuid))
+            .returning();
 
         return deletedSession;
     }

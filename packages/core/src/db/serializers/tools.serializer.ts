@@ -1,19 +1,4 @@
-// @ts-nocheck
-import { Tool } from "../../types/metamcp/index.js";
-
-type DatabaseTool = {
-    uuid: string;
-    name: string;
-    description: string | null;
-    toolSchema: {
-        type: "object";
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        properties?: Record<string, any>;
-    };
-    created_at: Date;
-    updated_at: Date;
-    mcp_server_uuid: string;
-};
+import { DatabaseTool, Tool } from "../../types/metamcp/index.js";
 
 export class ToolsSerializer {
     static serializeTool(dbTool: DatabaseTool): Tool {

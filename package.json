@@ -1,6 +1,6 @@
 {
   "name": "borg-monorepo",
-  "version": "2.5.0",
+  "version": "2.7.1",
   "private": true,
   "packageManager": "pnpm@10.28.0",
   "scripts": {
@@ -12,12 +12,14 @@
     "lint": "turbo run lint",
     "test": "turbo run test",
     "check:placeholders": "node scripts/check-placeholder-regressions.mjs",
+    "check:dev-readiness": "node scripts/verify_dev_readiness.mjs",
     "index:sync": "node scripts/sync_master_index.mjs",
     "index:update": "node scripts/update_ingestion_status.mjs",
     "clean": "turbo run clean",
     "typecheck": "turbo run typecheck"
   },
   "devDependencies": {
+    "@rollup/rollup-win32-x64-msvc": "4.55.1",
     "@types/node": "^20.10.0",
     "@vitest/coverage-v8": "^4.0.16",
     "better-sqlite3": "^12.6.2",

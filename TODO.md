@@ -1,6 +1,6 @@
 # Borg — Master TODO List (Implementor Edition)
 
-> **Updated**: 2026-02-19 | **Version**: 2.7.0 | **Phase**: 64 (Release Readiness)
+> **Updated**: 2026-02-22 | **Version**: 2.7.1 | **Phase**: 64 (Release Readiness)
 > **Execution Order**: P0 (must close before release) → P1 (critical feature parity) → P2 (quality/polish) → P3 (future)
 
 ---
@@ -121,11 +121,20 @@
 
 ## Release Verification Checklist (Gate)
 
+- [ ] `pnpm run check:dev-readiness` passes in strict mode with all critical services up
 - [ ] `apps/web` typecheck + build pass
 - [ ] `packages/core` typecheck pass
 - [ ] `pnpm run check:placeholders` passes (or equivalent placeholder scan)
 - [ ] No unresolved stub/simulated critical execution paths in P0 scope
 - [ ] Canonical docs + version markers (`VERSION.md`, `package.json`, `CHANGELOG.md`) are synchronized
+
+---
+
+## Immediate Follow-Ups (Current Session)
+
+- [ ] Add `--json` output mode to `scripts/verify_dev_readiness.mjs` for CI/dashboard ingestion.
+- [ ] Add optional retries/backoff in readiness checks for startup race tolerance.
+- [ ] Wire readiness command into release checklist automation script(s).
 
 ---
 

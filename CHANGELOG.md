@@ -4,6 +4,27 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [2.7.1] - 2026-02-22
+
+### Added
+
+- **Cross-Service Dev Readiness Checker**:
+  - Added `scripts/verify_dev_readiness.mjs`.
+  - Added root script `check:dev-readiness` in `package.json`.
+  - Verifies live readiness across Borg Web, MetaMCP frontend/backend, and OpenCode Autopilot server with deterministic endpoint checks.
+  - Supports strict mode (non-zero on critical failures) and `--soft` mode for diagnostic runs.
+
+### Fixed
+
+- **Web Dev Stability**:
+  - Stabilized `NEXT_DIST_DIR` strategy in web dev launchers to reduce per-port tsconfig churn and stale include regressions.
+  - Normalized web tsconfig includes to preserve stable `.next-dev` type globs.
+
+- **OpenCode Autopilot Server Bind Resilience**:
+  - Added startup preflight diagnostics for candidate ports in `packages/opencode-autopilot/packages/server/scripts/dev-auto.mjs`.
+  - Added runtime `Bun.serve` fallback logic in `packages/opencode-autopilot/packages/server/src/index.ts` to recover from bind-time `EADDRINUSE` race conditions.
+  - Fixed server typecheck Bun typings mismatch by aligning to `types: ["bun"]` in `packages/opencode-autopilot/packages/server/tsconfig.json`.
+
 ### Added
 
 - **Scalable Link Ingestion Sync**:

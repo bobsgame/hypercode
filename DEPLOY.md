@@ -1,6 +1,6 @@
 # Borg Deployment Guide
 
-> **Version**: 2.6.2
+> **Version**: 2.7.1
 > **Scope**: Local Development & Production Deployment
 
 ---
@@ -28,6 +28,9 @@ pnpm run build
 # 3. Start the stack (Backend + Dashboard + CLI)
 # This runs 'turbo run dev' which orchestrates all apps
 pnpm run dev
+
+# 4. Verify cross-service readiness
+pnpm run check:dev-readiness
 ```
 
 ### Access Points

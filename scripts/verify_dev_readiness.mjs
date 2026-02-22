@@ -42,6 +42,7 @@ const SERVICE_CHECKS = [
 
 const REQUEST_TIMEOUT_MS = Number(process.env.READINESS_TIMEOUT_MS || 2500);
 const softMode = process.argv.includes("--soft");
+const jsonMode = process.argv.includes("--json");
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -105,7 +106,9 @@ function formatLine(service, result) {
 }
 
 async function main() {
-  console.log(`\n[Borg Dev Readiness] timeout=${REQUEST_TIMEOUT_MS}ms mode=${softMode ? "soft" : "strict"}`);
+  if (!jsonMode) {
+    console.log(`\n[Borg Dev Readiness] timeout=${REQUEST_TIMEOUT_MS}ms mode=${softMode ? "soft" : "strict"}`);
+  }
 
   const results = [];
 
@@ -114,23 +117,54 @@ async function main() {
     results.push({ service, result });
   }
 
-  console.log("\nService Status:");
-  for (const { service, result } of results) {
-    console.log(formatLine(service, result));
+  if (!jsonMode) {
+    console.log("\nService Status:");
+    for (const { service, result } of results) {
+      console.log(formatLine(service, result));
+    }
   }
 
   const failedCritical = results.filter(({ service, result }) => service.critical && result.status !== "up");
 
+  const payload = {
+    tool: "verify_dev_readiness",
+    mode: softMode ? "soft" : "strict",
+    timeoutMs: REQUEST_TIMEOUT_MS,
+    passed: failedCritical.length === 0,
+    checkedAt: new Date().toISOString(),
+    services: results.map(({ service, result }) => ({
+      id: service.id,
+      description: service.description,
+      critical: service.critical,
+      checkedPorts: service.ports,
+      path: service.path,
+      status: result.status,
+      url: result.url,
+      port: result.port,
+      statusCode: result.statusCode,
+    })),
+  };
+
+  if (jsonMode) {
+    console.log(JSON.stringify(payload, null, 2));
+  }
+
   if (failedCritical.length > 0) {
-    console.log("\nSummary: ❌ readiness failed (critical services down)");
+    if (!jsonMode) {
+      console.log("\nSummary: ❌ readiness failed (critical services down)");
+    }
 
     if (!softMode) {
       process.exit(1);
     }
 
-    console.log("Soft mode enabled; returning exit code 0 despite failures.");
+    if (!jsonMode) {
+      console.log("Soft mode enabled; returning exit code 0 despite failures.");
+    }
   } else {
-    console.log("\nSummary: ✅ readiness passed");
+    if (!jsonMode) {
+      console.log("\nSummary: ✅ readiness passed");
+    }
   }
 }
 

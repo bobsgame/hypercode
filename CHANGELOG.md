@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [2.7.2] - 2026-02-22
+
+### Added
+
+- **Readiness JSON Output Mode**:
+  - Extended `scripts/verify_dev_readiness.mjs` with `--json` output for machine-readable CI/dashboard ingestion.
+  - JSON payload now includes pass/fail state, checked timestamp, mode, timeout, and per-service endpoint/port/status metadata.
+
 ## [2.7.1] - 2026-02-22
 
 ### Added

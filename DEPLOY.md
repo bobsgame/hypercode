@@ -1,6 +1,6 @@
 # Borg Deployment Guide
 
-> **Version**: 2.7.1
+> **Version**: 2.7.2
 > **Scope**: Local Development & Production Deployment
 
 ---
@@ -31,6 +31,9 @@ pnpm run dev
 
 # 4. Verify cross-service readiness
 pnpm run check:dev-readiness
+
+# Optional machine-readable output
+pnpm run check:dev-readiness -- --json --soft
 ```
 
 ### Access Points

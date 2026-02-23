@@ -14,6 +14,7 @@ const usePnpm = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
 const useNode = process.execPath;
 const args = new Set(process.argv.slice(2));
 const skipReadiness = args.has("--skip-readiness");
+const includeTurboLint = args.has("--with-turbo-lint");
 
 function run(name, command, args, options = {}) {
   const result = spawnSync(command, args, {
@@ -118,6 +119,17 @@ async function main() {
 
   if ((typecheck.status ?? 1) !== 0) {
     fail(`Core typecheck failed. ${formatCommandFailure(typecheck)}`);
+  }
+
+  if (includeTurboLint) {
+    printStep("Running scoped Turbo lint...");
+    const turboLint = runPnpm("turbo-lint", ["run", "lint:turbo"], {
+      stdio: "inherit",
+    });
+
+    if ((turboLint.status ?? 1) !== 0) {
+      fail(`Scoped Turbo lint failed. ${formatCommandFailure(turboLint)}`);
+    }
   }
 
   printStep("All release gate checks passed ✅");

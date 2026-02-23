@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [2.7.10] - 2026-02-22
+
+### Added
+
+- **Enhanced CI release gate coverage**:
+  - Extended `scripts/check_release_gate.mjs` with optional `--with-turbo-lint` support.
+  - Updated `check:release-gate:ci` to run with `--skip-readiness --with-turbo-lint`.
+
+### Validation
+
+- `pnpm run check:release-gate:ci` ✅
+- Scoped `lint:turbo` check executed inside gate and passed.
+
 ## [2.7.9] - 2026-02-22
 
 ### Changed

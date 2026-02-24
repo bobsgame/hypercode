@@ -98,6 +98,9 @@
     - [x] Docker & Deployment Verification
     - [x] Cross-service local readiness checker (`scripts/verify_dev_readiness.mjs`)
     - [x] Strict machine-readable release gate (`check:release-gate`)
+    - [x] Git Tree Stabilization (Repaired .gitmodules mapping errors)
+    - [x] Knowledge Base Sync (932 submodules assimilated)
+    - [x] Documentation Audit (Created feature gap and deduplication reports)
     - [ ] Documentation Freeze
     - [ ] Final E2E Regression
 

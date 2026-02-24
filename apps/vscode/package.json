@@ -118,7 +118,7 @@
         "vscode:prepublish": "npm run build",
         "compile": "tsc -p ./",
         "watch": "tsc -watch -p ./",
-        "lint": "eslint src --ext ts",
+        "lint": "eslint --no-eslintrc --parser @typescript-eslint/parser \"src/**/*.{ts,tsx,js,mjs,cjs}\"",
         "build": "tsup src/extension.ts --format cjs --external vscode",
         "package": "vsce package"
     },

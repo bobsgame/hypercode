@@ -13,7 +13,7 @@
     "scripts": {
         "build": "tsc",
         "dev": "tsc --watch --preserveWatchOutput",
-        "lint": "eslint src/"
+        "lint": "eslint --no-eslintrc --parser @typescript-eslint/parser \"src/**/*.{ts,tsx,js,mjs,cjs}\""
     },
     "dependencies": {
         "@borg/ai": "workspace:*",

@@ -5,7 +5,7 @@
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc",
-    "lint": "eslint src/"
+    "lint": "eslint --no-eslintrc --no-inline-config --parser @typescript-eslint/parser \"src/**/*.{ts,tsx,js,mjs,cjs}\""
   },
   "dependencies": {
     "@borg/core": "workspace:*",

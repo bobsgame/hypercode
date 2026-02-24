@@ -14,6 +14,60 @@ type SessionSyncLogEntry = {
   timestamp: string;
 };
 
+function getSafeLocalStorage(): Storage | null {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
+  try {
+    const storage = window.localStorage;
+    // Trigger browser availability checks once at access time.
+    void storage.length;
+    return storage;
+  } catch {
+    return null;
+  }
+}
+
+function safeStorageGet(key: string): string | null {
+  const storage = getSafeLocalStorage();
+  if (!storage) {
+    return null;
+  }
+
+  try {
+    return storage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function safeStorageSet(key: string, value: string): void {
+  const storage = getSafeLocalStorage();
+  if (!storage) {
+    return;
+  }
+
+  try {
+    storage.setItem(key, value);
+  } catch {
+    // Ignore storage access errors in restricted contexts.
+  }
+}
+
+function safeStorageRemove(key: string): void {
+  const storage = getSafeLocalStorage();
+  if (!storage) {
+    return;
+  }
+
+  try {
+    storage.removeItem(key);
+  } catch {
+    // Ignore storage access errors in restricted contexts.
+  }
+}
+
 export default function JulesDashboardPage() {
   const embeddedUrl = useMemo(
     () => process.env.NEXT_PUBLIC_JULES_DASHBOARD_URL || "http://localhost:3002/jules/autopilot",
@@ -30,13 +84,13 @@ export default function JulesDashboardPage() {
   const [syncLogs, setSyncLogs] = useState<SessionSyncLogEntry[]>([]);
 
   useEffect(() => {
-    const stored = localStorage.getItem(JULES_API_KEY_STORAGE) || "";
+    const stored = safeStorageGet(JULES_API_KEY_STORAGE) || "";
     setApiKey(stored);
   }, []);
 
   const refreshSyncLogs = useCallback(() => {
     try {
-      const raw = localStorage.getItem(JULES_SYNC_LOG_STORAGE_KEY);
+      const raw = safeStorageGet(JULES_SYNC_LOG_STORAGE_KEY);
       const parsed: SessionSyncLogEntry[] = raw ? JSON.parse(raw) : [];
       setSyncLogs(Array.isArray(parsed) ? parsed : []);
     } catch {
@@ -51,7 +105,7 @@ export default function JulesDashboardPage() {
   const saveApiKey = useCallback(() => {
     const trimmed = apiKey.trim();
     if (!trimmed) return;
-    localStorage.setItem(JULES_API_KEY_STORAGE, trimmed);
+    safeStorageSet(JULES_API_KEY_STORAGE, trimmed);
     setApiKey(trimmed);
     setStatus({
       ok: true,
@@ -61,7 +115,7 @@ export default function JulesDashboardPage() {
   }, [apiKey]);
 
   const clearApiKey = useCallback(() => {
-    localStorage.removeItem(JULES_API_KEY_STORAGE);
+    safeStorageRemove(JULES_API_KEY_STORAGE);
     setApiKey("");
     setStatus({
       ok: true,
@@ -71,7 +125,7 @@ export default function JulesDashboardPage() {
   }, []);
 
   const clearSyncLogs = useCallback(() => {
-    localStorage.removeItem(JULES_SYNC_LOG_STORAGE_KEY);
+    safeStorageRemove(JULES_SYNC_LOG_STORAGE_KEY);
     setSyncLogs([]);
   }, []);
 

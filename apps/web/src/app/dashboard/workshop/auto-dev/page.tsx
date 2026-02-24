@@ -4,16 +4,37 @@ import { useState } from "react";
 import { trpc } from "@/utils/trpc";
 import { Loader2, Play, Square, Settings2, RefreshCw } from "lucide-react";
 
+type LoopType = "test" | "lint" | "build";
+type LoopStatus = "running" | "success" | "failed" | "cancelled";
+
+interface AutoDevLoop {
+    id: string;
+    config: {
+        type: LoopType;
+        maxAttempts: number;
+        target?: string;
+    };
+    status: LoopStatus;
+    currentAttempt: number;
+    startTime: number;
+    lastOutput: string;
+}
+
+function isLoopType(value: string): value is LoopType {
+    return value === "test" || value === "lint" || value === "build";
+}
+
 export default function AutoDevPage() {
-    const [type, setType] = useState<"test" | "lint" | "build">("test");
+    const [type, setType] = useState<LoopType>("test");
     const [maxAttempts, setMaxAttempts] = useState<number>(5);
     const [target, setTarget] = useState<string>("");
     const [command, setCommand] = useState<string>("");
 
     const utils = trpc.useUtils();
-    const { data: loops, isLoading: loopsLoading } = trpc.autoDev.getLoops.useQuery(undefined, {
+    const { data: loopsData, isLoading: loopsLoading } = trpc.autoDev.getLoops.useQuery(undefined, {
         refetchInterval: 2000,
     });
+    const loops: AutoDevLoop[] = Array.isArray(loopsData) ? (loopsData as AutoDevLoop[]) : [];
 
     const startLoop = trpc.autoDev.startLoop.useMutation({
         onSuccess: () => {
@@ -59,7 +80,11 @@ export default function AutoDevPage() {
                             <label className="block text-xs font-medium text-zinc-400 mb-1">Loop Type</label>
                             <select
                                 value={type}
-                                onChange={(e) => setType(e.target.value as any)}
+                                onChange={(e) => {
+                                    if (isLoopType(e.target.value)) {
+                                        setType(e.target.value);
+                                    }
+                                }}
                                 className="w-full bg-zinc-950 border border-zinc-800 rounded-md px-3 py-2 text-sm text-zinc-200"
                             >
                                 <option value="test">Test & Fix</option>
@@ -129,13 +154,13 @@ export default function AutoDevPage() {
                             <div className="flex justify-center items-center h-32">
                                 <Loader2 className="w-6 h-6 animate-spin text-zinc-600" />
                             </div>
-                        ) : loops?.length === 0 ? (
+                        ) : loops.length === 0 ? (
                             <div className="flex flex-col items-center justify-center h-32 text-zinc-600">
                                 <Settings2 className="w-8 h-8 opacity-20 mb-2" />
                                 <p className="text-sm">No auto-dev loops running</p>
                             </div>
                         ) : (
-                            loops?.map((loop) => (
+                            loops.map((loop) => (
                                 <div key={loop.id} className="border border-zinc-800 bg-zinc-950 rounded-lg p-4 flex flex-col gap-2">
                                     <div className="flex justify-between items-start">
                                         <div className="flex items-center gap-2">
@@ -143,7 +168,7 @@ export default function AutoDevPage() {
                                                     loop.status === 'success' ? 'bg-green-500' :
                                                         loop.status === 'failed' ? 'bg-red-500' : 'bg-zinc-500'
                                                 }`} />
-                                            <span className="font-medium text-zinc-200 capitalize">{loop.type} Loop</span>
+                                            <span className="font-medium text-zinc-200 capitalize">{loop.config.type} Loop</span>
                                             <span className="text-xs font-mono text-zinc-500 ml-2">{loop.id.split('-')[0]}</span>
                                         </div>
                                         {loop.status === 'running' && (
@@ -162,13 +187,13 @@ export default function AutoDevPage() {
                                             loop.status === 'success' ? 'text-green-400' :
                                                 loop.status === 'failed' ? 'text-red-400' : 'text-zinc-300'
                                         }>{loop.status}</strong></span>
-                                        <span>Attempt: <strong className="text-zinc-300">{loop.currentAttempt} / {loop.maxAttempts}</strong></span>
-                                        {loop.target && <span>Target: <strong className="text-zinc-300 truncate max-w-[150px] inline-block align-bottom">{loop.target}</strong></span>}
+                                        <span>Attempt: <strong className="text-zinc-300">{loop.currentAttempt} / {loop.config.maxAttempts}</strong></span>
+                                        {loop.config.target && <span>Target: <strong className="text-zinc-300 truncate max-w-[150px] inline-block align-bottom">{loop.config.target}</strong></span>}
                                     </div>
 
-                                    {loop.history && loop.history.length > 0 && (
+                                    {loop.lastOutput && (
                                         <div className="mt-2 text-xs font-mono bg-zinc-900 p-2 rounded text-zinc-500 max-h-24 overflow-y-auto">
-                                            Latest: {loop.history[loop.history.length - 1].output?.substring(0, 100)}...
+                                            Latest: {loop.lastOutput.substring(0, 100)}...
                                         </div>
                                     )}
                                 </div>

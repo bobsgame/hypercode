@@ -20,6 +20,60 @@ const SIDEBAR_RECENT_SEARCHES_STORAGE_KEY = 'borg_sidebar_recent_searches_v1';
 const MAX_RECENT_ROUTES = 8;
 const MAX_RECENT_SEARCHES = 6;
 
+function getSafeLocalStorage(): Storage | null {
+    if (typeof window === 'undefined') {
+        return null;
+    }
+
+    try {
+        const storage = window.localStorage;
+        // Force availability check for browser contexts that block storage access.
+        void storage.length;
+        return storage;
+    } catch {
+        return null;
+    }
+}
+
+function safeStorageGet(key: string): string | null {
+    const storage = getSafeLocalStorage();
+    if (!storage) {
+        return null;
+    }
+
+    try {
+        return storage.getItem(key);
+    } catch {
+        return null;
+    }
+}
+
+function safeStorageSet(key: string, value: string): void {
+    const storage = getSafeLocalStorage();
+    if (!storage) {
+        return;
+    }
+
+    try {
+        storage.setItem(key, value);
+    } catch {
+        // Ignore storage failures in restricted contexts.
+    }
+}
+
+function safeStorageRemove(key: string): void {
+    const storage = getSafeLocalStorage();
+    if (!storage) {
+        return;
+    }
+
+    try {
+        storage.removeItem(key);
+    } catch {
+        // Ignore storage failures in restricted contexts.
+    }
+}
+
 type PaletteItem = {
     kind: 'route' | 'action';
     title: string;
@@ -48,7 +102,7 @@ export function Sidebar({ className }: SidebarProps) {
 
     useEffect(() => {
         try {
-            const raw = localStorage.getItem(SIDEBAR_COLLAPSE_STORAGE_KEY);
+            const raw = safeStorageGet(SIDEBAR_COLLAPSE_STORAGE_KEY);
             if (!raw) {
                 return;
             }
@@ -61,7 +115,7 @@ export function Sidebar({ className }: SidebarProps) {
 
     useEffect(() => {
         try {
-            const raw = localStorage.getItem(SIDEBAR_FAVORITES_STORAGE_KEY);
+            const raw = safeStorageGet(SIDEBAR_FAVORITES_STORAGE_KEY);
             if (!raw) {
                 return;
             }
@@ -76,7 +130,7 @@ export function Sidebar({ className }: SidebarProps) {
 
     useEffect(() => {
         try {
-            const raw = localStorage.getItem(SIDEBAR_RECENT_STORAGE_KEY);
+            const raw = safeStorageGet(SIDEBAR_RECENT_STORAGE_KEY);
             if (!raw) {
                 return;
             }
@@ -91,7 +145,7 @@ export function Sidebar({ className }: SidebarProps) {
 
     useEffect(() => {
         try {
-            const raw = localStorage.getItem(SIDEBAR_RECENT_SEARCHES_STORAGE_KEY);
+            const raw = safeStorageGet(SIDEBAR_RECENT_SEARCHES_STORAGE_KEY);
             if (!raw) {
                 return;
             }
@@ -260,7 +314,7 @@ export function Sidebar({ className }: SidebarProps) {
 
     const persistFavorites = (next: string[]) => {
         setFavorites(next);
-        localStorage.setItem(SIDEBAR_FAVORITES_STORAGE_KEY, JSON.stringify(next));
+        safeStorageSet(SIDEBAR_FAVORITES_STORAGE_KEY, JSON.stringify(next));
     };
 
     const showNotice = (message: string) => {
@@ -302,12 +356,12 @@ export function Sidebar({ className }: SidebarProps) {
 
     const persistRecentRoutes = (next: string[]) => {
         setRecentRoutes(next);
-        localStorage.setItem(SIDEBAR_RECENT_STORAGE_KEY, JSON.stringify(next));
+        safeStorageSet(SIDEBAR_RECENT_STORAGE_KEY, JSON.stringify(next));
     };
 
     const persistRecentSearches = (next: string[]) => {
         setRecentSearches(next);
-        localStorage.setItem(SIDEBAR_RECENT_SEARCHES_STORAGE_KEY, JSON.stringify(next));
+        safeStorageSet(SIDEBAR_RECENT_SEARCHES_STORAGE_KEY, JSON.stringify(next));
     };
 
     const rememberPaletteSearch = (value: string) => {
@@ -347,10 +401,10 @@ export function Sidebar({ className }: SidebarProps) {
         setFavorites([]);
         setRecentRoutes([]);
         setRecentSearches([]);
-        localStorage.removeItem(SIDEBAR_COLLAPSE_STORAGE_KEY);
-        localStorage.removeItem(SIDEBAR_FAVORITES_STORAGE_KEY);
-        localStorage.removeItem(SIDEBAR_RECENT_STORAGE_KEY);
-        localStorage.removeItem(SIDEBAR_RECENT_SEARCHES_STORAGE_KEY);
+        safeStorageRemove(SIDEBAR_COLLAPSE_STORAGE_KEY);
+        safeStorageRemove(SIDEBAR_FAVORITES_STORAGE_KEY);
+        safeStorageRemove(SIDEBAR_RECENT_STORAGE_KEY);
+        safeStorageRemove(SIDEBAR_RECENT_SEARCHES_STORAGE_KEY);
         showNotice('Navigation preferences reset.');
     };
 
@@ -361,13 +415,13 @@ export function Sidebar({ className }: SidebarProps) {
 
     const resetFavoritesOnly = () => {
         setFavorites([]);
-        localStorage.removeItem(SIDEBAR_FAVORITES_STORAGE_KEY);
+        safeStorageRemove(SIDEBAR_FAVORITES_STORAGE_KEY);
         showNotice('Favorites cleared.');
     };
 
     const clearRecentOnly = () => {
         setRecentRoutes([]);
-        localStorage.removeItem(SIDEBAR_RECENT_STORAGE_KEY);
+        safeStorageRemove(SIDEBAR_RECENT_STORAGE_KEY);
         showNotice('Recent routes cleared.');
     };
 
@@ -433,10 +487,10 @@ export function Sidebar({ className }: SidebarProps) {
             setFavorites(nextFavorites);
             setRecentRoutes(nextRecent);
             setRecentSearches(nextSearches);
-            localStorage.setItem(SIDEBAR_COLLAPSE_STORAGE_KEY, JSON.stringify(nextCollapsed));
-            localStorage.setItem(SIDEBAR_FAVORITES_STORAGE_KEY, JSON.stringify(nextFavorites));
-            localStorage.setItem(SIDEBAR_RECENT_STORAGE_KEY, JSON.stringify(nextRecent));
-            localStorage.setItem(SIDEBAR_RECENT_SEARCHES_STORAGE_KEY, JSON.stringify(nextSearches));
+            safeStorageSet(SIDEBAR_COLLAPSE_STORAGE_KEY, JSON.stringify(nextCollapsed));
+            safeStorageSet(SIDEBAR_FAVORITES_STORAGE_KEY, JSON.stringify(nextFavorites));
+            safeStorageSet(SIDEBAR_RECENT_STORAGE_KEY, JSON.stringify(nextRecent));
+            safeStorageSet(SIDEBAR_RECENT_SEARCHES_STORAGE_KEY, JSON.stringify(nextSearches));
             showNotice('Navigation preferences imported.');
         } catch {
             showNotice('Failed to import preferences file.');
@@ -450,7 +504,7 @@ export function Sidebar({ className }: SidebarProps) {
 
         setRecentRoutes((current) => {
             const next = [pathname, ...current.filter((href) => href !== pathname)].slice(0, MAX_RECENT_ROUTES);
-            localStorage.setItem(SIDEBAR_RECENT_STORAGE_KEY, JSON.stringify(next));
+            safeStorageSet(SIDEBAR_RECENT_STORAGE_KEY, JSON.stringify(next));
             return next;
         });
     }, [allItemsByHref, pathname]);
@@ -531,7 +585,7 @@ export function Sidebar({ className }: SidebarProps) {
                         const nextSearches = [trimmedQuery, ...recentSearches.filter((entry) => entry !== trimmedQuery)]
                             .slice(0, MAX_RECENT_SEARCHES);
                         setRecentSearches(nextSearches);
-                        localStorage.setItem(SIDEBAR_RECENT_SEARCHES_STORAGE_KEY, JSON.stringify(nextSearches));
+                        safeStorageSet(SIDEBAR_RECENT_SEARCHES_STORAGE_KEY, JSON.stringify(nextSearches));
                     }
 
                     if (selected.kind === 'action' && selected.id) {
@@ -575,7 +629,7 @@ export function Sidebar({ className }: SidebarProps) {
                 ...current,
                 [title]: !current[title],
             };
-            localStorage.setItem(SIDEBAR_COLLAPSE_STORAGE_KEY, JSON.stringify(next));
+            safeStorageSet(SIDEBAR_COLLAPSE_STORAGE_KEY, JSON.stringify(next));
             return next;
         });
     };
@@ -838,7 +892,7 @@ export function Sidebar({ className }: SidebarProps) {
                                                     const nextSearches = [trimmedQuery, ...recentSearches.filter((entry) => entry !== trimmedQuery)]
                                                         .slice(0, MAX_RECENT_SEARCHES);
                                                     setRecentSearches(nextSearches);
-                                                    localStorage.setItem(SIDEBAR_RECENT_SEARCHES_STORAGE_KEY, JSON.stringify(nextSearches));
+                                                    safeStorageSet(SIDEBAR_RECENT_SEARCHES_STORAGE_KEY, JSON.stringify(nextSearches));
                                                 }
 
                                                 if (item.kind === 'action' && item.id) {

@@ -13,6 +13,47 @@ import { toast } from 'sonner';
 
 const PANEL_STORAGE_KEY = 'metamcp_panel_order_v1';
 
+function getSafeLocalStorage(): Storage | null {
+    if (typeof window === 'undefined') {
+        return null;
+    }
+
+    try {
+        const storage = window.localStorage;
+        // Accessing a trivial property forces browsers to validate storage availability.
+        void storage.length;
+        return storage;
+    } catch {
+        return null;
+    }
+}
+
+function safeStorageGet(key: string): string | null {
+    const storage = getSafeLocalStorage();
+    if (!storage) {
+        return null;
+    }
+
+    try {
+        return storage.getItem(key);
+    } catch {
+        return null;
+    }
+}
+
+function safeStorageSet(key: string, value: string): void {
+    const storage = getSafeLocalStorage();
+    if (!storage) {
+        return;
+    }
+
+    try {
+        storage.setItem(key, value);
+    } catch {
+        // Ignore storage failures in restricted contexts.
+    }
+}
+
 const DEFAULT_PANEL_ORDER = [
     'autopilot',
     'namespaces',
@@ -117,6 +158,13 @@ const PANEL_META: Record<PanelId, { title: string; href: string; icon: any; desc
     },
 };
 
+const COMPAT_MODE_HELP: Record<'native' | 'bridge' | 'fallback' | 'unknown', string> = {
+    native: 'Native upstream tRPC contract resolved directly.',
+    bridge: 'Legacy dashboard calls were translated to MetaMCP namespaced procedures.',
+    fallback: 'Upstream was unavailable or incompatible; compatibility fallback payload served.',
+    unknown: 'Probe did not return a known compatibility header yet.',
+};
+
 export default function MCPDashboard() {
     const { data: servers, isLoading: isLoadingServers, refetch: refetchServers } = trpc.mcpServers.list.useQuery();
     const { data: tools, isLoading: isLoadingTools } = trpc.tools.list.useQuery();
@@ -128,11 +176,12 @@ export default function MCPDashboard() {
     const [showAutopilotEmbed, setShowAutopilotEmbed] = useState(false);
     const [panelOrder, setPanelOrder] = useState<PanelId[]>([...DEFAULT_PANEL_ORDER]);
     const [isMounted, setIsMounted] = useState(false);
+    const [compatMode, setCompatMode] = useState<'native' | 'bridge' | 'fallback' | 'unknown'>('unknown');
     const autopilotUrl = process.env.NEXT_PUBLIC_AUTOPILOT_DASHBOARD_URL || 'http://localhost:3847';
 
     useEffect(() => {
         try {
-            const raw = localStorage.getItem(PANEL_STORAGE_KEY);
+            const raw = safeStorageGet(PANEL_STORAGE_KEY);
             if (!raw) {
                 return;
             }
@@ -149,6 +198,61 @@ export default function MCPDashboard() {
         setIsMounted(true);
     }, []);
 
+    useEffect(() => {
+        let isCancelled = false;
+
+        const detectCompatMode = async () => {
+            try {
+                const response = await fetch('/api/trpc/mcp.getStatus?input=%7B%7D', {
+                    method: 'GET',
+                    credentials: 'include',
+                });
+
+                if (isCancelled) {
+                    return;
+                }
+
+                const compatHeader = response.headers.get('x-borg-trpc-compat');
+                if (!compatHeader) {
+                    setCompatMode('native');
+                    return;
+                }
+
+                if (compatHeader.includes('bridge')) {
+                    setCompatMode('bridge');
+                    return;
+                }
+
+                if (compatHeader.includes('fallback')) {
+                    setCompatMode('fallback');
+                    return;
+                }
+
+                setCompatMode('unknown');
+            } catch {
+                if (!isCancelled) {
+                    setCompatMode('unknown');
+                }
+            }
+        };
+
+        const onVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                detectCompatMode();
+            }
+        };
+
+        detectCompatMode();
+        window.addEventListener('focus', detectCompatMode);
+        document.addEventListener('visibilitychange', onVisibilityChange);
+
+        return () => {
+            isCancelled = true;
+            window.removeEventListener('focus', detectCompatMode);
+            document.removeEventListener('visibilitychange', onVisibilityChange);
+        };
+    }, []);
+
     const sensors = useSensors(
         useSensor(PointerSensor, {
             activationConstraint: { distance: 6 },
@@ -156,6 +260,11 @@ export default function MCPDashboard() {
     );
 
     const orderedPanels = useMemo(() => panelOrder.filter((id) => id in PANEL_META), [panelOrder]);
+    const showCompatDataWarning = !isLoadingServers
+        && !isLoadingTools
+        && (servers?.length ?? 0) === 0
+        && (tools?.length ?? 0) === 0
+        && (compatMode === 'bridge' || compatMode === 'fallback');
 
     const handlePanelDragEnd = (event: DragEndEvent) => {
         const { active, over } = event;
@@ -170,7 +279,7 @@ export default function MCPDashboard() {
                 return current;
             }
             const next = arrayMove(current, oldIndex, newIndex);
-            localStorage.setItem(PANEL_STORAGE_KEY, JSON.stringify(next));
+            safeStorageSet(PANEL_STORAGE_KEY, JSON.stringify(next));
             return next;
         });
     };
@@ -178,7 +287,7 @@ export default function MCPDashboard() {
     const resetPanelOrder = () => {
         const next = [...DEFAULT_PANEL_ORDER];
         setPanelOrder(next);
-        localStorage.setItem(PANEL_STORAGE_KEY, JSON.stringify(next));
+        safeStorageSet(PANEL_STORAGE_KEY, JSON.stringify(next));
         toast.success('MetaMCP panel layout reset.');
     };
 
@@ -187,8 +296,22 @@ export default function MCPDashboard() {
             <div className="flex justify-between items-center">
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight text-white">MetaMCP Core Dashboard</h1>
-                    <p className="text-zinc-500">
+                    <p className="text-zinc-500 flex items-center gap-2">
                         Main dashboard interface for tools, subpages, and MCP operations
+                        <span
+                            title={COMPAT_MODE_HELP[compatMode]}
+                            className={`inline-flex items-center rounded border px-1.5 py-0.5 text-[10px] font-medium ${
+                            compatMode === 'native'
+                                ? 'border-emerald-500/30 text-emerald-300 bg-emerald-500/10'
+                                : compatMode === 'bridge'
+                                    ? 'border-blue-500/30 text-blue-300 bg-blue-500/10'
+                                    : compatMode === 'fallback'
+                                        ? 'border-amber-500/30 text-amber-300 bg-amber-500/10'
+                                        : 'border-zinc-700 text-zinc-400 bg-zinc-900/70'
+                        }`}
+                        >
+                            Data source: {compatMode}
+                        </span>
                     </p>
                 </div>
                 <div className="flex gap-2">
@@ -249,6 +372,18 @@ export default function MCPDashboard() {
                     )}
                 </CardContent>
             </Card>
+
+            {showCompatDataWarning ? (
+                <Card className="bg-amber-950/20 border-amber-800/60">
+                    <CardContent className="pt-6">
+                        <p className="text-sm text-amber-200 font-medium">Operational MCP data is currently unavailable.</p>
+                        <p className="text-xs text-amber-300/80 mt-1">
+                            Dashboard navigation is still available, but server/tool lists are empty while running in <span className="font-semibold">{compatMode}</span> mode.
+                            This usually means the upstream contract is bridged/fallback only or upstream auth is not available for protected procedures.
+                        </p>
+                    </CardContent>
+                </Card>
+            ) : null}
 
             <Card className="bg-zinc-900 border-zinc-800 overflow-hidden">
                 <CardHeader className="flex flex-row items-start justify-between gap-3">
@@ -383,8 +518,14 @@ export default function MCPDashboard() {
                     ) : (tools?.length ?? 0) === 0 ? (
                         <div className="text-center p-12 text-zinc-500 bg-zinc-900/50 rounded-lg border border-zinc-800 border-dashed">
                             <Wrench className="h-12 w-12 mx-auto mb-4 opacity-30" />
-                            <p className="text-lg font-medium">No Tools Discovered</p>
-                            <p className="text-sm mt-1">Wait for servers to connect and sync their tools.</p>
+                            <p className="text-lg font-medium">
+                                {compatMode === 'bridge' || compatMode === 'fallback' ? 'Tool Inventory Unavailable' : 'No Tools Discovered'}
+                            </p>
+                            <p className="text-sm mt-1">
+                                {compatMode === 'bridge' || compatMode === 'fallback'
+                                    ? 'Bridge/fallback mode cannot provide full tool inventory for this upstream contract.'
+                                    : 'Wait for servers to connect and sync their tools.'}
+                            </p>
                         </div>
                     ) : tools?.map((tool: any) => (
                         <div key={tool.uuid} className="bg-zinc-900 border border-zinc-800 rounded-lg p-4 flex justify-between items-start hover:border-zinc-700 transition-colors">

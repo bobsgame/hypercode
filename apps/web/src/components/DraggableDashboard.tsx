@@ -127,9 +127,41 @@ export default function DraggableDashboard() {
     const [activeId, setActiveId] = useState<string | null>(null);
     const [isLoaded, setIsLoaded] = useState(false);
 
+    const getSafeLocalStorage = (): Storage | null => {
+        if (typeof window === 'undefined') return null;
+        try {
+            const storage = window.localStorage;
+            // Touch a property so restricted contexts fail here and get handled.
+            void storage.length;
+            return storage;
+        } catch {
+            return null;
+        }
+    };
+
+    const safeStorageGet = (key: string): string | null => {
+        const storage = getSafeLocalStorage();
+        if (!storage) return null;
+        try {
+            return storage.getItem(key);
+        } catch {
+            return null;
+        }
+    };
+
+    const safeStorageSet = (key: string, value: string) => {
+        const storage = getSafeLocalStorage();
+        if (!storage) return;
+        try {
+            storage.setItem(key, value);
+        } catch {
+            // Intentionally ignore restricted storage contexts
+        }
+    };
+
     // Load from LocalStorage
     useEffect(() => {
-        const saved = localStorage.getItem('borg_dashboard_layout');
+        const saved = safeStorageGet('borg_dashboard_layout');
         if (saved) {
             try {
                 const parsed = JSON.parse(saved);
@@ -165,7 +197,7 @@ export default function DraggableDashboard() {
                 const newIndex = items.indexOf(over.id as string);
 
                 const newOrder = arrayMove(items, oldIndex, newIndex);
-                localStorage.setItem('borg_dashboard_layout', JSON.stringify(newOrder));
+                safeStorageSet('borg_dashboard_layout', JSON.stringify(newOrder));
                 return newOrder;
             });
         }

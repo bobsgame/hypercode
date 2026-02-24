@@ -1,15 +1,24 @@
+[submodule "packages/MCP-SuperAssistant"]
+	path = packages/MCP-SuperAssistant
+	url = https://github.com/robertpelloni/MCP-SuperAssistant
 [submodule "submodules/mcpenetes"]
 	path = submodules/mcpenetes
 	url = https://github.com/robertpelloni/mcpenetes
 [submodule "submodules/claude-mem"]
 	path = memory/plugins/claude-mem
 	url = https://github.com/robertpelloni/claude-mem
+[submodule "packages/opencode-autopilot"]
+	path = packages/opencode-autopilot
+	url = https://github.com/robertpelloni/opencode-autopilot
 [submodule "references/opencode"]
 	path = references-core/opencode
 	url = https://github.com/opencode-ai/opencode
 [submodule "references/prompt-eng-tutorial"]
 	path = prompts/tutorials/prompt-eng-tutorial
 	url = https://github.com/anthropics/prompt-eng-interactive-tutorial
+[submodule "external/frameworks/awesome-llm-apps"]
+	path = external/frameworks/awesome-llm-apps
+	url = https://github.com/Shubhamsaboo/awesome-llm-apps
 [submodule "references/awesome-llm-apps"]
 	path = misc/awesome-llm-apps
 	url = https://github.com/Shubhamsaboo/awesome-llm-apps
@@ -3142,6 +3151,9 @@
 [submodule "external/misc/mikekelly-claude-sneakpeek"]
 	path = external/misc/mikekelly-claude-sneakpeek
 	url = https://github.com/mikekelly/claude-sneakpeek
+[submodule "external/frameworks/mcp-reasoner"]
+	path = external/frameworks/mcp-reasoner
+	url = https://github.com/Jacck/mcp-reasoner
 [submodule "external/mcp-servers/Jacck-mcp-reasoner"]
 	path = external/mcp-servers/Jacck-mcp-reasoner
 	url = https://github.com/Jacck/mcp-reasoner
@@ -3268,6 +3280,9 @@
 [submodule "external/tools/theme-context"]
 	path = external/tools/theme-context
 	url = https://github.com/bidfox/themecontextmcp
+[submodule "packages/claude-mem"]
+	path = packages/claude-mem
+	url = https://github.com/robertpelloni/claude-mem
 [submodule "packages/mcp-directory/general/awesome-ai-apps"]
 	path = packages/mcp-directory/general/awesome-ai-apps
 	url = https://github.com/Arindam200/awesome-ai-apps
@@ -3280,6 +3295,12 @@
 [submodule "packages/skills/claude-code-tips"]
 	path = packages/skills/claude-code-tips
 	url = https://github.com/ykdojo/claude-code-tips
+[submodule "packages/mcp-directory/general/awesome-mcp-servers"]
+	path = packages/mcp-directory/general/awesome-mcp-servers
+	url = https://github.com/punkpeye/awesome-mcp-servers
+[submodule "packages/mcp-directory/general/toolsdk-mcp-registry"]
+	path = packages/mcp-directory/general/toolsdk-mcp-registry
+	url = https://github.com/toolsdk-ai/toolsdk-mcp-registry
 [submodule "packages/mcp-directory/orchestration/metamcp"]
 	path = packages/mcp-directory/orchestration/metamcp
 	url = https://github.com/robertpelloni/metamcp

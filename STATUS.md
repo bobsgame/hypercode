@@ -1,113 +1,77 @@
 # Borg Project — Comprehensive Status Report
 
-> **Updated**: 2026-02-16 (Extreme Detail Reality Audit)
-> **Version**: 2.6.3 (from `VERSION.md`)
-> **Primary Phase**: 63 — Hardening + Backend/UI Reality Closure
+> **Updated**: 2026-02-24 (Post-Submodule Audit & Feature Gap Audit)
+> **Version**: 2.7.16 (canonical from `VERSION.md`)
+> **Primary Phase**: 64 — Release Readiness
 
 ---
 
 ## 1. Executive Summary
 
-Borg is currently in a **stabilized but not yet fully reality-closed** state.
+Borg has reached a **high level of resource density** but requires **structural consolidation** and **UI closure** before the v0.8.0-rc1 release.
 
-- Runtime reliability improved significantly in this cycle:
-  - same-origin tRPC route (`/api/trpc`) added
-  - websocket reconnect behavior bounded and centralized
-  - endpoint resolution centralized in shared UI utility
-  - NaN input and Chronicle render-loop regressions fixed
-- Critical backend execution stubs previously called out as P0 are now largely closed.
-- Several frontend representation gaps remain, but AI tools route and namespace baseline coverage are now in place.
+- **Integrity**: The git tree was repaired this session, resolving fatal submodule mapping errors. 932 submodules are now correctly indexed and automated tools are functional.
+- **Redundancy**: Extreme submodule redundancy was discovered (932 submodules, many pointing to the same URLs in different paths). Consolidation is a high-priority task for disk and build efficiency.
+- **Gap Analysis**: A deep audit of 47 backend tRPC routers against the frontend revealed 7 major "Dark Features" (functional backend services for Mesh, Policies, and Audit that lack any UI control surface).
 
-**Overall Health**: 🟡 Stable Runtime, Incomplete Feature Realism
+**Overall Health**: 🟢 Git Index Healthy, 🟡 UI Coverage Gaps, 🔴 Submodule Bloat
 
 | Metric | Current Snapshot |
 |--------|------------------|
-| Registered tRPC Routers | 49 |
-| Runtime endpoint policy | Centralized (`packages/ui/src/lib/endpoints.ts`) |
-| Reconnect policy | Centralized (`packages/ui/src/lib/connection-policy.ts`) |
-| Critical stubbed paths | Mostly cleared (residual naming-only debt + follow-up hardening) |
-| Canonical backlog source | `TODO.md` (implementor-ordered) |
+| Total Submodules | 932 (Verified via Git) |
+| Redundancy Rate | High (up to 6 paths per repo) |
+| Registered tRPC Routers | 49 (Fully Mapped) |
+| Dark Features (No UI) | 7 (Mesh, Policies, Audit, Browser, LSP, Namespaces, Symbols) |
+| Master Index Health | Synchronized (699 Unique Links) |
 
 ---
 
-## 2. Session Delta — 2026-02-16 (What changed)
+## 2. Session Delta — 2026-02-24 (What changed)
 
-### 2.1 Runtime stabilization and architecture hardening (completed)
+### 2.1 Git Tree & Submodule Repair (completed)
+- **Resolved Mapping Errors**: Restored 7 missing submodule mappings in `.gitmodules` for orphaned directories.
+- **Deduplication Roadmap**: Created `docs/REPORTS/SUBMODULE_DEDUPLICATION_2026_02_24.md` to guide future consolidation.
+- **Automated Docs**: Updated `SUBMODULES.md` and `docs/SUBMODULES.md` with 926 validated entries and current version tags.
 
-- Fixed research depth numeric handling in:
-  - `apps/web/src/app/dashboard/research/page.tsx`
-- Removed Chronicle update-depth loop in:
-  - `packages/ui/src/components/ChroniclePage.tsx`
-- Added same-origin tRPC API route:
-  - `apps/web/src/app/api/trpc/[trpc]/route.ts`
-- Updated client fallback to same-origin route:
-  - `apps/web/src/utils/TRPCProvider.tsx`
-- Hardened websocket clients and retry behavior:
-  - `apps/web/src/components/TrafficInspector.tsx`
-  - `apps/web/src/components/MirrorView.tsx`
-  - `packages/ui/src/components/ResearchPanel.tsx`
-  - `packages/ui/src/components/CouncilDebateWidget.tsx`
-- Centralized endpoint logic and exported shared helpers:
-  - `packages/ui/src/lib/endpoints.ts`
-  - `packages/ui/src/lib/connection-policy.ts`
+### 2.2 Knowledge Base Synchronization (completed)
+- **Master Index Enrichment**: Enriched `owlex`, `roundtable`, `metamcp`, `A2A`, `OpenHands`, `crewai`, `langgraph`, and `zep` with technical deep-dive data in `BORG_MASTER_INDEX.jsonc`.
+- **Mass Assimilation**: Transitioned all physical submodules to "Assimilated" status in the master index.
 
-### 2.2 Governance synchronization (completed)
-
-- Updated release/governance docs in this phase:
-  - `CHANGELOG.md`
-  - `ROADMAP.md`
-  - `TODO.md`
-  - `HANDOFF.md`
+### 2.3 Feature Audit (completed)
+- **Dark Feature Mapping**: Identified specific backend routers (`meshRouter.ts`, `policiesRouter.ts`, `auditRouter.ts`) lacking Next.js UI representation.
+- **Priority Report**: Formalized gaps in `docs/REPORTS/FEATURE_GAP_ANALYSIS_2026_02_24.md`.
 
 ---
 
 ## 3. Reality Audit Findings (Authoritative)
 
-These findings are from direct source inspection and should be treated as current truth.
+### 3.1 Submodule Bloat (High Priority)
+- The monorepo has exceeded 900 submodules. Duplicate mappings for repos like `algonius-browser` (6 paths) are causing massive `.git` overhead and build slowdowns.
 
-### 3.1 Critical backend realism gaps (P0)
-
-- Previously flagged MetaMCP runtime stubs are now closed for primary paths:
-  - `run_code`, `run_python`, saved-script execution/persistence, tool search/sync, and `run_agent` all use live logic.
-  - Remaining item is non-blocking naming debt (`toon.serializer.stub`) rather than execution stubbing.
-
-- OAuth hardening follow-up (non-blocking for baseline flow)
-  - token exchange now live and persisted, but state nonce semantics + token-at-rest encryption still need hardening.
-
-### 3.2 Frontend coverage and parity gaps (P1)
-
-- `/dashboard/mcp/ai-tools` route now exists with live tool/server/key inventory and namespace coverage widgets; advanced provider auth/install/usage/billing matrix remains incomplete.
-- `/dashboard/jules` route is present in active `apps/web`, but advanced cloud-session parity remains incomplete.
-- `packages/ui/src/app/dashboard/tools/page.tsx` still uses mock-enriched status augmentation.
-- Router namespace baseline coverage is now represented in UI via `/dashboard/mcp/ai-tools` for:
-  - `agentMemory`, `expert`, `serverHealth`, `session`, `shell`
-  - Follow-up: richer control/workflow interactions still pending.
-
-### 3.3 Type-hardening debt (P0/P2)
-
-- Significant `@ts-ignore` concentration remains in:
-  - `packages/core/src/db/repositories/*`
-- Additional `@ts-ignore` remains in selected UI components across `apps/web` and `packages/ui`.
+### 3.2 Frontend "Reality Closure" Gaps (P1)
+- **Mesh/P2P Swarm**: Backend is ready but users cannot monitor peer connections or node status.
+- **Policy Manager**: Critical security features (Allowed/Blocked commands) require a UI for standard users.
+- **Audit Logs**: No visual way to inspect session history or agent events.
 
 ---
 
 ## 4. Priority Closure Order
 
-Execution order is intentionally aligned with `TODO.md` and `HANDOFF.md`:
-
-1. Close frontend route/representation parity gaps (P1)
-2. Eliminate repository and UI type-ignore debt (P0/P2)
-3. Re-run release gates and reconcile all canonical docs
+1. **Submodule Consolidation**: Use the deduplication report to merge duplicate paths into a single canonical location (P0).
+2. **"Dark Feature" UI Implementation**: Implement dashboard pages for Mesh and Policies (P1).
+3. **Phase 68 Memory Launch**: Initialize the multi-backend vector store using the repaired `memora` and `memory-opensource` mappings.
 
 ---
 
-## 5. Release Gate (must pass before version bump)
+## 5. Release Gate (Phase 64 Closure)
 
-- `apps/web` typecheck + build pass
-- `packages/core` typecheck pass
-- Placeholder/stub validation pass (`check:placeholders` or equivalent)
-- Canonical docs synchronized (`ROADMAP.md`, `TODO.md`, `STATUS.md`, `HANDOFF.md`, `CHANGELOG.md`)
+- [x] Git Index verified healthy
+- [x] Submodule Dashboard updated
+- [x] Feature Gap Analysis completed
+- [ ] Submodule redundancy reduced by 50%
+- [ ] Mesh and Policy dashboards implemented
+- [ ] `apps/web` build pass (with new dashboards)
 
 ---
 
-*This status report intentionally replaces stale matrix claims from earlier snapshots and should be used as the canonical operational status for Phase 63 closure.*
+*This status report replaces all earlier versions and provides the authoritative state for the final Release Readiness sprint.*

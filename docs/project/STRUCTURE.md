@@ -3,28 +3,25 @@
 ## Repository Layout
 ```
 .
+├── apps/             # Monorepo applications
+│   └── web/          # Next.js Dashboard (Frontend)
 ├── packages/
-│   ├── core/         # The long-running Borg background service
-│   │   ├── src/
-│   │   │   ├── agents/      # ArchitectMode, AgentExecutor, LoopManager
-│   │   │   ├── managers/    # Core lifecycle managers (MCP, Secret, Skill, etc.)
-│   │   │   ├── services/    # Logic services (RepoMap, LSP, Traffic, Inventory)
-│   │   │   ├── enterprise/  # Optional enterprise/distributed extensions
-│   │   │   └── routes/      # Hono API endpoints
-│   ├── ui/           # Next.js Dashboard & Management Hub
-│   │   ├── src/
-│   │   │   ├── components/  # Dashboard cards, subpanels, and visualizers
-│   │   │   └── app/         # Harness, Marketplace, and System views
+│   ├── core/         # Borg Background Service (Backend)
+│   ├── ui/           # Shared React Component Library
 │   ├── cli/          # Universal Harness CLI
-│   ├── types/        # Shared TypeScript definitions
-│   └── vscode/       # VSCode Extension source
-├── agents/           # JSON definitions for AI agent squad members
-├── skills/           # Markdown-defined universal skills library
-├── prompts/          # Library of system prompts, templates, and jailbreaks
-├── mcp-servers/      # Locally managed MCP server configurations
-├── submodules/       # External infrastructure (metamcp, mcpenetes, shark)
-├── external/         # External plugins and research
-└── docs/             # Technical specifications and guides
+│   └── types/        # Shared TypeScript definitions
+├── agents/           # JSON agent definitions & specialized squads
+├── multi-agent/      # Multi-agent orchestration frameworks (Reference)
+├── cli-harnesses/    # Competing AI coding CLI submodules (Benchmarking)
+├── mcp-servers/      # Local MCP server configurations
+├── mcp-hubs/         # MCP aggregation and registry submodules
+├── mcp-routers/      # MCP proxy and gateway implementations
+├── skills/           # Universal skills library (Markdown)
+├── prompts/          # System prompts, templates, and tutorials
+├── memory/           # Memory plugin implementations & refs
+├── external/         # Categorized external research & plugins
+├── submodules/       # Active core infrastructure submodules
+└── docs/             # Technical specifications and audits
 ```
 
 ## Module Interactions

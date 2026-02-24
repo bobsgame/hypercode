@@ -1,326 +1,946 @@
-# AIOS Ecosystem Dashboard
+# Submodule Dashboard
 
-**Last Updated:** 2026-02-24 16:15:07
-**Total Modules:** 206
+This document tracks the status, location, and purpose of all submodules in the borg ecosystem.
 
-This dashboard tracks the status of all 206 integrated submodules and tools within the AIOS ecosystem.
+| Submodule | Path | Version | Description |
+| :--- | :--- | :--- | :--- |
+| **pydantic-ai** | agents/refs/pydantic-ai | v0.0.6a4-1542-gf4c52ad0 | Integrated submodule. |
+| **smolagents** | agents/refs/smolagents | v1.0.0-892-gd977b06 | Integrated submodule. |
+| **workty** | agents/workty | v0.1.0-6-g5900554 | Integrated submodule. |
+| **browser-tools-mcp** | browsers/browser-tools-mcp | heads/main | Integrated submodule. |
+| **mcpo-2** | browsers/mcpo-2 | heads/main | Integrated submodule. |
+| **aichat** | cli-harnesses/aichat | heads/main | Integrated submodule. |
+| **amp-examples-and-guides** | cli-harnesses/amp-examples-and-guides | heads/main | Integrated submodule. |
+| **amped** | cli-harnesses/amped | v0.1.0 | Integrated submodule. |
+| **awesome-amp-code** | cli-harnesses/awesome-amp-code | heads/main | Integrated submodule. |
+| **awesome-copilot** | cli-harnesses/awesome-copilot | heads/main | Integrated submodule. |
+| **awesome-opencode** | cli-harnesses/awesome-opencode | heads/main | Integrated submodule. |
+| **cc-switch** | cli-harnesses/cc-switch | v3.10.1-48-gf0e8ba1 | Integrated submodule. |
+| **cc-switch-cli** | cli-harnesses/cc-switch-cli | v4.5.0 | Integrated submodule. |
+| **cc-switch-farion1231** | cli-harnesses/cc-switch-farion1231 | v3.10.1-71-ge349012 | Integrated submodule. |
+| **ccproxy** | cli-harnesses/ccproxy | v1.2.0-10-g4d977b3 | Integrated submodule. |
+| **ccs** | cli-harnesses/ccs | v5.0.0-1449-gbe63056 | Integrated submodule. |
+| **ccs-kaitranntt** | cli-harnesses/ccs-kaitranntt | v5.0.0-1449-gbe63056 | Integrated submodule. |
+| **claude-code-madapp** | cli-harnesses/claude-code-madapp | tools/claudeup/v3.3.0 | Integrated submodule. |
+| **claude-code-madappgang** | cli-harnesses/claude-code-madappgang | tools/claudeup/v3.3.0-12-gbea99ea | Integrated submodule. |
+| **claude-code-mcp** | cli-harnesses/claude-code-mcp | v1.10.9-5-g24dfd38 | Integrated submodule. |
+| **claude-code-openrouter** | cli-harnesses/claude-code-openrouter | heads/main | Integrated submodule. |
+| **claude-code-router** | cli-harnesses/claude-code-router | v2.0.0-2-gc73fe0d | Integrated submodule. |
+| **claude-hooks** | cli-harnesses/claude-hooks | heads/main | Integrated submodule. |
+| **claude-tools-mcp** | cli-harnesses/claude-tools-mcp | v0.1.0-1-g5615a91 | Integrated submodule. |
+| **code** | cli-harnesses/code | rust-v0.0.2504301132-7105-g51680828f | Integrated submodule. |
+| **code-assistant-manager** | cli-harnesses/code-assistant-manager | 1.3.0-13-g51b49e9 | Integrated submodule. |
+| **code-assistant-manager-Chat2AnyLLM** | cli-harnesses/code-assistant-manager-Chat2AnyLLM | 1.3.0-13-g51b49e9 | Integrated submodule. |
+| **codebuff** | cli-harnesses/codebuff | v1.0.603-18-ga6da1f46f | Integrated submodule. |
+| **codebuff-CodebuffAI** | cli-harnesses/codebuff-CodebuffAI | v1.0.603-124-g8033e0b49 | Integrated submodule. |
+| **codemachine-cli** | cli-harnesses/codemachine-cli | v0.8.0-1-ge55f110 | Integrated submodule. |
+| **CodeMachine-CLI-moazbuilds** | cli-harnesses/CodeMachine-CLI-moazbuilds | v0.8.0-2-gf8bdb47 | Integrated submodule. |
+| **CodeNomad** | cli-harnesses/CodeNomad | v0.9.3-19-g3deb72e | Integrated submodule. |
+| **codex** | cli-harnesses/codex | rust-v0.0.2504301132-3021-g0b460eda3 | Integrated submodule. |
+| **crush** | cli-harnesses/crush | v0.38.1 | Integrated submodule. |
+| **devin.cursorrules** | cli-harnesses/devin.cursorrules | heads/master | Integrated submodule. |
+| **emdash** | cli-harnesses/emdash | v0.3.53-30-g04480751 | Integrated submodule. |
+| **emdash-generalaction** | cli-harnesses/emdash-generalaction | v0.3.53-30-g04480751 | Integrated submodule. |
+| **factory** | cli-harnesses/factory | heads/main | Integrated submodule. |
+| **gemini-cli-router** | cli-harnesses/gemini-cli-router | heads/main | Integrated submodule. |
+| **gemini-cli-router-zhifac** | cli-harnesses/gemini-cli-router-zhifac | heads/main | Integrated submodule. |
+| **gemini-openai-proxy** | cli-harnesses/gemini-openai-proxy | heads/main | Integrated submodule. |
+| **gemini-openai-proxy-zuisong** | cli-harnesses/gemini-openai-proxy-zuisong | v0.14.2-30-g0e0e9ba | Integrated submodule. |
+| **gemini-router** | cli-harnesses/gemini-router | heads/main | Integrated submodule. |
+| **gemini-superclaude-mcp-server** | cli-harnesses/gemini-superclaude-mcp-server | 2.0.2 | Integrated submodule. |
+| **GoogleGeminiRouter** | cli-harnesses/GoogleGeminiRouter | heads/master | Integrated submodule. |
+| **goose** | cli-harnesses/goose | ls-641-g493ae789c | Integrated submodule. |
+| **goose-block** | cli-harnesses/goose-block | ls-641-g493ae789c | Integrated submodule. |
+| **grok-cli** | cli-harnesses/grok-cli | @vibe-kit/grok-cli@0.0.34 | Integrated submodule. |
+| **happy** | cli-harnesses/happy | v3-1030-g3ed8b121 | Integrated submodule. |
+| **kimi-cli** | cli-harnesses/kimi-cli | 1.6 | Integrated submodule. |
+| **kimi-cli-MoonshotAI** | cli-harnesses/kimi-cli-MoonshotAI | 1.6-57-gba75724 | Integrated submodule. |
+| **llxprt-code** | cli-harnesses/llxprt-code | v0.1.12-4617-g88301db43 | Integrated submodule. |
+| **Lynkr** | cli-harnesses/Lynkr | heads/main | Integrated submodule. |
+| **multi-agent-orchestration** | cli-harnesses/multi-agent-orchestration | heads/main | Integrated submodule. |
+| **openai-gemini** | cli-harnesses/openai-gemini | gemini-2.0-flash-thinking-exp-47-g61a83bd | Integrated submodule. |
+| **opencode-gui** | cli-harnesses/opencode-gui | heads/main | Integrated submodule. |
+| **opencode-web** | cli-harnesses/opencode-web | heads/main | Integrated submodule. |
+| **qwen-code** | cli-harnesses/qwen-code | qwencode-sdk-java.0.0.1-alpha.2-631-gbd900d36 | Integrated submodule. |
+| **schaltwerk** | cli-harnesses/schaltwerk | v0.12.11 | Integrated submodule. |
+| **splitrail** | cli-harnesses/splitrail | v3.3.1 | Integrated submodule. |
+| **vercel-ai-proxy** | cli-harnesses/vercel-ai-proxy | heads/main | Integrated submodule. |
+| **ast-grep** | code-indexing/ast/ast-grep | 0.40.5-26-g817ba62 | Integrated submodule. |
+| **tree-sitter** | code-indexing/ast/tree-sitter | heads/master | Integrated submodule. |
+| **bloop** | code-indexing/tools/bloop | heads/oss | Integrated submodule. |
+| **dagger** | code-sandbox/runtimes/dagger | helm/chart/v0.19.10-51-g3e92868 | Integrated submodule. |
+| **cohere-terrarium** | code-sandbox/tools/cohere-terrarium | heads/main | Integrated submodule. |
+| **e2b-code-interpreter** | code-sandbox/tools/e2b-code-interpreter | @e2b/code-interpreter@2.3.3-9-g618716e | Integrated submodule. |
+| **open-interpreter** | code-sandbox/tools/open-interpreter | v0.4.2-47-g681f5ce5 | Integrated submodule. |
+| **safeexec** | code-sandbox/tools/safeexec | heads/main | Integrated submodule. |
+| **cua** | computer-use/desktop/cua | bench-v0.2.2-297-g1b932bbb | Integrated submodule. |
+| **magentic-ui** | computer-use/desktop/magentic-ui | v0.1.6-7-gedaed9a | Integrated submodule. |
+| **claude-quickstarts** | computer-use/examples/claude-quickstarts | heads/main | Integrated submodule. |
+| **dbhub** | database/mcp-servers/dbhub | heads/main | Integrated submodule. |
+| **mysql** | database/mcp-servers/mysql | 0.1.4 | Integrated submodule. |
+| **postgres** | database/mcp-servers/postgres | 0.2.1-1-g6f1a9b7 | Integrated submodule. |
+| **awesome-ai-apps** | external/awesome-ai-apps | heads/main | Integrated submodule. |
+| **awesome-mcp-servers** | external/awesome-mcp-servers | heads/main | Integrated submodule. |
+| **awesome-mcp-servers-appcypher** | external/awesome-mcp-servers-appcypher | heads/main | Integrated submodule. |
+| **awesome-mcp-servers-wong2** | external/awesome-mcp-servers-wong2 | heads/main | Integrated submodule. |
+| **awesome-llm-apps** | external/awesome/awesome-llm-apps | heads/main | Integrated submodule. |
+| **Awesome-LLMOps** | external/awesome/Awesome-LLMOps | heads/main | Integrated submodule. |
+| **lobehub** | external/chat/lobehub | v2.1.11-2-g4efe60e9f | Integrated submodule. |
+| **aichat** | external/clis/aichat | v0.30.0-27-g0493134 | Integrated submodule. |
+| **amp-examples-and-guides** | external/clis/amp-examples-and-guides | heads/main | Integrated submodule. |
+| **amped** | external/clis/amped | v0.1.0 | Integrated submodule. |
+| **awesome-amp-code** | external/clis/awesome-amp-code | heads/main | Integrated submodule. |
+| **awesome-copilot** | external/clis/awesome-copilot | heads/main | Integrated submodule. |
+| **awesome-opencode** | external/clis/awesome-opencode | heads/main | Integrated submodule. |
+| **cc-switch** | external/clis/cc-switch | v3.10.1-48-gf0e8ba1 | Integrated submodule. |
+| **cc-switch-cli** | external/clis/cc-switch-cli | v4.5.0 | Integrated submodule. |
+| **ccproxy** | external/clis/ccproxy | v1.2.0-10-g4d977b3 | Integrated submodule. |
+| **ccs** | external/clis/ccs | v5.0.0-1449-gbe63056 | Integrated submodule. |
+| **claude-code** | external/clis/claude-code | tools/claudeup/v3.3.0 | Integrated submodule. |
+| **claude-code-mcp** | external/clis/claude-code-mcp | v1.10.9-5-g24dfd38 | Integrated submodule. |
+| **claude-code-openrouter** | external/clis/claude-code-openrouter | heads/main | Integrated submodule. |
+| **claude-code-router** | external/clis/claude-code-router | v2.0.0-2-gc73fe0d | Integrated submodule. |
+| **claude-code-scheduler** | external/clis/claude-code-scheduler | heads/main | Integrated submodule. |
+| **claude-hooks** | external/clis/claude-hooks | heads/main | Integrated submodule. |
+| **claude-tools-mcp** | external/clis/claude-tools-mcp | v0.1.0-1-g5615a91 | Integrated submodule. |
+| **code** | external/clis/code | rust-v0.0.2504301132-7105-g51680828f | Integrated submodule. |
+| **code-assistant-manager** | external/clis/code-assistant-manager | 1.3.0-13-g51b49e9 | Integrated submodule. |
+| **codebuff** | external/clis/codebuff | v1.0.603-18-ga6da1f46f | Integrated submodule. |
+| **CodeMachine-CLI** | external/clis/CodeMachine-CLI | v0.8.0-1-ge55f110 | Integrated submodule. |
+| **CodeNomad** | external/clis/CodeNomad | v0.9.3-19-g2556805 | Integrated submodule. |
+| **codex** | external/clis/codex | rust-v0.0.2504301132-3020-g9d976962e | Integrated submodule. |
+| **copilot-cli** | external/clis/copilot-cli | v0.0.401-0 | Integrated submodule. |
+| **crush** | external/clis/crush | v0.38.1 | Integrated submodule. |
+| **emdash** | external/clis/emdash | v0.3.50-94-gc5371f3b | Integrated submodule. |
+| **factory** | external/clis/factory | heads/main | Integrated submodule. |
+| **gemini-cli-router** | external/clis/gemini-cli-router | heads/main | Integrated submodule. |
+| **gemini-openai-proxy** | external/clis/gemini-openai-proxy | heads/main | Integrated submodule. |
+| **gemini-router** | external/clis/gemini-router | heads/main | Integrated submodule. |
+| **gemini-superclaude-mcp-server** | external/clis/gemini-superclaude-mcp-server | 2.0.2 | Integrated submodule. |
+| **GoogleGeminiRouter** | external/clis/GoogleGeminiRouter | heads/master | Integrated submodule. |
+| **goose** | external/clis/goose | ls-639-g603f25258 | Integrated submodule. |
+| **grok-cli** | external/clis/grok-cli | @vibe-kit/grok-cli@0.0.34 | Integrated submodule. |
+| **happy** | external/clis/happy | v3-1030-g3ed8b121 | Integrated submodule. |
+| **kimi-cli** | external/clis/kimi-cli | 1.6 | Integrated submodule. |
+| **Kode-cli** | external/clis/Kode-cli | heads/main | Integrated submodule. |
+| **litellm** | external/clis/litellm | v1.81.3.rc.5-292-gade35a3f9a | Integrated submodule. |
+| **llxprt-code** | external/clis/llxprt-code | v0.1.12-4617-g88301db43 | Integrated submodule. |
+| **Lynkr** | external/clis/Lynkr | heads/main | Integrated submodule. |
+| **multi-agent-orchestration** | external/clis/multi-agent-orchestration | heads/main | Integrated submodule. |
+| **oh-my-opencode** | external/clis/oh-my-opencode | v1.1.0-1461-g0f81d4c | Integrated submodule. |
+| **openai-gemini** | external/clis/openai-gemini | gemini-2.0-flash-thinking-exp-47-g61a83bd | Integrated submodule. |
+| **opencode** | external/clis/opencode | latest-2107-gb9aad20be | Integrated submodule. |
+| **opencode-gui** | external/clis/opencode-gui | heads/main | Integrated submodule. |
+| **opencode-web** | external/clis/opencode-web | heads/main | Integrated submodule. |
+| **plandex** | external/clis/plandex | cli/v2.2.1-3-ge2d77207 | Integrated submodule. |
+| **qwen-code** | external/clis/qwen-code | qwencode-sdk-java.0.0.1-alpha.2-631-gbd900d36 | Integrated submodule. |
+| **schaltwerk** | external/clis/schaltwerk | v0.12.11 | Integrated submodule. |
+| **smart-ralph** | external/clis/smart-ralph | v2.0.0-41-gf2667f2 | Integrated submodule. |
+| **splitrail** | external/clis/splitrail | v3.3.1 | Integrated submodule. |
+| **SuperClaude_Framework** | external/clis/SuperClaude_Framework | v4.0.7-144-gad6b2e9 | Integrated submodule. |
+| **vercel-ai-proxy** | external/clis/vercel-ai-proxy | heads/main | Integrated submodule. |
+| **code-to-tree** | external/code-indexing/code-to-tree | v0.1.0-2-g700a234 | Integrated submodule. |
+| **CodeWeaver** | external/code-indexing/CodeWeaver | v0.0.15-2-g54225b3 | Integrated submodule. |
+| **deepcontext-mcp** | external/code-indexing/deepcontext-mcp | v0.1.3-32-g8180517 | Integrated submodule. |
+| **octocode** | external/code-indexing/octocode | 0.10.0-31-g72c7030 | Integrated submodule. |
+| **probe** | external/code-indexing/probe | v0.6.0-rc210 | Integrated submodule. |
+| **serena** | external/code-indexing/serena | v0.1.4-730-g764f26f | Integrated submodule. |
+| **algonius-browser** | external/computer-use/algonius-browser | v0.2.0-94-gae03e6a | Integrated submodule. |
+| **chrome-devtools-mcp** | external/computer-use/chrome-devtools-mcp | chrome-devtools-mcp-v0.15.1-35-g482a288 | Integrated submodule. |
+| **claude-quickstarts** | external/computer-use/claude-quickstarts | heads/main | Integrated submodule. |
+| **clickclickclick** | external/computer-use/clickclickclick | v0.3.0-34-g6f18cd8 | Integrated submodule. |
+| **cua** | external/computer-use/cua | bench-v0.2.2-297-g1b932bbb | Integrated submodule. |
+| **fara** | external/computer-use/fara | heads/main | Integrated submodule. |
+| **generalagents-python** | external/computer-use/generalagents-python | v0.1.1 | Integrated submodule. |
+| **kapture** | external/computer-use/kapture | v2.0.0-12-ga9ea1d9 | Integrated submodule. |
+| **magentic-ui** | external/computer-use/magentic-ui | v0.1.6-7-gedaed9a | Integrated submodule. |
+| **puppeteer** | external/computer-use/puppeteer | puppeteer-core-v24.0.0-694-gf71d8cbc029 | Integrated submodule. |
+| **spark-mcp** | external/computer-use/spark-mcp | heads/claude/bytebot-mcp-server-01EeujB7JsCc5NqfrnbWM2oQ | Integrated submodule. |
+| **uPhone** | external/computer-use/uPhone | heads/main | Integrated submodule. |
+| **webctl** | external/computer-use/webctl | v0.3.1 | Integrated submodule. |
+| **dbhub** | external/database/dbhub | heads/main | Integrated submodule. |
+| **mysql** | external/database/mysql | 0.1.4 | Integrated submodule. |
+| **postgres** | external/database/postgres | 0.2.1-1-g6f1a9b7 | Integrated submodule. |
+| **supabase** | external/database/supabase | v1.26.01-328-g786f931f6e | Integrated submodule. |
+| **ai-hedge-fund** | external/financial/ai-hedge-fund | heads/main | Integrated submodule. |
+| **alpha_vantage_mcp** | external/financial/alpha_vantage_mcp | heads/main | Integrated submodule. |
+| **armor-crypto-mcp** | external/financial/armor-crypto-mcp | v0.2.1-5-gc026c00 | Integrated submodule. |
+| **awesome-crypto-mcp-servers** | external/financial/awesome-crypto-mcp-servers | heads/main | Integrated submodule. |
+| **binance-mcp-server** | external/financial/binance-mcp-server | heads/main | Integrated submodule. |
+| **BinanceMCPServer** | external/financial/BinanceMCPServer | heads/main | Integrated submodule. |
+| **bybit-mcp-server** | external/financial/bybit-mcp-server | heads/master | Integrated submodule. |
+| **coin_api_mcp** | external/financial/coin_api_mcp | heads/main | Integrated submodule. |
+| **coingecko-typescript** | external/financial/coingecko-typescript | v2.5.0 | Integrated submodule. |
+| **coinmarketcap-mcp** | external/financial/coinmarketcap-mcp | v1.4.5-1-g0214e75 | Integrated submodule. |
+| **coinstats-mcp** | external/financial/coinstats-mcp | heads/main | Integrated submodule. |
+| **crypto-feargreed-mcp** | external/financial/crypto-feargreed-mcp | heads/main | Integrated submodule. |
+| **crypto-indicators-mcp** | external/financial/crypto-indicators-mcp | heads/main | Integrated submodule. |
+| **crypto-sentiment-mcp** | external/financial/crypto-sentiment-mcp | heads/main | Integrated submodule. |
+| **cryptopanic-mcp-server** | external/financial/cryptopanic-mcp-server | heads/main | Integrated submodule. |
+| **dappier-mcp** | external/financial/dappier-mcp | heads/staging | Integrated submodule. |
+| **freqtrade-mcp** | external/financial/freqtrade-mcp | heads/main | Integrated submodule. |
+| **hive-crypto-mcp** | external/financial/hive-crypto-mcp | heads/main | Integrated submodule. |
+| **korea-stock-analyzer-mcp** | external/financial/korea-stock-analyzer-mcp | heads/main | Integrated submodule. |
+| **mcp** | external/financial/mcp | heads/main | Integrated submodule. |
+| **mcp-audiense-insights** | external/financial/mcp-audiense-insights | heads/main | Integrated submodule. |
+| **mcp-server** | external/financial/mcp-server | heads/main | Integrated submodule. |
+| **octagon-13f-holdings-mcp** | external/financial/octagon-13f-holdings-mcp | heads/main | Integrated submodule. |
+| **octagon-financials-mcp** | external/financial/octagon-financials-mcp | heads/main | Integrated submodule. |
+| **octagon-funding-data-mcp** | external/financial/octagon-funding-data-mcp | heads/main | Integrated submodule. |
+| **octagon-investors-mcp** | external/financial/octagon-investors-mcp | heads/main | Integrated submodule. |
+| **octagon-mcp-server** | external/financial/octagon-mcp-server | heads/main | Integrated submodule. |
+| **octagon-private-companies-mcp** | external/financial/octagon-private-companies-mcp | heads/main | Integrated submodule. |
+| **octagon-sec-filings-mcp** | external/financial/octagon-sec-filings-mcp | heads/main | Integrated submodule. |
+| **octagon-stock-market-data-mcp** | external/financial/octagon-stock-market-data-mcp | heads/main | Integrated submodule. |
+| **octagon-transcripts-mcp** | external/financial/octagon-transcripts-mcp | heads/main | Integrated submodule. |
+| **octagon-vc-agents** | external/financial/octagon-vc-agents | heads/main | Integrated submodule. |
+| **okx-mcp-playground** | external/financial/okx-mcp-playground | heads/main | Integrated submodule. |
+| **polymarket-mcp** | external/financial/polymarket-mcp | v0.2.0-10-g9660556 | Integrated submodule. |
+| **TAM-MCP-Server** | external/financial/TAM-MCP-Server | v1.0.1 | Integrated submodule. |
+| **trade-agent-mcp** | external/financial/trade-agent-mcp | heads/main | Integrated submodule. |
+| **uniswap-poolspy-mcp** | external/financial/uniswap-poolspy-mcp | heads/main | Integrated submodule. |
+| **uniswap-trader-mcp** | external/financial/uniswap-trader-mcp | heads/main | Integrated submodule. |
+| **upbit-mcp-server** | external/financial/upbit-mcp-server | heads/main | Integrated submodule. |
+| **Upsonic** | external/financial/Upsonic | v0.71.4-1-g78eada8 | Integrated submodule. |
+| **skills** | external/forks/bkircher/skills | heads/main | Integrated submodule. |
+| **mcp-server** | external/forks/finmap-org/mcp-server | v1.3.1-12-g18e11d7 | Integrated submodule. |
+| **mcp-server** | external/forks/paperinvest/mcp-server | heads/main | Integrated submodule. |
+| **gemini-cli-router** | external/forks/zhifac/gemini-cli-router | heads/main | Integrated submodule. |
+| **agent-lightning** | external/frameworks/agent-lightning | v0.3.0-9-g9864b8fb | Integrated submodule. |
+| **awesome-llm-apps** | external/frameworks/awesome-llm-apps | heads/main | Integrated submodule. |
+| **fastmcp** | external/frameworks/fastmcp | v3.0.0b1-77-g49707813 | Integrated submodule. |
+| **maestro** | external/frameworks/maestro | v0.15.0-RC-17-g2fcd03eb | Integrated submodule. |
+| **mcp-reasoner** | external/frameworks/mcp-reasoner | heads/main | Integrated submodule. |
+| **opencode-interpreter** | external/frameworks/opencode-interpreter | heads/main | Integrated submodule. |
+| **pi-mono** | external/frameworks/pi-mono | v0.0.2-2479-g81b8f9c0 | Integrated submodule. |
+| **polymcp** | external/frameworks/polymcp | heads/main | Integrated submodule. |
+| **ui-tars** | external/frameworks/ui-tars | @agent-infra/mcp-client@1.0.1-beta.10-784-g3f254968 | Integrated submodule. |
+| **jules-autopilot** | external/jules-autopilot | v0.2.5-157-geaafda4 | Integrated submodule. |
+| **awesome-ai-apps** | external/mcp-directories/awesome-ai-apps | heads/main | Integrated submodule. |
+| **awesome-mcp-servers** | external/mcp-directories/awesome-mcp-servers | heads/main | Integrated submodule. |
+| **metamcp** | external/mcp-directories/metamcp | v2.4.22-65-g324102e | Integrated submodule. |
+| **toolsdk-mcp-registry** | external/mcp-directories/toolsdk-mcp-registry | heads/main | Integrated submodule. |
+| **mcp-servers-official** | external/mcp-servers-official | typescript-servers-0.6.2-3733-ge6b0b0f | Integrated submodule. |
+| **adk-js** | external/mcp-servers/adk-js | v0.2.2-37-g6aebd70 | Integrated submodule. |
+| **agent-console** | external/mcp-servers/agent-console | heads/main | Integrated submodule. |
+| **Andrew6rant** | external/mcp-servers/Andrew6rant | heads/main | Integrated submodule. |
+| **awesome-llm-services** | external/mcp-servers/awesome-llm-services | heads/main | Integrated submodule. |
+| **bilgecan** | external/mcp-servers/bilgecan | v0.1.0-beta-3-g31ccb1d | Integrated submodule. |
+| **browser-tools-mcp** | external/mcp-servers/browser-tools-mcp | v1.2.0-9-g0befce3 | Integrated submodule. |
+| **chgpt-mcp-bridge** | external/mcp-servers/chgpt-mcp-bridge | heads/main | Integrated submodule. |
+| **claude-limitline** | external/mcp-servers/claude-limitline | v1.5.1 | Integrated submodule. |
+| **Claude-Matrix** | external/mcp-servers/Claude-Matrix | v2.2.1-6-g844b984 | Integrated submodule. |
+| **cloud-run-mcp** | external/mcp-servers/cloud-run-mcp | v1.4.0-59-g469d9ba | Integrated submodule. |
+| **combined-autonomous-coding** | external/mcp-servers/combined-autonomous-coding | v0.13.0-245-g0dc2e1d | Integrated submodule. |
+| **conductor** | external/mcp-servers/conductor | conductor-v0.2.0-7-gd4749d3 | Integrated submodule. |
+| **datacommons** | external/mcp-servers/datacommons | heads/main | Integrated submodule. |
+| **experiments** | external/mcp-servers/experiments | heads/main | Integrated submodule. |
+| **firebase** | external/mcp-servers/firebase | heads/main | Integrated submodule. |
+| **gcloud** | external/mcp-servers/gcloud | heads/main | Integrated submodule. |
+| **gnapsis** | external/mcp-servers/gnapsis | heads/main | Integrated submodule. |
+| **gpt-generals** | external/mcp-servers/gpt-generals | heads/main | Integrated submodule. |
+| **inframind** | external/mcp-servers/inframind | heads/main | Integrated submodule. |
+| **Jacck-mcp-reasoner** | external/mcp-servers/Jacck-mcp-reasoner | heads/main | Integrated submodule. |
+| **jules** | external/mcp-servers/jules | v0.1.0-3-g9f2fc14 | Integrated submodule. |
+| **LoCoDiff-bench** | external/mcp-servers/LoCoDiff-bench | heads/main | Integrated submodule. |
+| **Maestro** | external/mcp-servers/Maestro | v0.14.5-26-g9cf1b056 | Integrated submodule. |
+| **mcp** | external/mcp-servers/mcp | heads/main | Integrated submodule. |
+| **mcp_obsidian_notes** | external/mcp-servers/mcp_obsidian_notes | heads/master | Integrated submodule. |
+| **mcp-chrome** | external/mcp-servers/mcp-chrome | v0.0.6-117-gf48e717 | Integrated submodule. |
+| **mcp-toolbox** | external/mcp-servers/mcp-toolbox | 0.5.0 | Integrated submodule. |
+| **mcpo** | external/mcp-servers/mcpo | v0.0.19-2-g91e8f94 | Integrated submodule. |
+| **memora** | external/mcp-servers/memora | v0.2.16-51-geae45c0 | Integrated submodule. |
+| **memory-opensource** | external/mcp-servers/memory-opensource | v0.1.0-4-g4dfc7c0 | Integrated submodule. |
+| **mentat-template-js** | external/mcp-servers/mentat-template-js | heads/main | Integrated submodule. |
+| **MZaFaRM** | external/mcp-servers/MZaFaRM | heads/main | Integrated submodule. |
+| **nanobanana** | external/mcp-servers/nanobanana | v1.0.10 | Integrated submodule. |
+| **party** | external/mcp-servers/party | heads/main | Integrated submodule. |
+| **qa-party** | external/mcp-servers/qa-party | heads/main | Integrated submodule. |
+| **repo-visualizer** | external/mcp-servers/repo-visualizer | heads/main | Integrated submodule. |
+| **resterm** | external/mcp-servers/resterm | v0.21.1-10-gd44799d | Integrated submodule. |
+| **spice** | external/mcp-servers/spice | heads/main | Integrated submodule. |
+| **Tether-Chat** | external/mcp-servers/Tether-Chat | heads/main | Integrated submodule. |
+| **tiktoken** | external/mcp-servers/tiktoken | heads/main | Integrated submodule. |
+| **vertex** | external/mcp-servers/vertex | heads/main | Integrated submodule. |
+| **vertex-ai-creative-studio** | external/mcp-servers/vertex-ai-creative-studio | heads/main | Integrated submodule. |
+| **vscode** | external/mcp-servers/vscode | heads/main | Integrated submodule. |
+| **websocket-demo** | external/mcp-servers/websocket-demo | heads/main | Integrated submodule. |
+| **workspace** | external/mcp-servers/workspace | preview-2026-02-02-1-g07c9434 | Integrated submodule. |
+| **wot-mcp** | external/mcp-servers/wot-mcp | heads/main | Integrated submodule. |
+| **wot-mcp-cli** | external/mcp-servers/wot-mcp-cli | heads/main | Integrated submodule. |
+| **wot-mcp-examples** | external/mcp-servers/wot-mcp-examples | heads/main | Integrated submodule. |
+| **agent-mcp-gateway** | external/mcp-tooling/agent-mcp-gateway | v0.2.5 | Integrated submodule. |
+| **agents** | external/mcp-tooling/agents | @cloudflare/codemode@0.0.5-20-g1a11bc6 | Integrated submodule. |
+| **claude-lazy-loading** | external/mcp-tooling/claude-lazy-loading | heads/master | Integrated submodule. |
+| **code-executor-MCP** | external/mcp-tooling/code-executor-MCP | v1.0.4-2-g9421b82 | Integrated submodule. |
+| **code-mode** | external/mcp-tooling/code-mode | v1.0.6-30-g181f053 | Integrated submodule. |
+| **code-mode-toon** | external/mcp-tooling/code-mode-toon | v1.0.3-7-g6caaa2c | Integrated submodule. |
+| **codemode-unified** | external/mcp-tooling/codemode-unified | v0.2.0~14 | Integrated submodule. |
+| **hypertool-mcp** | external/mcp-tooling/hypertool-mcp | v0.0.46 | Integrated submodule. |
+| **lazy-mcp** | external/mcp-tooling/lazy-mcp | heads/main | Integrated submodule. |
+| **lootbox** | external/mcp-tooling/lootbox | heads/main | Integrated submodule. |
+| **mcp-funnel** | external/mcp-tooling/mcp-funnel | v0.0.5-251-g7ff977e | Integrated submodule. |
+| **mcp-gateway** | external/mcp-tooling/mcp-gateway | heads/main | Integrated submodule. |
+| **mcp-json-yaml-toml** | external/mcp-tooling/mcp-json-yaml-toml | v0.8.0 | Integrated submodule. |
+| **mcp-linker** | external/mcp-tooling/mcp-linker | v2.0.1-1-g89cea47 | Integrated submodule. |
+| **mcp-server-code-execution-mode** | external/mcp-tooling/mcp-server-code-execution-mode | heads/main | Integrated submodule. |
+| **mcp-tool-chainer** | external/mcp-tooling/mcp-tool-chainer | heads/main | Integrated submodule. |
+| **mcpm.sh** | external/mcp-tooling/mcpm.sh | v1.1.1-209-g44601b9 | Integrated submodule. |
+| **mcpproxy** | external/mcp-tooling/mcpproxy | heads/main | Integrated submodule. |
+| **meta-mcp-proxy** | external/mcp-tooling/meta-mcp-proxy | heads/main | Integrated submodule. |
+| **ncp** | external/mcp-tooling/ncp | 2.0.1-10-g290845e | Integrated submodule. |
+| **opus_agents** | external/mcp-tooling/opus_agents | heads/main | Integrated submodule. |
+| **pctx** | external/mcp-tooling/pctx | pctx_code_mode-v0.2.2-1-g4b413be | Integrated submodule. |
+| **pluggedin-mcp** | external/mcp-tooling/pluggedin-mcp | v1.12.5 | Integrated submodule. |
+| **Polymcp** | external/mcp-tooling/Polymcp | heads/main | Integrated submodule. |
+| **programmatic-tool-calling-ai-sdk** | external/mcp-tooling/programmatic-tool-calling-ai-sdk | heads/main | Integrated submodule. |
+| **smolagents** | external/mcp-tooling/smolagents | v1.0.0-892-gd977b06 | Integrated submodule. |
+| **Switchboard** | external/mcp-tooling/Switchboard | v0.1.5~12 | Integrated submodule. |
+| **ToolRAG** | external/mcp-tooling/ToolRAG | heads/main | Integrated submodule. |
+| **toolscript** | external/mcp-tooling/toolscript | v1.2.1 | Integrated submodule. |
+| **utcp-mcp** | external/mcp-tooling/utcp-mcp | heads/main | Integrated submodule. |
+| **zypher-agent** | external/mcp-tooling/zypher-agent | agent/v0.9.3-8-g1b319c6 | Integrated submodule. |
+| **automem** | external/memory/automem | v0.9.3-52-gad9500f | Integrated submodule. |
+| **awesome-pieces** | external/memory/awesome-pieces | heads/main | Integrated submodule. |
+| **beads** | external/memory/beads | v0.49.3-3-gc2f3d46e | Integrated submodule. |
+| **beads_viewer** | external/memory/beads_viewer | v0.14.0-4-ge05901b | Integrated submodule. |
+| **chroma** | external/memory/chroma | 0.0.2-3923-gedb189187 | Integrated submodule. |
+| **cipher** | external/memory/cipher | v0.3.0-80-g8155225 | Integrated submodule. |
+| **cli-agent** | external/memory/cli-agent | v0.0.13-1230-g78a752d | Integrated submodule. |
+| **cognee** | external/memory/cognee | v0.5.0.dev0-257-g2cef47e0 | Integrated submodule. |
+| **Context-Engine** | external/memory/Context-Engine | heads/main | Integrated submodule. |
+| **context-portal** | external/memory/context-portal | v0.3.8-14-g18bde46 | Integrated submodule. |
+| **core** | external/memory/core | 0.3.0-1-gd8cd4a3 | Integrated submodule. |
+| **hindsight** | external/memory/hindsight | v0.4.7-7-g3825506 | Integrated submodule. |
+| **jean-memory** | external/memory/jean-memory | backup-before-oauth-nuclear-fix-548-gaac8e748 | Integrated submodule. |
+| **langmem** | external/memory/langmem | heads/main | Integrated submodule. |
+| **letta** | external/memory/letta | 0.1.15-6673-g65dbd7fd8 | Integrated submodule. |
+| **letta-code** | external/memory/letta-code | v0.14.7-6-gb9eaaa1 | Integrated submodule. |
+| **lifecontext** | external/memory/lifecontext | 0.1.0 | Integrated submodule. |
+| **Long-Term-Memory-API** | external/memory/Long-Term-Memory-API | V1.0.0-11-g00a7119 | Integrated submodule. |
+| **mcp-automem** | external/memory/mcp-automem | v0.9.0-51-gc8b05f7 | Integrated submodule. |
+| **mcp-memory-service** | external/memory/mcp-memory-service | v10.4.2-90-g14f9ffb | Integrated submodule. |
+| **mcp-server-qdrant** | external/memory/mcp-server-qdrant | v0.8.0-4-g860ab93 | Integrated submodule. |
+| **mem0** | external/memory/mem0 | v1.0.2-2-g70baa46c | Integrated submodule. |
+| **memai** | external/memory/memai | v1.3.2-2-g480552f | Integrated submodule. |
+| **MemMachine** | external/memory/MemMachine | v0.2.6 | Integrated submodule. |
+| **Memori** | external/memory/Memori | v3.1.6-7-g7e45217 | Integrated submodule. |
+| **MemoryOS** | external/memory/MemoryOS | V1.2-28-gd7a5462 | Integrated submodule. |
+| **memU** | external/memory/memU | v1.3.0-13-gee27d8a | Integrated submodule. |
+| **memvault-sync** | external/memory/memvault-sync | v1.0.1 | Integrated submodule. |
+| **Mimir** | external/memory/Mimir | v1.0.2-6-g01c0203 | Integrated submodule. |
+| **opencode-plugin-simple-memory** | external/memory/opencode-plugin-simple-memory | v0.0.1-11-g5ac3fb0 | Integrated submodule. |
+| **OpenMemory** | external/memory/OpenMemory | v1.3.0-21-g30daf78 | Integrated submodule. |
+| **qdrant** | external/memory/qdrant | heads/main | Integrated submodule. |
+| **roampal-core** | external/memory/roampal-core | v0.3.0-2-gd8984e1 | Integrated submodule. |
+| **sem-mem** | external/memory/sem-mem | heads/main | Integrated submodule. |
+| **servers** | external/memory/servers | typescript-servers-0.6.2-3733-ge6b0b0f | Integrated submodule. |
+| **supermemory** | external/memory/supermemory | heads/main | Integrated submodule. |
+| **supermemory-mcp** | external/memory/supermemory-mcp | heads/master | Integrated submodule. |
+| **txtai** | external/memory/txtai | v3.3.0-1446-g92461fe | Integrated submodule. |
+| **zep** | external/memory/zep | zep-crewai-v1.1.1-32-g4f170ca | Integrated submodule. |
+| **MetaMCP** | external/MetaMCP | v2.4.21-297-g8215dbf | Integrated submodule. |
+| **distcc-distcc** | external/misc/distcc-distcc | v3.4-150-gf4a7147 | Integrated submodule. |
+| **MaorBril-clauder** | external/misc/MaorBril-clauder | v0.7.2-10-g523b272 | Integrated submodule. |
+| **mikekelly-claude-sneakpeek** | external/misc/mikekelly-claude-sneakpeek | v1.6.10 | Integrated submodule. |
+| **nuwainfo-ffl-mcp** | external/misc/nuwainfo-ffl-mcp | heads/master | Integrated submodule. |
+| **openclaw** | external/misc/openclaw | v2026.1.10-3759-g7113dc21a | Integrated submodule. |
+| **sivanhavkin-Entelgia** | external/misc/sivanhavkin-Entelgia | V1.5-HOTFIX-59-gbd5ec56 | Integrated submodule. |
+| **sugaiketadao-sicore** | external/misc/sugaiketadao-sicore | heads/main | Integrated submodule. |
+| **tchebb-openwv** | external/misc/tchebb-openwv | v1.1.3-1-g4306a3c | Integrated submodule. |
+| **opencode-autopilot** | external/opencode-autopilot | heads/main | Integrated submodule. |
+| **A2A** | external/orchestration/A2A | v0.3.0-166-g6292104 | Integrated submodule. |
+| **a2a-main** | external/orchestration/a2a-main | v0.3.0-166-g6292104 | Integrated submodule. |
+| **a2a-ui** | external/orchestration/a2a-ui | heads/main | Integrated submodule. |
+| **ag-ui** | external/orchestration/ag-ui | heads/main | Integrated submodule. |
+| **ag-ui-protocol** | external/orchestration/ag-ui-protocol | heads/main | Integrated submodule. |
+| **agentdepot-agents** | external/orchestration/agentdepot-agents | heads/main | Integrated submodule. |
+| **agentic-playground** | external/orchestration/agentic-playground | heads/main | Integrated submodule. |
+| **agentic-ray** | external/orchestration/agentic-ray | heads/main | Integrated submodule. |
+| **codev** | external/orchestration/codev | v1.6.0-207-g959480a | Integrated submodule. |
+| **CopilotKit** | external/orchestration/CopilotKit | v1.51.3-22-g6b9c60e44 | Integrated submodule. |
+| **OpenHands** | external/orchestration/OpenHands | 0.22.0-2714-gb088d4857 | Integrated submodule. |
+| **PocketFlow-Tutorial-Cursor** | external/orchestration/PocketFlow-Tutorial-Cursor | heads/main | Integrated submodule. |
+| **promptflow** | external/orchestration/promptflow | heads/main | Integrated submodule. |
+| **pydantic-deepagents** | external/orchestration/pydantic-deepagents | 0.2.14-4-gf450c4f | Integrated submodule. |
+| **Self-Learning-Agents** | external/orchestration/Self-Learning-Agents | release-8-gca6c83a | Integrated submodule. |
+| **TaskSync** | external/orchestration/TaskSync | v2.0.12-1-gb6bacf8 | Integrated submodule. |
+| **tasksync-mcp** | external/orchestration/tasksync-mcp | heads/main | Integrated submodule. |
+| **vibeship-plugin** | external/plugins/vibeship/vibeship-plugin | heads/main | Integrated submodule. |
+| **llama_index** | external/rag/llama_index | v0.14.4-312-gcf8835bc8 | Integrated submodule. |
+| **mindsdb** | external/rag/mindsdb | v25.14.1-2-gc32f8619a | Integrated submodule. |
+| **PageIndex** | external/rag/PageIndex | heads/main | Integrated submodule. |
+| **vectorize-ui** | external/rag/vectorize-ui | heads/main | Integrated submodule. |
+| **WeKnora** | external/rag/WeKnora | v0.2.2-229-g9c57e11 | Integrated submodule. |
+| **kea-research** | external/research/kea-research | v0.2.0-1-g8a019f8 | Integrated submodule. |
+| **code-interpreter** | external/sandboxing/code-interpreter | @e2b/code-interpreter@2.3.3-9-gdad052e | Integrated submodule. |
+| **code-sandbox-mcp** | external/sandboxing/code-sandbox-mcp | v0.0.30 | Integrated submodule. |
+| **cohere-terrarium** | external/sandboxing/cohere-terrarium | heads/main | Integrated submodule. |
+| **microsandbox** | external/sandboxing/microsandbox | v0.1.0-74-g790ecd7 | Integrated submodule. |
+| **open-interpreter** | external/sandboxing/open-interpreter | v0.4.2-47-g681f5ce5 | Integrated submodule. |
+| **piston** | external/sandboxing/piston | pkgs-666-g1d55a41 | Integrated submodule. |
+| **piston-mcp** | external/sandboxing/piston-mcp | heads/main | Integrated submodule. |
+| **DesktopCommanderMCP** | external/search/DesktopCommanderMCP | v0.2.7-143-gfeb2a38 | Integrated submodule. |
+| **mcp-everything-search** | external/search/mcp-everything-search | v0.2.1-3-g0d46c1b | Integrated submodule. |
+| **web-search-mcp** | external/search/web-search-mcp | v0.3.2-2-geeb03f8 | Integrated submodule. |
+| **anthropic-skills** | external/skills_repos/anthropic-skills | heads/main | Integrated submodule. |
+| **bkircher-skills** | external/skills_repos/bkircher-skills | heads/main | Integrated submodule. |
+| **gemini-claude-skills** | external/skills_repos/gemini-claude-skills | heads/main | Integrated submodule. |
+| **humanizer** | external/skills_repos/humanizer | heads/main | Integrated submodule. |
+| **openai-skills** | external/skills_repos/openai-skills | heads/main | Integrated submodule. |
+| **TheNoeTrevino-dotfiles** | external/skills_repos/TheNoeTrevino-dotfiles | heads/main | Integrated submodule. |
+| **vibeship-spawner-skills** | external/skills_repos/vibeship/vibeship-spawner-skills | heads/main | Integrated submodule. |
+| **claude-code-tips** | external/skills/claude-code-tips | v0.19.3-43-g7d3b087 | Integrated submodule. |
+| **dotfiles** | external/skills/dotfiles | heads/main | Integrated submodule. |
+| **gemini-claude-skills** | external/skills/gemini-claude-skills | heads/main | Integrated submodule. |
+| **jkfran-killport** | external/skills/jkfran-killport | v1.1.0-3-g99e09ba | Integrated submodule. |
+| **joel-jeremy-emissary** | external/skills/joel-jeremy-emissary | 2.0.0-68-ge68c385 | Integrated submodule. |
+| **microsoft-dcp** | external/skills/microsoft-dcp | v0.21.0-24-g0da67d7 | Integrated submodule. |
+| **puemos-lareview** | external/skills/puemos-lareview | v0.0.28 | Integrated submodule. |
+| **skills** | external/skills/skills | heads/main | Integrated submodule. |
+| **ykdojo-claude-code-tips** | external/skills/ykdojo-claude-code-tips | v0.19.3-72-g5184a36 | Integrated submodule. |
+| **TheNoeTrevino-dotfiles** | external/TheNoeTrevino-dotfiles | heads/main | Integrated submodule. |
+| **claude-mem** | external/tools/claude-mem | v9.0.12-2-g1341e93f | Integrated submodule. |
+| **incidentfox** | external/tools/incidentfox | heads/main | Integrated submodule. |
+| **theme-context** | external/tools/theme-context | heads/main | Integrated submodule. |
+| **tokentap** | external/tools/tokentap | v0.1.0-6-g80e6e2a | Integrated submodule. |
+| **toolsdk-mcp-registry** | external/toolsdk-mcp-registry | heads/main | Integrated submodule. |
+| **openwork** | external/ui/openwork | v0.3.2-358-g29b70f8 | Integrated submodule. |
+| **ableton-mcp** | external/unsorted/ableton-mcp | heads/main | Integrated submodule. |
+| **ableton-xml-analysis** | external/unsorted/ableton-xml-analysis | heads/dev | Integrated submodule. |
+| **advanced-tools** | external/unsorted/advanced-tools | heads/main | Integrated submodule. |
+| **agent-of-empires** | external/unsorted/agent-of-empires | v0.11.0-32-g0fa377c | Integrated submodule. |
+| **agent-pr-replay** | external/unsorted/agent-pr-replay | heads/main | Integrated submodule. |
+| **agentapi** | external/unsorted/agentapi | v0.11.8-2-g2ab7a0b | Integrated submodule. |
+| **agentexport** | external/unsorted/agentexport | v0.3.1 | Integrated submodule. |
+| **agentic** | external/unsorted/agentic | v0.1.9-2-g3a39153 | Integrated submodule. |
+| **agentic-starter-cli** | external/unsorted/agentic-starter-cli | heads/main | Integrated submodule. |
+| **ai-gateway-kit** | external/unsorted/ai-gateway-kit | heads/main | Integrated submodule. |
+| **ai-maestro** | external/unsorted/ai-maestro | v0.17.3-255-ga770f6a | Integrated submodule. |
+| **ai-sdk-provider-opencode-sdk** | external/unsorted/ai-sdk-provider-opencode-sdk | v1.0.0 | Integrated submodule. |
+| **alpasim** | external/unsorted/alpasim | heads/main | Integrated submodule. |
+| **Auditor** | external/unsorted/Auditor | 2.0.4rc1-3-gb4948ab8 | Integrated submodule. |
+| **awesome-ai-tools-for-game-dev** | external/unsorted/awesome-ai-tools-for-game-dev | heads/main | Integrated submodule. |
+| **awesome-claude-skills** | external/unsorted/awesome-claude-skills | heads/master | Integrated submodule. |
+| **awesome-llm-apps** | external/unsorted/awesome-llm-apps | heads/main | Integrated submodule. |
+| **awesome-mcp-servers** | external/unsorted/awesome-mcp-servers | heads/main | Integrated submodule. |
+| **awesome-obsidian** | external/unsorted/awesome-obsidian | heads/master | Integrated submodule. |
+| **basic-memory** | external/unsorted/basic-memory | v0.17.1-66-g8072449 | Integrated submodule. |
+| **bitwig-mcp-server** | external/unsorted/bitwig-mcp-server | heads/main | Integrated submodule. |
+| **bonsai** | external/unsorted/bonsai | v2.0.0-alpha-rc8-4-g1aadf3dd | Integrated submodule. |
+| **boxlite** | external/unsorted/boxlite | v0.5.8-13-g92eab3f | Integrated submodule. |
+| **brainkernel** | external/unsorted/brainkernel | heads/main | Integrated submodule. |
+| **browser-use** | external/unsorted/browser-use | 0.11.7-12-g6abac049 | Integrated submodule. |
+| **call-me** | external/unsorted/call-me | heads/main | Integrated submodule. |
+| **captive-wifi-tool** | external/unsorted/captive-wifi-tool | heads/main | Integrated submodule. |
+| **ccrider** | external/unsorted/ccrider | v0.10.0 | Integrated submodule. |
+| **Charm** | external/unsorted/Charm | heads/main | Integrated submodule. |
+| **Chatterbox-TTS-Server** | external/unsorted/Chatterbox-TTS-Server | v1.0.0-44-g86567ea | Integrated submodule. |
+| **claude-bootstrap** | external/unsorted/claude-bootstrap | heads/main | Integrated submodule. |
+| **claude-code-gh-dash** | external/unsorted/claude-code-gh-dash | heads/master | Integrated submodule. |
+| **claude-code-tools** | external/unsorted/claude-code-tools | v1.10.0-19-g72ba02b | Integrated submodule. |
+| **claude-squad** | external/unsorted/claude-squad | v1.0.10-11-g9d7ca2d | Integrated submodule. |
+| **claudex** | external/unsorted/claudex | heads/main | Integrated submodule. |
+| **clifm** | external/unsorted/clifm | v1.27.1-114-g3a9299df | Integrated submodule. |
+| **CLIProxyAPIPlus** | external/unsorted/CLIProxyAPIPlus | v6.7.42-0-131-g91841a55 | Integrated submodule. |
+| **cocoindex** | external/unsorted/cocoindex | v1.0.0-alpha.3-11-ge040f21b | Integrated submodule. |
+| **code-chunk** | external/unsorted/code-chunk | heads/main | Integrated submodule. |
+| **CodeMachine-CLI** | external/unsorted/CodeMachine-CLI | v0.7.0-157-g7443670 | Integrated submodule. |
+| **codex-as-mcp** | external/unsorted/codex-as-mcp | heads/main | Integrated submodule. |
+| **codex-container** | external/unsorted/codex-container | 1.5.0-19-g7a45b9b | Integrated submodule. |
+| **codex-kaioken** | external/unsorted/codex-kaioken | rust-v0.1.11-15-g22a2c14e | Integrated submodule. |
+| **codex-skills** | external/unsorted/codex-skills | heads/master | Integrated submodule. |
+| **comet-mcp** | external/unsorted/comet-mcp | heads/main | Integrated submodule. |
+| **ComfyUI-LTXVideo** | external/unsorted/ComfyUI-LTXVideo | heads/master | Integrated submodule. |
+| **computer-use-preview** | external/unsorted/computer-use-preview | heads/main | Integrated submodule. |
+| **consult-llm-mcp** | external/unsorted/consult-llm-mcp | v1.7.0 | Integrated submodule. |
+| **continue** | external/unsorted/continue | v0.9.194-vscode-15414-gca4497322 | Integrated submodule. |
+| **continuous-claude** | external/unsorted/continuous-claude | v0.21.0 | Integrated submodule. |
+| **cosmic-files** | external/unsorted/cosmic-files | epoch-1.0.4-9-g3c46135 | Integrated submodule. |
+| **Crystalline-Protocol** | external/unsorted/Crystalline-Protocol | heads/main | Integrated submodule. |
+| **dev-browser** | external/unsorted/dev-browser | v1.0.0-5-g66682fb | Integrated submodule. |
+| **dify** | external/unsorted/dify | 1.11.1-654-g491fa9923b | Integrated submodule. |
+| **documentation** | external/unsorted/documentation | heads/main | Integrated submodule. |
+| **Droid-CLI-Orchestrator** | external/unsorted/Droid-CLI-Orchestrator | heads/main | Integrated submodule. |
+| **droid-factory** | external/unsorted/droid-factory | heads/main | Integrated submodule. |
+| **fcvvdp** | external/unsorted/fcvvdp | 0.0.2 | Integrated submodule. |
+| **gastown** | external/unsorted/gastown | v0.5.0-170-ge2116bbd | Integrated submodule. |
+| **gemini-cli** | external/unsorted/gemini-cli | heads/main | Integrated submodule. |
+| **gemini-cli-mcp-openai-bridge** | external/unsorted/gemini-cli-mcp-openai-bridge | heads/main | Integrated submodule. |
+| **gomuxai** | external/unsorted/gomuxai | heads/main | Integrated submodule. |
+| **google-jules-mcp** | external/unsorted/google-jules-mcp | heads/main | Integrated submodule. |
+| **gopher-mcp** | external/unsorted/gopher-mcp | v0.1.0-20260128-162510 | Integrated submodule. |
+| **goto** | external/unsorted/goto | heads/main | Integrated submodule. |
+| **hello-agents** | external/unsorted/hello-agents | V1.0.0-269-g6ccd640 | Integrated submodule. |
+| **human-in-the-loop-nlp** | external/unsorted/human-in-the-loop-nlp | v0.1-5-g0eee83e | Integrated submodule. |
+| **ii-agent** | external/unsorted/ii-agent | v0.4-4-g682d077 | Integrated submodule. |
+| **incus-sandbox-sdk** | external/unsorted/incus-sandbox-sdk | heads/main | Integrated submodule. |
+| **infinite-chat** | external/unsorted/infinite-chat | heads/main | Integrated submodule. |
+| **install-mcp** | external/unsorted/install-mcp | v1.10.0-28-g4221ba8 | Integrated submodule. |
+| **interface** | external/unsorted/interface | beta-0.1.4 | Integrated submodule. |
+| **interpreter** | external/unsorted/interpreter | v2.2.1-64-g325478c | Integrated submodule. |
+| **investbuddy-mcp-server** | external/unsorted/investbuddy-mcp-server | heads/main | Integrated submodule. |
+| **jules-agent-sdk-python** | external/unsorted/jules-agent-sdk-python | heads/main | Integrated submodule. |
+| **jules-mcp-server** | external/unsorted/jules-mcp-server | v0.1.6 | Integrated submodule. |
+| **julie** | external/unsorted/julie | v1.2.0-4-g7925bdd | Integrated submodule. |
+| **khoj** | external/unsorted/khoj | 2.0.0-beta.24-3-g9cbf620e | Integrated submodule. |
+| **kreuzberg** | external/unsorted/kreuzberg | v4.0.5-4-ge68e72f5 | Integrated submodule. |
+| **langchain** | external/unsorted/langchain | langchain-tests==0.3.14-2412-gae5b50f37f | Integrated submodule. |
+| **lar** | external/unsorted/lar | v1.3.2-3-gd1f1772 | Integrated submodule. |
+| **lazy-mcp** | external/unsorted/lazy-mcp | v0.5.4-2-ga9928c8 | Integrated submodule. |
+| **lcpfs** | external/unsorted/lcpfs | heads/main | Integrated submodule. |
+| **Lean** | external/unsorted/Lean | v2.4.0.1-8566-g31e247689 | Integrated submodule. |
+| **learn-claude-code** | external/unsorted/learn-claude-code | heads/main | Integrated submodule. |
+| **liballocs** | external/unsorted/liballocs | default/master-1376-g91e2330 | Integrated submodule. |
+| **license-generator** | external/unsorted/license-generator | v0.4.1-2-g44bd264 | Integrated submodule. |
+| **linggen** | external/unsorted/linggen | 0.6.4 | Integrated submodule. |
+| **live** | external/unsorted/live | heads/main | Integrated submodule. |
+| **LlamaFactory** | external/unsorted/LlamaFactory | v0.9.4-40-gb53d7037 | Integrated submodule. |
+| **llm-bridge** | external/unsorted/llm-bridge | heads/main | Integrated submodule. |
+| **llm-council** | external/unsorted/llm-council | heads/master | Integrated submodule. |
+| **LLM-Providers** | external/unsorted/LLM-Providers | heads/main | Integrated submodule. |
+| **LLMRouter** | external/unsorted/LLMRouter | heads/main | Integrated submodule. |
+| **logicstamp-context** | external/unsorted/logicstamp-context | v0.3.2-35-ge95a7ed | Integrated submodule. |
+| **Lynkr** | external/unsorted/Lynkr | heads/main | Integrated submodule. |
+| **magg** | external/unsorted/magg | v0.10.1 | Integrated submodule. |
+| **mcp-chat-studio** | external/unsorted/mcp-chat-studio | heads/main | Integrated submodule. |
+| **MCP-Checklists** | external/unsorted/MCP-Checklists | heads/main | Integrated submodule. |
+| **mcp-cli** | external/unsorted/mcp-cli | v0.1.8-2-gd2d28bd | Integrated submodule. |
+| **mcp-reticle** | external/unsorted/mcp-reticle | v0.1.0-rc.7-4-g37b1517 | Integrated submodule. |
+| **mcp-tui-driver** | external/unsorted/mcp-tui-driver | heads/main | Integrated submodule. |
+| **mcp-tui-server** | external/unsorted/mcp-tui-server | heads/main | Integrated submodule. |
+| **MCP-Zero** | external/unsorted/MCP-Zero | heads/master | Integrated submodule. |
+| **mcpdir** | external/unsorted/mcpdir | heads/main | Integrated submodule. |
+| **mcphub** | external/unsorted/mcphub | v0.12.2-4-gd3e7e7c | Integrated submodule. |
+| **mcpproxy-go** | external/unsorted/mcpproxy-go | v0.17.1-2-gfa9ecf1 | Integrated submodule. |
+| **mcpr** | external/unsorted/mcpr | heads/main | Integrated submodule. |
+| **memex** | external/unsorted/memex | v0.2.7 | Integrated submodule. |
+| **memos** | external/unsorted/memos | v0.26.0-13-gcf0a285e | Integrated submodule. |
+| **memU** | external/unsorted/memU | v1.3.0-13-gee27d8a | Integrated submodule. |
+| **memvid** | external/unsorted/memvid | v2.0.131-155-gdf8723a | Integrated submodule. |
+| **MES-replacement** | external/unsorted/MES-replacement | heads/main | Integrated submodule. |
+| **metube** | external/unsorted/metube | 2026.02.01 | Integrated submodule. |
+| **misc-text** | external/unsorted/misc-text | heads/main | Integrated submodule. |
+| **Mole** | external/unsorted/Mole | V1.24.0-13-gc6e58c4 | Integrated submodule. |
+| **Mr.-Ranedeer-AI-Tutor** | external/unsorted/Mr.-Ranedeer-AI-Tutor | heads/main | Integrated submodule. |
+| **mux** | external/unsorted/mux | v0.15.2-42-gfa2608ad | Integrated submodule. |
+| **mystats** | external/unsorted/mystats | v1.2.2-26-g2ab3dc2 | Integrated submodule. |
+| **Mysti** | external/unsorted/Mysti | heads/main | Integrated submodule. |
+| **nanovg** | external/unsorted/nanovg | heads/master | Integrated submodule. |
+| **newsnow** | external/unsorted/newsnow | v0.0.39-2-g951241b | Integrated submodule. |
+| **notebooklm-kit** | external/unsorted/notebooklm-kit | v2.2.0-3-g3ced31e | Integrated submodule. |
+| **NoteDiscovery** | external/unsorted/NoteDiscovery | v0.15.4 | Integrated submodule. |
+| **nuclear** | external/unsorted/nuclear | v0.6.19-1283-gd55bd753 | Integrated submodule. |
+| **nucleus** | external/unsorted/nucleus | heads/main | Integrated submodule. |
+| **obsidian-releases** | external/unsorted/obsidian-releases | v1.11.5-49-g59784c12 | Integrated submodule. |
+| **OmniParser** | external/unsorted/OmniParser | v.2.0.1 | Integrated submodule. |
+| **open-skills** | external/unsorted/open-skills | heads/main | Integrated submodule. |
+| **open-webui** | external/unsorted/open-webui | v0.7.2 | Integrated submodule. |
+| **OpenAgents** | external/unsorted/OpenAgents | v0.7.1-8-gb41641c | Integrated submodule. |
+| **OpenBB** | external/unsorted/OpenBB | v4.6.0 | Integrated submodule. |
+| **openchamber** | external/unsorted/openchamber | v1.6.3 | Integrated submodule. |
+| **opencode-antigravity-auth** | external/unsorted/opencode-antigravity-auth | v1.4.4-beta.0-42-g28f46c2 | Integrated submodule. |
+| **opencode-dynamic-context-pruning** | external/unsorted/opencode-dynamic-context-pruning | v1.2.8-179-gc01cbf2 | Integrated submodule. |
+| **opencode-gemini-auth** | external/unsorted/opencode-gemini-auth | v1.3.10-2-g21d87aa | Integrated submodule. |
+| **opencode-google-antigravity-auth** | external/unsorted/opencode-google-antigravity-auth | v0.2.15 | Integrated submodule. |
+| **opencode-md-table-formatter** | external/unsorted/opencode-md-table-formatter | v0.0.3-3-g24b7ce2 | Integrated submodule. |
+| **opencode-morph-fast-apply** | external/unsorted/opencode-morph-fast-apply | v1.3.0-5-g4ba0d8f | Integrated submodule. |
+| **opencode-notificator** | external/unsorted/opencode-notificator | heads/main | Integrated submodule. |
+| **opencode-notifier** | external/unsorted/opencode-notifier | v0.1.14-1-gf8ef7b4 | Integrated submodule. |
+| **opencode-openai-codex-auth** | external/unsorted/opencode-openai-codex-auth | v4.2.0-14-gbec2ad6 | Integrated submodule. |
+| **opencode-plugin-template** | external/unsorted/opencode-plugin-template | heads/main | Integrated submodule. |
+| **opencode-plugins** | external/unsorted/opencode-plugins | opencode-plugin-copilot@0.0.6 | Integrated submodule. |
+| **opencode-pty** | external/unsorted/opencode-pty | v0.1.5 | Integrated submodule. |
+| **opencode-shell-strategy** | external/unsorted/opencode-shell-strategy | heads/trunk | Integrated submodule. |
+| **opencode-skillful** | external/unsorted/opencode-skillful | v1.2.3-6-g5f5e676 | Integrated submodule. |
+| **opencode-skills** | external/unsorted/opencode-skills | v0.0.2-43-g5579eff | Integrated submodule. |
+| **opencode-supermemory** | external/unsorted/opencode-supermemory | v2.0.1 | Integrated submodule. |
+| **opencode-type-inject** | external/unsorted/opencode-type-inject | @nick-vi/claude-type-inject-hook@1.1.1 | Integrated submodule. |
+| **opencode-wakatime** | external/unsorted/opencode-wakatime | v1.1.1-27-gff4d9b4 | Integrated submodule. |
+| **opencode-websearch-cited** | external/unsorted/opencode-websearch-cited | v1.2.0 | Integrated submodule. |
+| **openevolve** | external/unsorted/openevolve | v0.2.26 | Integrated submodule. |
+| **OpenHands** | external/unsorted/OpenHands | 0.22.0-2714-gb088d4857 | Integrated submodule. |
+| **OpenHands-CLI** | external/unsorted/OpenHands-CLI | heads/main | Integrated submodule. |
+| **pal-mcp-server** | external/unsorted/pal-mcp-server | v9.8.2-1-g7afc7c1 | Integrated submodule. |
+| **Personal_AI_Infrastructure** | external/unsorted/Personal_AI_Infrastructure | v0.7.0-282-gb16d708 | Integrated submodule. |
+| **pktai** | external/unsorted/pktai | heads/main | Integrated submodule. |
+| **playwriter** | external/unsorted/playwriter | playwriter@0.0.56-48-gec7ed4e | Integrated submodule. |
+| **pluggedin-app** | external/unsorted/pluggedin-app | v2.20.1-11-g5bc62777 | Integrated submodule. |
+| **portal** | external/unsorted/portal | cli-v0.1.25-2-g5b8bc9a | Integrated submodule. |
+| **postiz-app** | external/unsorted/postiz-app | v0.0.1-2174-g6d19fe45 | Integrated submodule. |
+| **promptflow** | external/unsorted/promptflow | v1.0.2-tools-1381-ga7ff42803 | Integrated submodule. |
+| **proofloop** | external/unsorted/proofloop | v1.0.2-10-g81d460d | Integrated submodule. |
+| **Puzld.ai** | external/unsorted/Puzld.ai | v0.1.9-82-gccbf0ea | Integrated submodule. |
+| **quartz** | external/unsorted/quartz | v4.5.2-43-gec00a40 | Integrated submodule. |
+| **quickadd** | external/unsorted/quickadd | 0.5.5-673-gbccc331 | Integrated submodule. |
+| **quivr** | external/unsorted/quivr | core-0.0.33-29-g947a78541 | Integrated submodule. |
+| **Qwen3** | external/unsorted/Qwen3 | heads/main | Integrated submodule. |
+| **ragflow** | external/unsorted/ragflow | nightly-152-g2e5a18602 | Integrated submodule. |
+| **reag** | external/unsorted/reag | heads/main | Integrated submodule. |
+| **refact** | external/unsorted/refact | server/v1.11.2-317-g3e63faca1 | Integrated submodule. |
+| **runtm-coding-agent-runtime-control-plane** | external/unsorted/runtm-coding-agent-runtime-control-plane | heads/main | Integrated submodule. |
+| **ryos** | external/unsorted/ryos | v1.0.1-1192-g00af4fea | Integrated submodule. |
+| **ryot** | external/unsorted/ryot | v10.2.0-1-gf4250895 | Integrated submodule. |
+| **selfhosted** | external/unsorted/selfhosted | heads/master | Integrated submodule. |
+| **showcode** | external/unsorted/showcode | heads/main | Integrated submodule. |
+| **siara** | external/unsorted/siara | heads/main | Integrated submodule. |
+| **siyuan** | external/unsorted/siyuan | v3.5.4 | Integrated submodule. |
+| **skills-supply** | external/unsorted/skills-supply | sk@0.2.4-3-g38b54f3 | Integrated submodule. |
+| **software-agent-sdk** | external/unsorted/software-agent-sdk | 1.0.0-457-geb74fa32 | Integrated submodule. |
+| **sopro** | external/unsorted/sopro | heads/main | Integrated submodule. |
+| **SpotiFLAC** | external/unsorted/SpotiFLAC | v7.0.7-4-gb74dec7 | Integrated submodule. |
+| **stabilize** | external/unsorted/stabilize | v0.15.7-2-g0ebcaf4 | Integrated submodule. |
+| **Star_Seeker_mcp** | external/unsorted/Star_Seeker_mcp | heads/main | Integrated submodule. |
+| **subtask2** | external/unsorted/subtask2 | heads/main | Integrated submodule. |
+| **Super-MCP** | external/unsorted/Super-MCP | heads/main | Integrated submodule. |
+| **Tess** | external/unsorted/Tess | 0.7.0-alpha.15 | Integrated submodule. |
+| **thesis** | external/unsorted/thesis | heads/main | Integrated submodule. |
+| **ticket** | external/unsorted/ticket | v0.3.1 | Integrated submodule. |
+| **TidGi-Desktop** | external/unsorted/TidGi-Desktop | v0.13.0-prerelease19-2-gb82379c5 | Integrated submodule. |
+| **Timeseal** | external/unsorted/Timeseal | v1.0.0-18-g6697afd | Integrated submodule. |
+| **tintcd** | external/unsorted/tintcd | heads/main | Integrated submodule. |
+| **TradingAgents** | external/unsorted/TradingAgents | v0.1.1-46-g13b826a | Integrated submodule. |
+| **trello-mcp-server** | external/unsorted/trello-mcp-server | heads/main | Integrated submodule. |
+| **triton-windowing** | external/unsorted/triton-windowing | heads/main | Integrated submodule. |
+| **tui4j** | external/unsorted/tui4j | v0.1.1-445-ge5f6156 | Integrated submodule. |
+| **turingmind-code-review** | external/unsorted/turingmind-code-review | heads/main | Integrated submodule. |
+| **universal-session-viewer** | external/unsorted/universal-session-viewer | v2.0.11 | Integrated submodule. |
+| **vibe-kanban** | external/unsorted/vibe-kanban | v0.1.1-20260202163010-2-gbd4b78e8 | Integrated submodule. |
+| **vibekit-nextjs-supabase** | external/unsorted/vibekit-nextjs-supabase | heads/main | Integrated submodule. |
+| **vibeproxy** | external/unsorted/vibeproxy | v1.8.73-1-g1515dbc | Integrated submodule. |
+| **vibesbench** | external/unsorted/vibesbench | heads/main | Integrated submodule. |
+| **vibesdk** | external/unsorted/vibesdk | v1.4.0-35-gebe25a6 | Integrated submodule. |
+| **vibeship-spawner-skills** | external/unsorted/vibeship-spawner-skills | heads/main | Integrated submodule. |
+| **vibora** | external/unsorted/vibora | v2.15.0 | Integrated submodule. |
+| **video_explainer** | external/unsorted/video_explainer | heads/main | Integrated submodule. |
+| **VideoRAG** | external/unsorted/VideoRAG | heads/main | Integrated submodule. |
+| **voicemode** | external/unsorted/voicemode | v8.1.0-14-gd272058 | Integrated submodule. |
+| **void** | external/unsorted/void | v1.3.4-11-g17e7a5b1 | Integrated submodule. |
+| **web-check** | external/unsorted/web-check | 1.0.0-142-gaac6121 | Integrated submodule. |
+| **webcli** | external/unsorted/webcli | v0.1.0-5-g411e35b | Integrated submodule. |
+| **whatthefile** | external/unsorted/whatthefile | v1.0.1 | Integrated submodule. |
+| **wip** | external/unsorted/wip | v0.1.12 | Integrated submodule. |
+| **witr** | external/unsorted/witr | v0.2.6-3-gce90dd2 | Integrated submodule. |
+| **workty** | external/unsorted/workty | v0.3.3 | Integrated submodule. |
+| **Xmas.JS** | external/unsorted/Xmas.JS | heads/master | Integrated submodule. |
+| **xpipe** | external/unsorted/xpipe | 20.3-18-g0769d219c | Integrated submodule. |
+| **yolobox** | external/unsorted/yolobox | v0.1.0-72-g002ed89 | Integrated submodule. |
+| **zapret-discord-youtube** | external/unsorted/zapret-discord-youtube | 1.9.3-24-g05bd8cf | Integrated submodule. |
+| **zeroshot** | external/unsorted/zeroshot | v5.4.0-3-gd8fd7e8 | Integrated submodule. |
+| **awesome-crypto-mcp** | financial/crypto/awesome-crypto-mcp | heads/main | Integrated submodule. |
+| **coingecko-mcp** | financial/crypto/coingecko-mcp | v2.5.0 | Integrated submodule. |
+| **coinstats-mcp** | financial/crypto/coinstats-mcp | heads/main | Integrated submodule. |
+| **alpha_vantage_mcp** | financial/mcp-servers/alpha_vantage_mcp | heads/main | Integrated submodule. |
+| **financial-datasets-mcp** | financial/mcp-servers/financial-datasets-mcp | heads/main | Integrated submodule. |
+| **octagon-mcp-server** | financial/mcp-servers/octagon-mcp-server | heads/main | Integrated submodule. |
+| **ai-hedge-fund** | financial/trading/ai-hedge-fund | heads/main | Integrated submodule. |
+| **trade-agent-mcp** | financial/trading/trade-agent-mcp | heads/main | Integrated submodule. |
+| **Kode-cli-2** | frameworks/Kode-cli-2 | heads/main | Integrated submodule. |
+| **agent-console** | mcp-dev-tools/agent-console | heads/main | Integrated submodule. |
+| **inspector** | mcp-dev-tools/inspector | v0.9.3-1159-ga7cfa685 | Integrated submodule. |
+| **mcp-gearbox** | mcp-dev-tools/mcp-gearbox | v0.2.0 | Integrated submodule. |
+| **mcp-gearbox-cli** | mcp-dev-tools/mcp-gearbox-cli | v0.0.15-2-g3f2c52b | Integrated submodule. |
+| **mcp-gearbox-js** | mcp-dev-tools/mcp-gearbox-js | heads/main | Integrated submodule. |
+| **mcp-router** | mcp-dev-tools/mcp-router | v0.6.2-5-ga213cd3 | Integrated submodule. |
+| **resterm** | mcp-dev-tools/resterm | v0.21.1-10-gd44799d | Integrated submodule. |
+| **lazy-mcp** | mcp-frameworks/lazy-mcp | v0.5.4-2-ga9928c8 | Integrated submodule. |
+| **mcp-use** | mcp-frameworks/mcp-use | @mcp-use/cli@2.5.6-124-g59030e97 | Integrated submodule. |
+| **Polymcp** | mcp-frameworks/Polymcp | heads/main | Integrated submodule. |
+| **Super-MCP** | mcp-frameworks/Super-MCP | heads/main | Integrated submodule. |
+| **awesome-ai-apps** | mcp-hubs/awesome-ai-apps | heads/main | Integrated submodule. |
+| **awesome-ai-apps-Arindam200** | mcp-hubs/awesome-ai-apps-Arindam200 | heads/main | Integrated submodule. |
+| **awesome-mcp-servers** | mcp-hubs/awesome-mcp-servers | heads/main | Integrated submodule. |
+| **awesome-mcp-servers-appcypher** | mcp-hubs/awesome-mcp-servers-appcypher | heads/main | Integrated submodule. |
+| **awesome-mcp-servers-punkpeye** | mcp-hubs/awesome-mcp-servers-punkpeye | heads/main | Integrated submodule. |
+| **awesome-mcp-servers-wong2** | mcp-hubs/awesome-mcp-servers-wong2 | heads/main | Integrated submodule. |
+| **mcphub** | mcp-hubs/mcphub | v0.12.2-4-gd3e7e7c | Integrated submodule. |
+| **metamcp** | mcp-hubs/metamcp | v2.4.22-44-g80344bb | Integrated submodule. |
+| **pluggedin-mcp** | mcp-hubs/pluggedin-mcp | v1.12.5 | Integrated submodule. |
+| **toolsdk-mcp-registry** | mcp-hubs/toolsdk-mcp-registry | heads/main | Integrated submodule. |
+| **toolsdk-mcp-registry-toolsdk-ai** | mcp-hubs/toolsdk-mcp-registry-toolsdk-ai | heads/main | Integrated submodule. |
+| **agent-mcp-gateway** | mcp-routers/agent-mcp-gateway | v0.2.5 | Integrated submodule. |
+| **mcp-proxy** | mcp-routers/mcp-proxy | v0.33.0-20-gd7b7c14 | Integrated submodule. |
+| **mcpproxy** | mcp-routers/mcpproxy | heads/main | Integrated submodule. |
+| **mcpproxy-go** | mcp-routers/mcpproxy-go | v0.17.1-2-gfa9ecf1 | Integrated submodule. |
+| **meta-mcp-proxy** | mcp-routers/meta-mcp-proxy | heads/main | Integrated submodule. |
+| **microsoft-mcp-gateway** | mcp-routers/microsoft-mcp-gateway | heads/main | Integrated submodule. |
+| **microsoft-mcp-gateway-2** | mcp-routers/microsoft-mcp-gateway-2 | heads/main | Integrated submodule. |
+| **ncp** | mcp-routers/ncp | 2.0.1-10-g290845e | Integrated submodule. |
+| **consult-llm-mcp** | mcp-servers/ai/consult-llm-mcp | v1.7.0 | Integrated submodule. |
+| **gemini-mcp-tool** | mcp-servers/ai/gemini-mcp-tool | v1.1.2-10-gef11fab | Integrated submodule. |
+| **mcp-server-deep-research** | mcp-servers/ai/mcp-server-deep-research | heads/main | Integrated submodule. |
+| **mcp-server-gemini** | mcp-servers/ai/mcp-server-gemini | heads/main | Integrated submodule. |
+| **mcp-zen** | mcp-servers/ai/mcp-zen | heads/main | Integrated submodule. |
+| **notebooklm-mcp** | mcp-servers/ai/notebooklm-mcp | v1.3.6-6-g5ba9714 | Integrated submodule. |
+| **algonius-browser** | mcp-servers/browser/algonius-browser | heads/master | Integrated submodule. |
+| **algonius-browser-2** | mcp-servers/browser/algonius-browser-2 | v0.2.0-94-gae03e6a | Integrated submodule. |
+| **algonius-browser-3** | mcp-servers/browser/algonius-browser-3 | heads/master | Integrated submodule. |
+| **algonius-browser-4** | mcp-servers/browser/algonius-browser-4 | heads/master | Integrated submodule. |
+| **chrome-devtools-mcp** | mcp-servers/browser/chrome-devtools-mcp | chrome-devtools-mcp-v0.15.1-35-g482a288 | Integrated submodule. |
+| **clickclickclick** | mcp-servers/browser/clickclickclick | heads/main | Integrated submodule. |
+| **computer-control-mcp** | mcp-servers/browser/computer-control-mcp | heads/main | Integrated submodule. |
+| **cua** | mcp-servers/browser/cua | lume-v0.2.69-1-g1b932bb | Integrated submodule. |
+| **fara** | mcp-servers/browser/fara | heads/main | Integrated submodule. |
+| **generalagents-python** | mcp-servers/browser/generalagents-python | v0.1.1 | Integrated submodule. |
+| **playwright-mcp** | mcp-servers/browser/playwright-mcp | v0.0.62-13-g167abba | Integrated submodule. |
+| **spark-mcp** | mcp-servers/browser/spark-mcp | heads/claude/bytebot-mcp-server-01EeujB7JsCc5NqfrnbWM2oQ | Integrated submodule. |
+| **ai-hedge-fund** | mcp-servers/financial/ai-hedge-fund | heads/main | Integrated submodule. |
+| **alpha_vantage_mcp** | mcp-servers/financial/alpha_vantage_mcp | heads/main | Integrated submodule. |
+| **binance-mcp-server** | mcp-servers/financial/binance-mcp-server | heads/main | Integrated submodule. |
+| **coingecko-typescript** | mcp-servers/financial/coingecko-typescript | v2.5.0 | Integrated submodule. |
+| **financial-datasets-mcp** | mcp-servers/financial/financial-datasets-mcp | heads/main | Integrated submodule. |
+| **octagon-mcp-server** | mcp-servers/financial/octagon-mcp-server | heads/main | Integrated submodule. |
+| **trade-agent-mcp** | mcp-servers/financial/trade-agent-mcp | heads/main | Integrated submodule. |
+| **Upsonic** | mcp-servers/financial/Upsonic | v0.71.4-1-g78eada8 | Integrated submodule. |
+| **youtube-video-summarizer-mcp** | mcp-servers/media/youtube-video-summarizer-mcp | heads/main | Integrated submodule. |
+| **chroma-mcp** | mcp-servers/memory/chroma-mcp | v0.2.0-14-g98ff675 | Integrated submodule. |
+| **mcp-context-forge** | mcp-servers/memory/mcp-context-forge | v1.0.0-BETA-2-145-g39b80a19 | Integrated submodule. |
+| **mcp-mem0** | mcp-servers/memory/mcp-mem0 | heads/main | Integrated submodule. |
+| **mem0-mcp** | mcp-servers/memory/mem0-mcp | heads/main | Integrated submodule. |
+| **vibememo** | mcp-servers/memory/vibememo | heads/main | Integrated submodule. |
+| **chgpt-mcp-bridge** | mcp-servers/misc/chgpt-mcp-bridge | heads/main | Integrated submodule. |
+| **wot-mcp** | mcp-servers/misc/wot-mcp | heads/main | Integrated submodule. |
+| **wot-mcp-cli** | mcp-servers/misc/wot-mcp-cli | heads/main | Integrated submodule. |
+| **wot-mcp-examples** | mcp-servers/misc/wot-mcp-examples | heads/main | Integrated submodule. |
+| **mcp-tool-chainer** | mcp-servers/orchestration/mcp-tool-chainer | heads/main | Integrated submodule. |
+| **vibe-check-mcp-server** | mcp-servers/oversight/vibe-check-mcp-server | v2.7.6-2-g3b94a24 | Integrated submodule. |
+| **DesktopCommanderMCP** | mcp-servers/search/DesktopCommanderMCP | v0.2.34-3-gfeb2a38 | Integrated submodule. |
+| **mcp-everything-search** | mcp-servers/search/mcp-everything-search | heads/main | Integrated submodule. |
+| **mindsdb** | mcp-servers/search/mindsdb | v25.14.1-2-gc32f8619a | Integrated submodule. |
+| **sourcerer-mcp** | mcp-servers/search/sourcerer-mcp | v0.5.5 | Integrated submodule. |
+| **web-search-mcp** | mcp-servers/search/web-search-mcp | heads/main | Integrated submodule. |
+| **lootbox** | mcp-tool-rag/lootbox | heads/main | Integrated submodule. |
+| **mcp-funnel** | mcp-tool-rag/mcp-funnel | heads/develop | Integrated submodule. |
+| **adk-js** | memory/adapters/adk-js | adk-v0.3.0 | Integrated submodule. |
+| **Claude-Matrix** | memory/Claude-Matrix | v2.2.1 | Integrated submodule. |
+| **mcp-obsidian-notes** | memory/mcp-obsidian-notes | heads/master | Integrated submodule. |
+| **mcp-obsidian-notes-2** | memory/mcp-obsidian-notes-2 | heads/master | Integrated submodule. |
+| **deepcontext-mcp** | memory/mcp-servers/deepcontext-mcp | heads/main | Integrated submodule. |
+| **mcp-automem** | memory/mcp-servers/mcp-automem | v0.10.0-6-gc8b05f7 | Integrated submodule. |
+| **mcp-memory-service** | memory/mcp-servers/mcp-memory-service | v10.4.2-90-g14f9ffb | Integrated submodule. |
+| **mcp-servers-official** | memory/mcp-servers/mcp-servers-official | typescript-servers-0.6.2-3747-g70c549b | Integrated submodule. |
+| **qdrant-mcp** | memory/mcp-servers/qdrant-mcp | v0.8.1 | Integrated submodule. |
+| **supermemory-mcp** | memory/mcp-servers/supermemory-mcp | heads/master | Integrated submodule. |
+| **memora** | memory/memora | v0.2.16-49-geae45c0 | Integrated submodule. |
+| **opencode-plugin-simple-memory** | memory/plugins/opencode-plugin-simple-memory | heads/main | Integrated submodule. |
+| **cognee** | memory/systems-refs/cognee | v0.5.0.dev0-257-g2cef47e0 | Integrated submodule. |
+| **letta** | memory/systems-refs/letta | 0.1.15-6673-g65dbd7fd8 | Integrated submodule. |
+| **txtai** | memory/systems-refs/txtai | v3.3.0-1446-g92461fe | Integrated submodule. |
+| **automem** | memory/systems/automem | heads/main | Integrated submodule. |
+| **beads** | memory/systems/beads | v0.49.3-3-gc2f3d46e | Integrated submodule. |
+| **beads_viewer** | memory/systems/beads_viewer | v0.14.0-4-ge05901b | Integrated submodule. |
+| **cipher** | memory/systems/cipher | heads/main | Integrated submodule. |
+| **Claude-Matrix** | memory/systems/Claude-Matrix | v2.2.1 | Integrated submodule. |
+| **code-to-tree** | memory/systems/code-to-tree | heads/master | Integrated submodule. |
+| **codebase-context** | memory/systems/codebase-context | v1.4.0-9-g10c9c71 | Integrated submodule. |
+| **CodeWeaver** | memory/systems/CodeWeaver | heads/main | Integrated submodule. |
+| **cognee** | memory/systems/cognee | heads/main | Integrated submodule. |
+| **Context-Engine** | memory/systems/Context-Engine | heads/main | Integrated submodule. |
+| **context-portal** | memory/systems/context-portal | heads/main | Integrated submodule. |
+| **hindsight** | memory/systems/hindsight | v0.4.7-7-g3825506 | Integrated submodule. |
+| **jean-memory** | memory/systems/jean-memory | heads/main | Integrated submodule. |
+| **langmem** | memory/systems/langmem | heads/main | Integrated submodule. |
+| **letta** | memory/systems/letta | 0.16.4 | Integrated submodule. |
+| **letta-code** | memory/systems/letta-code | v0.14.7-6-gb9eaaa1 | Integrated submodule. |
+| **lifecontext** | memory/systems/lifecontext | 0.1.0 | Integrated submodule. |
+| **Long-Term-Memory-API** | memory/systems/Long-Term-Memory-API | heads/main | Integrated submodule. |
+| **mem0** | memory/systems/mem0 | v1.0.2-2-g70baa46 | Integrated submodule. |
+| **memai** | memory/systems/memai | v1.3.2-2-g480552f | Integrated submodule. |
+| **MemMachine** | memory/systems/MemMachine | v0.2.6 | Integrated submodule. |
+| **Memori** | memory/systems/Memori | v3.1.6-8-g87b39b6 | Integrated submodule. |
+| **memory-opensource** | memory/systems/memory-opensource | v0.1.0-5-g558575e | Integrated submodule. |
+| **MemoryOS** | memory/systems/MemoryOS | heads/main | Integrated submodule. |
+| **memvault-sync** | memory/systems/memvault-sync | v1.0.1 | Integrated submodule. |
+| **Mimir** | memory/systems/Mimir | heads/main | Integrated submodule. |
+| **octocode** | memory/systems/octocode | heads/master | Integrated submodule. |
+| **OpenMemory** | memory/systems/OpenMemory | heads/main | Integrated submodule. |
+| **pieces-cli-agent** | memory/systems/pieces-cli-agent | 1.20.1.dev1 | Integrated submodule. |
+| **probe** | memory/systems/probe | v0.6.0-rc210 | Integrated submodule. |
+| **redplanethq-core** | memory/systems/redplanethq-core | 0.3.1 | Integrated submodule. |
+| **roampal-core** | memory/systems/roampal-core | v0.3.0-2-gd8984e1 | Integrated submodule. |
+| **sem-mem** | memory/systems/sem-mem | heads/main | Integrated submodule. |
+| **serena** | memory/systems/serena | v0.1.4-728-g764f26f | Integrated submodule. |
+| **supermemory** | memory/systems/supermemory | heads/main | Integrated submodule. |
+| **txtai** | memory/systems/txtai | v9.4.1-4-g92461fe | Integrated submodule. |
+| **zep** | memory/systems/zep | heads/main | Integrated submodule. |
+| **pgvector** | memory/vector-stores/pgvector | heads/master | Integrated submodule. |
+| **gpt-generals** | misc/abanteai/gpt-generals | heads/main | Integrated submodule. |
+| **mentat-template-js** | misc/abanteai/mentat-template-js | heads/main | Integrated submodule. |
+| **party** | misc/abanteai/party | heads/main | Integrated submodule. |
+| **repo-visualizer** | misc/abanteai/repo-visualizer | heads/main | Integrated submodule. |
+| **spice** | misc/abanteai/spice | heads/main | Integrated submodule. |
+| **tiktoken** | misc/abanteai/tiktoken | heads/main | Integrated submodule. |
+| **vscode** | misc/abanteai/vscode | heads/main | Integrated submodule. |
+| **websocket-demo** | misc/abanteai/websocket-demo | heads/main | Integrated submodule. |
+| **Andrew6rant** | misc/Andrew6rant | heads/main | Integrated submodule. |
+| **bilgecan** | misc/bilgecan | heads/main | Integrated submodule. |
+| **claude-limitline** | misc/claude-limitline | v1.5.1 | Integrated submodule. |
+| **cloud-run-mcp** | misc/gemini-extensions/cloud-run-mcp | v1.8.0-6-g623ef98 | Integrated submodule. |
+| **firebase** | misc/gemini-extensions/firebase | heads/main | Integrated submodule. |
+| **workspace** | misc/gemini-extensions/workspace | preview-2026-02-02 | Integrated submodule. |
+| **inframind** | misc/inframind | heads/main | Integrated submodule. |
+| **MZaFaRM** | misc/MZaFaRM | heads/main | Integrated submodule. |
+| **tether-chat** | misc/tether-chat | heads/main | Integrated submodule. |
+| **1d3eeb46ddfda5257c08744972e0fc4c** | multi-agent/1d3eeb46ddfda5257c08744972e0fc4c | heads/main | Integrated submodule. |
+| **A2A** | multi-agent/A2A | v0.3.0-166-g6292104 | Integrated submodule. |
+| **A2A-a2aproject** | multi-agent/A2A-a2aproject | v0.3.0-166-g6292104 | Integrated submodule. |
+| **a2a-main** | multi-agent/a2a-main | heads/main | Integrated submodule. |
+| **a2a-ui** | multi-agent/a2a-ui | heads/main | Integrated submodule. |
+| **ag-ui** | multi-agent/ag-ui | heads/main | Integrated submodule. |
+| **agentdepot-agents** | multi-agent/agentdepot-agents | heads/main | Integrated submodule. |
+| **agentdepot-agents-2** | multi-agent/agentdepot-agents-2 | heads/main | Integrated submodule. |
+| **agentic-playground** | multi-agent/agentic-playground | heads/main | Integrated submodule. |
+| **agentic-ray** | multi-agent/agentic-ray | heads/main | Integrated submodule. |
+| **agentic-ray-rayai-labs** | multi-agent/agentic-ray-rayai-labs | heads/main | Integrated submodule. |
+| **codev** | multi-agent/codev | v1.6.0-207-g959480a | Integrated submodule. |
+| **CopilotKit** | multi-agent/CopilotKit | v1.51.3-9-gfd9935047 | Integrated submodule. |
+| **langgraph** | multi-agent/langgraph | checkpointpostgres==3.0.4-1-g82f9c09b | Integrated submodule. |
+| **metamcp-robertpelloni** | multi-agent/metamcp-robertpelloni | v2.4.21-90-gc7ed2d8 | Integrated submodule. |
+| **OpenHands** | multi-agent/OpenHands | 0.22.0-2715-gd6c11fe51 | Integrated submodule. |
+| **opus-agents** | multi-agent/opus-agents | heads/main | Integrated submodule. |
+| **priyan-coder-multi-agent** | multi-agent/priyan-coder-multi-agent | heads/main | Integrated submodule. |
+| **pydantic-deepagents-2** | multi-agent/pydantic-deepagents-2 | 0.2.14 | Integrated submodule. |
+| **Self-Learning-Agents** | multi-agent/Self-Learning-Agents | release-8-gca6c83a | Integrated submodule. |
+| **TaskSync** | multi-agent/TaskSync | v2.0.12-1-gb6bacf8 | Integrated submodule. |
+| **TaskSync-4regab** | multi-agent/TaskSync-4regab | v2.0.12-1-gb6bacf8 | Integrated submodule. |
+| **tasksync-mcp** | multi-agent/tasksync-mcp | heads/main | Integrated submodule. |
+| **openevolve** | openevolve | v0.2.26-2-g41ff634 | Integrated submodule. |
+| **awesome-ai-apps** | packages/mcp-directory/general/awesome-ai-apps | heads/main | Integrated submodule. |
+| **awesome-mcp-servers** | packages/mcp-directory/general/awesome-mcp-servers | heads/main | Integrated submodule. |
+| **blog.md** | packages/mcp-directory/orchestration/blog.md | heads/main | Integrated submodule. |
+| **metamcp** | packages/mcp-directory/orchestration/metamcp | v2.4.21-295-gcf46a38 | Integrated submodule. |
+| **claude-code-tips** | packages/skills/claude-code-tips | v0.19.3-86-g4203f53 | Integrated submodule. |
+| **gemini-claude-skills** | packages/skills/gemini-claude-skills | heads/main | Integrated submodule. |
+| **skills** | packages/skills/skills | heads/main | Integrated submodule. |
+| **copilotkit** | reference/agent-ui/copilotkit | v1.51.3-9-gfd9935047 | Integrated submodule. |
+| **puppeteer** | reference/browser/puppeteer | puppeteer-core-v24.0.0-695-gf4c9feef997 | Integrated submodule. |
+| **aider** | reference/cli/aider | v0.86.2.dev-57-g4bf56b77 | Integrated submodule. |
+| **codebuff** | reference/cli/codebuff | v1.0.604-2-gd512e726e | Integrated submodule. |
+| **codex** | reference/cli/codex | rust-v0.0.2504301132-3043-gcbfd2a37c | Integrated submodule. |
+| **crush** | reference/cli/crush | v0.38.1-2-gb7e814a3 | Integrated submodule. |
+| **goose** | reference/cli/goose | ls-646-gca7a99a11 | Integrated submodule. |
+| **opencode** | reference/cli/opencode | latest-2133-g34384659f | Integrated submodule. |
+| **plandex** | reference/cli/plandex | cli/v2.2.1-3-ge2d77207 | Integrated submodule. |
+| **beads** | reference/context/beads | v0.49.3-7-ged71a9ab | Integrated submodule. |
+| **serena** | reference/indexing/serena | v0.1.4-732-g4dab291 | Integrated submodule. |
+| **mcp-tool-chainer** | reference/mcp/mcp-tool-chainer | heads/main | Integrated submodule. |
+| **metamcp** | reference/mcp/metamcp | v2.4.21-90-gc7ed2d8 | Integrated submodule. |
+| **letta** | reference/memory/letta | 0.1.15-6673-g65dbd7fd8 | Integrated submodule. |
+| **mem0** | reference/memory/mem0 | v1.0.2-2-g70baa46c | Integrated submodule. |
+| **supermemory** | reference/memory/supermemory | heads/main | Integrated submodule. |
+| **zep** | reference/memory/zep | zep-crewai-v1.1.1-32-g4f170ca | Integrated submodule. |
+| **crewai** | reference/orchestration/crewai | 1.9.1-15-g7590d4c6 | Integrated submodule. |
+| **langgraph** | reference/orchestration/langgraph | checkpointpostgres==3.0.4-1-g82f9c09b | Integrated submodule. |
+| **a2a** | reference/protocols/a2a | v0.3.0-166-g6292104 | Integrated submodule. |
+| **e2b** | reference/sandbox/e2b | @e2b/code-interpreter@2.3.3-6-g99b7d8c | Integrated submodule. |
+| **awesome-claude-code-plugins** | references/awesome-claude-code-plugins | heads/main | Integrated submodule. |
+| **awesome-claude-code-toolkit** | references/awesome-claude-code-toolkit | v0.1.0-6-g59009ad | Integrated submodule. |
+| **awesome-mcp-servers** | references/awesome-mcp-servers | heads/main | Integrated submodule. |
+| **claude_code-gemini-mcp** | references/claude_code-gemini-mcp | heads/main | Integrated submodule. |
+| **gemini-mcp-r-labs** | references/gemini-mcp-r-labs | heads/main | Integrated submodule. |
+| **MCP-Zero** | research/MCP-Zero | heads/master | Integrated submodule. |
+| **OpenCoder-llm** | research/OpenCoder-llm | heads/main | Integrated submodule. |
+| **web-search-mcp** | search/mcp-servers/web-search-mcp | v0.3.2-2-geeb03f8 | Integrated submodule. |
+| **anthropics-skills** | skills/anthropics-skills | heads/main | Integrated submodule. |
+| **bkircher-skills** | skills/bkircher-skills | heads/main | Integrated submodule. |
+| **claude-code-tips** | skills/claude-code-tips | v0.19.3-43-g7d3b087 | Integrated submodule. |
+| **ensue-skill** | skills/external/ensue-skill | heads/main | Integrated submodule. |
+| **gemini-claude-skills** | skills/gemini-claude-skills | heads/main | Integrated submodule. |
+| **anthropic-quickstarts** | skills/prompts/anthropic-quickstarts | heads/main | Integrated submodule. |
+| **skills-bkircher** | skills/refs/skills-bkircher | heads/main | Integrated submodule. |
+| **skills-openai** | skills/skills-openai | heads/main | Integrated submodule. |
+| **ykdojo-claude-code-tips** | skills/ykdojo-claude-code-tips | v0.19.3-43-g7d3b087 | Integrated submodule. |
+| **agent-client-protocol** | submodules/agent-client-protocol | v0.10.7-43-g2f15228 | Integrated submodule. |
+| **Agent-MCP** | submodules/Agent-MCP | v4.20.0-19-g13d98b2c | Integrated submodule. |
+| **agentmux** | submodules/agentmux | heads/main | Integrated submodule. |
+| **ai-that-works** | submodules/ai-that-works | heads/main | Integrated submodule. |
+| **aichat** | submodules/aichat | v0.30.0-27-g0493134 | Integrated submodule. |
+| **Auditor** | submodules/Auditor | 2.0.4rc1-3-gb4948ab8 | Integrated submodule. |
+| **browser-use** | submodules/browser-use | 0.11.7-12-g6abac049 | Integrated submodule. |
+| **claude-code** | submodules/claude-code | v2.1.29 | Integrated submodule. |
+| **claude-squad** | submodules/claude-squad | v1.0.10-11-g9d7ca2d | Integrated submodule. |
+| **claudex** | submodules/claudex | heads/main | Integrated submodule. |
+| **CLIProxyAPI** | submodules/CLIProxyAPI | v6.7.42 | Integrated submodule. |
+| **code-conductor** | submodules/code-conductor | v0.1.3-14-g4a7aa0c | Integrated submodule. |
+| **copilot-cli** | submodules/copilot-cli | v0.0.401-0 | Integrated submodule. |
+| **emdash** | submodules/emdash | v0.3.39-2-g8ce8228c | Integrated submodule. |
+| **gemini-bridge** | submodules/gemini-bridge | v1.1-1-ge139cf5 | Integrated submodule. |
+| **jules-agent-sdk-python** | submodules/jules-agent-sdk-python | heads/main | Integrated submodule. |
+| **jules-app** | submodules/jules-app | v0.2.5-123-g5799a35 | Integrated submodule. |
+| **mcp-manager** | submodules/mcp-manager | heads/main | Integrated submodule. |
+| **mcp-reticle** | submodules/mcp-reticle | v0.1.0-rc.7-4-g37b1517 | Integrated submodule. |
+| **mcp-shark** | submodules/mcp-shark | v1.5.12-3-g5c212d4 | Integrated submodule. |
+| **mcpc** | submodules/mcpc | v0.1.8-2-gd2d28bd | Integrated submodule. |
+| **mcpenetes** | submodules/mcpenetes | v1.0.3-55-gf0fd60e | Integrated submodule. |
+| **opencode-autopilot** | submodules/opencode-autopilot | heads/main | Integrated submodule. |
+| **pctx** | submodules/pctx | pctx_code_mode-v0.2.2-1-g4b413be | Integrated submodule. |
+| **plandex** | submodules/plandex | cli/v2.2.1-3-ge2d77207 | Integrated submodule. |
+| **PowerTrader_AI** | submodules/PowerTrader_AI | heads/main | Integrated submodule. |
+| **Puzld.ai** | submodules/Puzld.ai | v0.1.9-82-gccbf0ea | Integrated submodule. |
+| **quotio** | submodules/quotio | v0.7.10-1-gfcfdecd | Integrated submodule. |
+| **reag** | submodules/reag | heads/main | Integrated submodule. |
+| **software-agent-sdk** | submodules/software-agent-sdk | 1.0.0-401-gbc7ea211 | Integrated submodule. |
+| **Unified-MCP-Tool-Graph** | submodules/Unified-MCP-Tool-Graph | heads/main | Integrated submodule. |
+| **vibe-kanban** | submodules/vibe-kanban | v0.1.1-20260202163010-3-g5929647a | Integrated submodule. |
+| **Windows-MCP** | submodules/Windows-MCP | v0.6.0-11-gc4cf8f9 | Integrated submodule. |
+| **crewai** | superai-cli/agents/crewai | 1.9.1-13-g96bde45 | Integrated submodule. |
+| **langgraph** | superai-cli/agents/langgraph | checkpointpostgres==3.0.4-1-g82f9c09 | Integrated submodule. |
+| **openhands** | superai-cli/agents/openhands | heads/main | Integrated submodule. |
+| **fabric** | superai-cli/clis-refs/fabric | v1.4.13-2086-g9ab45a25 | Integrated submodule. |
+| **gemini-cli** | superai-cli/clis-refs/gemini-cli | MK_TAG_TEST-3216-gc5d0fc2c3 | Integrated submodule. |
+| **goose** | superai-cli/clis-refs/goose | ls-640-ga9f4b2d637 | Integrated submodule. |
+| **grok-cli** | superai-cli/clis-refs/grok-cli | @vibe-kit/grok-cli@0.0.34 | Integrated submodule. |
+| **kilocode** | superai-cli/clis-refs/kilocode | v5.2.2-20-g7f8db21fcc | Integrated submodule. |
+| **claude-code-madapp** | superai-cli/clis/claude-code-madapp | tools/claudeup/v3.3.0-12-gbea99ea | Integrated submodule. |
+| **codebuff** | superai-cli/clis/codebuff | v1.0.603-18-ga6da1f4 | Integrated submodule. |
+| **CodeNomad** | superai-cli/clis/CodeNomad | v0.9.3-19-gba0898b | Integrated submodule. |
+| **codex-kaioken** | superai-cli/clis/codex-kaioken | rust-v0.1.11-15-g22a2c14e | Integrated submodule. |
+| **kimi-cli** | superai-cli/clis/kimi-cli | 1.6 | Integrated submodule. |
+| **gemini-superclaude-mcp-server** | superai-cli/extensions/gemini-superclaude-mcp-server | 2.0.2 | Integrated submodule. |
+| **SuperClaude_Framework** | superai-cli/harnesses/SuperClaude_Framework | v4.0.7-144-gad6b2e9 | Integrated submodule. |
+| **anthropic-tools** | superai-cli/mcp-advanced/anthropic-tools | heads/main | Integrated submodule. |
+| **awesome-mcp-servers** | superai-cli/mcp-advanced/awesome-mcp-servers | heads/main | Integrated submodule. |
+| **mcp-servers** | superai-cli/mcp-advanced/mcp-servers | heads/main | Integrated submodule. |
+| **ccproxy** | superai-cli/proxies/ccproxy | v1.2.0-10-g4d977b3 | Integrated submodule. |
+| **gemini-openai-proxy-2** | superai-cli/proxies/gemini-openai-proxy-2 | v0.14.2-30-g0e0e9ba | Integrated submodule. |
+| **gemini-openai-proxy-zhu** | superai-cli/proxies/gemini-openai-proxy-zhu | heads/main | Integrated submodule. |
+| **gemini-openai-proxy-zuisong** | superai-cli/proxies/gemini-openai-proxy-zuisong | v0.14.2-30-g0e0e9ba | Integrated submodule. |
+| **openai-gemini** | superai-cli/proxies/openai-gemini | gemini-2.0-flash-thinking-exp-47-g61a83bd | Integrated submodule. |
+| **openai-gemini-2** | superai-cli/proxies/openai-gemini-2 | gemini-2.0-flash-thinking-exp-47-g61a83bd | Integrated submodule. |
+| **vercel-ai-proxy** | superai-cli/proxies/vercel-ai-proxy | heads/main | Integrated submodule. |
+| **gemini-cli-router** | superai-cli/routers/gemini-cli-router | heads/main | Integrated submodule. |
+| **gemini-router** | superai-cli/routers/gemini-router | heads/main | Integrated submodule. |
+| **GoogleGeminiRouter** | superai-cli/routers/GoogleGeminiRouter | heads/master | Integrated submodule. |
+| **cc-switch** | superai-cli/tools/cc-switch | v3.10.1-48-gf0e8ba1 | Integrated submodule. |
+| **cc-switch-cli** | superai-cli/tools/cc-switch-cli | v4.5.0 | Integrated submodule. |
+| **ccs** | superai-cli/tools/ccs | v5.0.0-1449-gbe63056 | Integrated submodule. |
+| **code-assistant-manager** | superai-cli/tools/code-assistant-manager | 1.3.0-13-g51b49e9 | Integrated submodule. |
+| **convx** | superai-cli/tools/convx | heads/main | Integrated submodule. |
+| **cupcake** | superai-cli/tools/cupcake | v0.5.2 | Integrated submodule. |
+| **gomuxai** | superai-cli/tools/gomuxai | heads/main | Integrated submodule. |
+| **lunaroute** | superai-cli/tools/lunaroute | v0.1.9-19-g4e3eafe | Integrated submodule. |
+| **Lynkr** | superai-cli/tools/Lynkr | heads/main | Integrated submodule. |
+| **occtx** | superai-cli/tools/occtx | v0.1.0 | Integrated submodule. |
+| **poe-code** | superai-cli/tools/poe-code | v3.0.12-270-ga643660 | Integrated submodule. |
+| **splitrail** | superai-cli/tools/splitrail | v3.3.1 | Integrated submodule. |
+| **agentic-qe** | testing/agentic-qe | v3.3.4-12-ge7145be2 | Integrated submodule. |
+| **claude-code-gh-dash** | tools/github/claude-code-gh-dash | heads/master | Integrated submodule. |
+| **vibeship-idearater** | tools/misc/vibeship-idearater | heads/main | Integrated submodule. |
+| **pluggedin-app** | tools/refs/pluggedin-app | v2.20.1-11-g5bc62777 | Integrated submodule. |
+| **claude-code-safety-net** | tools/security/claude-code-safety-net | v0.3.0-228-g82f676b | Integrated submodule. |
+| **vibeship-scanner** | tools/security/vibeship-scanner | heads/main | Integrated submodule. |
+| **vibeship-spawner-skills** | vibeship-spawner-skills | heads/main | Integrated submodule. |
 
-## Autonomous Agents (3)
+## Directory Structure
 
-| Name | Path | Version/Commit | Description |
-|------|------|----------------|-------------|
-| **pydantic-ai** | `agents/refs/pydantic-ai` | `f4c52ad` <br> *((v0.0.6a4-1542-gf4c52ad0))* | <div align="center"> |
-| **smolagents** | `agents/refs/smolagents` | `d977b06` <br> *((v1.0.0-892-gd977b06))* | Copyright 2024 The HuggingFace Team. All rights reserved. |
-| **workty** | `agents/workty` | `5900554` <br> *((v0.1.0-6-g5900554))* | I got mass-context-switching burnout. Every `git stash` felt like shoving clothes under the bed before guests arrive. WIP commits? "WIP: stuff" clutte... |
-
-## Computer Use (3)
-
-| Name | Path | Version/Commit | Description |
-|------|------|----------------|-------------|
-| **claude-quickstarts** | `computer-use/examples/claude-quickstarts` | `4b2549e` <br> *((heads/main))* | Claude Quickstarts is a collection of projects designed to help developers quickly get started with building  applications using the Claude API. Each ... |
-| **cua** | `computer-use/desktop/cua` | `1b932bb` <br> *((bench-v0.2.2-297-g1b932bbb))* | <div align="center"> |
-| **magentic-ui** | `computer-use/desktop/magentic-ui` | `edaed9a` <br> *((v0.1.6-7-gedaed9a))* | <div align="center"> |
-
-## Code Sandboxing (5)
-
-| Name | Path | Version/Commit | Description |
-|------|------|----------------|-------------|
-| **cohere-terrarium** | `code-sandbox/tools/cohere-terrarium` | `179d9cb` <br> *((heads/main))* | Terrarium is a relatively low latency, easy to use, and economical Python sandbox - to be used as a docker deployed container, for example in GCP Clou... |
-| **dagger** | `code-sandbox/runtimes/dagger` | `3e92868` <br> *((helm/chart/v0.19.10-51-g3e92868))* | Dagger is a platform for automating software delivery. It can build, test and ship any codebase, reliably and at scale. |
-| **e2b-code-interpreter** | `code-sandbox/tools/e2b-code-interpreter` | `618716e` <br> *((@e2b/code-interpreter@2.3.3-9-g618716e))* | <!-- <p align="center"> |
-| **open-interpreter** | `code-sandbox/tools/open-interpreter` | `681f5ce` <br> *((v0.4.2-47-g681f5ce5))* | <h1 align="center">● Open Interpreter</h1> |
-| **safeexec** | `code-sandbox/tools/safeexec` | `93b6729` <br> *((heads/main))* | **SafeExec** is a Bash-based safety layer that protects **Ubuntu/Debian servers**, **WSL**, and **macOS** from accidental (or hallucinated) destructiv... |
-
-## Code Indexing (3)
-
-| Name | Path | Version/Commit | Description |
-|------|------|----------------|-------------|
-| **ast-grep** | `code-indexing/ast/ast-grep` | `817ba62` <br> *((0.40.5-26-g817ba62))* | <p align=center> |
-| **bloop** | `code-indexing/tools/bloop` | `431e9e8` <br> *((heads/oss))* | <source media="(prefers-color-scheme: dark)" srcset="https://assets.bloop.ai/bloop_github_logo_dark.png"> |
-| **tree-sitter** | `code-indexing/ast/tree-sitter` | `eab567a` <br> *((heads/master))* | Tree-sitter is a parser generator tool and an incremental parsing library. It can build a concrete syntax tree for a source file and efficiently updat... |
-
-## External: Awesome (2)
-
-| Name | Path | Version/Commit | Description |
-|------|------|----------------|-------------|
-| **awesome-llm-apps** | `external/awesome/awesome-llm-apps` | `9529d00` <br> *((heads/main))* | <p align="center"> |
-| **Awesome-LLMOps** | `external/awesome/Awesome-LLMOps` | `e628643` <br> *((heads/main))* | <a href="https://discord.gg/KqswhpVgdU"><img alt="discord invitation link" src="https://img.shields.io/discord/974584200327991326?style=flat&logo=disc... |
-
-## External: Awesome-ai-apps (1)
-
-| Name | Path | Version/Commit | Description |
-|------|------|----------------|-------------|
-| **awesome-ai-apps** | `external/awesome-ai-apps` | `35a1f54` <br> *((heads/main))* | !Banner |
-
-## External: Awesome-mcp-servers (1)
-
-| Name | Path | Version/Commit | Description |
-|------|------|----------------|-------------|
-| **awesome-mcp-servers** | `external/awesome-mcp-servers` | `c73c513` <br> *((heads/main))* | > [!IMPORTANT] |
-
-## External: Awesome-mcp-servers-appcypher (1)
-
-| Name | Path | Version/Commit | Description |
-|------|------|----------------|-------------|
-| **awesome-mcp-servers-appcypher** | `external/awesome-mcp-servers-appcypher` | `187929a` <br> *((heads/main))* | A curated list of awesome Model Context Protocol (MCP) servers. MCP is an open protocol that enables AI models to securely interact with local and rem... |
-
-## External: Awesome-mcp-servers-wong2 (1)
-
-| Name | Path | Version/Commit | Description |
-|------|------|----------------|-------------|
-| **awesome-mcp-servers-wong2** | `external/awesome-mcp-servers-wong2` | `a4316c7` <br> *((heads/main))* | > We do not accept PRs. Please submit your MCP on the website: https://mcpservers.org/submit |
-
-## External: CLIs (53)
-
-| Name | Path | Version/Commit | Description |
-|------|------|----------------|-------------|
-| **aichat** | `external/clis/aichat` | `0493134` <br> *((v0.30.0-27-g0493134))* | AIChat is an all-in-one LLM CLI tool featuring Shell Assistant, CMD & REPL Mode, RAG, AI Tools & Agents, and More. |
-| **amp-examples-and-guides** | `external/clis/amp-examples-and-guides` | `435ffc0` <br> *((heads/main))* | This repository is intended to be supplemental to the Amp Manual. |
-| **amped** | `external/clis/amped` | `e415572` <br> *((v0.1.0))* | The missing account switcher for Amp |
-| **awesome-amp-code** | `external/clis/awesome-amp-code` | `cf06730` <br> *((heads/main))* | <!--lint ignore awesome-toc--> |
-| **awesome-copilot** | `external/clis/awesome-copilot` | `8da3194` <br> *((heads/main))* | A community created collection of custom agents, prompts, and instructions to supercharge your GitHub Copilot experience across different domains, lan... |
-| **awesome-opencode** | `external/clis/awesome-opencode` | `4fadff1` <br> *((heads/main))* | <!-- HEADER --> |
-| **cc-switch** | `external/clis/cc-switch` | `f0e8ba1` <br> *((v3.10.1-48-gf0e8ba1))* | <div align="center"> |
-| **cc-switch-cli** | `external/clis/cc-switch-cli` | `1716975` <br> *((v4.5.0))* | <div align="center"> |
-| **ccproxy** | `external/clis/ccproxy` | `4d977b3` <br> *((v1.2.0-10-g4d977b3))* | > Join starbased HQ for questions, sharing setups, and contributing to development. |
-| **ccs** | `external/clis/ccs` | `be63056` <br> *((v5.0.0-1449-gbe63056))* | <div align="center"> |
-| **claude-code** | `external/clis/claude-code` | `550d836` <br> *((tools/claudeup/v3.3.0))* | > **Battle-tested AI workflows from the top 1% of developers** |
-| **claude-code-mcp** | `external/clis/claude-code-mcp` | `24dfd38` <br> *((v1.10.9-5-g24dfd38))* | <img src="assets/claude_code_mcp_logo.png" alt="Claude Code MCP Logo"> |
-| **claude-code-openrouter** | `external/clis/claude-code-openrouter` | `c1a9710` <br> *((heads/main))* | Use external LLMs (Kimi, Grok, Gemini, GLM, GPT-5) directly from Claude Code by mentioning them in your prompts. |
-| **claude-code-router** | `external/clis/claude-code-router` | `c73fe0d` <br> *((v2.0.0-2-gc73fe0d))* | ![](blog/images/claude-code-router-img.png) |
-| **claude-code-scheduler** | `external/clis/claude-code-scheduler` | `f44464e` <br> *((heads/main))* | <p align="center"> |
-| **claude-hooks** | `external/clis/claude-hooks` | `335a123` <br> *((heads/main))* | https://github.com/user-attachments/assets/dbe1d10b-42f0-4a9a-a2e2-a00d7b776aa0 |
-| **claude-tools-mcp** | `external/clis/claude-tools-mcp` | `5615a91` <br> *((v0.1.0-1-g5615a91))* | An MCP (Model Context Protocol) server that exposes Claude Code's file and shell manipulation tools over HTTP, allowing any MCP client to use these to... |
-| **code** | `external/clis/code` | `5168082` <br> *((rust-v0.0.2504301132-7105-g51680828f))* | <img src="docs/images/every-logo.png" alt="Every Code Logo" width="400"> |
-| **code-assistant-manager** | `external/clis/code-assistant-manager` | `51b49e9` <br> *((1.3.0-13-g51b49e9))* | <div align="center"> |
-| **codebuff** | `external/clis/codebuff` | `a6da1f4` <br> *((v1.0.603-18-ga6da1f46f))* | Codebuff is an **open-source AI coding assistant** that edits your codebase through natural language instructions. Instead of using one model for ever... |
-| **CodeMachine-CLI** | `external/clis/CodeMachine-CLI` | `e55f110` <br> *((v0.8.0-1-ge55f110))* | <p align="center"> |
-| **CodeNomad** | `external/clis/CodeNomad` | `2556805` <br> *((v0.9.3-19-g2556805))* | CodeNomad is built for people who live inside OpenCode for hours on end and need a cockpit, not a kiosk. It delivers a premium, low-latency workspace ... |
-| **codex** | `external/clis/codex` | `9d97696` <br> *((rust-v0.0.2504301132-3020-g9d976962e))* | <p align="center"><code>npm i -g @openai/codex</code><br />or <code>brew install --cask codex</code></p> |
-| **copilot-cli** | `external/clis/copilot-cli` | `1bc2c29` <br> *((v0.0.401-0))* | The power of GitHub Copilot, now in your terminal. |
-| **crush** | `external/clis/crush` | `019a9a1` <br> *((v0.38.1))* | <p align="center"> |
-| **emdash** | `external/clis/emdash` | `c5371f3` <br> *((v0.3.50-94-gc5371f3b))* | <img width="4856" height="1000" alt="Github_banner (1)" src="https://github.com/user-attachments/assets/9dfdd1fd-ea4f-4b86-9daf-d4a46952594a" /> |
-| **factory** | `external/clis/factory` | `5013789` <br> *((heads/main))* | The agent-native development platform. Works across CLI, Web, Slack/Teams, Linear/Jira and Mobile. |
-| **gemini-cli-router** | `external/clis/gemini-cli-router` | `5cbeed4` <br> *((heads/main))* | **Route your Gemini CLI requests to third-party AI providers seamlessly** |
-| **gemini-openai-proxy** | `external/clis/gemini-openai-proxy` | `1e54746` <br> *((heads/main))* | Gemini-OpenAI-Proxy is a proxy designed to convert the OpenAI API protocol to the Google Gemini protocol. This enables applications built for the Open... |
-| **gemini-router** | `external/clis/gemini-router` | `1c38c5e` <br> *((heads/main))* | English - 中文 |
-| **gemini-superclaude-mcp-server** | `external/clis/gemini-superclaude-mcp-server` | `05f2d99` <br> *((2.0.2))* | A **fully upgraded** MCP server providing SuperClaude Framework v4.0.9 compatibility for Gemini CLI. Features enhanced command routing with **22 speci... |
-| **GoogleGeminiRouter** | `external/clis/GoogleGeminiRouter` | `bbd9b59` <br> *((heads/master))* | > **⚠️ Temporary Workaround for Xcode 26** |
-| **goose** | `external/clis/goose` | `603f252` <br> *((ls-639-g603f25258))* | <div align="center"> |
-| **grok-cli** | `external/clis/grok-cli` | `ad177ec` <br> *((@vibe-kit/grok-cli@0.0.34))* | A conversational AI CLI tool powered by Grok with intelligent text editor capabilities and tool usage. |
-| **happy** | `external/clis/happy` | `3ed8b12` <br> *((v3-1030-g3ed8b121))* | <div align="center"><img src="/.github/logotype-dark.png" width="400" title="Happy Coder" alt="Happy Coder"/></div> |
-| **kimi-cli** | `external/clis/kimi-cli` | `9e87547` <br> *((1.6))* | Kimi Code - Documentation - 文档 |
-| **Kode-cli** | `external/clis/Kode-cli` | `214c12f` <br> *((heads/main))* | <img width="991" height="479" alt="image" src="https://github.com/user-attachments/assets/c1751e92-94dc-4e4a-9558-8cd2d058c1a1" />  <br> |
-| **litellm** | `external/clis/litellm` | `ade35a3` <br> *((v1.81.3.rc.5-292-gade35a3f9a))* | <h1 align="center"> |
-| **llxprt-code** | `external/clis/llxprt-code` | `88301db` <br> *((v0.1.12-4617-g88301db43))* | &nbsp;![Mentioned in Awesome Gemini CLI](https://github.com/Piebald-AI/awesome-gemini-cli)&nbsp;![Discord Server](https://discord.gg/Wc6dZqWWYv)&nbsp;... |
-| **Lynkr** | `external/clis/Lynkr` | `616cc7d` <br> *((heads/main))* | Cursor / Cline / Continue / Claude Code / Clawdbot / Codex/ KiloCode |
-| **multi-agent-orchestration** | `external/clis/multi-agent-orchestration` | `a21ea34` <br> *((heads/main))* | A multi-agent orchestration system that enriches portfolio data by resolving missing company names and stock symbols. |
-| **oh-my-opencode** | `external/clis/oh-my-opencode` | `0f81d4c` <br> *((v1.1.0-1461-g0f81d4c))* | > [!WARNING] |
-| **openai-gemini** | `external/clis/openai-gemini` | `61a83bd` <br> *((gemini-2.0-flash-thinking-exp-47-g61a83bd))* | The Gemini API has Free Tier |
-| **opencode** | `external/clis/opencode` | `b9aad20` <br> *((latest-2107-gb9aad20be))* | <p align="center"> |
-| **opencode-gui** | `external/clis/opencode-gui` | `0346d1c` <br> *((heads/main))* | A lightweight Tauri GUI for Opencode CLI |
-| **opencode-web** | `external/clis/opencode-web` | `0ab3c85` <br> *((heads/main))* | A web-based user interface for opencode, providing a modern chat interface to interact with AI coding agents. |
-| **plandex** | `external/clis/plandex` | `e2d7720` <br> *((cli/v2.2.1-3-ge2d77207))* | <h1 align="center"> |
-| **qwen-code** | `external/clis/qwen-code` | `bd900d3` <br> *((qwencode-sdk-java.0.0.1-alpha.2-631-gbd900d36))* | <div align="center"> |
-| **schaltwerk** | `external/clis/schaltwerk` | `ab15b11` <br> *((v0.12.11))* | <div align="center"> |
-| **smart-ralph** | `external/clis/smart-ralph` | `f2667f2` <br> *((v2.0.0-41-gf2667f2))* | <div align="center"> |
-| **splitrail** | `external/clis/splitrail` | `7a07e94` <br> *((v3.3.1))* | <div align="right"> |
-| **SuperClaude_Framework** | `external/clis/SuperClaude_Framework` | `ad6b2e9` <br> *((v4.0.7-144-gad6b2e9))* | <div align="center"> |
-| **vercel-ai-proxy** | `external/clis/vercel-ai-proxy` | `976cab0` <br> *((heads/main))* | AI API proxy based on vercel routes |
-
-## External: Chat (1)
-
-| Name | Path | Version/Commit | Description |
-|------|------|----------------|-------------|
-| **lobehub** | `external/chat/lobehub` | `4efe60e` <br> *((v2.1.11-2-g4efe60e9f))* | <div align="center"><a name="readme-top"></a> |
-
-## External: Code-indexing (7)
-
-| Name | Path | Version/Commit | Description |
-|------|------|----------------|-------------|
-| **code-to-tree** | `external/code-indexing/code-to-tree` | `700a234` <br> *((v0.1.0-2-g700a234))* | -   MCP Server: code-to-tree |
-| **codebase-context** | `external/code-indexing/codebase-context` | `f10b6ed` | No README found. |
-| **CodeWeaver** | `external/code-indexing/CodeWeaver` | `54225b3` <br> *((v0.0.15-2-g54225b3))* | CodeWeaver is a command-line tool that transforms your codebase into a single, navigable Markdown document. It recursively scans a directory, creating... |
-| **deepcontext-mcp** | `external/code-indexing/deepcontext-mcp` | `8180517` <br> *((v0.1.3-32-g8180517))* | <p align="center"> |
-| **octocode** | `external/code-indexing/octocode` | `72c7030` <br> *((0.10.0-31-g72c7030))* | **© 2025 Muvon Un Limited (Hong Kong)** - Website - Product Page |
-| **probe** | `external/code-indexing/probe` | `b6055b2` <br> *((v0.6.0-rc210))* | <p align="center"> |
-| **serena** | `external/code-indexing/serena` | `764f26f` <br> *((v0.1.4-730-g764f26f))* | <p align="center" style="text-align:center"> |
-
-## External: Computer-use (13)
-
-| Name | Path | Version/Commit | Description |
-|------|------|----------------|-------------|
-| **algonius-browser** | `external/computer-use/algonius-browser` | `ae03e6a` <br> *((v0.2.0-94-gae03e6a))* | <div align="center"> |
-| **chrome-devtools-mcp** | `external/computer-use/chrome-devtools-mcp` | `482a288` <br> *((chrome-devtools-mcp-v0.15.1-35-g482a288))* | `chrome-devtools-mcp` lets your coding agent (such as Gemini, Claude, Cursor or Copilot) |
-| **claude-quickstarts** | `external/computer-use/claude-quickstarts` | `4b2549e` <br> *((heads/main))* | Claude Quickstarts is a collection of projects designed to help developers quickly get started with building  applications using the Claude API. Each ... |
-| **clickclickclick** | `external/computer-use/clickclickclick` | `6f18cd8` <br> *((v0.3.0-34-g6f18cd8))* | <div align="center"> |
-| **cua** | `external/computer-use/cua` | `1b932bb` <br> *((bench-v0.2.2-297-g1b932bbb))* | <div align="center"> |
-| **fara** | `external/computer-use/fara` | `ee0d215` <br> *((heads/main))* | <div align="center"> |
-| **generalagents-python** | `external/computer-use/generalagents-python` | `d36f6a8` <br> *((v0.1.1))* | The REST API documentation: https://docs.generalagents.com/ |
-| **kapture** | `external/computer-use/kapture` | `a9ea1d9` <br> *((v2.0.0-12-ga9ea1d9))* | Kapture is a Chrome DevTools Extension that enables browser automation through the Model Context Protocol (MCP). It allows AI applications like Claude... |
-| **magentic-ui** | `external/computer-use/magentic-ui` | `edaed9a` <br> *((v0.1.6-7-gedaed9a))* | <div align="center"> |
-| **puppeteer** | `external/computer-use/puppeteer` | `f71d8cb` <br> *((puppeteer-core-v24.0.0-694-gf71d8cbc029))* | <img src="https://user-images.githubusercontent.com/10379601/29446482-04f7036a-841f-11e7-9872-91d1fc2ea683.png" height="200" align="right"/> |
-| **spark-mcp** | `external/computer-use/spark-mcp` | `6b1eb66` <br> *((heads/claude/bytebot-mcp-server-01EeujB7JsCc5NqfrnbWM2oQ))* | Production-grade Model Context Protocol (MCP) server for ByteBot's dual-API architecture, providing intelligent hybrid workflow orchestration for auto... |
-| **uPhone** | `external/computer-use/uPhone` | `b4dd0db` <br> *((heads/main))* | **uPhone** is an experimental dual-boot project for iPhone 7/7 Plus devices, allowing iOS 13.X and Ubuntu 22.04 to coexist.Basic hardware such as Wi-F... |
-| **webctl** | `external/computer-use/webctl` | `90bcf94` <br> *((v0.3.1))* | **Browser automation for AI agents and humans, built on the command line.** |
-
-## External: Database (4)
-
-| Name | Path | Version/Commit | Description |
-|------|------|----------------|-------------|
-| **dbhub** | `external/database/dbhub` | `f303799` <br> *((heads/main))* | > Brought to you by Bytebase, open-source database DevSecOps platform. |
-| **mysql** | `external/database/mysql` | `e24859a` <br> *((0.1.4))* | > This extension is currently in beta (pre-v1.0), and may see breaking changes until the first stable release (v1.0). |
-| **postgres** | `external/database/postgres` | `6f1a9b7` <br> *((0.2.1-1-g6f1a9b7))* | > This extension is currently in beta (pre-v1.0), and may see breaking changes until the first stable release (v1.0). |
-| **supabase** | `external/database/supabase` | `786f931` <br> *((v1.26.01-328-g786f931f6e))* | <p align="center"> |
-
-## External: Financial Tools (40)
-
-| Name | Path | Version/Commit | Description |
-|------|------|----------------|-------------|
-| **ai-hedge-fund** | `external/financial/ai-hedge-fund` | `9adb980` <br> *((heads/main))* | This is a proof of concept for an AI-powered hedge fund.  The goal of this project is to explore the use of AI to make trading decisions.  This projec... |
-| **alpha_vantage_mcp** | `external/financial/alpha_vantage_mcp` | `59e3c41` <br> *((heads/main))* | The official Alpha Vantage API MCP server enables LLMs and agentic workflows to seamlessly interact with real-time and historical stock market data th... |
-| **armor-crypto-mcp** | `external/financial/armor-crypto-mcp` | `c026c00` <br> *((v0.2.1-5-gc026c00))* | *Alpha Test version 0.1.24* |
-| **awesome-crypto-mcp-servers** | `external/financial/awesome-crypto-mcp-servers` | `6f3db72` <br> *((heads/main))* | A curated list of awesome Model Context Protocol (MCP) servers - Crypto Edition 🔒 |
-| **binance-mcp-server** | `external/financial/binance-mcp-server` | `2b6f2b7` <br> *((heads/main))* | <a href="https://www.npmjs.com/package/binance-mcp-server" target="_blank" rel="noopener noreferrer"> |
-| **BinanceMCPServer** | `external/financial/BinanceMCPServer` | `bcceced` <br> *((heads/main))* | A powerful **Model Context Protocol (MCP) server** that enables AI agents to interact seamlessly with the **Binance cryptocurrency exchange**. This se... |
-| **bybit-mcp-server** | `external/financial/bybit-mcp-server` | `1884c5c` <br> *((heads/master))* | > **Multi-language Documentation** |
-| **coin_api_mcp** | `external/financial/coin_api_mcp` | `33eb213` <br> *((heads/main))* | A Model Context Protocol server that provides access to CoinMarketCap's cryptocurrency data. This server enables AI-powered applications to retrieve c... |
-| **coingecko-typescript** | `external/financial/coingecko-typescript` | `29d1d98` <br> *((v2.5.0))* | This library provides convenient access to the Coingecko REST API from server-side TypeScript or JavaScript. |
-| **coinmarketcap-mcp** | `external/financial/coinmarketcap-mcp` | `0214e75` <br> *((v1.4.5-1-g0214e75))* | <div align="center"> |
-| **coinstats-mcp** | `external/financial/coinstats-mcp` | `98dd666` <br> *((heads/main))* | MCP Server for the CoinStats API. Provides access to cryptocurrency market data, portfolio tracking, and news. |
-| **crypto-feargreed-mcp** | `external/financial/crypto-feargreed-mcp` | `b1f2294` <br> *((heads/main))* | A mcp server that provides real-time and historical Crypto Fear & Greed Index data, powered by the Alternative.me. |
-| **crypto-indicators-mcp** | `external/financial/crypto-indicators-mcp` | `2855e66` <br> *((heads/main))* | An MCP server providing a range of cryptocurrency technical analysis indicators and strategies, empowering AI trading agents to efficiently analyze ma... |
-| **crypto-sentiment-mcp** | `external/financial/crypto-sentiment-mcp` | `a002ece` <br> *((heads/main))* | An MCP server that delivers cryptocurrency sentiment analysis to AI agents, leveraging Santiment's aggregated social media and news data to track mark... |
-| **cryptopanic-mcp-server** | `external/financial/cryptopanic-mcp-server` | `922f2e0` <br> *((heads/main))* | <a href="https://glama.ai/mcp/servers/dp6kztv7yx"> |
-| **dappier-mcp** | `external/financial/dappier-mcp` | `38bbde1` <br> *((heads/staging))* | > 📌 Click the image below — use **Ctrl+Click** (or **Cmd+Click on Mac**) to open in a new tab. |
-| **freqtrade-mcp** | `external/financial/freqtrade-mcp` | `6762093` <br> *((heads/main))* | An MCP server that integrates with the Freqtrade cryptocurrency trading bot via its REST API, enabling seamless AI agent interaction for automated tra... |
-| **hive-crypto-mcp** | `external/financial/hive-crypto-mcp` | `3e86d03` <br> *((heads/main))* | A Model Context Protocol (MCP) server providing comprehensive cryptocurrency and Web3 analytics through intelligent tool orchestration. |
-| **korea-stock-analyzer-mcp** | `external/financial/korea-stock-analyzer-mcp` | `e3145c1` <br> *((heads/main))* | English - 한국어 |
-| **mcp** | `external/financial/mcp` | `a74555c` <br> *((heads/main))* | The Twelve Data MCP Server provides a seamless integration with the Twelve Data API to access financial market data. It enables retrieval of historica... |
-| **mcp-audiense-insights** | `external/financial/mcp-audiense-insights` | `f18ffa6` <br> *((heads/main))* | >The Audiense Insights MCP has been migrated to a remote model. For more information on how to use the new remote MCP, please reach us at support@audi... |
-| **mcp-server** | `external/financial/mcp-server` | `08e7a3d` <br> *((heads/main))* | This is a Model Context Protocol (MCP) server that provides access to stock market data from Financial Datasets. |
-| **octagon-13f-holdings-mcp** | `external/financial/octagon-13f-holdings-mcp` | `d884613` <br> *((heads/main))* | !Favicon The Octagon 13F Holdings MCP server provides specialized AI-powered institutional ownership and holdings data analysis capabilities by integr... |
-| **octagon-financials-mcp** | `external/financial/octagon-financials-mcp` | `19e79d4` <br> *((heads/main))* | !Favicon The Octagon Financials MCP server provides specialized AI-powered financial statement analysis capabilities by integrating with advanced fina... |
-| **octagon-funding-data-mcp** | `external/financial/octagon-funding-data-mcp` | `f472310` <br> *((heads/main))* | !Favicon The Octagon Funding Data MCP server provides specialized AI-powered company funding transaction analysis capabilities by integrating with adv... |
-| **octagon-investors-mcp** | `external/financial/octagon-investors-mcp` | `dd73c91` <br> *((heads/main))* | !Favicon The Octagon Investors MCP server provides specialized AI-powered investor information and investment activity analysis capabilities by integr... |
-| **octagon-mcp-server** | `external/financial/octagon-mcp-server` | `d8f2466` <br> *((heads/main))* | !Favicon The Octagon MCP server provides specialized AI-powered financial research and analysis by integrating with the Octagon Market Intelligence AP... |
-| **octagon-private-companies-mcp** | `external/financial/octagon-private-companies-mcp` | `40f3386` <br> *((heads/main))* | !Favicon The Octagon Private Companies MCP server provides specialized AI-powered private company information and financial data analysis capabilities... |
-| **octagon-sec-filings-mcp** | `external/financial/octagon-sec-filings-mcp` | `ce1280a` <br> *((heads/main))* | !Favicon The Octagon SEC Filings MCP server provides specialized AI-powered SEC filings analysis capabilities by integrating with advanced SEC analysi... |
-| **octagon-stock-market-data-mcp** | `external/financial/octagon-stock-market-data-mcp` | `277d166` <br> *((heads/main))* | !Favicon The Octagon Stock Market Data MCP server provides specialized AI-powered stock market data and valuation analysis capabilities by integrating... |
-| **octagon-transcripts-mcp** | `external/financial/octagon-transcripts-mcp` | `b3e5ee8` <br> *((heads/main))* | !Favicon The Octagon Transcripts MCP server provides specialized AI-powered earnings call transcript analysis capabilities by integrating with advance... |
-| **octagon-vc-agents** | `external/financial/octagon-vc-agents` | `8af68fe` <br> *((heads/main))* | An MCP server that runs AI-driven venture capitalist agents (Fred Wilson, Peter Thiel, etc.), whose thinking is continuously enriched by Octagon Priva... |
-| **okx-mcp-playground** | `external/financial/okx-mcp-playground` | `23c6a84` <br> *((heads/main))* | This repository contains a Model Context Protocol (MCP) server that provides Claude with access to various blockchain data and market price data via t... |
-| **polymarket-mcp** | `external/financial/polymarket-mcp` | `9660556` <br> *((v0.2.0-10-g9660556))* | 🎲 *prediction markets at your fingertips* |
-| **TAM-MCP-Server** | `external/financial/TAM-MCP-Server` | `25030aa` <br> *((v1.0.1))* | A Model Context Protocol server providing market research and business analysis capabilities through 28 tools, 15 business prompts, and integration wi... |
-| **trade-agent-mcp** | `external/financial/trade-agent-mcp` | `b25f32d` <br> *((heads/main))* | Now available through the _Official MCP Registry_ |
-| **uniswap-poolspy-mcp** | `external/financial/uniswap-poolspy-mcp` | `a4dfb09` <br> *((heads/main))* | An MCP server that tracks newly created liquidity pools on Uniswap across nine blockchain networks — Ethereum, Base, Optimism, Arbitrum, Polygon, BNB ... |
-| **uniswap-trader-mcp** | `external/financial/uniswap-trader-mcp` | `b743a9d` <br> *((heads/main))* | An MCP server for AI agents to automate token swaps on Uniswap DEX across multiple blockchains. |
-| **upbit-mcp-server** | `external/financial/upbit-mcp-server` | `60f2698` <br> *((heads/main))* | A server implementation for Upbit Cryptocurrency Exchange OpenAPI using the Model Context Protocol (MCP). This project provides tools to interact with... |
-| **Upsonic** | `external/financial/Upsonic` | `78eada8` <br> *((v0.71.4-1-g78eada8))* | <div align="center"> |
-
-## External: Forks (4)
-
-| Name | Path | Version/Commit | Description |
-|------|------|----------------|-------------|
-| **gemini-cli-router** | `external/forks/zhifac/gemini-cli-router` | `e7883de` <br> *((heads/main))* | No README found. |
-| **mcp-server** | `external/forks/finmap-org/mcp-server` | `18e11d7` <br> *((v1.3.1-12-g18e11d7))* | The finmap.org MCP server provides comprehensive historical data from the US, UK, Russian and Turkish stock exchanges. Access sectors, tickers, compan... |
-| **mcp-server** | `external/forks/paperinvest/mcp-server` | `d4ac588` <br> *((heads/main))* | !npm version |
-| **skills** | `external/forks/bkircher/skills` | `9fe323a` <br> *((heads/main))* | Forget about MCP; use command-line tools and tailor context to the task at hand. |
-
-## External: Frameworks (1)
-
-| Name | Path | Version/Commit | Description |
-|------|------|----------------|-------------|
-| **agent-lightning** | `external/frameworks/agent-lightning` | `9864b8f` <br> *((v0.3.0-9-g9864b8fb))* | <p align="center"> |
-
-## External: Metamcp (1)
-
-| Name | Path | Version/Commit | Description |
-|------|------|----------------|-------------|
-| **MetaMCP** | `external/MetaMCP` | `8215dbf` <br> *((v2.4.21-297-g8215dbf))* | <div align="center"> |
-
-## External: Thenoetrevino-dotfiles (1)
-
-| Name | Path | Version/Commit | Description |
-|------|------|----------------|-------------|
-| **TheNoeTrevino-dotfiles** | `external/TheNoeTrevino-dotfiles` | `8296b78` <br> *((heads/main))* | No description found in README. |
-
-## Other / Uncategorized (61)
-
-| Name | Path | Version/Commit | Description |
-|------|------|----------------|-------------|
-| **aichat** | `cli-harnesses/aichat` | `0493134` <br> *((heads/main))* | AIChat is an all-in-one LLM CLI tool featuring Shell Assistant, CMD & REPL Mode, RAG, AI Tools & Agents, and More. |
-| **amp-examples-and-guides** | `cli-harnesses/amp-examples-and-guides` | `435ffc0` <br> *((heads/main))* | This repository is intended to be supplemental to the Amp Manual. |
-| **amped** | `cli-harnesses/amped` | `e415572` <br> *((v0.1.0))* | The missing account switcher for Amp |
-| **awesome-amp-code** | `cli-harnesses/awesome-amp-code` | `cf06730` <br> *((heads/main))* | <!--lint ignore awesome-toc--> |
-| **awesome-copilot** | `cli-harnesses/awesome-copilot` | `8da3194` <br> *((heads/main))* | A community created collection of custom agents, prompts, and instructions to supercharge your GitHub Copilot experience across different domains, lan... |
-| **awesome-opencode** | `cli-harnesses/awesome-opencode` | `4fadff1` <br> *((heads/main))* | <!-- HEADER --> |
-| **browser-tools-mcp** | `browsers/browser-tools-mcp` | `0befce3` <br> *((heads/main))* | > Make your AI tools 10x more aware and capable of interacting with your browser |
-| **cc-switch** | `cli-harnesses/cc-switch` | `f0e8ba1` <br> *((v3.10.1-48-gf0e8ba1))* | <div align="center"> |
-| **cc-switch-cli** | `cli-harnesses/cc-switch-cli` | `1716975` <br> *((v4.5.0))* | <div align="center"> |
-| **cc-switch-farion1231** | `cli-harnesses/cc-switch-farion1231` | `e349012` <br> *((v3.10.1-71-ge349012))* | <div align="center"> |
-| **ccproxy** | `cli-harnesses/ccproxy` | `4d977b3` <br> *((v1.2.0-10-g4d977b3))* | > Join starbased HQ for questions, sharing setups, and contributing to development. |
-| **ccs** | `cli-harnesses/ccs` | `be63056` <br> *((v5.0.0-1449-gbe63056))* | <div align="center"> |
-| **ccs-kaitranntt** | `cli-harnesses/ccs-kaitranntt` | `be63056` <br> *((v5.0.0-1449-gbe63056))* | <div align="center"> |
-| **claude-code-madapp** | `cli-harnesses/claude-code-madapp` | `550d836` <br> *((tools/claudeup/v3.3.0))* | > **Battle-tested AI workflows from the top 1% of developers** |
-| **claude-code-madappgang** | `cli-harnesses/claude-code-madappgang` | `bea99ea` <br> *((tools/claudeup/v3.3.0-12-gbea99ea))* | > **Battle-tested AI workflows from the top 1% of developers** |
-| **claude-code-mcp** | `cli-harnesses/claude-code-mcp` | `24dfd38` <br> *((v1.10.9-5-g24dfd38))* | <img src="assets/claude_code_mcp_logo.png" alt="Claude Code MCP Logo"> |
-| **claude-code-openrouter** | `cli-harnesses/claude-code-openrouter` | `c1a9710` <br> *((heads/main))* | Use external LLMs (Kimi, Grok, Gemini, GLM, GPT-5) directly from Claude Code by mentioning them in your prompts. |
-| **claude-code-router** | `cli-harnesses/claude-code-router` | `c73fe0d` <br> *((v2.0.0-2-gc73fe0d))* | ![](blog/images/claude-code-router-img.png) |
-| **claude-hooks** | `cli-harnesses/claude-hooks` | `335a123` <br> *((heads/main))* | https://github.com/user-attachments/assets/dbe1d10b-42f0-4a9a-a2e2-a00d7b776aa0 |
-| **claude-tools-mcp** | `cli-harnesses/claude-tools-mcp` | `5615a91` <br> *((v0.1.0-1-g5615a91))* | An MCP (Model Context Protocol) server that exposes Claude Code's file and shell manipulation tools over HTTP, allowing any MCP client to use these to... |
-| **code** | `cli-harnesses/code` | `5168082` <br> *((rust-v0.0.2504301132-7105-g51680828f))* | <img src="docs/images/every-logo.png" alt="Every Code Logo" width="400"> |
-| **code-assistant-manager** | `cli-harnesses/code-assistant-manager` | `51b49e9` <br> *((1.3.0-13-g51b49e9))* | <div align="center"> |
-| **code-assistant-manager-Chat2AnyLLM** | `cli-harnesses/code-assistant-manager-Chat2AnyLLM` | `51b49e9` <br> *((1.3.0-13-g51b49e9))* | <div align="center"> |
-| **codebuff** | `cli-harnesses/codebuff` | `a6da1f4` <br> *((v1.0.603-18-ga6da1f46f))* | Codebuff is an **open-source AI coding assistant** that edits your codebase through natural language instructions. Instead of using one model for ever... |
-| **codebuff-CodebuffAI** | `cli-harnesses/codebuff-CodebuffAI` | `8033e0b` <br> *((v1.0.603-124-g8033e0b49))* | Codebuff is an **open-source AI coding assistant** that edits your codebase through natural language instructions. Instead of using one model for ever... |
-| **codemachine-cli** | `cli-harnesses/codemachine-cli` | `e55f110` <br> *((v0.8.0-1-ge55f110))* | <p align="center"> |
-| **CodeMachine-CLI-moazbuilds** | `cli-harnesses/CodeMachine-CLI-moazbuilds` | `f8bdb47` <br> *((v0.8.0-2-gf8bdb47))* | <p align="center"> |
-| **CodeNomad** | `cli-harnesses/CodeNomad` | `3deb72e` <br> *((v0.9.3-19-g3deb72e))* | CodeNomad is built for people who live inside OpenCode for hours on end and need a cockpit, not a kiosk. It delivers a premium, low-latency workspace ... |
-| **codex** | `cli-harnesses/codex` | `0b460ed` <br> *((rust-v0.0.2504301132-3021-g0b460eda3))* | <p align="center"><code>npm i -g @openai/codex</code><br />or <code>brew install --cask codex</code></p> |
-| **crush** | `cli-harnesses/crush` | `019a9a1` <br> *((v0.38.1))* | <p align="center"> |
-| **dbhub** | `database/mcp-servers/dbhub` | `f303799` <br> *((heads/main))* | > Brought to you by Bytebase, open-source database DevSecOps platform. |
-| **devin.cursorrules** | `cli-harnesses/devin.cursorrules` | `284b743` <br> *((heads/master))* | This repository gives you everything needed to supercharge your Cursor/Windsurf IDE or GitHub Copilot with **advanced** agentic AI capabilities—simila... |
-| **emdash** | `cli-harnesses/emdash` | `0448075` <br> *((v0.3.53-30-g04480751))* | <img width="4856" height="1000" alt="Github_banner (1)" src="https://github.com/user-attachments/assets/9dfdd1fd-ea4f-4b86-9daf-d4a46952594a" /> |
-| **emdash-generalaction** | `cli-harnesses/emdash-generalaction` | `0448075` <br> *((v0.3.53-30-g04480751))* | <img width="4856" height="1000" alt="Github_banner (1)" src="https://github.com/user-attachments/assets/9dfdd1fd-ea4f-4b86-9daf-d4a46952594a" /> |
-| **factory** | `cli-harnesses/factory` | `5013789` <br> *((heads/main))* | The agent-native development platform. Works across CLI, Web, Slack/Teams, Linear/Jira and Mobile. |
-| **gemini-cli-router** | `cli-harnesses/gemini-cli-router` | `5cbeed4` <br> *((heads/main))* | **Route your Gemini CLI requests to third-party AI providers seamlessly** |
-| **gemini-cli-router-zhifac** | `cli-harnesses/gemini-cli-router-zhifac` | `e7883de` <br> *((heads/main))* | No README found. |
-| **gemini-openai-proxy** | `cli-harnesses/gemini-openai-proxy` | `1e54746` <br> *((heads/main))* | Gemini-OpenAI-Proxy is a proxy designed to convert the OpenAI API protocol to the Google Gemini protocol. This enables applications built for the Open... |
-| **gemini-openai-proxy-zuisong** | `cli-harnesses/gemini-openai-proxy-zuisong` | `0e0e9ba` <br> *((v0.14.2-30-g0e0e9ba))* | Bring OpenAI style API with low cost. |
-| **gemini-router** | `cli-harnesses/gemini-router` | `1c38c5e` <br> *((heads/main))* | English - 中文 |
-| **gemini-superclaude-mcp-server** | `cli-harnesses/gemini-superclaude-mcp-server` | `05f2d99` <br> *((2.0.2))* | A **fully upgraded** MCP server providing SuperClaude Framework v4.0.9 compatibility for Gemini CLI. Features enhanced command routing with **22 speci... |
-| **GoogleGeminiRouter** | `cli-harnesses/GoogleGeminiRouter` | `bbd9b59` <br> *((heads/master))* | > **⚠️ Temporary Workaround for Xcode 26** |
-| **goose** | `cli-harnesses/goose` | `493ae78` <br> *((ls-641-g493ae789c))* | <div align="center"> |
-| **goose-block** | `cli-harnesses/goose-block` | `493ae78` <br> *((ls-641-g493ae789c))* | <div align="center"> |
-| **grok-cli** | `cli-harnesses/grok-cli` | `ad177ec` <br> *((@vibe-kit/grok-cli@0.0.34))* | A conversational AI CLI tool powered by Grok with intelligent text editor capabilities and tool usage. |
-| **happy** | `cli-harnesses/happy` | `3ed8b12` <br> *((v3-1030-g3ed8b121))* | <div align="center"><img src="/.github/logotype-dark.png" width="400" title="Happy Coder" alt="Happy Coder"/></div> |
-| **kimi-cli** | `cli-harnesses/kimi-cli` | `9e87547` <br> *((1.6))* | Kimi Code - Documentation - 文档 |
-| **kimi-cli-MoonshotAI** | `cli-harnesses/kimi-cli-MoonshotAI` | `ba75724` <br> *((1.6-57-gba75724))* | Kimi Code - Documentation - 文档 |
-| **llxprt-code** | `cli-harnesses/llxprt-code` | `88301db` <br> *((v0.1.12-4617-g88301db43))* | &nbsp;![Mentioned in Awesome Gemini CLI](https://github.com/Piebald-AI/awesome-gemini-cli)&nbsp;![Discord Server](https://discord.gg/Wc6dZqWWYv)&nbsp;... |
-| **Lynkr** | `cli-harnesses/Lynkr` | `616cc7d` <br> *((heads/main))* | Cursor / Cline / Continue / Claude Code / Clawdbot / Codex/ KiloCode |
-| **mcpo-2** | `browsers/mcpo-2` | `91e8f94` <br> *((heads/main))* | Expose any MCP tool as an OpenAPI-compatible HTTP server—instantly. |
-| **multi-agent-orchestration** | `cli-harnesses/multi-agent-orchestration` | `a21ea34` <br> *((heads/main))* | A multi-agent orchestration system that enriches portfolio data by resolving missing company names and stock symbols. |
-| **mysql** | `database/mcp-servers/mysql` | `e24859a` <br> *((0.1.4))* | > This extension is currently in beta (pre-v1.0), and may see breaking changes until the first stable release (v1.0). |
-| **openai-gemini** | `cli-harnesses/openai-gemini` | `61a83bd` <br> *((gemini-2.0-flash-thinking-exp-47-g61a83bd))* | The Gemini API has Free Tier |
-| **opencode-gui** | `cli-harnesses/opencode-gui` | `0346d1c` <br> *((heads/main))* | A lightweight Tauri GUI for Opencode CLI |
-| **opencode-web** | `cli-harnesses/opencode-web` | `0ab3c85` <br> *((heads/main))* | A web-based user interface for opencode, providing a modern chat interface to interact with AI coding agents. |
-| **postgres** | `database/mcp-servers/postgres` | `6f1a9b7` <br> *((0.2.1-1-g6f1a9b7))* | > This extension is currently in beta (pre-v1.0), and may see breaking changes until the first stable release (v1.0). |
-| **qwen-code** | `cli-harnesses/qwen-code` | `bd900d3` <br> *((qwencode-sdk-java.0.0.1-alpha.2-631-gbd900d36))* | <div align="center"> |
-| **schaltwerk** | `cli-harnesses/schaltwerk` | `ab15b11` <br> *((v0.12.11))* | <div align="center"> |
-| **splitrail** | `cli-harnesses/splitrail` | `7a07e94` <br> *((v3.3.1))* | <div align="right"> |
-| **vercel-ai-proxy** | `cli-harnesses/vercel-ai-proxy` | `976cab0` <br> *((heads/main))* | AI API proxy based on vercel routes |
-
-## Project Structure Explanation
-
-| Directory | Purpose |
-|-----------|---------|
-| **`superai-cli/`** | The consolidated CLI ecosystem. Contains `clis/` (wrappers), `tools/`, and `proxies/`. |
-| **`mcp-servers/`** | General purpose Model Context Protocol servers organized by domain (browser, financial, etc.). |
-| **`memory/`** | The comprehensive Memory Ecosystem. Includes `systems/` (LettA, Mem0), `vector-stores/`, and plugins. |
-| **`agents/`** | Autonomous agent implementations and definitions. |
-| **`skills/`** | Universal skill library for agents. |
-| **`computer-use/`** | Desktop automation and GUI control tools. |
-| **`browser-use/`** | Browser automation and web scraping tools. |
-| **`RAG/`** | Retrieval Augmented Generation systems and parsers. |
-| **`packages/`** | Core AIOS monorepo packages (`core`, `ui`, `cli`). |
+```
+borg/
+├── packages/           # Monorepo packages
+├── submodules/         # Core integrated submodules (Active)
+├── references/         # Reference implementations (Passive)
+├── docs/               # Documentation
+├── agents/             # Agent definitions
+├── hooks/              # System hooks
+├── mcp-servers/        # Local MCP servers
+└── skills/             # Universal skills
+```

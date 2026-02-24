@@ -4,6 +4,31 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [2.7.16] - 2026-02-24
+
+### Changed
+- **Omni-Analysis Session**: Conducted an exhaustive deep analysis of the monorepo to identify features implemented on the backend but lacking frontend representation.
+- **Documentation Synchronization**: Comprehensively restructured and updated `VISION.md`, `ROADMAP.md`, `TODO.md`, and `HANDOFF_ANTIGRAVITY.md` to reflect the exact state of reality closure, unhooked features, and the master backlog.
+- **Version Bump**: Incremented version to 2.7.16 as part of the continuous integration and deployment mandate.
+
+## [2.7.15] - 2026-02-24
+
+### Added
+- **Link Backlog Processing**: Processed `USER_DIRECTIVES_INBOX.md` and added 4 high-value reference submodules.
+- **Reference Submodules**:
+  - `references/awesome-claude-code-toolkit` (135 agents, 121 plugins, 35 skills).
+  - `references/awesome-claude-code-plugins` (curated slash commands and hooks).
+  - `references/claude_code-gemini-mcp` & `references/gemini-mcp-r-labs` (Gemini bridge research).
+- **Skill Porting**: Assimilated 5 technical skills (`tdd-mastery`, `security-hardening`, `api-design-patterns`, `database-optimization`, `devops-automation`).
+- **Research Index**: Created `research/LINK_DISCOVERY_INDEX.md` for tracking assimilation targets.
+
+### Fixed
+- **Web Linting**: Resolved `@borg/web` release gate failure by mocking `eslint-plugin-react-hooks` in flat syntax config.
+- **Dashboard**: Regenerated `SUBMODULES.md` dashboard.
+
+### Security
+- Added `security-hardening` skill to imported registry.
+
 ## [2.7.14] - 2026-02-23
 
 ### Changed

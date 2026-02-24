@@ -3289,3 +3289,15 @@
 [submodule "external/MetaMCP"]
 	path = external/MetaMCP
 	url = https://github.com/robertpelloni/MetaMCP
+[submodule "references/awesome-claude-code-toolkit"]
+	path = references/awesome-claude-code-toolkit
+	url = https://github.com/rohitg00/awesome-claude-code-toolkit
+[submodule "references/awesome-claude-code-plugins"]
+	path = references/awesome-claude-code-plugins
+	url = https://github.com/ccplugins/awesome-claude-code-plugins
+[submodule "references/claude_code-gemini-mcp"]
+	path = references/claude_code-gemini-mcp
+	url = https://github.com/RaiAnsar/claude_code-gemini-mcp
+[submodule "references/gemini-mcp-r-labs"]
+	path = references/gemini-mcp-r-labs
+	url = https://github.com/RLabs-Inc/gemini-mcp

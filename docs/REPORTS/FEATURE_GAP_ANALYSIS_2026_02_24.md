@@ -9,6 +9,7 @@ A cross-referencing of `packages/core/src/routers/*.ts` against `apps/web/src/ap
 - **Status**: Backend ready (Hyperswarm / Secret-Stream).
 - **Missing UI**: No dashboard page to monitor P2P node connections, peer discovery, or node-to-node RPC status.
 - **Impact**: Users cannot visualize the "AI Hive Mind" connectivity.
+- **Update (2026-02-24)**: ✅ **IMPLEMENTED** at `/dashboard/mesh`. Provides node status, peer list, global broadcast, and "Ask Swarm" capabilities.
 
 ### 2. Semantic Browser Interface (`browserRouter.ts`)
 - **Status**: Backend ready.

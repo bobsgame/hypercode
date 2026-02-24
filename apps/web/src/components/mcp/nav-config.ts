@@ -207,6 +207,7 @@ export const MAIN_DASHBOARD_NAV: NavItem[] = [
     { title: "Research", href: "/dashboard/research", icon: FlaskConical, variant: "ghost" },
     { title: "Memory", href: "/dashboard/memory", icon: Brain, variant: "ghost" },
     { title: "Knowledge", href: "/dashboard/knowledge", icon: Network, variant: "ghost" },
+    { title: "Mesh Control", href: "/dashboard/mesh", icon: Network, variant: "ghost" },
     { title: "Code", href: "/dashboard/code", icon: FileCode2, variant: "ghost" },
     { title: "Command", href: "/dashboard/command", icon: Terminal, variant: "ghost" },
     { title: "Inspector", href: "/dashboard/inspector", icon: FileSearch, variant: "ghost" },

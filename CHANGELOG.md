@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [2.7.17] - 2026-02-24
+
+### Added
+- **Mesh Control Center**: Implemented `/dashboard/mesh` to close a critical "Dark Feature" gap. The new dashboard allows users to monitor P2P node connections, view connected peers, perform global broadcasts, and dispatch tasks to the swarm via the `askSwarm` endpoint.
+- **Master Index Enrichment**: Enriched the metadata for core orchestration submodules (`metamcp`, `owlex`, `roundtable`, `openhands`, `a2a`, etc.) with technical deep-dive information.
+
+### Changed
+- **Version Bump**: Incremented version to 2.7.17 to track the successful implementation of the Mesh dashboard and navigation integration.
+- **Documentation Updates**: Synchronized `TODO.md`, `ROADMAP.md`, `STATUS.md`, and instruction files with the new feature completion state.
+
 ## [2.7.16] - 2026-02-24
 
 ### Changed

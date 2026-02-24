@@ -31,7 +31,7 @@ Gemini is the **analysis and research model** for Borg. Your massive context win
 2. Read `ROADMAP.md` and `AGENTS.md` feature wishlist.
 3. Verify build with `npx tsc --noEmit`.
 4. Proceed with assigned task autonomously.
-5. Update all documentation when shipping features.
+5. **Document & Version**: YOU MUST increment the version number in the `VERSION` file on every build/session, and document the changes with the new version number in `CHANGELOG.md`. Ensure the version bump is referenced in your commit message.
 6. Update `HANDOFF_ANTIGRAVITY.md` at session end.
 
 Refer to [`docs/UNIVERSAL_LLM_INSTRUCTIONS.md`](docs/UNIVERSAL_LLM_INSTRUCTIONS.md) for all operational protocols.

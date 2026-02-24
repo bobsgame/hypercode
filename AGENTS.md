@@ -31,7 +31,7 @@ This file serves as the entry point for all autonomous agents working on the Bor
 3. **Verify** build state: `npx tsc --noEmit` in `packages/core`.
 4. **Execute** assigned task autonomously.
 5. **Comment Everything**: Always comment the reason behind the code, what it does, and why it's there.
-6. **Document** — Update CHANGELOG, ROADMAP, VERSION as needed.
+6. **Document & Version**: YOU MUST increment the version number in the `VERSION` file on every build/session, and document the changes with the new version number in `CHANGELOG.md`. Ensure the version bump is referenced in your commit message.
 7. **Ship** — `git commit && git push` after each feature.
 8. **Handoff** — Update `HANDOFF_ANTIGRAVITY.md` at session end.
 

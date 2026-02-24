@@ -1,6 +1,6 @@
 # Borg — Master TODO List (Implementor Edition)
 
-> **Updated**: 2026-02-24 | **Version**: 2.7.16 | **Phase**: 64 (Release Readiness)
+> **Updated**: 2026-02-24 | **Version**: 2.7.17 | **Phase**: 64 (Release Readiness)
 > **Execution Order**: P0 (must close before release) → P1 (critical feature parity) → P2 (quality/polish) → P3 (future)
 
 ---
@@ -35,7 +35,8 @@
 - [ ] **Tools & Extensions**: `marketplaceRouter.ts`, `toolSetsRouter.ts`, `browserRouter.ts`, `shellRouter.ts` -> Enhance Tools Dashboard.
 - [ ] **DevOps & Git**: `gitRouter.ts`, `submoduleRouter.ts`, `symbolsRouter.ts` -> Build Submodule & Git Operations Dashboard.
 - [ ] **Authentication & Billing**: `apiKeysRouter.ts`, `oauthRouter.ts`, `billingRouter.ts` -> Build comprehensive Provider Auth & Billing Matrix.
-- [ ] **Advanced Features**: `darwinRouter.ts` (Evolution), `expertRouter.ts`, `meshRouter.ts` (P2P Swarm), `policiesRouter.ts`, `savedScriptsRouter.ts`, `sessionRouter.ts`.
+- [ ] **Advanced Features**: `darwinRouter.ts` (Evolution), `expertRouter.ts`, `policiesRouter.ts`, `savedScriptsRouter.ts`, `sessionRouter.ts`.
+- [x] **Mesh Control Center**: `meshRouter.ts` (P2P Swarm) -> Implemented `/dashboard/mesh` for full network visibility.
 
 ### 3) UI TODO/hardcoded fallback cleanup
 - [ ] **Resolve Director endpoint test TODO**

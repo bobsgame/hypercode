@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [2.7.20] - 2026-02-24
+
+### Added
+- **Specialist Agent Squad**: Implemented `/dashboard/experts` to provide a dedicated UI for the Coder and Researcher agents. This allows for direct task dispatching and real-time status monitoring of specialized AI expertise.
+- **Dark Feature Sweep**: Completed high-priority frontend parity closure for Mesh, Browser, Symbols, and Expert routers.
+
+### Changed
+- **Version Bump**: Incremented version to 2.7.20.
+
 ## [2.7.19] - 2026-02-24
 
 ### Changed

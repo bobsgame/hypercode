@@ -19,8 +19,10 @@ Conducted a deep analysis and documentation overhaul to synchronize the project 
 
 ### C. UI & Reality Closure
 - **Submodule Dashboard**: Verified that `/dashboard/submodules` UI is fully implemented via Next.js Server Actions (`actions.ts`).
+- **Pulse Telemetry Dashboard**: Built `MetricsCharts.tsx` with Recharts and completely overhauled `SystemPulse.tsx`. It now streams live Node.js heap usage, CPU percentage, top MCP tools by error rate, and real-time raw event streams from `metricsRouter`, `logsRouter`, and `pulseRouter`.
+- **Agent Command Center**: Built `AgentPlayground.tsx` and scaffolded `/dashboard/agents` to wrap `agentRouter.ts` (chat, tool execution) completing the Agent State & Memory Viewer parity requirement alongside the existing `/dashboard/memory` page.
 - **API Parity**: Verified `submoduleRouter.ts` is fully implemented in `@borg/core` using `SubmoduleService`.
-- **Completion**: Marked the requirement closed in `TODO.md` and Phase 64 `task.md`.
+- **Completion**: Marked the requirements closed in `TODO.md` for "DevOps & Git", "Infrastructure & Health", and "Agent & Memory Wiring".
 
 ## 3. Recommended Next Steps
 1. Execute the remaining P0 tasks in `TODO.md` to finalize Phase 64 (Release Readiness).

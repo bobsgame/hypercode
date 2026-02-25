@@ -30,8 +30,8 @@
 
 ### 2) Router namespace coverage gap closure (OMNI-ANALYSIS RESULTS)
 > **Analysis Note (2026-02-24)**: The following backend routers were audited and found to lack comprehensive or active frontend representation in `apps/web/src/`. They must be wired to dashboards or widgets to achieve full "Reality Closure".
-- [ ] **Agent & Memory Wiring**: `agentRouter.ts`, `agentMemoryRouter.ts`, `memoryRouter.ts` -> Build detailed Agent State & Memory Viewer.
-- [ ] **Infrastructure & Health**: `serverHealthRouter.ts`, `logsRouter.ts`, `metricsRouter.ts` -> Build "Pulse" system telemetry view.
+- [x] **Agent & Memory Wiring**: `agentRouter.ts`, `agentMemoryRouter.ts`, `memoryRouter.ts` -> Build detailed Agent State & Memory Viewer.
+- [x] **Infrastructure & Health**: `serverHealthRouter.ts`, `logsRouter.ts`, `metricsRouter.ts` -> Build "Pulse" system telemetry view.
 - [ ] **Tools & Extensions**: `marketplaceRouter.ts`, `toolSetsRouter.ts`, `browserRouter.ts`, `shellRouter.ts` -> Enhance Tools Dashboard.
 - [x] **DevOps & Git**: `gitRouter.ts`, `submoduleRouter.ts`, `symbolsRouter.ts` -> Build Submodule & Git Operations Dashboard.
 - [ ] **Authentication & Billing**: `apiKeysRouter.ts`, `oauthRouter.ts`, `billingRouter.ts` -> Build comprehensive Provider Auth & Billing Matrix.

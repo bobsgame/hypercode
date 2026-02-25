@@ -1,5 +1,5 @@
-
 import { SystemPulse } from '@/components/pulse/SystemPulse';
+import { MetricsCharts } from '@/components/pulse/MetricsCharts';
 
 export default function PulsePage() {
     return (
@@ -11,6 +11,7 @@ export default function PulsePage() {
                 </p>
             </div>
 
+            <MetricsCharts />
             <SystemPulse />
         </div>
     );

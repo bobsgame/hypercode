@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [2.7.19] - 2026-02-24
+
+### Changed
+- **Submodule Consolidation (Phase 2)**: Removed 31 redundant submodule mappings for 8 high-offender repositories (`algonius-browser`, `bkircher/skills`, `awesome-ai-apps`, `toolsdk-mcp-registry`, `awesome-mcp-servers`, `goose`, `OpenHands`, `metamcp`), establishing canonical paths under `external/` or `references/`.
+- **Version Bump**: Incremented version to 2.7.19.
+
 ## [2.7.18] - 2026-02-24
 
 ### Added

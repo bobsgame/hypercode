@@ -1,7 +1,7 @@
 # Borg Project — Comprehensive Status Report
 
 > **Updated**: 2026-02-24 (Post-Submodule Audit & Feature Gap Audit)
-> **Version**: 2.7.18 (canonical from `VERSION.md`)
+> **Version**: 2.7.19 (canonical from `VERSION.md`)
 > **Primary Phase**: 64 — Release Readiness
 
 ---

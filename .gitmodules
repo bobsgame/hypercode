@@ -400,9 +400,6 @@
 [submodule "references/clis/gemini-cli"]
 	path = superai-cli/clis-refs/gemini-cli
 	url = https://github.com/google-gemini/gemini-cli
-[submodule "references/clis/goose"]
-	path = superai-cli/clis-refs/goose
-	url = https://github.com/block/goose
 [submodule "references/clis/grok-cli"]
 	path = superai-cli/clis-refs/grok-cli
 	url = https://github.com/superagent-ai/grok-cli
@@ -880,9 +877,6 @@
 [submodule "superai-cli/mcp-advanced/mcp-servers"]
 	path = superai-cli/mcp-advanced/mcp-servers
 	url = https://github.com/modelcontextprotocol/servers.git
-[submodule "superai-cli/mcp-advanced/awesome-mcp-servers"]
-	path = superai-cli/mcp-advanced/awesome-mcp-servers
-	url = https://github.com/punkpeye/awesome-mcp-servers.git
 [submodule "agents/refs/pydantic-ai"]
 	path = agents/refs/pydantic-ai
 	url = https://github.com/pydantic/pydantic-ai
@@ -1915,18 +1909,12 @@
 [submodule "external/financial/ai-hedge-fund"]
 	path = external/financial/ai-hedge-fund
 	url = https://github.com/virattt/ai-hedge-fund
-[submodule "external/unsorted/awesome-mcp-servers"]
-	path = external/unsorted/awesome-mcp-servers
-	url = https://github.com/punkpeye/awesome-mcp-servers
 [submodule "external/unsorted/awesome-ai-tools-for-game-dev"]
 	path = external/unsorted/awesome-ai-tools-for-game-dev
 	url = https://github.com/simoninithomas/awesome-ai-tools-for-game-dev
 [submodule "external/unsorted/awesome-llm-apps"]
 	path = external/unsorted/awesome-llm-apps
 	url = https://github.com/Shubhamsaboo/awesome-llm-apps
-[submodule "external/unsorted/OpenHands"]
-	path = external/unsorted/OpenHands
-	url = https://github.com/OpenHands/OpenHands
 [submodule "external/unsorted/refact"]
 	path = external/unsorted/refact
 	url = https://github.com/smallcloudai/refact
@@ -2788,9 +2776,6 @@
 [submodule "cli-harnesses/aichat"]
 	path = cli-harnesses/aichat
 	url = https://github.com/sigoden/aichat
-[submodule "mcp-hubs/awesome-mcp-servers-punkpeye"]
-	path = mcp-hubs/awesome-mcp-servers-punkpeye
-	url = https://github.com/punkpeye/awesome-mcp-servers
 [submodule "mcp-hubs/awesome-mcp-servers-appcypher"]
 	path = mcp-hubs/awesome-mcp-servers-appcypher
 	url = https://github.com/appcypher/awesome-mcp-servers
@@ -2836,9 +2821,6 @@
 [submodule "cli-harnesses/codebuff"]
 	path = cli-harnesses/codebuff
 	url = https://github.com/CodebuffAI/codebuff
-[submodule "multi-agent/OpenHands"]
-	path = multi-agent/OpenHands
-	url = https://github.com/OpenHands/OpenHands
 [submodule "multi-agent/langgraph"]
 	path = multi-agent/langgraph
 	url = https://github.com/langchain-ai/langgraph
@@ -2857,9 +2839,6 @@
 [submodule "skills/claude-code-tips"]
 	path = skills/claude-code-tips
 	url = https://github.com/ykdojo/claude-code-tips
-[submodule "multi-agent/metamcp-robertpelloni"]
-	path = multi-agent/metamcp-robertpelloni
-	url = https://github.com/robertpelloni/metamcp
 [submodule "multi-agent/A2A-a2aproject"]
 	path = multi-agent/A2A-a2aproject
 	url = https://github.com/a2aproject/A2A
@@ -2887,9 +2866,6 @@
 [submodule "multi-agent/ag-ui"]
 	path = multi-agent/ag-ui
 	url = https://github.com/ag-ui-protocol/ag-ui
-[submodule "cli-harnesses/goose"]
-	path = cli-harnesses/goose
-	url = https://github.com/block/goose
 [submodule "multi-agent/CopilotKit"]
 	path = multi-agent/CopilotKit
 	url = https://github.com/CopilotKit/CopilotKit
@@ -3031,9 +3007,6 @@
 [submodule "cli-harnesses/kimi-cli-MoonshotAI"]
 	path = cli-harnesses/kimi-cli-MoonshotAI
 	url = https://github.com/MoonshotAI/kimi-cli
-[submodule "cli-harnesses/goose-block"]
-	path = cli-harnesses/goose-block
-	url = https://github.com/block/goose
 [submodule "agents/refs/smolagents"]
 	path = agents/refs/smolagents
 	url = https://github.com/huggingface/smolagents
@@ -3043,12 +3016,6 @@
 [submodule "external/opencode-autopilot"]
 	path = external/opencode-autopilot
 	url = https://github.com/robertpelloni/opencode-autopilot
-[submodule "references/awesome-mcp-servers"]
-	path = references/awesome-mcp-servers
-	url = https://github.com/punkpeye/awesome-mcp-servers
-[submodule "external/awesome-mcp-servers"]
-	path = external/awesome-mcp-servers
-	url = https://github.com/punkpeye/awesome-mcp-servers.git
 [submodule "external/mcp-servers-official"]
 	path = external/mcp-servers-official
 	url = https://github.com/modelcontextprotocol/servers.git
@@ -3163,9 +3130,6 @@
 [submodule "reference/cli/plandex"]
 	path = reference/cli/plandex
 	url = https://github.com/plandex-ai/plandex.git
-[submodule "reference/mcp/metamcp"]
-	path = reference/mcp/metamcp
-	url = https://github.com/robertpelloni/metamcp.git
 [submodule "reference/memory/supermemory"]
 	path = reference/memory/supermemory
 	url = https://github.com/supermemoryai/supermemory.git
@@ -3181,9 +3145,6 @@
 [submodule "reference/agent-ui/copilotkit"]
 	path = reference/agent-ui/copilotkit
 	url = https://github.com/CopilotKit/CopilotKit.git
-[submodule "reference/cli/goose"]
-	path = reference/cli/goose
-	url = https://github.com/block/goose.git
 [submodule "reference/indexing/serena"]
 	path = reference/indexing/serena
 	url = https://github.com/oraios/serena.git
@@ -3250,12 +3211,6 @@
 [submodule "packages/skills/claude-code-tips"]
 	path = packages/skills/claude-code-tips
 	url = https://github.com/ykdojo/claude-code-tips
-[submodule "packages/mcp-directory/general/awesome-mcp-servers"]
-	path = packages/mcp-directory/general/awesome-mcp-servers
-	url = https://github.com/punkpeye/awesome-mcp-servers
-[submodule "packages/mcp-directory/orchestration/metamcp"]
-	path = packages/mcp-directory/orchestration/metamcp
-	url = https://github.com/robertpelloni/metamcp
 [submodule "packages/mcp-directory/orchestration/blog.md"]
 	path = packages/mcp-directory/orchestration/blog.md
 	url = https://github.com/The-Pocket/PocketFlow-Tutorial-Cursor

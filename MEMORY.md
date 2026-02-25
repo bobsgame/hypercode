@@ -1,6 +1,6 @@
 # Borg Memory System Architecture
 
-> **Version**: 2.7.18 (Phase 64)
+> **Version**: 2.7.19 (Phase 64)
 > **Status**: Hybrid (SQLite + Vector Placeholder) - Evolving to Multi-Backend
 
 ---

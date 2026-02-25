@@ -772,9 +772,6 @@
 [submodule "computer-use/desktop/cua"]
 	path = computer-use/desktop/cua
 	url = https://github.com/trycua/cua
-[submodule "computer-use/browser/algonius-browser"]
-	path = browser-use/algonius-browser
-	url = https://github.com/algonius/algonius-browser
 [submodule "code-sandbox/tools/cohere-terrarium"]
 	path = code-sandbox/tools/cohere-terrarium
 	url = https://github.com/cohere-ai/cohere-terrarium
@@ -1087,9 +1084,6 @@
 [submodule "mcp-servers/browser/generalagents-python"]
 	path = mcp-servers/browser/generalagents-python
 	url = https://github.com/generalagents/generalagents-python
-[submodule "mcp-servers/browser/algonius-browser"]
-	path = mcp-servers/browser/algonius-browser
-	url = https://github.com/algonius/algonius-browser
 [submodule "superai-cli/clis/codebuff"]
 	path = superai-cli/clis/codebuff
 	url = https://github.com/CodebuffAI/codebuff
@@ -2617,9 +2611,6 @@
 [submodule "external/forks/zhifac/gemini-cli-router"]
 	path = external/forks/zhifac/gemini-cli-router
 	url = https://github.com/zhifac/gemini-cli-router
-[submodule "skills/refs/skills-bkircher"]
-	path = skills/refs/skills-bkircher
-	url = https://github.com/bkircher/skills
 [submodule "cli-harnesses/code-assistant-manager"]
 	path = cli-harnesses/code-assistant-manager
 	url = https://github.com/Chat2AnyLLM/code-assistant-manager
@@ -2656,9 +2647,6 @@
 [submodule "cli-harnesses/kimi-cli"]
 	path = cli-harnesses/kimi-cli
 	url = https://github.com/MoonshotAI/kimi-cli
-[submodule "mcp-servers/browser/algonius-browser-2"]
-	path = mcp-servers/browser/algonius-browser-2
-	url = https://github.com/algonius/algonius-browser
 [submodule "mcp-routers/agent-mcp-gateway"]
 	path = mcp-routers/agent-mcp-gateway
 	url = https://github.com/roddutra/agent-mcp-gateway
@@ -2677,9 +2665,6 @@
 [submodule "mcp-routers/microsoft-mcp-gateway-2"]
 	path = mcp-routers/microsoft-mcp-gateway-2
 	url = https://github.com/microsoft/mcp-gateway
-[submodule "mcp-servers/browser/algonius-browser-3"]
-	path = mcp-servers/browser/algonius-browser-3
-	url = https://github.com/algonius/algonius-browser
 [submodule "external/orchestration/ag-ui-protocol"]
 	path = external/orchestration/ag-ui-protocol
 	url = https://github.com/ag-ui-protocol/ag-ui
@@ -2791,9 +2776,6 @@
 [submodule "multi-agent/pydantic-deepagents-2"]
 	path = multi-agent/pydantic-deepagents-2
 	url = https://github.com/vstorm-co/pydantic-deepagents
-[submodule "mcp-servers/browser/algonius-browser-4"]
-	path = mcp-servers/browser/algonius-browser-4
-	url = https://github.com/algonius/algonius-browser
 [submodule "mcp-tool-rag/mcp-funnel"]
 	path = mcp-tool-rag/mcp-funnel
 	url = https://github.com/chris-schra/mcp-funnel
@@ -2815,21 +2797,12 @@
 [submodule "mcp-hubs/awesome-mcp-servers-wong2"]
 	path = mcp-hubs/awesome-mcp-servers-wong2
 	url = https://github.com/wong2/awesome-mcp-servers
-[submodule "mcp-hubs/toolsdk-mcp-registry"]
-	path = mcp-hubs/toolsdk-mcp-registry
-	url = https://github.com/toolsdk-ai/toolsdk-mcp-registry
-[submodule "mcp-hubs/awesome-ai-apps"]
-	path = mcp-hubs/awesome-ai-apps
-	url = https://github.com/Arindam200/awesome-ai-apps
 [submodule "skills/anthropics-skills"]
 	path = skills/anthropics-skills
 	url = https://github.com/anthropics/skills
 [submodule "skills/gemini-claude-skills"]
 	path = skills/gemini-claude-skills
 	url = https://github.com/stared/gemini-claude-skills
-[submodule "skills/bkircher-skills"]
-	path = skills/bkircher-skills
-	url = https://github.com/bkircher/skills
 [submodule "skills/ykdojo-claude-code-tips"]
 	path = skills/ykdojo-claude-code-tips
 	url = https://github.com/ykdojo/claude-code-tips
@@ -2860,9 +2833,6 @@
 [submodule "mcp-hubs/awesome-mcp-servers"]
 	path = mcp-hubs/awesome-mcp-servers
 	url = https://github.com/appcypher/awesome-mcp-servers
-[submodule "mcp-hubs/toolsdk-mcp-registry-toolsdk-ai"]
-	path = mcp-hubs/toolsdk-mcp-registry-toolsdk-ai
-	url = https://github.com/toolsdk-ai/toolsdk-mcp-registry
 [submodule "cli-harnesses/codebuff"]
 	path = cli-harnesses/codebuff
 	url = https://github.com/CodebuffAI/codebuff
@@ -2872,9 +2842,6 @@
 [submodule "multi-agent/langgraph"]
 	path = multi-agent/langgraph
 	url = https://github.com/langchain-ai/langgraph
-[submodule "mcp-hubs/awesome-ai-apps-Arindam200"]
-	path = mcp-hubs/awesome-ai-apps-Arindam200
-	url = https://github.com/Arindam200/awesome-ai-apps
 [submodule "skills/skills"]
 	path = skills/skills
 	url = https://github.com/anthropics/skills
@@ -3100,18 +3067,9 @@
 [submodule "external/awesome-mcp-servers-wong2"]
 	path = external/awesome-mcp-servers-wong2
 	url = https://github.com/wong2/awesome-mcp-servers
-[submodule "external/toolsdk-mcp-registry"]
-	path = external/toolsdk-mcp-registry
-	url = https://github.com/toolsdk-ai/toolsdk-mcp-registry
-[submodule "external/awesome-ai-apps"]
-	path = external/awesome-ai-apps
-	url = https://github.com/Arindam200/awesome-ai-apps
 [submodule "external/skills_repos/gemini-claude-skills"]
 	path = external/skills_repos/gemini-claude-skills
 	url = https://github.com/stared/gemini-claude-skills
-[submodule "external/skills_repos/bkircher-skills"]
-	path = external/skills_repos/bkircher-skills
-	url = https://github.com/bkircher/skills
 [submodule "vibeship-spawner-skills"]
 	path = vibeship-spawner-skills
 	url = https://github.com/vibeforge1111/vibeship-spawner-skills
@@ -3283,9 +3241,6 @@
 [submodule "packages/claude-mem"]
 	path = packages/claude-mem
 	url = https://github.com/robertpelloni/claude-mem
-[submodule "packages/mcp-directory/general/awesome-ai-apps"]
-	path = packages/mcp-directory/general/awesome-ai-apps
-	url = https://github.com/Arindam200/awesome-ai-apps
 [submodule "packages/skills/skills"]
 	path = packages/skills/skills
 	url = https://github.com/TheNoeTrevino/dotfiles
@@ -3298,9 +3253,6 @@
 [submodule "packages/mcp-directory/general/awesome-mcp-servers"]
 	path = packages/mcp-directory/general/awesome-mcp-servers
 	url = https://github.com/punkpeye/awesome-mcp-servers
-[submodule "packages/mcp-directory/general/toolsdk-mcp-registry"]
-	path = packages/mcp-directory/general/toolsdk-mcp-registry
-	url = https://github.com/toolsdk-ai/toolsdk-mcp-registry
 [submodule "packages/mcp-directory/orchestration/metamcp"]
 	path = packages/mcp-directory/orchestration/metamcp
 	url = https://github.com/robertpelloni/metamcp

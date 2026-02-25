@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [2.7.18] - 2026-02-24
+
+### Added
+- **Semantic Browser Interface**: Implemented `/dashboard/browser` to monitor and manage autonomous headless browser sessions.
+- **Symbol Explorer**: Implemented `/dashboard/symbols` for viewing and managing pinned code symbols, notes, and architectural focus points.
+
+### Changed
+- **Submodule Consolidation (Phase 1)**: Removed 15 redundant submodule mappings for `algonius-browser`, `bkircher/skills`, `awesome-ai-apps`, and `toolsdk-mcp-registry`, consolidating them into canonical `external/` paths.
+- **Version Bump**: Incremented version to 2.7.18.
+- **Instruction Alignment**: Added explicit versioning and changelog mandates to all AI agent instruction files (`CLAUDE.md`, `GEMINI.md`, etc.).
+
 ## [2.7.17] - 2026-02-24
 
 ### Added

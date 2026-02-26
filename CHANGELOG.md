@@ -11,6 +11,7 @@ All notable changes to this project will be documented in this file.
 - **Type Safety Pass**: Removed 50+ `@ts-ignore` directives from `apps/web` and `packages/ui`.
 - **TRPC Router Typing**: Fixed generic TS inference errors in `appRouter` affecting `healerRouter` and `auditRouter`. Rewired all `SecurityPage`TRPC calls to correct `policies.*` and `audit.log` endpoints instead of previous untyped endpoints.
 - **Strict Compliance**: Both `packages/core` and `packages/ui` now successfully compile under `tsc --noEmit` locally with zero fallback mocks or stubs. 
+- **Browser Extension Bridge**: Implemented fuzzy text matching and validated the end-to-end local MCP click action logic in `@borg/browser-extension-pkg` background execution worker.
 
 ## [2.7.25] - 2026-02-25
 

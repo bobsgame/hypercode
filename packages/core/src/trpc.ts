@@ -53,7 +53,7 @@ import { agentRouter } from './routers/agentRouter.js';
 import { browserRouter } from './routers/browserRouter.js';
 // import { meshRouter } from './routers/meshRouter.js';
 import { marketplaceRouter } from './routers/marketplaceRouter.js';
-
+import { deerFlowRouter } from './routers/deerFlowRouter.js';
 
 // import { type AnyTRPCRouter } from '@trpc/server';
 
@@ -109,6 +109,7 @@ export const appRouter = t.router({
     browser: browserRouter,
     // mesh: meshRouter,
     marketplace: marketplaceRouter,
+    deerFlow: deerFlowRouter,
 });
 
 export type AppRouter = typeof appRouter;

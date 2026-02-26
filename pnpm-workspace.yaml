@@ -10,3 +10,4 @@ packages:
   - 'submodules/bobcoin'
   - 'external/MetaMCP/packages/*'
   - 'external/MetaMCP/apps/*'
+  - 'external/deer-flow/frontend'

@@ -26,9 +26,9 @@ export class PolicyService {
             return { allowed: false, reason: 'Tool is globally blocked.' };
         }
 
-        // Default Allow for now to prevent breaking existing flows, 
-        // but normally would be Default Deny.
-        // Implementing "Monitor/Allow" mode.
+        // Default Allow mode is active to prevent breaking existing flows, 
+        // strict normally would be Default Deny.
+        // Operating in "Monitor/Allow" mode.
 
         return { allowed: true };
     }

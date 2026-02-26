@@ -4,8 +4,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { trpc } from '../utils/trpc';
 
 export function AuditLogViewer() {
-    // @ts-ignore
-    const { data: logs, refetch } = trpc.audit.query.useQuery({ limit: 100 }, {
+    const { data: logs, refetch } = trpc.audit.list.useQuery({ limit: 100 }, {
         refetchInterval: 5000
     });
 
@@ -19,8 +18,8 @@ export function AuditLogViewer() {
             </div>
 
             <div className="flex-1 overflow-y-auto space-y-1 font-mono text-xs pr-2">
-                {logs && logs.length > 0 ? (
-                    logs.map((log: any, i: number) => (
+                {logs && (logs as any[]).length > 0 ? (
+                    (logs as any[]).map((log: any, i: number) => (
                         <div key={i} className="flex gap-2 border-b border-gray-800/50 pb-1 last:border-0 hover:bg-gray-800/30 px-1 rounded">
                             <span className="text-gray-500 shrink-0 w-32">{new Date(log.timestamp).toLocaleTimeString()}</span>
                             <span className={`shrink-0 w-12 font-bold ${log.level === 'ERROR' ? 'text-red-500' :

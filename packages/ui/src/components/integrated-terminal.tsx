@@ -44,7 +44,7 @@ export function IntegratedTerminal({
       const { Terminal } = await import("@xterm/xterm");
       const { FitAddon } = await import("@xterm/addon-fit");
       const { io } = await import("socket.io-client");
-      // @ts-ignore
+      // @ts-expect-error - TS doesn't natively type raw CSS file imports in this context
       await import("@xterm/xterm/css/xterm.css");
 
       if (isCancelled) return;

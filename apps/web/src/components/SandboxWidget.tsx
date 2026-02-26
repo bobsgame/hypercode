@@ -9,7 +9,6 @@ export function SandboxWidget() {
     const [output, setOutput] = useState('');
     const [isError, setIsError] = useState(false);
 
-    // @ts-ignore
     const executeMutation = (trpc as any).sandbox.execute.useMutation({
         onSuccess: (data: any) => {
             if (data.error) {

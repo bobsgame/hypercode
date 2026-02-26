@@ -3,7 +3,10 @@ import { z } from 'zod';
 import { t, publicProcedure, getHealerService } from '../lib/trpc-core.js';
 import { observable } from '@trpc/server/observable';
 
-export const healerRouter: any = t.router({
+import type { AnyTRPCRouter } from '@trpc/server';
+import type * as _TRPCCore from '@trpc/server/unstable-core-do-not-import';
+
+export const healerRouter = t.router({
     diagnose: t.procedure.input(z.object({ error: z.string(), context: z.string().optional() })).mutation(async ({ input }) => {
         return getHealerService().analyzeError(input.error, input.context || "");
     }),

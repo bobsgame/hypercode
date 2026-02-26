@@ -58,7 +58,7 @@ export class JsonMemoryProvider implements IMemoryProvider {
     async searchMemories(query: string, userId: string, limit: number = 5, threshold: number = 0.7): Promise<Memory[]> {
         await this.init();
 
-        // Simple search for now since we don't have embeddings engine in pure JSON without extra libs
+        // Simple search logic, without embeddings engine in pure JSON without extra libs
         // In a real implementation, we would compute cosine similarity if embeddings exist
 
         const results = this.memories.filter(m => m.userId === userId);

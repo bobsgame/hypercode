@@ -113,4 +113,9 @@
     - [x] Configure as `pnpm` workspace package
     - [x] Link via `MetaMCPBridgeService` HTTP client + TRPC router procedures
     - [x] Build separate `dist/metamcp.js` library entry point via tsup
+- [x] **Phase 68: Bytedance DeerFlow Integration (Super Agent Harness)**
+    - [x] Add Bytedance DeerFlow as Git submodule at `external/deer-flow`
+    - [x] Configure as `pnpm` workspace package (frontend)
+    - [x] Link via `DeerFlowBridgeService` HTTP client + TRPC router procedures
+    - [x] Build `/dashboard/deer-flow` and inject into `mcp` array
 

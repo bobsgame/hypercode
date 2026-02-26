@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from "@borg/ui";
 import { Button } from "@borg/ui";
-import { Loader2, Plus, Server, Wrench, Trash2, Upload, Box, RefreshCw, Terminal, Layers, Globe, Key, Shield, FileCode, Activity, Zap, Bot, Search, Sparkles, ExternalLink, Cpu } from "lucide-react";
+import { Loader2, Plus, Server, Wrench, Trash2, Upload, Box, RefreshCw, Terminal, Layers, Globe, Key, Shield, FileCode, Activity, Zap, Bot, Search, Sparkles, ExternalLink, Cpu, Network } from "lucide-react";
 import { DndContext, DragEndEvent, PointerSensor, closestCenter, useSensor, useSensors } from '@dnd-kit/core';
 import { SortableContext, arrayMove, rectSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -56,6 +56,7 @@ function safeStorageSet(key: string, value: string): void {
 
 const DEFAULT_PANEL_ORDER = [
     'autopilot',
+    'deer-flow',
     'session',
     'agent',
     'experts',
@@ -80,6 +81,13 @@ const PANEL_META: Record<PanelId, { title: string; href: string; icon: any; desc
         href: '/dashboard/autopilot',
         icon: Sparkles,
         description: 'Launch governance and multi-model autopilot workflows.',
+        accent: 'text-fuchsia-400',
+    },
+    'deer-flow': {
+        title: 'DeerFlow Harness',
+        href: '/dashboard/deer-flow',
+        icon: Network,
+        description: 'Super Agent engine for sub-agent swarm reasoning.',
         accent: 'text-fuchsia-400',
     },
     'session': {

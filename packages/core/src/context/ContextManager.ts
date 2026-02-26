@@ -3,7 +3,7 @@ import * as path from 'path';
 
 export class ContextManager {
     private pinnedFiles: Set<string> = new Set();
-    private maxTokenLimit: number = 8000; // Rough char limit for now
+    private maxTokenLimit: number = 8000; // Rough text character limit
 
     constructor() { }
 

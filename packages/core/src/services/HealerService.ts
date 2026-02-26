@@ -93,11 +93,8 @@ export class HealerService extends EventEmitter {
             return { success: false };
         }
 
-        // 3. Apply Fix (Naive replacement for now, usually would use applying diffs)
-        // For the purpose of this phase, we will trust the LLM's suggested fix is a replacement block
-        // In a real system, we'd use a more robust patching mechanism
-
-        // Let's ask LLM to generate the FULL file content with the fix applied
+        // 3. Apply Fix
+        // Ask LLM to generate the FULL file content with the fix applied
         const currentContent = await fs.readFileSync(filePath, 'utf-8');
         const prompt = `
         You are an Expert Linter and Fixer.

@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [2.7.26] - 2026-02-26
+
+### Fixed
+- **Phase 64 Release Readiness**: Eliminated broad `@ts-ignore` usage in the persistence and UI layer for frontend parity and robustness.
+- **Type Safety Pass**: Removed 50+ `@ts-ignore` directives from `apps/web` and `packages/ui`.
+- **TRPC Router Typing**: Fixed generic TS inference errors in `appRouter` affecting `healerRouter` and `auditRouter`. Rewired all `SecurityPage`TRPC calls to correct `policies.*` and `audit.log` endpoints instead of previous untyped endpoints.
+- **Strict Compliance**: Both `packages/core` and `packages/ui` now successfully compile under `tsc --noEmit` locally with zero fallback mocks or stubs. 
+
+## [2.7.25] - 2026-02-25
+
+### Added
+- **Phase 68: DeerFlow Super Agent Harness Assessment**: Successfully assimilated Bytedance's `deer-flow` deep-research reasoning super agent as a git submodule (`external/deer-flow`).
+- **Core Bridge Networking**: Scaffolded `@borg/core` with proxy mechanisms connected to the Python LangGraph gateway via `DeerFlowBridgeService.ts` and wired into Central TRPC scope via `deerFlowRouter.ts`.
+- **Dashboard Portal Overlay**: Deep-linked the Next.js `deer-flow` UI overlay into the root Master Control Panel under `apps/web/src/app/dashboard/deer-flow`.
+
 ## [2.7.24] - 2026-02-25
 
 ### Added

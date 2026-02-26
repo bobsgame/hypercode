@@ -68,8 +68,23 @@ function registerCodeReviewWorkflow(engine: WorkflowEngine, runner: ToolRunner) 
 
         .addNode('auto_critique', async (state) => {
             console.log('[Workflow: Code Review] Auto-generating critique...');
-            // Placeholder: In a real system this would call an LLM tool
-            return { ...state, critique: 'Automated critique: Code structure appears sound.' };
+            try {
+                // Call the real agent via the execution runner to handle the code diff
+                const diffContent = state.diffSummary || '';
+
+                if (!diffContent || typeof diffContent !== 'string') {
+                    return { ...state, critique: 'Skipped critique: No diff to review.' };
+                }
+
+                const response = await runner.executeTool('ask_agent', {
+                    AgentName: 'Engineer',
+                    Message: `Provide a highly concise code review of this unified diff. Look for obvious anti-patterns:\\n\\n${diffContent}`
+                });
+
+                return { ...state, critique: typeof response === 'string' ? response : JSON.stringify(response) };
+            } catch (err: unknown) {
+                return { ...state, critique: `Automated critique failed: ${getErrorMessage(err)}` };
+            }
         }, { name: 'Auto Critique', description: 'LLM-based code analysis' })
 
         .addNode('human_review', async (state) => {

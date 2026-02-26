@@ -47,7 +47,7 @@ export class GeminiAgent extends EventEmitter implements IAgent {
             // 2. Add to history
             this.state.history.push({ role: 'user', parts: [{ text: message }] });
 
-            // 3. Generate (Simulated Chat Loop for now, LLMService handles the actual API)
+            // 3. Generate (Simulated Chat Loop, LLMService handles the actual API)
             // Note: LLMService currently is stateless REST-like. 
             // Better to use a dedicated chat session if LLMService supports it, or pass full history.
             // For Phase 1 of this agent, we'll pass the message as a fresh prompt but contextualized.

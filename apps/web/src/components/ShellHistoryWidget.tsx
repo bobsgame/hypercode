@@ -4,8 +4,7 @@ import { trpc } from '../utils/trpc';
 import { motion } from 'framer-motion';
 
 export function ShellHistoryWidget() {
-    // @ts-ignore
-    const { data: history, refetch, isLoading } = (trpc as any).shell.getHistory.useQuery({ limit: 100 }, {
+    const { data: history, refetch, isLoading } = trpc.shell.getSystemHistory.useQuery({ limit: 100 }, {
         refetchInterval: 5000
     });
 
@@ -43,7 +42,7 @@ export function ShellHistoryWidget() {
                             />
                         </div>
                     ) : history && history.length > 0 ? (
-                        history.slice().reverse().map((cmd: string, i: number) => (
+                        (history as any[]).slice().reverse().map((cmd: string, i: number) => (
                             <motion.div
                                 key={i}
                                 initial={{ opacity: 0 }}

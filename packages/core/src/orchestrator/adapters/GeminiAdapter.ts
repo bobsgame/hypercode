@@ -18,13 +18,12 @@ export class GeminiAdapter extends AgentAdapter {
             const mcp = global.mcpServerInstance;
             if (mcp) {
                 // Initialize internal agent
-                // Assuming MCPServer creates PromptRegistry or we create it here?
-                // Let's create it here for now if not available.
+                // Assuming MCPServer creates PromptRegistry or we create it here.
                 // Ideally PromptRegistry should be on MCPServer. 
                 // We will patch MCPServer in next step to add PromptRegistry.
-                // For now, access dependencies via global or pass them down.
+                // Accessing dependencies via global or passing them down.
 
-                // Temporary: Create fresh registry if needed, but optimally share it.
+                // Creating fresh registry if needed, but optimally share it.
                 // We will refactor MCPServer to expose promptRegistry later.
                 const registry = mcp.promptRegistry;
 

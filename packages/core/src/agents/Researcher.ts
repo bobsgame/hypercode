@@ -84,14 +84,19 @@ export class Researcher {
         console.log(`[Researcher] Analyzing: ${target.name} (${target.url})`);
 
         try {
-            // 1. Scrape (Simulated via scrape tool or fetch)
-            // We use the Director's toolset if available, or just fetch if simple.
-            // Let's assume we use a 'read_url' tool if we have one, or just fetch for now.
-            // Since we built the Browser Extension, we might want to use that if connected.
-            // But for reliability in this script, let's use a basic fetch-to-markdown convert.
-
-            const response = await fetch(target.url);
-            const html = await response.text();
+            let html = "";
+            try {
+                // Let's use the execute tool method to scrape via page reader or fallback
+                const result = await this.server.executeTool("read_url", { url: target.url });
+                html = typeof result === 'object' && result !== null && 'content' in result && Array.isArray((result as any).content)
+                    ? String((result as any).content[0]?.text || '')
+                    : String(result);
+            } catch (e) {
+                // Fallback for simple testing
+                console.warn("[Researcher] Failed to use read_url tool, falling back to native fetch", e);
+                const response = await fetch(target.url);
+                html = await response.text();
+            }
             // Simple text extraction
             const text = html.replace(/<[^>]+>/g, ' ').substring(0, 5000);
 

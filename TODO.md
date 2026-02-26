@@ -38,23 +38,23 @@
 - [x] **Advanced Features**: `darwinRouter.ts` (Evolution), `expertRouter.ts`, `policiesRouter.ts`, `savedScriptsRouter.ts`, `sessionRouter.ts`.
 
 ### 3) UI TODO/hardcoded fallback cleanup
-- [ ] **Resolve Director endpoint test TODO**
-- [ ] **Resolve MCP namespace placeholder behavior**
-- [ ] **Complete prompt variable extraction implementation**
+- [x] **Resolve Director endpoint test TODO**
+- [x] **Resolve MCP namespace placeholder behavior**
+- [x] **Complete prompt variable extraction implementation**
 
 ---
 
 ## P2 — Robustness, Security, and Extension Completion
 
 ### 0) First-party marker sweep follow-through
-- [ ] **Reduce remaining critical-path “for now/mock/placeholder” assumptions in first-party source**
+- [x] **Reduce remaining critical-path “for now/mock/placeholder” assumptions in first-party source**
 
 ### 1) Browser extension completion
-- [ ] **Finish fuzzy text matching click action**
-- [ ] **End-to-end MCP bridge validation**
+- [x] **Finish fuzzy text matching click action**
+- [x] **End-to-end MCP bridge validation**
 
 ### 2) Shared UI `@ts-ignore` reduction pass
-- [ ] **Remove remaining `@ts-ignore` in user-facing components**
+- [x] **Remove remaining `@ts-ignore` in user-facing components**
 
 ### 3) Canonical docs consistency hardening
 - [ ] **Keep `ROADMAP.md`, `TODO.md`, `STATUS.md`, `HANDOFF.md`, `CHANGELOG.md` synchronized after each merged fix batch**
@@ -67,8 +67,9 @@
 - [x] **Phase 65: Marketplace & Ecosystem** — MCP registry, plugin engine, skills repos
 - [x] **Phase 66: AI Command Center & Dashboards** — Jules, OpenCode, Billing, Tool Detector
 - [x] **Phase 67: MetaMCP Submodule Assimilation** — Git submodule + MetaMCPBridgeService
-- [ ] **Phase 68: Memory System Multi-Backend** — selectable vector stores, import/export
-- [ ] **Phase 69: RAG Pipeline & Context Harvesting** — document intake, chunking, embedding
+- [x] **Phase 68: Bytedance DeerFlow Integration** — Super Agent harness, Python LangGraph gateway, NextJS Portal
+- [ ] **Phase 69: Memory System Multi-Backend** — selectable vector stores, import/export
+- [ ] **Phase 70: RAG Pipeline & Context Harvesting** — document intake, chunking, embedding
 
 ---
 

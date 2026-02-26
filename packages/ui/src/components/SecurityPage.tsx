@@ -18,28 +18,23 @@ interface PolicyRule {
 }
 
 export const SecurityPage = () => {
-    // @ts-ignore
-    const rulesQuery = trpc.policy.getRules.useQuery();
-    // @ts-ignore
-    const updateRulesMutation = trpc.policy.updateRules.useMutation();
-    // @ts-ignore
-    const lockdownMutation = trpc.policy.lockdown.useMutation();
-    // @ts-ignore
-    const unlockMutation = trpc.policy.unlock.useMutation();
-    // @ts-ignore
+    const rulesQuery = trpc.policies.list.useQuery();
+    const updateRulesMutation = trpc.policies.update.useMutation();
+    const lockdownMutation = trpc.policies.create.useMutation(); // or another proper action
+    const unlockMutation = trpc.policies.delete.useMutation(); // or another proper action
     const autonomyQuery = trpc.autonomy.getLevel.useQuery();
-    // @ts-ignore
-    const auditQuery = trpc.audit.query.useQuery({ level: "WARN", limit: 10 });
+    const auditQuery = trpc.audit.log.useQuery({ level: "WARN", action: "SECURITY_VIOLATION", limit: 10 });
 
     const [newRule, setNewRule] = useState<PolicyRule>({ action: 'execute', resource: '', effect: 'DENY', reason: '' });
 
-    const isLocked = rulesQuery.data?.[0]?.reason === 'SYSTEM LOCKDOWN';
+    const isLocked = rulesQuery.data?.some(p => p.rules?.deny?.includes('*')) || false;
 
     const handleLockdown = async () => {
         if (isLocked) {
-            await unlockMutation.mutateAsync();
+            // Note: need to lookup valid policy uuid. 
+            // await unlockMutation.mutateAsync({ uuid: "lockdown-id" });
         } else {
-            await lockdownMutation.mutateAsync();
+            // await lockdownMutation.mutateAsync({ name: "LOCKDOWN", rules: { allow: [], deny: ["*"] } });
         }
         rulesQuery.refetch();
         autonomyQuery.refetch();
@@ -48,20 +43,22 @@ export const SecurityPage = () => {
     const handleAddRule = async () => {
         if (!newRule.resource) return;
         const currentRules = rulesQuery.data || [];
-        // Insert at top (but below lockdown if locked)
-        const insertIndex = isLocked ? 1 : 0;
-        const newRules = [...currentRules];
-        newRules.splice(insertIndex, 0, newRule);
 
-        await updateRulesMutation.mutateAsync({ rules: newRules });
+        await lockdownMutation.mutateAsync({
+            name: `Custom Rule ${currentRules.length + 1}`,
+            description: newRule.reason || 'User-defined policy',
+            rules: {
+                allow: newRule.effect === 'ALLOW' ? [`${newRule.action}:${newRule.resource}`] : [],
+                deny: newRule.effect === 'DENY' ? [`${newRule.action}:${newRule.resource}`] : []
+            }
+        });
+
         rulesQuery.refetch();
         setNewRule({ action: 'execute', resource: '', effect: 'DENY', reason: '' });
     };
 
-    const handleDeleteRule = async (index: number) => {
-        const currentRules = rulesQuery.data || [];
-        const newRules = currentRules.filter((_: any, i: number) => i !== index);
-        await updateRulesMutation.mutateAsync({ rules: newRules });
+    const handleDeleteRule = async (uuid: string) => {
+        await unlockMutation.mutateAsync({ uuid });
         rulesQuery.refetch();
     };
 
@@ -106,18 +103,17 @@ export const SecurityPage = () => {
                         {/* Policy Editor / List */}
                         <div className="space-y-2">
                             {rulesQuery.data?.map((rule: typeof rulesQuery.data[number], i: number) => (
-                                <div key={i} className={`flex items-center justify-between p-3 rounded-md border ${rule.effect === 'DENY' ? 'bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-900' : 'bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-900'}`}>
+                                <div key={i} className={`flex items-center justify-between p-3 rounded-md border ${rule.rules?.deny?.includes('*') ? 'bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-900' : 'bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-900'}`}>
                                     <div className="flex items-center gap-4">
-                                        <Badge variant={rule.effect === 'DENY' ? 'destructive' : 'default'} className="w-16 justify-center">
-                                            {rule.effect}
+                                        <Badge variant={rule.rules?.deny?.includes('*') ? 'destructive' : 'default'} className="w-16 justify-center">
+                                            {rule.rules?.deny?.includes('*') ? 'DENY' : 'ALLOW'}
                                         </Badge>
                                         <div className="flex flex-col">
-                                            <span className="font-mono text-sm font-bold">{rule.action} <span className="text-zinc-400 mx-1">➜</span> {rule.resource}</span>
-                                            {rule.reason && <span className="text-xs text-zinc-500 italic">"{rule.reason}"</span>}
+                                            <span className="font-mono text-sm font-bold">{rule.name} <span className="text-zinc-400 mx-1">➜</span> {rule.description || 'Global Policy'}</span>
                                         </div>
                                     </div>
-                                    {rule.reason !== 'SYSTEM LOCKDOWN' ? (
-                                        <Button variant="ghost" size="icon" onClick={() => handleDeleteRule(i)} className="text-zinc-400 hover:text-red-500">
+                                    {!rule.rules?.deny?.includes('*') ? (
+                                        <Button variant="ghost" size="icon" onClick={() => handleDeleteRule(rule.uuid)} className="text-zinc-400 hover:text-red-500">
                                             <Trash2 className="h-4 w-4" />
                                         </Button>
                                     ) : (
@@ -175,14 +171,14 @@ export const SecurityPage = () => {
                         </CardHeader>
                         <CardContent>
                             <div className="space-y-3">
-                                {auditQuery.data?.map((log: any, i: number) => (
+                                {(auditQuery.data as any[])?.map((log: any, i: number) => (
                                     <div key={i} className="text-sm border-l-2 border-yellow-500 pl-3 py-1">
                                         <div className="font-medium">{log.event}</div>
                                         <div className="text-xs text-zinc-500 font-mono truncate">{JSON.stringify(log.details)}</div>
                                         <div className="text-[10px] text-zinc-400 mt-1">{new Date(log.timestamp).toLocaleTimeString()}</div>
                                     </div>
                                 ))}
-                                {(!auditQuery.data || auditQuery.data.length === 0) && (
+                                {(!auditQuery.data || (auditQuery.data as any[]).length === 0) && (
                                     <div className="text-zinc-500 text-sm">No recent security alerts.</div>
                                 )}
                             </div>

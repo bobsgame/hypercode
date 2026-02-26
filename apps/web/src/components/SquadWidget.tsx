@@ -4,15 +4,12 @@ import { trpc } from '../utils/trpc';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export const SquadWidget: React.FC = () => {
-    // @ts-ignore
     const { data: members, isLoading } = trpc.squad.list.useQuery(undefined, {
         refetchInterval: 3000 // Real-time pulse
     });
 
-    // @ts-ignore
     const spawnMutation = trpc.squad.spawn.useMutation({
         onSuccess: () => {
-            // @ts-ignore
             utils.squad.list.invalidate();
             setShowSpawnModal(false);
             setGoal('');
@@ -20,10 +17,8 @@ export const SquadWidget: React.FC = () => {
         }
     });
 
-    // @ts-ignore
     const killMutation = trpc.squad.kill.useMutation({
         onSuccess: () => {
-            // @ts-ignore
             utils.squad.list.invalidate();
         }
     });

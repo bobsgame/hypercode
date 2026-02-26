@@ -1,9 +1,9 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js"; // Assuming this exists in SDK or similar
-// Actually StreamableHTTPClientTransport might not be in basic SDK. MetaMCP uses it.
-// If not found, I might need to skip HTTP/SSE for now or use standard HTTP.
-// But let's assume it's there as per imports.
+// StreamableHTTPClientTransport may not be available in basic SDK. MetaMCP uses it.
+// If not found, skip HTTP/SSE or use standard HTTP.
+// Assuming it prevails based on active imports.
 
 import { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import { ServerParameters } from "../types/metamcp/index.js";

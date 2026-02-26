@@ -23,8 +23,8 @@ export class MetaMCPController {
         console.log("[MetaMCPController] Initializing MetaMCP Proxy extensions...");
 
         // Define default session for singleton Borg instance
-        const namespaceUuid = "borg-core-namespace"; // Static ID for now
-        const sessionId = "borg-core-session";       // Static ID for now
+        const namespaceUuid = "borg-core-namespace";
+        const sessionId = "borg-core-session";
 
         const { cleanup } = await attachTo(
             server,

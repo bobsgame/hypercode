@@ -13,7 +13,6 @@ export function HealerWidget() {
     const [eventList, setEventList] = useState<HealerEvent[]>([]);
 
     // 1. Initial Load: Fetch History
-    // @ts-ignore
     const { data: history, isLoading } = trpc.healer.getHistory.useQuery(undefined, {
         refetchOnWindowFocus: false,
         refetchOnMount: true
@@ -26,7 +25,6 @@ export function HealerWidget() {
     }, [history]);
 
     // 2. Real-time Subscription (Live Events)
-    // @ts-ignore
     trpc.healer.subscribe.useSubscription(undefined, {
         onData(data: unknown) {
             const event = data as HealerEvent;

@@ -24,7 +24,6 @@ export function AutonomyControl() {
     });
 
     // Use server data or default to 'low'
-    // @ts-ignore
     const level = getAutonomyQuery.data || 'low';
 
     const handleSetLevel = (newLevel: 'low' | 'medium' | 'high') => {

@@ -102,7 +102,7 @@ export class KnowledgeService {
             for (const neighbor of neighbors) {
                 // Track Edge (We don't have edge metadata directly from getNeighbors in the simple API, 
                 // we might need to update GraphMemory again to return Edges, not just Nodes)
-                // But let's assume simple relation for now.
+                // Assuming simple relation standard connections.
 
                 resultEdges.push({
                     source: current.id,

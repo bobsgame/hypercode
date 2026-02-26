@@ -4,12 +4,10 @@ import { Shield, Lock } from "lucide-react";
 import { trpc } from '../utils/trpc'; // Context-provided tRPC
 
 export const SecurityWidget = () => {
-    // @ts-ignore
-    const rulesQuery = trpc.policy.getRules.useQuery(undefined, { refetchInterval: 5000 });
-    // @ts-ignore
+    const rulesQuery = trpc.policies.list.useQuery(undefined, { refetchInterval: 5000 });
     const autonomyQuery = trpc.autonomy.getLevel.useQuery(undefined, { refetchInterval: 5000 });
 
-    const isLocked = rulesQuery.data?.[0]?.reason === 'SYSTEM LOCKDOWN';
+    const isLocked = rulesQuery.data?.some(p => p.rules.deny?.includes('*')) || false;
     const autonomy = autonomyQuery.data || 'unknown';
 
     return (

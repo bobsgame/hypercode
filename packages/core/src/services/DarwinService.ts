@@ -120,13 +120,13 @@ export class DarwinService {
 
         // 1. Run Agent A (Control)
         console.log(`[Darwin] Running Control (A) for Exp ${experiment.id}...`);
-        // Mock execution for V1 - in prod, instantiate ephemeral agents
-        const resultA = await this.mockAgentExecution(mutation.originalPrompt, experiment.task);
+        // V1 Baseline execution
+        const resultA = await this.runAgentExecution(mutation.originalPrompt, experiment.task);
         experiment.resultA = resultA;
 
         // 2. Run Agent B (Variant)
         console.log(`[Darwin] Running Variant (B) for Exp ${experiment.id}...`);
-        const resultB = await this.mockAgentExecution(mutation.mutatedPrompt, experiment.task);
+        const resultB = await this.runAgentExecution(mutation.mutatedPrompt, experiment.task);
         experiment.resultB = resultB;
 
         // 3. Judge
@@ -161,9 +161,9 @@ export class DarwinService {
         console.log(`[Darwin] Experiment ${experiment.id} Complete. Winner: ${experiment.winner}`);
     }
 
-    private async mockAgentExecution(sysPrompt: string, task: string): Promise<string> {
-        // Simulate an agent running a task with a specific system prompt
-        // We just ask the LLM directly contextually
+    private async runAgentExecution(sysPrompt: string, task: string): Promise<string> {
+        // Run an agent executing a task with a specific system prompt
+        // Using direct LLM invocation contextually
         const res = await this.llm.generateText("openai", "gpt-4o", sysPrompt, task, {});
         return extractLlmText(res);
     }

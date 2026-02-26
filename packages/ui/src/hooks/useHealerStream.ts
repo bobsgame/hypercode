@@ -14,7 +14,6 @@ export function useHealerStream() {
     const [events, setEvents] = useState<HealerEvent[]>([]);
 
     // Initial history
-    // @ts-ignore - Healer router has type inference issues with getHistory
     const historyQuery = trpc.healer.getHistory.useQuery(undefined, {
         refetchOnWindowFocus: false
     });
@@ -33,7 +32,7 @@ export function useHealerStream() {
         if (historyQuery.data) {
             // Merge history, avoiding duplicates if any
             // For now just set initial
-            setEvents(historyQuery.data.reverse());
+            setEvents((historyQuery.data as any[]).reverse());
         }
     }, [historyQuery.data]);
 

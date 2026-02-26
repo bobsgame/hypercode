@@ -118,14 +118,13 @@ export class RepoGraphService {
         if (moduleSpecifier.startsWith('@borg/')) {
             const pkgPath = this.packageMap.get(moduleSpecifier);
             if (pkgPath) {
-                // Determine entry point (naively index.ts for now, or check package.json main)
-                // Better: Let node resolution handle it? No, we need source file for graph.
+                // Try explicit entry points first when resolving internal packages
                 const entryPoints = ['src/index.ts', 'index.ts', 'src/index.tsx'];
                 for (const entry of entryPoints) {
                     const p = path.join(this.rootDir, pkgPath, entry);
                     if (fs.existsSync(p)) return p;
                 }
-                // If importing specific file: @borg/core/src/foo
+                // Try explicit entry points first when resolving internal packages
                 // This is rare in our codebase (usually we import from index), but let's see.
             }
         }

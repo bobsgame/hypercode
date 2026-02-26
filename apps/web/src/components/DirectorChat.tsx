@@ -49,8 +49,7 @@ export function DirectorChat() {
 
     // Allow external injection (e.g. from Extension)
     useEffect(() => {
-        // @ts-ignore
-        window.injectDirectorMessage = (text: string, autoSubmit: boolean = false) => {
+        (window as any).injectDirectorMessage = (text: string, autoSubmit: boolean = false) => {
             console.log("[DirectorChat] Received external injection:", text);
             setInput(text);
             if (autoSubmit) {
@@ -59,8 +58,7 @@ export function DirectorChat() {
             }
         };
         return () => {
-            // @ts-ignore
-            delete window.injectDirectorMessage;
+            delete (window as any).injectDirectorMessage;
         }
     }, [chatMutation.isPending]); // Re-bind if mutation state changes? No need really.
 

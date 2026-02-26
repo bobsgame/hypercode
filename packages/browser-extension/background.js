@@ -136,7 +136,57 @@ async function handleMessage(msg) {
     }
 
     else if (msg.type === 'click_element') {
-        // TODO: Implement fuzzy text matching click
+        const tab = await getActiveTab();
+        if (!tab) return sendResponse(msg.requestId, { error: "No active tab" });
+
+        const targetText = msg.text || msg.target || msg.query || "";
+
+        chrome.scripting.executeScript({
+            target: { tabId: tab.id },
+            args: [targetText],
+            func: (text) => {
+                if (!text) return { error: "No text provided" };
+
+                const query = text.toLowerCase().trim();
+                const clickables = Array.from(document.querySelectorAll('a, button, [role="button"], input[type="button"], input[type="submit"]')).filter(el => {
+                    const style = window.getComputedStyle(el);
+                    return style.display !== 'none' && style.visibility !== 'hidden' && el.offsetParent !== null;
+                });
+
+                let bestMatch = null;
+                let bestScore = 0;
+
+                for (const el of clickables) {
+                    const elText = (el.innerText || el.value || el.getAttribute('aria-label') || '').toLowerCase().trim();
+                    if (!elText) continue;
+
+                    if (elText === query) {
+                        bestMatch = el;
+                        bestScore = 100;
+                        break;
+                    } else if (elText.includes(query)) {
+                        const score = (query.length / elText.length) * 10;
+                        if (score > bestScore) {
+                            bestScore = score;
+                            bestMatch = el;
+                        }
+                    }
+                }
+
+                if (bestMatch) {
+                    try {
+                        bestMatch.click();
+                        return { success: true, clicked: bestMatch.innerText || bestMatch.value || 'element' };
+                    } catch (e) {
+                        return { error: e.message };
+                    }
+                }
+                return { error: "Element not found" };
+            }
+        }, (results) => {
+            const result = results?.[0]?.result || { error: "Failed to execute script" };
+            sendResponse(msg.requestId, result);
+        });
     }
 }
 

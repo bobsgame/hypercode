@@ -130,21 +130,52 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
     // --- DOM AUTOMATION ---
     if (request.type === 'CLICK_ELEMENT') {
-        const targetText = request.target.toLowerCase();
-        const elements = Array.from(document.querySelectorAll('button, a, input[type="submit"], [role="button"]'));
-        const element = elements.find(el => (el as HTMLElement).innerText?.toLowerCase().includes(targetText) || (el as HTMLInputElement).value?.toLowerCase().includes(targetText));
+        const query = (request.target || request.text || "").toLowerCase().trim();
+        if (!query) {
+            sendResponse({ success: false, error: 'No target text provided' });
+            return;
+        }
 
-        if (element) {
-            const hel = element as HTMLElement;
+        const elements = Array.from(document.querySelectorAll('button, a, input[type="submit"], input[type="button"], [role="button"]'));
+
+        // Filter out hidden elements
+        const visibleElements = elements.filter(el => {
+            const style = window.getComputedStyle(el);
+            return style.display !== 'none' && style.visibility !== 'hidden' && (el as HTMLElement).offsetParent !== null;
+        });
+
+        let bestMatch: HTMLElement | null = null;
+        let bestScore = 0;
+
+        for (const el of visibleElements) {
+            const elText = ((el as HTMLElement).innerText || (el as HTMLInputElement).value || el.getAttribute('aria-label') || '').toLowerCase().trim();
+            if (!elText) continue;
+
+            if (elText === query) {
+                bestMatch = el as HTMLElement;
+                bestScore = 100;
+                break; // Exact match
+            } else if (elText.includes(query)) {
+                // Ratio of match length to total length (higher is better)
+                const score = (query.length / elText.length) * 10;
+                if (score > bestScore) {
+                    bestScore = score;
+                    bestMatch = el as HTMLElement;
+                }
+            }
+        }
+
+        if (bestMatch) {
+            const hel = bestMatch;
             hel.style.outline = '4px solid yellow';
             hel.style.transition = 'all 0.2s';
             setTimeout(() => {
                 hel.click();
                 hel.style.outline = '';
-                sendResponse({ success: true, message: `Clicked "${targetText}"` });
+                sendResponse({ success: true, message: `Clicked "${query}"` });
             }, 500);
         } else {
-            sendResponse({ success: false, error: `Element not found: ${targetText}` });
+            sendResponse({ success: false, error: `Element not found: ${query}` });
         }
     }
 

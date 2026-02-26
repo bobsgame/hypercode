@@ -31,7 +31,7 @@ export class JsonConfigProvider implements IConfigProvider {
     }
 
     async loadMcpServers(): Promise<McpServerConfig[]> {
-        await this.init(); // Reload on every access for now to catch manual edits
+        await this.init(); // Reload on every access to catch manual edits
         const servers: McpServerConfig[] = [];
 
         for (const [name, config] of Object.entries(this.config.mcpServers || {})) {

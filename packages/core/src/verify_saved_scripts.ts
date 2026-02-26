@@ -13,12 +13,9 @@ async function verify() {
         uuid: uuidv4()
     };
 
-    // 1. Create Script via Provider (Simulate existing state or direct access)
-    // Actually, let's use the router to create if possible, but router uses trpc procedures.
-    // We can call the provider directly to seed, then use router logic (or mock context) to verify.
-    // Since router is a trpc router, we can't easily call it without a caller. 
-    // Instead, we will verify the backing provider `JsonConfigProvider` fully, 
-    // as the router is just a thin wrapper around it (which we already refactored).
+    // 1. Create Script via Provider
+    // Validate the backing provider JsonConfigProvider fully, 
+    // as the router is a thin wrapper around it.
 
     console.log("1. Saving script via Provider...");
     await jsonConfigProvider.saveScript(testScript);

@@ -22,7 +22,7 @@ When reviewing or writing code, ensure it aligns with the 'packages/' monorepo s
         // or just rely on the Director/Council to pass strict instructions.
         // For now, let's just use the super.send but maybe prefix the message?
         // Actually, the Council usually constructs the system prompt in 'consult'.
-        // So this class might just be a marker for now, or we can enforce specific tool availability.
+        // Functioning primarily as a distinct subsystem marker. Specific tool availability can be enforced here.
 
         return super.send(message, context);
     }

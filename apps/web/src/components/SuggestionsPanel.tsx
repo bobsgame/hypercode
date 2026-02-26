@@ -6,7 +6,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 export default function SuggestionsPanel() {
     const utils = trpc.useContext();
-    // @ts-ignore
     const suggestionsQuery = trpc.suggestions.list.useQuery(undefined, {
         refetchInterval: 2000 // Poll every 2s
     });
@@ -39,18 +38,14 @@ export default function SuggestionsPanel() {
         }
     }, [suggestionsQuery.data, isMuted]);
 
-    // @ts-ignore
     const resolveMutation = trpc.suggestions.resolve.useMutation({
         onSuccess: () => {
-            // @ts-ignore
             utils.suggestions.list.invalidate();
         }
     });
 
-    // @ts-ignore
     const clearAllMutation = trpc.suggestions.clearAll.useMutation({
         onSuccess: () => {
-            // @ts-ignore
             utils.suggestions.list.invalidate();
         }
     });

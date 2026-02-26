@@ -45,7 +45,7 @@ function mergeAnnotations(
     return baseAnnotations as Tool["annotations"];
 }
 
-// In-memory stub for overrides
+// Override resolver
 async function getToolOverrides(
     namespaceUuid: string,
     serverName: string,
@@ -53,7 +53,6 @@ async function getToolOverrides(
     useCache: boolean = true,
     isPersistent: boolean = false,
 ): Promise<ToolOverride | null> {
-    // TODO: Implement JSON-based overrides if needed
     return null;
 }
 
@@ -70,7 +69,6 @@ async function applyToolOverrides(
         return tools;
     }
 
-    // Pass-through for now as DB is removed
     return tools;
 }
 

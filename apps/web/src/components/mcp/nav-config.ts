@@ -197,6 +197,12 @@ export const INTEGRATIONS_NAV: NavItem[] = [
         icon: Rocket,
         variant: "ghost",
     },
+    {
+        title: "DeerFlow Harness",
+        href: "/dashboard/deer-flow",
+        icon: Network,
+        variant: "ghost",
+    },
 ];
 
 export const MAIN_DASHBOARD_NAV: NavItem[] = [

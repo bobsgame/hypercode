@@ -7,7 +7,7 @@ import {
     getMarketplaceService
 } from '../lib/trpc-core.js';
 // We redefine schema here for API boundary clarity, or import if robust. 
-// Let's redefine for now to avoid tight coupling if service internals change.
+// Redefined to avoid tight coupling if service internals change.
 const marketplaceEntrySchema = z.object({
     id: z.string(),
     name: z.string(),

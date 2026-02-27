@@ -1,6 +1,6 @@
 # Borg Deployment Guide
 
-> **Version**: 2.7.23
+> **Version**: 2.7.32
 > **Scope**: Local Development & Production Deployment
 
 ---
@@ -8,10 +8,11 @@
 ## 1. Prerequisites
 
 - **Node.js**: v20 or higher (LTS recommended)
-- **Package Manager**: pnpm (v9+)
+- **Package Manager**: pnpm (v10+)
 - **Build Tool**: Turborepo (global install optional, used via scripts)
 - **Database**: SQLite (default for local) or PostgreSQL (production)
 - **Environment**: Windows, Linux, or macOS
+- **Docker** (optional): For containerized production deployment
 
 ## 2. Local Development (The "Mission Control" Setup)
 
@@ -31,25 +32,48 @@ pnpm run build
 pnpm run dev
 
 # 4. Verify cross-service readiness
-pnpm run check:dev-readiness
+node scripts/verify_dev_readiness.mjs
 
 # Optional machine-readable output
-pnpm run check:dev-readiness -- --json --soft
+node scripts/verify_dev_readiness.mjs --json --soft
 ```
 
 ### Access Points
 - **Dashboard**: `http://localhost:3000` (Next.js App)
 - **Borg Server**: `http://localhost:3001` (Core API & WebSocket)
 - **MCP Server**: `stdio` (via CLI wrapper) or `SSE` (if configured)
+- **MetaMCP Frontend**: `http://localhost:12008`
+- **MetaMCP Backend**: `http://localhost:12009/health`
 
 ---
 
 ## 3. Production Deployment (Self-Hosting)
 
-To host Borg as a shared team instance or cloud agent server.
-
 ### Docker (Recommended)
-*Coming in v2.7.0 - Dockerfile generation is pending.*
+
+Borg ships with a multi-stage `Dockerfile.prod` that creates separate container targets for the core API and the web dashboard.
+
+#### Build Targets
+
+| Target | Base Image | Exposes | Purpose |
+|--------|-----------|---------|---------|
+| `core-runner` | node:20-slim | 3000 | Borg Core API + WebSocket server |
+| `web-runner` | node:20-slim | 8080 | Next.js standalone dashboard |
+
+#### Build & Run
+```bash
+# Build the core API container
+docker build -f Dockerfile.prod --target core-runner -t borg-core:latest .
+
+# Build the web dashboard container
+docker build -f Dockerfile.prod --target web-runner -t borg-web:latest .
+
+# Run
+docker run -d -p 3000:3000 --name borg-core borg-core:latest
+docker run -d -p 8080:8080 --name borg-web borg-web:latest
+```
+
+Both containers include built-in healthchecks (30s interval, 5s timeout, 3 retries).
 
 ### Manual Server Deployment
 1. **Build**:
@@ -112,6 +136,7 @@ Add via "Borg" extension or manual MCP settings using the same command tuple.
 - **Port 3001 In Use**: The core server creates a WebSocket on 3001. Ensure no other instance is running.
 - **Circular Dependencies**: If `pnpm build` fails, check `packages/core` for circular imports (Ref: Phase 63 fix).
 - **Database Locks**: SQLite may lock if multiple processes access `dev.db` in write mode.
+- **Docker Build Fails**: Ensure `turbo` can prune the workspace. Run `pnpm dlx turbo prune @borg/web @borg/core --docker` locally first to validate.
 
 ---
 

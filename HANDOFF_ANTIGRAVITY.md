@@ -1,3 +1,20 @@
+# Handoff — Phase 74: Frontend Type Closure (v2.7.32)
+
+**Date:** 2026-02-27 | **Commit:** `fc31c511` → `main`
+
+### Summary
+Fixed all 11 TS errors in `apps/web`. Created `PageHeader.tsx`, `types/nav.ts`, `types/heroicons.d.ts`. Migrated `isLoading` → `isPending` (tRPC v11 / React Query v5). Rebuilt `@borg/core` dist types.
+
+### Verification
+- `tsc --noEmit` on `packages/core`: **0 errors**
+- `tsc --noEmit` on `apps/web`: **0 errors**
+
+### Next Steps
+- Close remaining TODO: `pnpm run check:dev-readiness` in strict mode
+- Define Phase 75
+
+---
+
 # Handoff Report: Antigravity Session — 2026-02-26 (Release Verification Gate)
 
 **Date:** 2026-02-26

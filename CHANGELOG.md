@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [2.7.33] - 2026-02-27
+
+### Updated
+- **Phase 75: Documentation Reality Sync**: Updated `DEPLOY.md` (v2.7.23 → v2.7.33, full Docker multi-target build docs), `MEMORY.md` (multi-backend reality, Phase 70-71 completed items), `AGENTS.md` (v2.7.33 version reference).
+- **Stub Audit**: Scanned all P0 routers/services/agents — zero critical stubs found. All remaining TODOs are enhancement markers.
+- **Release Checklist**: Closed stub/simulated path closure item.
+
 ## [2.7.32] - 2026-02-26
 
 ### Added

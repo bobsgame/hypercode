@@ -1,6 +1,6 @@
 # Borg — Master TODO List (Implementor Edition)
 
-> **Updated**: 2026-02-26 | **Version**: 2.7.32 | **Phase**: 74 (Frontend Type Closure — COMPLETED)
+> **Updated**: 2026-02-27 | **Version**: 2.7.33 | **Phase**: 75 (Doc Sync & Stub Audit — COMPLETED)
 > **Execution Order**: P0 (must close before release) → P1 (critical feature parity) → P2 (quality/polish) → P3 (future)
 
 ---
@@ -74,6 +74,7 @@
 - [x] **Phase 72: Production Hardening** — Docker production builds, health monitoring, rate limiting, auth middleware.
 - [x] **Phase 73: Multi-Agent Orchestration & Swarm** — Swarm execution, multi-model debate, pair programming, consensus protocols.
 - [x] **Phase 74: Frontend Type Closure & Dev Readiness** — Clean tsc across core + web, missing module stubs, tRPC v11 migration.
+- [x] **Phase 75: Documentation Reality Sync & Stub Audit** — Synced DEPLOY.md, MEMORY.md, AGENTS.md to v2.7.33 reality. Stub audit: no critical P0 blockers.
 
 ---
 
@@ -83,7 +84,7 @@
 - [x] `apps/web` typecheck + build pass
 - [x] `packages/core` typecheck pass
 - [x] `pnpm run check:placeholders` passes (or equivalent placeholder scan)
-- [ ] No unresolved stub/simulated critical execution paths in P0 scope
+- [x] No unresolved stub/simulated critical execution paths in P0 scope
 
 ---
 

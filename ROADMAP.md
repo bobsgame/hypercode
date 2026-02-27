@@ -128,6 +128,10 @@
     - [x] Created missing `PageHeader`, `types/nav`, `heroicons.d.ts` stubs
     - [x] Migrated tRPC v11 `isLoading` → `isPending`
     - [x] Rebuilt `@borg/core` dist types for swarm router propagation
+- [x] **Phase 75: Documentation Reality Sync & Stub Audit**
+    - [x] Updated `DEPLOY.md`, `MEMORY.md`, `AGENTS.md` to v2.7.33
+    - [x] Documented `Dockerfile.prod` multi-target build in DEPLOY.md
+    - [x] Stub audit: zero critical P0 blockers found
 
 - [x] **Phase 65: Marketplace & Ecosystem**
     - [x] MCP Registry Integration (1000+ servers)

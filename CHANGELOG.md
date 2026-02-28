@@ -4,6 +4,24 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [2.7.35] - 2026-02-28
+
+### Fixed
+- **MetaMCP Backend Silent Startup Hang**: Root-caused and fixed a deadlock where `tsx watch` silently hung during ESM module evaluation. The underlying trigger was a `SyntaxError` from 8 missing table exports in the SQLite schema (`dockerSessionsTable`, `auditLogsTable`, `memoriesTable`, `policiesTable`, `toolCallLogsTable`, `toolSetsTable`, `toolSetItemsTable`, `savedScriptsTable`). Instead of surfacing the error, `tsx watch`'s AST parser entered an infinite loop.
+- **SQLite Schema Parity**: Migrated all 8 missing PostgreSQL table definitions to SQLite equivalents in `schema-sqlite.ts`, converting `uuid()` → `text()`, `timestamp()` → `integer({mode:"timestamp"})`, `jsonb()` → `text({mode:"json"})`, and `pgEnum()` → TypeScript `as const` arrays.
+- **Dev Watcher Stability**: Replaced `tsx watch` with Node.js native `--watch` flag (`node --watch --import tsx`) in the backend `package.json` dev script. Node's C++ ESM graph resolver handles circular dependencies gracefully, completely bypassing the `tsx` AST parser deadlock.
+- **Drizzle Migration**: Generated clean `drizzle-sqlite/0001_unknown_tyrannus.sql` migration covering all 24 SQLite tables.
+
+### Changed
+- **Version Bump**: Incremented version to 2.7.35.
+
+### Verified
+- **Full Dev Readiness**: All 4 critical services pass `verify_dev_readiness.mjs` in strict mode:
+  - ✅ `borg-web` (port 3000)
+  - ✅ `metamcp-frontend` (port 12008)
+  - ✅ `metamcp-backend` (port 12009, `/health` → 200 OK)
+  - ✅ `autopilot-server` (port 3847)
+
 ## [2.7.34] - 2026-02-27
 
 ### Added

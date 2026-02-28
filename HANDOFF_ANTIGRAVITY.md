@@ -1,3 +1,25 @@
+# Handoff — Phase 76: MetaMCP Backend Fix & Full Dev Readiness (v2.7.35)
+
+**Date:** 2026-02-28 | **Commit:** pending → `main`
+
+### Summary
+- **MetaMCP Backend Silent Hang Fix**: Root-caused the `tsx watch` deadlock to 8 missing table exports in `schema-sqlite.ts` (`dockerSessionsTable`, `memoriesTable`, `auditLogsTable`, `policiesTable`, `toolCallLogsTable`, `toolSetsTable`, `toolSetItemsTable`, `savedScriptsTable`). The `SyntaxError` was swallowed by the AST watcher, causing an infinite loop instead of a stack trace.
+- **SQLite Schema Parity**: Migrated all 8 PostgreSQL tables to SQLite equivalents (`uuid→text`, `timestamp→integer`, `jsonb→text{json}`, `pgEnum→as const`).
+- **Dev Watcher Fix**: Replaced `tsx watch` with `node --watch --import tsx` in `package.json`. Node's native C++ ESM resolver avoids the tsx parser deadlock.
+- **Drizzle Migration**: `drizzle-kit generate` successfully produced `drizzle-sqlite/0001_unknown_tyrannus.sql` spanning 24 tables.
+- **Full Dev Readiness**: All 4 services pass `verify_dev_readiness.mjs` in strict mode (borg-web:3000, metamcp-frontend:12008, metamcp-backend:12009, autopilot-server:3847).
+
+### Files Changed
+- `external/MetaMCP/apps/backend/src/db/schemas/schema-sqlite.ts` — Added 8 missing table definitions
+- `external/MetaMCP/apps/backend/src/db/schema.ts` — Synced from schema-sqlite.ts
+- `external/MetaMCP/apps/backend/package.json` — `tsx watch` → `node --watch --import tsx`
+
+### Next Steps
+- Phase 64 has 2 remaining items: `Submodule Operations Dashboard` and `Final E2E Regression` (readiness check serves as partial E2E).
+- Commit and push v2.7.35.
+
+---
+
 # Handoff — Phase 75: Doc Sync & DeerFlow Fix (v2.7.33)
 
 **Date:** 2026-02-27 | **Commit:** `105eaed3` → `main`

@@ -53,6 +53,8 @@
 - [x] **Phase 91: Swarm Agent Tool Execution (MCP)**
     - [x] Equip Swarm Agents with the ability to call MCP tools during task execution to interact with the external world (files, APIs, web).
     - [x] Swarm Dashboard allows user to attach allowed tools to a Swarm Session.
-- [ ] **Phase 92: P2P Multi-Node Worker Dispatch**
-    - [ ] Disperse compute by delegating task execution horizontally to connected nodes on the local `mesh`.
-    - [ ] Mesh node auto-discovery and capability advertisement.
+- [x] **Phase 92: P2P Multi-Node Worker Dispatch**
+    - [x] Disperse compute by delegating task execution horizontally to connected nodes on the local `mesh`.
+    - [x] Mesh node auto-discovery and capability advertisement.
+- [ ] **Phase 93: P2P Artifact Federation**
+    - [ ] Allow downstream mesh nodes to share files by broadcasting `read_file` results directly through the mesh bus.

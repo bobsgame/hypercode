@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [2.7.52] - 2026-03-01
+### Added
+- **Phase 92: P2P Multi-Node Worker Dispatch**: Solved redundant task execution across the mesh network by implementing a centralized assignment handshake. `SwarmOrchestrator` now broadcasts a `TASK_OFFER` and waits a 1-second Bidding Window to collect incoming `TASK_BID` payloads from peer nodes. It selects the winning Agent based on reported CPU/Load constraints, and issues a standard `TASK_ASSIGN` direct message, preventing multiple workers from burning AI tokens on the same sub-task.
+
 ## [2.7.51] - 2026-03-01
 ### Added
 - **Phase 91: Swarm Agent Tool Execution (MCP)**: Empowered Swarm Worker Agents with full MCP Tool Execution capabilities. Created `McpWorkerAgent.ts` which dynamically maps requested tools (e.g., `read_file`, `browser_screenshot`) to LLM Function Calling JSON schemas, executing tools autonomously in a feedback loop until the sub-task is complete. Updated the Swarm Dashboard UI to allow users to specify a comma-separated list of `tools` to inject into the `TASK_OFFER` mesh broadcast.

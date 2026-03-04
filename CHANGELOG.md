@@ -4,7 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
-## [2.7.52] - 2026-03-01
+## [2.7.53] - 2026-03-03
+### Added
+- **Phase 93: P2P Artifact Federation**
+  - Added `ARTIFACT_READ_REQUEST` and `ARTIFACT_READ_RESPONSE` to `SwarmMessageType`.
+  - Added event listener to `MCPServer` to handle incoming artifact read requests and serve local files if they exist.
+  - Refactored `MCPServer.executeTool` to intercept `read_file` calls that fail with `ENOENT`. If a local file is missing, the node broadcasts an artifact request to the Mesh and transparently resolves the read using remote node data.
+
+## [2.7.52] - 2026-03-03
 ### Added
 - **Phase 92: P2P Multi-Node Worker Dispatch**: Solved redundant task execution across the mesh network by implementing a centralized assignment handshake. `SwarmOrchestrator` now broadcasts a `TASK_OFFER` and waits a 1-second Bidding Window to collect incoming `TASK_BID` payloads from peer nodes. It selects the winning Agent based on reported CPU/Load constraints, and issues a standard `TASK_ASSIGN` direct message, preventing multiple workers from burning AI tokens on the same sub-task.
 

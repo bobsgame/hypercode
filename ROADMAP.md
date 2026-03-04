@@ -56,5 +56,7 @@
 - [x] **Phase 92: P2P Multi-Node Worker Dispatch**
     - [x] Disperse compute by delegating task execution horizontally to connected nodes on the local `mesh`.
     - [x] Mesh node auto-discovery and capability advertisement.
-- [ ] **Phase 93: P2P Artifact Federation**
-    - [ ] Allow downstream mesh nodes to share files by broadcasting `read_file` results directly through the mesh bus.
+- [x] **Phase 93: P2P Artifact Federation**
+    - [x] Allow downstream mesh nodes to share files by broadcasting `read_file` results directly through the mesh bus.
+- [ ] **Phase 94: Sub-Agent Task Routing**
+    - [ ] Deploy specialized agents to execute sub-tasks without full node delegation.

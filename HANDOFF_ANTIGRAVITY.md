@@ -1,14 +1,17 @@
-# HANDOFF - Phase 92: P2P Multi-Node Worker Dispatch
+# Handoff: Antigravity
 
 ## Current State
-- **Phase 92 Complete**: Swarm Worker Agents properly bid for tasks rather than blindly executing them.
-- **Core Logic**: Replaced direct `SpecializedAgent` task execution. Upon receiving `TASK_OFFER`, Agents return a `TASK_BID`. The `SwarmOrchestrator` opens a 1s bidding window, parses available bids, sorts by reported load constraints, and fires a targeted `TASK_ASSIGN` peer-to-peer message directly to the chosen Node winner.
+- **Project**: Borg - Neural Operating System
+- **Current Phase**: Phase 94: Sub-Agent Task Routing
+- **Version**: 2.7.53
 
-## Tasks Remaining
-- [ ] Phase 93: P2P Artifact Federation. Currently, if Node B runs a sandbox command, Node A will not have access to the resulting file. We need to federation file access.
+## Recent Accomplishments
+- **Phase 92**: P2P Multi-Node Worker Dispatch. Enabled Swarm Orchestrator to distribute tasks via a 3-way handshake (`TASK_OFFER` -> `TASK_BID` -> `TASK_ASSIGN`), preventing redundant executions across the mesh.
+- **Phase 93**: P2P Artifact Federation. Allowed mesh nodes to read files horizontally across the network. Intercepted `read_file` failures and transparently resolved them by broadcasting an `ARTIFACT_READ_REQUEST` to peers.
+
+## Next Steps
+- **Start Phase 94**: Sub-Agent Task Routing. Deploy specialized agents to execute sub-tasks without full node delegation.
 
 ## Technical Notes
-- **Verification**: If 0 bids are returned, the `SwarmOrchestrator` enters its standard exponential retry logic, assuming no workers are available (or that the entire mesh has cratered due to rate limits).
-- **Node Identifier**: `winnerNodeId` is routed via `MeshService.sendDirect` passing the UUID.
-
-**Version**: 2.7.52
+- **Verification**: The P2P Mesh architecture is fully operational inside a single process via `globalMeshBus` fallback, but is designed for multi-node distribution via `redis`. Tests should use this architecture.
+- Follow the universal LLM instructions. Always bump versions in `VERSION`, `VERSION.md`, and `CHANGELOG.md`.

@@ -40,7 +40,7 @@ import { AutoTestService } from "./services/AutoTestService.js";
 import { ShellService } from "./services/ShellService.js";
 import { SandboxService } from "./security/SandboxService.js";
 import { SquadService } from "./orchestrator/SquadService.js";
-import { MeshService } from './mesh/MeshService.js';
+import { MeshService, SwarmMessageType } from './mesh/MeshService.js';
 import { GitWorktreeManager } from "./orchestrator/GitWorktreeManager.js";
 import { AuditService } from "./security/AuditService.js";
 import { GitService } from "./services/GitService.js";
@@ -452,6 +452,24 @@ export class MCPServer {
         // Phase 60: Mesh Service
         if (!options.skipMesh) {
             this.meshService = new MeshService();
+
+            // Phase 93: P2P Artifact Federation (Serving Artifacts)
+            this.meshService.on('message', async (msg: any) => {
+                if (msg.type === SwarmMessageType.ARTIFACT_READ_REQUEST) {
+                    const req = msg.payload as { path: string };
+                    try {
+                        const content = await fs.promises.readFile(req.path, "utf-8");
+                        // If we have it, send response directly to requester
+                        this.meshService!.sendResponse(msg, SwarmMessageType.ARTIFACT_READ_RESPONSE, {
+                            path: req.path,
+                            content: content
+                        });
+                        console.log(`[Mesh Artifact] Served ${req.path} to node ${msg.sender}`);
+                    } catch (err) {
+                        // File not found locally, ignore silently
+                    }
+                }
+            });
         }
 
         // Phase 65: Marketplace (Depends on Mesh)
@@ -1901,6 +1919,41 @@ export class MCPServer {
                 const standardTool = [...FileSystemTools, ...terminalTools, ...MemoryTools, ...TunnelTools, ...LogTools, ...ConfigTools, ...SearchTools, ...ReaderTools, ...WorktreeTools, ...MetaTools, WebSearchTool].find(t => t.name === name);
                 if (standardTool && this.isToolWithHandler(standardTool)) {
                     result = await standardTool.handler(args);
+
+                    // Phase 93: P2P Artifact Federation Interception
+                    if (name === 'read_file' && this.meshService && result?.content?.[0]?.text?.includes('ENOENT')) {
+                        console.log(`[Mesh Artifact] Local read missed for ${args.path}. Querying Swarm...`);
+
+                        const timeoutMs = 2000;
+                        const reqPath = args.path;
+
+                        try {
+                            const federatedContent = await new Promise<string>((resolve, reject) => {
+                                const timeout = setTimeout(() => reject(new Error('Swarm Artifact Read Timeout')), timeoutMs);
+
+                                const onMeshResponse = (msg: any) => {
+                                    if (msg.type === SwarmMessageType.ARTIFACT_READ_RESPONSE) {
+                                        const res = msg.payload as { path: string, content: string };
+                                        if (res.path === reqPath) {
+                                            clearTimeout(timeout);
+                                            this.meshService!.removeListener('message', onMeshResponse);
+                                            resolve(res.content);
+                                        }
+                                    }
+                                };
+
+                                this.meshService!.on('message', onMeshResponse);
+                                this.meshService!.broadcast(SwarmMessageType.ARTIFACT_READ_REQUEST, { path: reqPath });
+                            });
+
+                            // Successfully fetched from Swarm
+                            result = { content: [{ type: "text", text: federatedContent }] };
+                            console.log(`[Mesh Artifact] Successfully federated ${reqPath} from Swarm.`);
+                        } catch (e: any) {
+                            // Timeout or failure, keep original ENOENT result
+                            console.log(`[Mesh Artifact] Federation failed for ${reqPath}: ${e.message}`);
+                        }
+                    }
                 } else {
                     // Try MetaMCP Proxy First (True Proxy Architecture path)
                     if (executeProxiedTool) {

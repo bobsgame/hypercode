@@ -63,9 +63,11 @@
 - [x] **Phase 95: Swarm Git Worktree Isolation**
     - [x] Each coding task gets an isolated git worktree so parallel agents don't conflict on files.
     - [x] Worktrees are automatically cleaned up after task completion.
-- [x] **Phase 96: Agentic Execution Telemetry**
+- [x] **Phase 95.1: Docs/Ops Sync**
+- [x] **Phase 96: Agentic Execution Telemetry (Replaced simulated endpoints)**
     - [x] Replace simulated sub-agent tools with real `use_agent` MCP endpoints in SystemWorkflows.
     - [x] Plumb LLM model/provider telemetry traces through DeepResearchService, CoderAgent, and SubAgents.
+- [x] **Phase 97: External Link Ingestion Telemetry (Incremental fetch queue + Dashboard UI)**
 - [x] **Phase 96: Swarm Tool Permission Boundaries**
     - [x] Enforce mission-level allow/deny tool policies per delegated task.
     - [x] Expose denied-tool rationale in swarm telemetry and mission audit trail.

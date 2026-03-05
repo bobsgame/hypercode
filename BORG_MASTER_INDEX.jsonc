@@ -1,16 +1,16 @@
 {
   "version": "2.0.0",
   "schema": "borg-master-index/v2",
-  "last_updated": "2026-02-24",
+  "last_updated": "2026-03-05",
   "stats": {
-    "total_links": 699,
+    "total_links": 700,
     "processed": 698,
     "pending": 0,
-    "failed": 1,
-    "submodules": 932
+    "failed": 2,
+    "submodules": 0
   },
   "ingestion": {
-    "updated_at": "2026-02-24T22:26:20.988Z",
+    "updated_at": "2026-03-05T20:32:44.995Z",
     "sources": [
       {
         "file": "scripts/resources-list.json",
@@ -18,13 +18,13 @@
       },
       {
         "file": "scripts/ingestion-status.json",
-        "failed_count": 1
+        "failed_count": 2
       }
     ],
     "queue": {
-      "processed": 11,
-      "pending": 687,
-      "failed": 1
+      "processed": 698,
+      "pending": 0,
+      "failed": 2
     }
   },
   "categories": {
@@ -14478,6 +14478,29 @@
         "fetch_attempts": 0,
         "last_checked_at": null,
         "processed_at": "2026-02-24T22:29:48.416Z"
+      },
+      {
+        "id": "example-com-test",
+        "name": "example.com/test",
+        "url": "https://example.com/test",
+        "summary": "Ingestion target that currently fails retrieval.",
+        "relevance": "Untriaged",
+        "status": "failed",
+        "source": "example.com",
+        "kind": "web",
+        "tags": [
+          "ingestion-failure"
+        ],
+        "normalized_url": "https://example.com/test",
+        "discovered_from": [
+          "scripts/ingestion-status.json"
+        ],
+        "discovered_at": "2026-03-05T20:32:44.973Z",
+        "fetch_status": "failed",
+        "fetch_error": "Timeout",
+        "fetch_attempts": 1,
+        "last_checked_at": "2026-03-05T20:32:20.761Z",
+        "processed_at": null
       },
       {
         "id": "google-gemini-gemini-cli",

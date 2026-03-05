@@ -2,13 +2,14 @@
 
 ## Current State
 - **Project**: Borg - Neural Operating System
-- **Current Phase**: Phase 96: Agentic Execution Telemetry (COMPLETED)
-- **Version**: 2.7.56
+- **Current Phase**: Phase 97: External Link Ingestion Telemetry (COMPLETED)
+- **Version**: 2.7.57
 
 ## Recent Accomplishments
 - **Phase 94**: Sub-Agent Task Routing. `MeshCoderAgent` and `MeshResearcherAgent` bid on classified tasks.
 - **Phase 95**: Swarm Git Worktree Isolation. Coding tasks auto-receive isolated git worktrees via `GitWorktreeManager`, preventing file contention during parallel execution.
 - **Phase 96**: Agentic Execution Telemetry. Plumbed LLM execution traces (provider/model) from `CoderAgent` and `DeepResearchService` into the `SubAgents` orchestration surface. Replaced simulated stubs in `SystemWorkflows.ts` with real `use_agent` MCP tool invocations.
+- **Phase 97**: External Link Ingestion Telemetry. Developed `record-fetch-outcome.mjs` for incremental writer queues and built a dedicated UI in `dashboard/ingestion` matching the metrics from `BORG_MASTER_INDEX.jsonc`.
 - **Phase 95.1 (Docs/Ops Sync)**: Canonical docs and metadata synchronized at `v2.7.56` across roadmap/todo/status/changelog/version and governance dashboard references.
 - **Phase 96**: Swarm Tool Permission Boundaries. Mission-level allow/deny policy now flows through swarm routing and worker execution, with denied-tool rationale persisted in task history and emitted in telemetry.
 - **Phase 97**: Swarm Tool Policy Normalization & Contract Feedback. Policies are normalized with deterministic deny precedence, and mission start responses now include effective policy + warning metadata.

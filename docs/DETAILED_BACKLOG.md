@@ -123,8 +123,8 @@
     - [x] Canonical index synchronization script exists and runs from repo root.
     - [x] `BORG_MASTER_INDEX` includes queue telemetry fields and per-entry fetch status metadata.
     - [x] Known fetch failures can be persisted independently of manual edits.
-    - [ ] Incremental fetch outcome writer appends live status updates automatically.
-    - [ ] Dashboard surface renders ingestion queue and retry actions.
+    - [x] Incremental fetch outcome writer appends live status updates automatically.
+    - [x] Dashboard surface renders ingestion queue and retry actions.
 
 ---
 

@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [2.7.57] - 2026-03-05
+### Added
+- **Phase 97: External Link Ingestion Telemetry**
+  - Built `scripts/record-fetch-outcome.mjs` to incrementally log fetch failures, successes, and pending queue targets.
+  - Deployed `Ingestion Dashboard` (`/dashboard/ingestion`) displaying real-time metrics for total, processed, pending, and failed ingestion queue items along with their respective stack traces from `BORG_MASTER_INDEX.jsonc`.
+  - Check-marked Phase 97 implementation points in `ROADMAP.md` and `DETAILED_BACKLOG.md` (Item 6.2).
+
 ## [2.7.56] - 2026-03-05
 ### Added
 - **Phase 96: Agentic Execution Telemetry**

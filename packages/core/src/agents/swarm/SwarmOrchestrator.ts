@@ -101,6 +101,9 @@ export interface SwarmTask {
 
     // Phase 95: Git Worktree Isolation
     worktreePath?: string;
+
+    // Phase 124: Red Team Debate Agent
+    isRedTeam?: boolean;
 }
 
 export interface SwarmConfig {
@@ -272,6 +275,23 @@ export class SwarmOrchestrator extends EventEmitter {
                 { id: uuidv4(), description: `Verify and test: ${masterPrompt}`, status: 'pending', priority: 4, tools: tools || [], toolPolicy: effectivePolicy }
             ];
             console.log(`[Swarm] Using fallback decomposition (${subTasks.length} tasks)`);
+        }
+
+        // Phase 124: Red Team Debate Agent
+        // Inject a high-priority adversarial critique task to stress-test the generated plan
+        if (subTasks.length > 0) {
+            const planSummary = subTasks.map((t, i) => `${i + 1}. ${t.description}`).join('\n');
+            subTasks.push({
+                id: uuidv4(),
+                description: `Critique and stress-test this proposed mission plan for logical gaps, edge cases, and security flaws:\n\n${planSummary}`,
+                status: 'pending',
+                priority: 5, // Top priority to ensure early critique availability
+                tools: [],   // Critique doesn't need execution tools
+                toolPolicy: effectivePolicy,
+                requirements: ['researcher'],
+                isRedTeam: true
+            });
+            console.log(`[Swarm] Injected Red Team critique task against the proposed plan.`);
         }
 
         subTasks.forEach(t => this.tasks.set(t.id, t));
@@ -688,7 +708,8 @@ export class SwarmOrchestrator extends EventEmitter {
                     usage: task.usage,
                     deniedToolEvents: task.deniedToolEvents,
                     slashed: task.slashed,
-                    verifiedBy: task.verifiedBy
+                    verifiedBy: task.verifiedBy,
+                    isRedTeam: task.isRedTeam
                 });
             }
 

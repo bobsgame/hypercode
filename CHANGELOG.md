@@ -1,8 +1,15 @@
-# Changelog
+## Borg OS - Changelog
 
 All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
+
+## [2.7.66] - 2026-03-06
+### Added
+- **Phase 124: Adversarial "Red Team" Debate Agent**
+  - Added `isRedTeam` flag to `SwarmTask` interface to properly track critique tasks.
+  - Updated `SwarmOrchestrator` to inject a high-priority "Red Team" task during goal decomposition to stress-test generated mission plans.
+  - Added visual "RED TEAM CRITIQUE" badging/styling to the Swarm Dashboard Mission cards.
 
 ## [2.7.65] - 2026-03-06
 ### Fixed

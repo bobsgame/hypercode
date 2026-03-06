@@ -47,6 +47,9 @@ interface SwarmTask {
         reason: string;
         timestamp: number;
     }>;
+
+    // Phase 124
+    isRedTeam?: boolean;
 }
 
 interface SwarmToolPolicy {
@@ -709,10 +712,10 @@ export default function SwarmDashboard() {
                                             <div className="text-[9px] uppercase tracking-widest text-slate-500 mt-2">Facet Health</div>
                                             <div className="grid grid-cols-2 md:grid-cols-4 gap-1">
                                                 <div className={`text-[9px] font-mono rounded border px-1.5 py-1 ${riskFacets?.health?.severity === 'critical'
-                                                        ? 'text-rose-300 border-rose-500/30 bg-rose-500/10'
-                                                        : riskFacets?.health?.severity === 'warn'
-                                                            ? 'text-amber-300 border-amber-500/30 bg-amber-500/10'
-                                                            : 'text-emerald-300 border-emerald-500/30 bg-emerald-500/10'
+                                                    ? 'text-rose-300 border-rose-500/30 bg-rose-500/10'
+                                                    : riskFacets?.health?.severity === 'warn'
+                                                        ? 'text-amber-300 border-amber-500/30 bg-amber-500/10'
+                                                        : 'text-emerald-300 border-emerald-500/30 bg-emerald-500/10'
                                                     }`}>
                                                     severity: {riskFacets?.health?.severity ?? 'good'}
                                                 </div>
@@ -720,10 +723,10 @@ export default function SwarmDashboard() {
                                                     score: {riskFacets?.health?.score ?? 100}
                                                 </div>
                                                 <div className={`text-[9px] font-mono rounded border px-1.5 py-1 ${riskFacets?.health?.confidence?.level === 'low'
-                                                        ? 'text-rose-300 border-rose-500/30 bg-rose-500/10'
-                                                        : riskFacets?.health?.confidence?.level === 'medium'
-                                                            ? 'text-amber-300 border-amber-500/30 bg-amber-500/10'
-                                                            : 'text-emerald-300 border-emerald-500/30 bg-emerald-500/10'
+                                                    ? 'text-rose-300 border-rose-500/30 bg-rose-500/10'
+                                                    : riskFacets?.health?.confidence?.level === 'medium'
+                                                        ? 'text-amber-300 border-amber-500/30 bg-amber-500/10'
+                                                        : 'text-emerald-300 border-emerald-500/30 bg-emerald-500/10'
                                                     }`}>
                                                     confidence: {riskFacets?.health?.confidence?.level ?? 'high'} ({riskFacets?.health?.confidence?.score ?? 100})
                                                 </div>
@@ -773,10 +776,10 @@ export default function SwarmDashboard() {
                                                     score range: {riskFacets?.health?.confidence?.scoreRange?.min ?? 0} - {riskFacets?.health?.confidence?.scoreRange?.max ?? 100}
                                                 </div>
                                                 <div className={`text-[8px] font-mono rounded border px-1.5 py-1 ${riskFacets?.health?.confidence?.stability === 'volatile'
-                                                        ? 'text-rose-300 border-rose-500/30 bg-rose-500/10'
-                                                        : riskFacets?.health?.confidence?.stability === 'watch'
-                                                            ? 'text-amber-300 border-amber-500/30 bg-amber-500/10'
-                                                            : 'text-emerald-300 border-emerald-500/30 bg-emerald-500/10'
+                                                    ? 'text-rose-300 border-rose-500/30 bg-rose-500/10'
+                                                    : riskFacets?.health?.confidence?.stability === 'watch'
+                                                        ? 'text-amber-300 border-amber-500/30 bg-amber-500/10'
+                                                        : 'text-emerald-300 border-emerald-500/30 bg-emerald-500/10'
                                                     }`}>
                                                     stability: {riskFacets?.health?.confidence?.stability ?? 'stable'}
                                                 </div>
@@ -785,10 +788,10 @@ export default function SwarmDashboard() {
                                                 confidence advice: {riskFacets?.health?.confidence?.advice ?? 'Confidence is stable; proceed while continuing standard monitoring cadence.'}
                                             </div>
                                             <div className={`text-[8px] rounded px-1.5 py-1 mt-1 border font-mono ${riskFacets?.health?.confidence?.alertLevel === 'critical'
-                                                    ? 'text-rose-200 bg-rose-950/20 border-rose-500/30'
-                                                    : riskFacets?.health?.confidence?.alertLevel === 'warn'
-                                                        ? 'text-amber-200 bg-amber-950/20 border-amber-500/30'
-                                                        : 'text-emerald-200 bg-emerald-950/20 border-emerald-500/30'
+                                                ? 'text-rose-200 bg-rose-950/20 border-rose-500/30'
+                                                : riskFacets?.health?.confidence?.alertLevel === 'warn'
+                                                    ? 'text-amber-200 bg-amber-950/20 border-amber-500/30'
+                                                    : 'text-emerald-200 bg-emerald-950/20 border-emerald-500/30'
                                                 }`}>
                                                 confidence alert level: {riskFacets?.health?.confidence?.alertLevel ?? 'none'}
                                             </div>
@@ -797,8 +800,8 @@ export default function SwarmDashboard() {
                                                     alert count: {riskFacets?.health?.confidence?.alertCount ?? 0}
                                                 </div>
                                                 <div className={`text-[8px] font-mono rounded border px-1.5 py-1 ${riskFacets?.health?.confidence?.hasCriticalAlert
-                                                        ? 'text-rose-200 bg-rose-950/20 border-rose-500/30'
-                                                        : 'text-emerald-200 bg-emerald-950/20 border-emerald-500/30'
+                                                    ? 'text-rose-200 bg-rose-950/20 border-rose-500/30'
+                                                    : 'text-emerald-200 bg-emerald-950/20 border-emerald-500/30'
                                                     }`}>
                                                     critical present: {riskFacets?.health?.confidence?.hasCriticalAlert ? 'yes' : 'no'}
                                                 </div>
@@ -1080,6 +1083,12 @@ export default function SwarmDashboard() {
                                                                     {Array.isArray(task.deniedToolEvents) && task.deniedToolEvents.length > 0 && (
                                                                         <span className="text-[8px] bg-rose-500/20 text-rose-300 px-1 rounded border border-rose-500/40 font-bold">
                                                                             DENIED TOOLS: {task.deniedToolEvents.length}
+                                                                        </span>
+                                                                    )}
+
+                                                                    {task.isRedTeam && (
+                                                                        <span className="text-[8px] bg-red-600/20 text-red-500 px-1 rounded border border-red-500/50 font-bold flex items-center gap-1">
+                                                                            <ShieldIcon className="w-2 h-2" /> RED TEAM CRITIQUE
                                                                         </span>
                                                                     )}
 

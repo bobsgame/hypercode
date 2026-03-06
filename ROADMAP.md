@@ -1,12 +1,12 @@
 # Borg Project Roadmap
 
-**Current Version**: 2.7.82
-**Last Stable Phase**: 121
+**Current Version**: 2.7.65
+**Last Stable Phase**: 123
 **Codename**: AIOS (AI Operating System)
 
 ---
 
-# MASTER TODO - Borg (v2.7.82)
+# MASTER TODO - Borg (v2.7.84)
 > Final Completion Checklist (Phase 91: Swarm Agent Tool Execution)
 
 ## Phase 1-59: Foundations & Core OS (Completed)
@@ -146,3 +146,21 @@
 - [x] **Phase 121: Filter-Scoped Health Confidence Guidance Signal**
     - [x] Add confidence guidance output to facets health API contract.
     - [x] Render confidence guidance in Missions filtered facets health panel.
+- [x] **Phase 122: Filter-Scoped Health Confidence Alert Signals**
+    - [x] Add confidence alert outputs to facets health API contract.
+    - [x] Render confidence alerts in Missions filtered facets health panel.
+- [x] **Phase 123: Filter-Scoped Health Confidence Alert Level Signal**
+    - [x] Add confidence alert-level output to facets health API contract.
+    - [x] Render confidence alert-level indicator in Missions filtered facets health panel.
+
+## Phase 124-130: Advanced Threat Emulation & Cross-Surface Extensions
+
+- [ ] **Phase 124: Adversarial "Red Team" Debate Agent**
+    - [ ] Introduce a specialized debate persona configured with adversarial prompts to intentionally critique and stress-test generated mission plans.
+    - [ ] Update `DebateProtocol` and UI to visually distinguish adversarial critiques during swarm planning phases.
+- [ ] **Phase 125: Deferred Tool Loading Pipeline**
+    - [ ] Modify the MCP proxy integration to defer loading complete tool JSON schemas until explicitly requested by sub-agents to reduce token overhead.
+- [ ] **Phase 126: Extension Surface Cross-Intelligence (Parity Milestone 2)**
+    - [ ] Forward RAG ingestion from VS Code / Browser directly into `KnowledgeService`.
+    - [ ] Map console log capture from Extension back into the Web Dashboard Traffic Inspector.
+

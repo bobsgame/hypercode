@@ -18,24 +18,27 @@
 
 Based on the latest generated inventory snapshot:
 
-- **Total tracked modules**: 786+
-- **Coverage includes**: MCP servers, memory systems, CLI harnesses, orchestration frameworks, search/indexing stacks, financial tools, and unsorted ecosystem references.
-- **Primary ingestion zones**:
-	- `mcp-servers/`
-	- `memory/`
+- **Total tracked modules**: 5
+- **Coverage includes**: Borg-owned package references, one external MetaMCP bridge, and two approved study-only upstream references under `submodules/`.
+- **Primary tracked zones**:
+	- `packages/`
 	- `external/`
-	- `cli-harnesses/`
-	- `multi-agent/`
+	- `submodules/`
 
-### Tier A — Runtime-Critical Submodules (Phase 69)
+### Tier A — Runtime-Critical Submodules
 
 | Submodule | Path | Integration | Status |
 |-----------|------|-------------|--------|
-| MetaMCP | `external/MetaMCP` | Proxy routing via `executeProxiedTool` in `MCPServer.ts` | ✅ Active |
-| MCP-SuperAssistant | `packages/MCP-SuperAssistant` | Official browser extension with Borg WebSocket bridge | ✅ Active |
-| claude-mem | `packages/claude-mem` | `ClaudeMemAdapter` + `RedundantMemoryManager` | ✅ Active |
-| jules-autopilot | `external/jules-autopilot` | `cloudDevRouter` + `/dashboard/cloud-dev` | ✅ Active |
-| deer-flow | `external/deer-flow` | `DeerFlowBridgeService` + `/dashboard/deer-flow` | ✅ Active |
+| MetaMCP | `external/MetaMCP` | Active bridge/reference for Borg MCP compatibility behavior | ✅ Active |
+| MCP-SuperAssistant | `packages/MCP-SuperAssistant` | Browser-extension-adjacent package tracked in-repo | ✅ Active |
+| opencode-autopilot | `packages/opencode-autopilot` | Autopilot/session package tracked in-repo | ✅ Active |
+
+### Tier B — Strategic Reference Submodules
+
+| Submodule | Path | Integration | Status |
+|-----------|------|-------------|--------|
+| mcpproxy | `submodules/mcpproxy` | Lightweight MCP proxy/disclosure reference for router design | ✅ Added |
+| litellm | `submodules/litellm` | Provider routing, fallback, and quota reference for provider design | ✅ Added |
 
 ## 3) Governance tiers
 

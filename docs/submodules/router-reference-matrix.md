@@ -9,6 +9,8 @@ _Last updated: 2026-03-08_
 | `external/MetaMCP` | `robertpelloni/MetaMCP` | Existing MetaMCP bridge/reference | **Keep for now**, but prefer upstream replacement later if the dependency remains useful |
 | `packages/MCP-SuperAssistant` | `robertpelloni/MCP-SuperAssistant` | MCP-adjacent package | **Review for removal** from router-reference set; not a core router benchmark |
 | `packages/opencode-autopilot` | `robertpelloni/opencode-autopilot` | Agent/autopilot reference | **Keep outside router decisions**; relevant to sessions/agents, not MCP router design |
+| `submodules/mcpproxy` | `Dumbris/mcpproxy` | Approved MCP proxy/disclosure reference | **Added** as lightweight routing + retrieval benchmark |
+| `submodules/litellm` | `BerriAI/litellm` | Approved provider-routing reference | **Added** as high-priority provider/fallback benchmark |
 
 ## Shortlisted upstream references
 
@@ -53,5 +55,14 @@ If exactly **one** new router-oriented reference is approved, prefer:
 If exactly **one** provider-routing reference is approved, prefer:
 
 - `BerriAI/litellm` for fallback, quota, and gateway patterns
+
+## Approved additions executed
+
+With explicit human approval, the following new references were added:
+
+- `submodules/mcpproxy`
+- `submodules/litellm`
+
+These should remain **reference implementations**, not runtime dependencies for Borg 1.0.
 
 If the goal is architecture study rather than code vendoring, prefer **no new submodule** and just keep this matrix plus links in the research index.

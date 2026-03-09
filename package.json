@@ -5,8 +5,8 @@
   "packageManager": "pnpm@10.28.0",
   "scripts": {
     "start": "node packages/cli/dist/index.js start",
-    "build": "turbo run build --filter=!mcp-superassistant --filter=!deer-flow-frontend",
-    "dev": "set CI=true&& turbo run dev --concurrency 30 --filter=!mcp-superassistant --filter=!@extension/hmr --filter=!@opencode-autopilot/cli --filter=!deer-flow-frontend",
+    "build": "turbo run build --filter=!mcp-superassistant",
+    "dev": "set CI=true&& turbo run dev --concurrency 30 --filter=!mcp-superassistant --filter=!@extension/hmr --filter=!@opencode-autopilot/cli",
     "dev:server": "turbo run dev:server --parallel",
     "dev:web": "turbo run dev --filter @borg/web",
     "lint": "pnpm run check:placeholders",
@@ -18,6 +18,7 @@
     "check:release-gate:ci": "node scripts/check_release_gate.mjs --skip-readiness --with-turbo-lint",
     "index:sync": "node scripts/sync_master_index.mjs",
     "index:update": "node scripts/update_ingestion_status.mjs",
+    "submodules:prune-orphans": "node scripts/prune_orphaned_gitlinks.mjs",
     "clean": "turbo run clean",
     "typecheck": "turbo run typecheck"
   },

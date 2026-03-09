@@ -1,31 +1,97 @@
-## Borg OS - Changelog
+## Borg Changelog
 
 All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+- Added a normalized provider-routing layer under `packages/core/src/providers/` with provider auth-state detection, quota snapshots, task-aware routing strategies, and fallback-chain inspection for dashboard consumers.
+- Added focused provider-routing regression coverage in `packages/core/providers/__tests__/` for auth normalization, quota tracking, deterministic strategy ordering, and quota/rate-limit failover behavior.
+- Added a new supervised CLI session runtime under `packages/core/src/supervisor/` with typed session metadata, crash-aware restart handling, persisted session state, log capture, attach info, and worktree-aware isolation hooks.
+- Added focused session-supervisor coverage in `packages/core/supervisor/__tests__/` for spawn, restart, health, persistence, and parallel worktree isolation behavior.
+- Added a real `/dashboard` home surface in `apps/web/src/app/dashboard/` that composes live MCP status, recent traffic, supervised session controls, and provider quota/fallback state into the four Borg 1.0 panels.
+- Added focused web coverage for the new dashboard home view and summary helpers in `apps/web/src/app/dashboard/dashboard-home-view.test.tsx`.
+
 ### Changed
+- Submodule inventory and cleanup tooling now use `.gitmodules` as the live registry source; `scripts/update_submodules_doc.mjs` rebuilds `docs/SUBMODULES.md` from the current registry, `docs/SUBMODULE_DASHBOARD.md` reflects the actual five approved tracked submodules, and `scripts/prune_orphaned_gitlinks.mjs` can remove legacy orphaned gitlinks from the index without touching the five live entries.
+- Direct Borg-native MCP mode now exposes a MetaMCP-compatible `run_code` alias and executes it without requiring operators to manually toggle Code Mode first, shrinking the remaining proxy-only surface in `packages/core/src/MCPServer.ts`.
+- Direct Borg-native MCP mode now also exposes a MetaMCP-compatible `run_python` alias backed by Borg's sandbox service, further reducing the remaining MetaMCP-only execution surface.
+- Direct Borg-native MCP mode now also exposes a MetaMCP-compatible `run_agent` path backed by Borg's native LLM service and delegated direct-mode tool execution, including recursion guards that keep autonomous agent loops from re-entering `run_agent` or `run_code`.
+- Direct Borg-native MCP mode now also exposes a MetaMCP-compatible `save_memory` alias backed by Borg's native agent memory service, trimming another direct-mode dependency on the MetaMCP proxy.
+- Direct Borg-native MCP mode now also exposes MetaMCP-compatible `save_script` plus direct-mode `script__*` saved-script tools backed by Borg-managed config storage and sandbox execution.
+- Direct Borg-native MCP mode now also exposes MetaMCP-compatible `save_tool_set`, `load_tool_set`, and `toolset_list` behavior backed by Borg-managed config storage plus the native session working set, eliminating another chunk of remaining direct-mode proxy dependence.
+- Direct Borg-native MCP mode now also exposes MetaMCP-compatible `import_mcp_config` backed by Borg's existing config import service, which closes out the old proxy meta-tool cluster for direct-mode sessions.
+- Borg-native MCP handlers now serve downstream `prompts/list`, `prompts/get`, `resources/list`, `resources/read`, and `resources/templates/list` through the shared downstream session pool, so prompt/resource discovery no longer depends on the MetaMCP bridge even when that bridge is still mounted for tool middleware.
+- The optional MetaMCP proxy now reuses Borg's shared downstream discovery helper for prompt/resource/template passthrough instead of maintaining a second inline implementation, narrowing the remaining bridge-specific surface to tool list/call middleware behavior.
+- `packages/core/src/MCPServer.ts` now mounts the optional MetaMCP proxy with downstream discovery registration disabled, so Borg's native prompt/resource handlers stay canonical while the proxy is reduced further toward tool list/call middleware responsibilities.
+- Wired `packages/core/src/MCPServer.ts` to use `CoreModelSelector` and updated `billingRouter` to surface normalized provider quota/auth/fallback data when available.
+- Extended `packages/core/src/routers/sessionRouter.ts` with supervisor-backed create/list/start/stop/restart/log/health procedures while preserving the existing lightweight session-state endpoints.
+- Changed MCP server persistence so `packages/core` now discovers STDIO tool metadata when servers are created or updated, stores the rich cache in Borg-owned `mcp.jsonc`, mirrors discovered tools into the existing DB cache, and keeps a stripped `mcp.json` compatibility export for clients that only understand standard MCP config.
 - Archived the legacy phase-based roadmap to `docs/archive/ROADMAP_LEGACY.md` and replaced `ROADMAP.md` with the Borg 1.0/1.5/2.0 milestone plan.
 - Seeded the task-file workflow under `tasks/` with initial clean-install, MCP router, provider fallback, session supervisor, and dashboard task briefs.
 - Rewrote `README.md` around the focused Borg control-plane scope and updated the quick-start guidance to match the current install/start path.
+- Rewrote `VISION.md` to describe the long-term Borg direction in orchestration-first terms instead of the old assimilation/parity framing.
+- Added `docs/research/MCP_ROUTER_REFERENCE_EVALUATION_2026-03-07.md`, comparing external MCP router candidates against Borg 1.0 requirements and documenting the recommendation to use upstreams as references rather than adopting a foreign router as Borg's base.
+- Tightened the MCP disclosure design guidance in `docs/research/MCP_ROUTER_REFERENCE_EVALUATION_2026-03-07.md` and `docs/guides/PROGRESSIVE_DISCLOSURE.md` to define a tiny always-visible meta-tool set, deferred binary startup, and tool-count-based loading/unloading thresholds.
+- Expanded the MCP router research memo with the second lazy-loading/code-mode repo set, a concrete analysis of why aggregators fail in practice, and a Borg-specific hybrid blueprint covering ranked discovery, silent high-confidence loads, deferred binary startup, profiles, code mode, and operator-visible routing decisions.
+- Tightened the MetaMCP session working-set runtime to use smaller progressive-disclosure caps, added explicit `unload_tool` / `list_loaded_tools` meta-tools, and added focused unit coverage for loaded-tool and hydrated-schema eviction behavior.
+- Refreshed the MCP dashboard search and inspector pages to reflect the new progressive-disclosure flow with visible working-set state, quick load/unload/schema actions, and a more inspector-style multi-pane operator layout inspired by the reviewed example projects.
+- Rebuilt `/dashboard/mcp` around Borg's router/aggregator control-plane story, added `/dashboard/mcp/testing` for exploratory MCP surfaces, and updated the MCP navigation so testing workflows no longer crowd the main control-plane landing page.
+- Tightened remaining MCP UI copy so Borg's router/control-plane stays primary while the upstream MetaMCP integration is described explicitly as a bridge detail in the sidebar palette, testing lab, and bridge-management page.
+- Tightened MCP bridge naming further so navigation and bridge-management UI present Borg as the primary server-bridge surface while still identifying MetaMCP as the upstream implementation detail.
+- Refreshed `docs/guides/PROGRESSIVE_DISCLOSURE.md` to match the current search/load/schema/unload working-set model and aligned the remaining MCP landing-page and agent-playground labels with the Borg-first server-bridge terminology.
+- Finished the remaining MCP copy cleanup by renaming the standalone bridge embed page to Borg-first bridge terminology and tightening the agent-playground description around the router session working set.
+- Renamed the sidebar command-palette MCP action to match the Borg router naming and refreshed the live MCP API/bridge docs so Borg stays primary while MetaMCP is documented as the upstream bridge layer.
+- Started the runtime MetaMCP extraction by adding a real `MCP_DISABLE_METAMCP` source-level path in `packages/core/src/MCPServer.ts`, wiring Borg-native direct MCP handlers when the proxy is disabled, and adding focused tests for the new mode-selection helpers.
+- Added a Borg-native session working-set manager and direct-handler meta tools (`search_tools`, `load_tool`, `get_tool_schema`, `unload_tool`, `list_loaded_tools`) so the MetaMCP-disabled runtime keeps progressive disclosure behavior without relying on the old proxy layer.
+- Removed the redundant constructor-time `MetaMCPController` initialization in `MCPServer`, so the remaining MetaMCP attachment happens only once through the real `setupHandlers()` path with the actual native tool list.
+- Reduced proxy dependence further by routing namespaced downstream tools through Borg's native `MCPAggregator` before the MetaMCP proxy, keeping the bridge focused on non-namespaced proxy-only behavior.
+- Expanded Borg-first downstream routing so plain tool names that already belong to the aggregated MCP inventory also prefer `MCPAggregator` execution before falling back to the MetaMCP proxy path.
+- Removed the hard `MetaMCPController` import from `MCPServer`, lazy-loaded the bridge only when needed, and made startup fall back to Borg-native direct handlers if MetaMCP bootstrap fails.
+- Removed the hard `executeProxiedTool` import from `MCPServer`, lazy-loaded the MetaMCP proxy executor only when proxy execution is still required, and kept Borg-native aggregator/router fallback behavior when the proxy module is unavailable.
+- Removed the remaining `MetaMCPController` shim indirection by lazy-loading `attachTo(...)` directly from `MCPServer`, leaving the MetaMCP bridge as an optional attach step instead of a dedicated singleton controller service.
+- Linked the MCP search and inspector pages more tightly by deep-linking individual tool results into the inspector and auto-selecting the requested tool inside the inspector workspace.
+- Kept the MCP inspector URL synchronized with the current tool selection so manual focus changes preserve context across refreshes, shared links, and browser navigation.
+- Added direct inspector links to the MCP search page working-set sidebar so already-loaded tools can jump straight into the inspector without a second search.
+- Hardened the MCP inspector’s URL sync so browser back/forward and cleared query params no longer leave stale tool state selected, and added a one-click copy-link action for the current tool.
 - Reorganized `packages/core/src/mcp` around explicit aggregator types, config storage, namespace helpers, and traffic-inspector support so the router no longer depends on aggregator internals.
 - Wired the MCP dashboard search and inspector surfaces to the MCP router-backed tool inventory and embedded the shared traffic inspector directly in the inspector view.
 - Switched the MCP dashboard search page to the dedicated `mcp.searchTools` contract and embedded the live `TrafficInspector` into the MCP inspector page so the new router traffic/search APIs are operator-visible.
 - Added reusable MCP client-config sync support for Claude Desktop, Cursor, and VS Code, including resolved target discovery, previewable exported configs, and router-backed write operations.
+- Added an MCP settings dashboard surface for selecting supported clients, previewing the generated config JSON, and writing Borg-managed MCP config files directly from the UI.
 
 ### Fixed
+- Fixed `packages/core/src/mcp/MCPAggregator.ts` so ordinary downstream tool-call failures no longer mark an otherwise healthy MCP server as fully errored; the router now preserves connected status while still recording the failure in server state and traffic history.
+- Fixed the dashboard tRPC proxy in `apps/web` so it now probes Borg Core's actual default tRPC endpoint on `http://127.0.0.1:4000/trpc` before legacy MCP bridge fallbacks, which restores mutations like `mcpServers.bulkImport` instead of surfacing a proxy-generated 502.
+- Fixed the dashboard MCP query bridge in `apps/web/src/app/api/trpc/[trpc]/route.ts` so modern procedure batches (`mcp.listServers`, `mcp.listTools`, `mcp.getStatus`) now fall back through the compatibility bridge instead of incorrectly returning `502 Bad Gateway` when the upstream is unavailable.
+- Fixed the Next.js app-route typing contract in `apps/web` by moving `resolveUpstreamBases` out of `src/app/api/trpc/[trpc]/` into `src/lib/trpc-upstream.ts`, which removes the illegal extra route export and restores clean webpack builds.
 - Made root `pnpm install` succeed on Windows by replacing the `packages/MCP-SuperAssistant` bash-based `copy_env` postinstall step with a cross-platform Node-based copy.
+- Extracted the `packages/MCP-SuperAssistant` `copy_env` postinstall helper into a dedicated Node script with focused regression coverage so the clean-install fix remains testable.
 - Excluded the duplicate `apps/vscode` workspace from `pnpm-workspace.yaml` so it no longer collides with the canonical `packages/vscode` extension package during dependency installation.
 - Removed the obsolete Compose `version` field from `docker-compose.yml` to eliminate a startup warning under modern Docker Compose.
 - Ignored Next.js `.next-dev/` output in `.gitignore` so local dashboard runs no longer dirty the repository with generated artifacts.
 - Corrected the web runtime stage in `Dockerfile` to expose Next.js' actual internal port (`3000`) instead of the host-mapped dashboard port.
 - Declared `date-fns` in `apps/web/package.json` so the Dockerized dashboard build resolves the `LogEntry` timestamp formatter the same way the local workspace build does.
+- Replaced the stock Next.js metadata in `apps/web/src/app/layout.tsx` so the live dashboard no longer shows the `Create Next App` title.
+- Excluded nested `.borg/worktrees/**` copies from the root `vitest.config.ts` discovery and coverage paths so workspace-root validation no longer pulls duplicate shadow tests into the main suite.
 
 ### Validated
+- Verified `pnpm -C packages/core exec tsc --noEmit` passes.
+- Verified `pnpm exec vitest run packages/core/mcp/__tests__/direct-mode-compatibility.test.ts packages/core/mcp/__tests__/downstream-discovery.test.ts packages/core/mcp/__tests__/native-session-meta-tools.test.ts packages/core/mcp/__tests__/meta-mcp-mode.test.ts packages/core/mcp/__tests__/aggregator.test.ts packages/core/mcp/__tests__/crash-isolation.test.ts` passes.
+- Re-verified `pnpm exec vitest run packages/core/mcp/__tests__/downstream-discovery.test.ts packages/core/mcp/__tests__/direct-mode-compatibility.test.ts` passes after the proxy-side de-duplication, and `pnpm -C packages/core exec tsc --noEmit` still returns `CORE_TSC_OK`.
+- Re-verified `pnpm exec vitest run packages/core/mcp/__tests__/downstream-discovery.test.ts packages/core/mcp/__tests__/direct-mode-compatibility.test.ts` passes after disabling duplicate proxy discovery registration in `MCPServer`, and `pnpm -C packages/core exec tsc --noEmit` still returns `CORE_TSC_OK`.
+- Verified `pnpm exec vitest run packages/core/test/proxy_middleware.test.ts packages/core/test/proxy_logging_middleware.test.ts packages/core/mcp/__tests__/downstream-discovery.test.ts packages/core/mcp/__tests__/direct-mode-compatibility.test.ts` now completes cleanly with the proxy tests intentionally skipped and the focused MCP tests passing, after excluding `.borg/worktrees/**` from root Vitest discovery.
+- Added focused `packages/core/test/mcpJsonConfig.test.ts` coverage for rich `mcp.jsonc` persistence, clean `mcp.json` compatibility export, and metadata preservation through the JSON config provider.
+- Verified `pnpm exec vitest run packages/core/providers/__tests__/auth.test.ts packages/core/providers/__tests__/quota-tracker.test.ts packages/core/providers/__tests__/strategy.test.ts packages/core/providers/__tests__/fallback-chain.test.ts` passes.
+- Verified `pnpm exec vitest run packages/core/supervisor/__tests__/spawn.test.ts packages/core/supervisor/__tests__/restart.test.ts packages/core/supervisor/__tests__/health.test.ts packages/core/supervisor/__tests__/worktree.test.ts packages/core/supervisor/__tests__/session-persist.test.ts` passes.
+- Verified `pnpm exec vitest run apps/web/src/app/api/trpc/[trpc]/route.test.ts` passes.
 - Verified `pnpm install` completes successfully from the repository root on Windows after the setup fixes.
 - Verified `docker-compose config` parses the current Compose stack successfully.
+- Verified `docker compose up -d --build` completes successfully on Windows with Docker Desktop running, with the dashboard reachable at `http://localhost:3001`.
 - Added focused MCP router tests for aggregation, namespace isolation, lifecycle, crash isolation, traffic inspection, and tool search under `packages/core/mcp/__tests__/`.
 - Added focused MCP client-config sync tests covering target resolution, Claude-format export, and safe VS Code settings merging.
+- Re-verified `pnpm -C apps/web build --webpack` passes after wiring deep-linked MCP inspector tool selection through the dashboard UI.
+- Re-verified `pnpm -C apps/web build --webpack` passes after extracting the shared tRPC upstream resolver from the route segment module.
 
 ## [2.7.110] - 2026-03-07
 ### Changed

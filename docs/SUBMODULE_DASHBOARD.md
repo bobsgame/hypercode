@@ -52,15 +52,17 @@ Based on the latest generated inventory snapshot:
 
 1. **Discover/ingest** new sources via resource lists and submodule updates.  
 2. **Regenerate inventory snapshot** (`docs/SUBMODULES.md`) from `.gitmodules`.  
-3. **Classify critical entries** (Tier A/B/C) for roadmap impact.  
-4. **Reflect deltas** in `ROADMAP.md`, `TODO.md`, and `HANDOFF.md` when priorities change.  
-5. **Capture release impact** in `CHANGELOG.md` for major category shifts.
+3. **Prune orphaned gitlinks from the index** with `node scripts/prune_orphaned_gitlinks.mjs --apply` before trusting `git submodule status`.  
+4. **Classify critical entries** (Tier A/B/C) for roadmap impact.  
+5. **Reflect deltas** in `ROADMAP.md`, `TODO.md`, and `HANDOFF.md` when priorities change.  
+6. **Capture release impact** in `CHANGELOG.md` for major category shifts.
 
 ## 5) Known gaps to close
 
 - Add explicit Tier A/B/C tagging metadata into the generator pipeline (currently implicit/manual).
 - Add freshness metadata (`last synced`) per major top-level category.
 - Add dashboard/UI surface for high-priority submodule drift (commit lag and health status).
+- Finish removing the remaining orphaned on-disk directories after the index cleanup lands.
 
 ---
 

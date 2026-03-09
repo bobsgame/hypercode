@@ -21,7 +21,8 @@ Defines the AI agents available to the system.
 ### `docs/`
 The single source of truth for all documentation.
 *   **`LLM_INSTRUCTIONS.md`:** The master instruction file for all LLMs contributing to this project. All other `*.md` instruction files (e.g., `CLAUDE.md`, `GPT.md`) simply reference this file.
-*   **`SUBMODULES.md`:** Tracks all registered submodules and external repositories.
+*   **`.gitmodules`:** The live registry of tracked submodule paths and remotes.
+*   **`docs/SUBMODULES.md`:** Generated inventory snapshot for tracked submodules and external repositories.
 
 ### `external/`
 Contains external repositories and plugins that are **not** core submodules but are integrated into the ecosystem.

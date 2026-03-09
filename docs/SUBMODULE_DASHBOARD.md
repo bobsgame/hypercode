@@ -1,20 +1,22 @@
 # Submodule Dashboard — Governance View
 
 > **Version Context**: 2.7.56  
-> **Canonical Inventory Source**: `SUBMODULES.md` (auto-generated)  
+> **Canonical Live Registry**: `.gitmodules`  
+> **Inventory Snapshot**: `docs/SUBMODULES.md` (generated, refresh after registry changes)  
 > **Purpose**: Operator-facing map for triage, ownership, and synchronization policy.
 
 ---
 
 ## 1) Source of truth and update contract
 
-- `SUBMODULES.md` is the authoritative inventory for path/name/commit/description and category rollups.
+- `.gitmodules` is the authoritative live registry for tracked submodule paths and remotes.
+- `docs/SUBMODULES.md` is the generated inventory snapshot for path/name/commit/description rollups.
 - `docs/SUBMODULE_DASHBOARD.md` is intentionally concise and governance-oriented (this file).
-- Any bulk changes to submodules should regenerate/refresh `SUBMODULES.md` first, then update this dashboard only if governance structure changes.
+- Any bulk changes to submodules should update `.gitmodules` first, then regenerate/refresh `docs/SUBMODULES.md`, then update this dashboard only if governance structure changes.
 
 ## 2) Current inventory posture
 
-Based on the latest generated inventory:
+Based on the latest generated inventory snapshot:
 
 - **Total tracked modules**: 786+
 - **Coverage includes**: MCP servers, memory systems, CLI harnesses, orchestration frameworks, search/indexing stacks, financial tools, and unsorted ecosystem references.
@@ -46,7 +48,7 @@ Based on the latest generated inventory:
 ## 4) Operational workflow
 
 1. **Discover/ingest** new sources via resource lists and submodule updates.  
-2. **Regenerate canonical inventory** (`SUBMODULES.md`).  
+2. **Regenerate inventory snapshot** (`docs/SUBMODULES.md`) from `.gitmodules`.  
 3. **Classify critical entries** (Tier A/B/C) for roadmap impact.  
 4. **Reflect deltas** in `ROADMAP.md`, `TODO.md`, and `HANDOFF.md` when priorities change.  
 5. **Capture release impact** in `CHANGELOG.md` for major category shifts.
@@ -59,4 +61,4 @@ Based on the latest generated inventory:
 
 ---
 
-For full inventory tables (all modules, paths, commits, descriptions), use `SUBMODULES.md`.
+For full inventory tables (all modules, paths, commits, descriptions), use `docs/SUBMODULES.md` after refreshing it from `.gitmodules`.

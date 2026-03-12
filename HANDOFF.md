@@ -2,7 +2,36 @@
 
 _Last updated: 2026-03-11_
 
-## Latest session update — startup orchestration + boot status handoff
+## Latest session update — MCP discovery fix, config path, dashboard truthfulness
+
+### What changed this session
+
+1. **MCP Discovery: SSE + STREAMABLE_HTTP support**
+   - `packages/core/src/db/repositories/mcp-servers.repo.ts` → `discoverServerTools()` now handles all 3 transport types (was STDIO-only)
+   - Added 30-second timeout to prevent hanging discoveries
+   - SSE/HTTP transports use `SSEClientTransport` and `StreamableHTTPClientTransport` from the MCP SDK
+
+2. **Config path: `~/.borg/` instead of workspace root**
+   - `packages/core/src/mcp/mcpJsonConfig.ts` → `getBorgConfigDir()` returns `os.homedir()/.borg`
+   - `getBorgMcpJsoncPath()`, `getBorgMcpJsonPath()`, `loadBorgMcpConfig()`, `writeBorgMcpConfig()` all default to `~/.borg/`
+   - `packages/core/src/services/config/JsonConfigProvider.ts` → constructor uses `getBorgConfigDir()` instead of `process.cwd()`
+   - Existing `mcp.json`/`mcp.jsonc` were migrated to `~/.borg/`
+
+3. **System Status truthfulness**
+   - `apps/web/src/app/dashboard/mcp/system/page.tsx` → replaced hardcoded values:
+     - Database: PostgreSQL 15.4 → SQLite (local)
+     - Redis Cache → Event Bus (in-process pub/sub)
+     - Uptime: hardcoded → live from `startupStatus.uptime`
+     - Version: v0.5.0-beta → v0.9.0-beta
+
+### What was NOT changed (still on backlog)
+
+- MCP Router completeness (search UX, progressive disclosure) — audit found these pages are already production-quality (600+ lines with real tRPC queries)
+- Provider routing improvements
+- Session supervisor improvements
+- README quickstart update
+
+## Previous session — startup orchestration + boot status handoff
 
 ### What is newly in place
 

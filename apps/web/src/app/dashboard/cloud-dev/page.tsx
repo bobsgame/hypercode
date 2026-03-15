@@ -515,6 +515,26 @@ export default function CloudDevDashboardPage() {
         });
     }, [broadcastMutation, lastBroadcastPayload]);
 
+    const broadcastDraftToSessionIds = useCallback((sessionIds: string[], force: boolean) => {
+        const content = broadcastMsg.trim();
+        if (!content || sessionIds.length === 0) return;
+        setBroadcastForce(force);
+        setBroadcastStatusFilter([]);
+        const payload = {
+            content,
+            force,
+            statusFilter: undefined,
+            sessionIds,
+        };
+        setLastBroadcastPayload(payload);
+        broadcastMutation.mutate({
+            content: payload.content,
+            force: payload.force,
+            statusFilter: payload.statusFilter,
+            sessionIds: payload.sessionIds,
+        });
+    }, [broadcastMsg, broadcastMutation]);
+
     const resultSkippedStatusSuggestions = useMemo(() => {
         if (!broadcastResult) return [] as SessionStatus[];
         const statuses = new Set<SessionStatus>();
@@ -827,6 +847,26 @@ export default function CloudDevDashboardPage() {
                                                         Skipped rows are sampled, but retry targets full skipped ID set.
                                                     </span>
                                                 )}
+                                            </div>
+                                        )}
+                                        {broadcastPreview.skippedSessionIds.length > 0 && broadcastMsg.trim().length > 0 && (
+                                            <div className="flex flex-wrap items-center gap-1.5">
+                                                <button
+                                                    type="button"
+                                                    disabled={broadcastMutation.isPending}
+                                                    onClick={() => broadcastDraftToSessionIds(broadcastPreview.skippedSessionIds, false)}
+                                                    className="rounded border border-purple-500/60 bg-purple-700/35 px-2 py-0.5 text-[10px] text-purple-100 hover:bg-purple-700/55 disabled:opacity-50"
+                                                >
+                                                    Broadcast draft to preview skipped only
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    disabled={broadcastMutation.isPending}
+                                                    onClick={() => broadcastDraftToSessionIds(broadcastPreview.skippedSessionIds, true)}
+                                                    className="rounded border border-amber-500/60 bg-amber-700/35 px-2 py-0.5 text-[10px] text-amber-100 hover:bg-amber-700/55 disabled:opacity-50"
+                                                >
+                                                    Broadcast draft to skipped only + Force
+                                                </button>
                                             </div>
                                         )}
                                     </div>

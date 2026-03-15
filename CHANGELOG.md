@@ -4,6 +4,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.7.192] — 2026-03-15
+
+- feat(web/cloud-dev): preview diagnostics now offer one-click `Broadcast draft to preview skipped only` and `Broadcast draft to skipped only + Force` actions when a draft message is present.
+- changed(web/cloud-dev): draft-to-skipped actions automatically scope delivery via preview `skippedSessionIds` and persist that session scope into last-payload retry state.
+- changed(web/cloud-dev): scoped draft sends clear status-filter targeting for the dispatch, reducing accidental mixed scope between status and session-ID filters.
+
 ## [2.7.191] — 2026-03-15
 
 - feat(web/cloud-dev): broadcast composer now shows an explicit `Session scope: N IDs` chip when retries are targeting a session-ID subset.

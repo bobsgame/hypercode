@@ -95,6 +95,7 @@ const INSPECTOR_TELEMETRY_TYPE_QUERY_KEY = 'telemetryType';
 const INSPECTOR_TELEMETRY_STATUS_QUERY_KEY = 'telemetryStatus';
 const INSPECTOR_TELEMETRY_WINDOW_QUERY_KEY = 'telemetryWindow';
 const INSPECTOR_TELEMETRY_SOURCE_QUERY_KEY = 'telemetrySource';
+const INSPECTOR_TELEMETRY_TOOL_QUERY_KEY = 'telemetryTool';
 const INSPECTOR_TELEMETRY_SOURCES: Array<{ value: Exclude<TelemetrySourceFilter, 'all'>; label: string }> = [
     { value: 'runtime-search', label: 'Runtime' },
     { value: 'cached-ranking', label: 'Cached' },
@@ -537,6 +538,12 @@ function InspectorDashboardContent() {
             hasHydratedFromUrl = true;
         }
 
+        const urlTool = searchParams.get(INSPECTOR_TELEMETRY_TOOL_QUERY_KEY);
+        if (urlTool) {
+            setTelemetryToolFilter(urlTool);
+            hasHydratedFromUrl = true;
+        }
+
         if (hasHydratedFromUrl) {
             return;
         }
@@ -552,6 +559,7 @@ function InspectorDashboardContent() {
                 status?: string;
                 window?: string;
                 source?: string;
+                tool?: string;
             };
 
             if (parsed.type && ['all', 'search', 'load', 'hydrate', 'unload'].includes(parsed.type)) {
@@ -569,6 +577,10 @@ function InspectorDashboardContent() {
             if (parsed.source && ['all', 'runtime-search', 'cached-ranking', 'live-aggregator'].includes(parsed.source)) {
                 setTelemetrySourceFilter(parsed.source as TelemetrySourceFilter);
             }
+
+            if (parsed.tool) {
+                setTelemetryToolFilter(parsed.tool);
+            }
         } catch {
             // Ignore invalid persisted payloads and continue with defaults.
         }
@@ -583,12 +595,13 @@ function InspectorDashboardContent() {
                     status: telemetryStatusFilter,
                     window: telemetryWindowFilter,
                     source: telemetrySourceFilter,
+                    tool: telemetryToolFilter ?? undefined,
                 }),
             );
         } catch {
             // Ignore local storage write failures.
         }
-    }, [telemetryTypeFilter, telemetryStatusFilter, telemetryWindowFilter, telemetrySourceFilter]);
+    }, [telemetryTypeFilter, telemetryStatusFilter, telemetryWindowFilter, telemetrySourceFilter, telemetryToolFilter]);
 
     useEffect(() => {
         const nextParams = new URLSearchParams(searchParams.toString());
@@ -617,6 +630,12 @@ function InspectorDashboardContent() {
             nextParams.set(INSPECTOR_TELEMETRY_SOURCE_QUERY_KEY, telemetrySourceFilter);
         }
 
+        if (telemetryToolFilter == null) {
+            nextParams.delete(INSPECTOR_TELEMETRY_TOOL_QUERY_KEY);
+        } else {
+            nextParams.set(INSPECTOR_TELEMETRY_TOOL_QUERY_KEY, telemetryToolFilter);
+        }
+
         const currentQuery = searchParams.toString();
         const nextQuery = nextParams.toString();
         if (currentQuery === nextQuery) {
@@ -624,7 +643,7 @@ function InspectorDashboardContent() {
         }
 
         router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname, { scroll: false });
-    }, [pathname, router, searchParams, telemetryTypeFilter, telemetryStatusFilter, telemetryWindowFilter, telemetrySourceFilter]);
+    }, [pathname, router, searchParams, telemetryTypeFilter, telemetryStatusFilter, telemetryWindowFilter, telemetrySourceFilter, telemetryToolFilter]);
 
     const handleRun = () => {
         if (!selectedTool) return;
@@ -711,6 +730,7 @@ function InspectorDashboardContent() {
         setTelemetryStatusFilter('all');
         setTelemetryWindowFilter('15m');
         setTelemetrySourceFilter('all');
+        setTelemetryToolFilter(null);
 
         try {
             window.localStorage.removeItem(INSPECTOR_TELEMETRY_FILTERS_STORAGE_KEY);

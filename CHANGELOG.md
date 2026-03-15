@@ -4,6 +4,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.7.146] — 2026-03-14
+
+- feat(web/mcp): added URL sync and localStorage persistence for `telemetryTool` filter in `/dashboard/mcp/inspector` so tool-focused triage sessions are bookmarkable and survive page refresh.
+- changed(web/mcp): `resetTelemetryFilters` now also clears `telemetryToolFilter` so a single Reset click returns all filter axes to defaults.
+- changed(web/mcp): `copyTelemetryShareLink` automatically includes `telemetryTool` query param when a tool is focused since share link uses live URL state.
+
 ## [2.7.145] — 2026-03-14
 
 - feat(web/mcp): added per-tool error leaderboard panel in `/dashboard/mcp/inspector` telemetry section showing top 10 tools ranked by error count with severity badges and one-click "Focus errors" action.

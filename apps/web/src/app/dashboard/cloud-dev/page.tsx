@@ -854,6 +854,34 @@ export default function CloudDevDashboardPage() {
                                                 )}
                                             </div>
                                         )}
+                                        {broadcastPreview.skippedSessionIds.length > 0 && (
+                                            <div className="flex flex-wrap items-center gap-1.5">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setBroadcastSessionScopeIds(broadcastPreview.skippedSessionIds);
+                                                        setBroadcastStatusFilter([]);
+                                                    }}
+                                                    className="rounded border border-cyan-700/60 bg-cyan-900/30 px-2 py-0.5 text-[10px] text-cyan-200 hover:bg-cyan-900/50"
+                                                >
+                                                    Use preview skipped as scope
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setBroadcastSessionScopeIds(broadcastPreview.skippedSessionIds);
+                                                        setBroadcastStatusFilter([]);
+                                                        setBroadcastForce(true);
+                                                    }}
+                                                    className="rounded border border-amber-700/60 bg-amber-900/30 px-2 py-0.5 text-[10px] text-amber-200 hover:bg-amber-900/50"
+                                                >
+                                                    Use skipped scope + Force
+                                                </button>
+                                                <span className="text-[10px] text-zinc-500">
+                                                    Updates preview/next send scope without dispatching.
+                                                </span>
+                                            </div>
+                                        )}
                                         {broadcastPreview.skippedSessionIds.length > 0 && broadcastMsg.trim().length > 0 && (
                                             <div className="flex flex-wrap items-center gap-1.5">
                                                 <button

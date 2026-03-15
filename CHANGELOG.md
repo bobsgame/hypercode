@@ -4,6 +4,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.7.194] — 2026-03-15
+
+- feat(web/cloud-dev): preview diagnostics now include `Use preview skipped as scope`, allowing operators to set skipped session IDs as the active target scope without immediately sending.
+- feat(web/cloud-dev): added `Use skipped scope + Force` for one-click scope staging with forced-terminal targeting before dispatch.
+- changed(web/cloud-dev): staged-scope actions explicitly clear status filters and annotate that the action updates preview/next-send targeting only.
+
 ## [2.7.193] — 2026-03-15
 
 - fix(web/cloud-dev): broadcast preview now honors active session-ID scope targeting, so recipient/skip diagnostics match scoped retry/send behavior.

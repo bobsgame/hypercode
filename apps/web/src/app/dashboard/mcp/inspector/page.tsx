@@ -395,6 +395,9 @@ function InspectorDashboardContent() {
         const sourceEvents = scopedTelemetryEvents.filter((event) => event.source === source.value);
         const successCount = sourceEvents.filter((event) => event.status === 'success').length;
         const errorCount = sourceEvents.filter((event) => event.status === 'error').length;
+        const errorRatePercent = sourceEvents.length > 0
+            ? Math.round((errorCount / sourceEvents.length) * 100)
+            : 0;
         const trend = telemetryTrendBuckets.map((bucket) => {
             const bucketEvents = sourceEvents.filter((event) => event.timestamp >= bucket.start && event.timestamp < bucket.end);
             return {
@@ -411,6 +414,7 @@ function InspectorDashboardContent() {
             total: sourceEvents.length,
             successCount,
             errorCount,
+            errorRatePercent,
             trend,
         };
     });
@@ -1223,16 +1227,40 @@ function InspectorDashboardContent() {
                                         return (
                                             <div key={`inspector-source-trend-${source.value}`} className="rounded border border-zinc-800/80 bg-zinc-900/60 p-2 space-y-1.5">
                                                 <div className="flex items-center justify-between gap-2 text-[10px]">
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => setTelemetrySourceFilter(source.value)}
-                                                        className="uppercase tracking-wider text-amber-200 hover:text-amber-100"
-                                                        title={`Focus telemetry source: ${source.label}`}
-                                                        aria-label={`Focus telemetry source ${source.label}`}
-                                                    >
-                                                        {source.label}
-                                                    </button>
-                                                    <span className="text-zinc-400">{source.successCount} ok / {source.errorCount} err</span>
+                                                    <div className="flex items-center gap-2">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setTelemetrySourceFilter(source.value)}
+                                                            className="uppercase tracking-wider text-amber-200 hover:text-amber-100"
+                                                            title={`Focus telemetry source: ${source.label}`}
+                                                            aria-label={`Focus telemetry source ${source.label}`}
+                                                        >
+                                                            {source.label}
+                                                        </button>
+                                                        <span className={`rounded border px-1.5 py-0.5 ${source.errorRatePercent >= 50
+                                                            ? 'border-red-500/30 bg-red-500/10 text-red-300'
+                                                            : source.errorRatePercent >= 20
+                                                                ? 'border-amber-500/30 bg-amber-500/10 text-amber-300'
+                                                                : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
+                                                            }`}>
+                                                            err {source.errorRatePercent}%
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-zinc-400">{source.successCount} ok / {source.errorCount} err</span>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setTelemetrySourceFilter(source.value);
+                                                                setTelemetryStatusFilter('error');
+                                                            }}
+                                                            className="rounded border border-red-500/30 bg-red-500/10 px-1.5 py-0.5 text-red-200 transition-colors hover:bg-red-500/20"
+                                                            title={`Focus ${source.label} failures`}
+                                                            aria-label={`Focus failures for ${source.label}`}
+                                                        >
+                                                            Focus failures
+                                                        </button>
+                                                    </div>
                                                 </div>
 
                                                 <div className="grid grid-cols-6 gap-1">
@@ -1334,12 +1362,13 @@ function InspectorDashboardContent() {
                         <div className="flex flex-wrap items-center gap-2 text-xs">
                             <span className="text-zinc-500 uppercase tracking-wider">Source</span>
                             {[{ value: 'all', label: 'All' }, ...INSPECTOR_TELEMETRY_SOURCES].map((option) => {
-                                const active = telemetrySourceFilter === option.value;
+                                const optionValue = option.value as TelemetrySourceFilter;
+                                const active = telemetrySourceFilter === optionValue;
                                 return (
                                     <button
                                         key={`inspector-telemetry-source-${option.value}`}
                                         type="button"
-                                        onClick={() => setTelemetrySourceFilter(option.value)}
+                                        onClick={() => setTelemetrySourceFilter(optionValue)}
                                         className={`rounded-md border px-2 py-1 transition-colors ${active
                                             ? 'border-amber-500/50 bg-amber-500/15 text-amber-200'
                                             : 'border-zinc-700 bg-zinc-950/70 text-zinc-300 hover:bg-zinc-800'

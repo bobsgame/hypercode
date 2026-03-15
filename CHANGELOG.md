@@ -4,6 +4,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.7.143] — 2026-03-14
+
+- feat(web/mcp): added per-source telemetry error-rate badges in `/dashboard/mcp/inspector` source trend breakdown so high-failure sources stand out immediately.
+- feat(web/mcp): added one-click `Focus failures` action per telemetry source row in inspector to pivot triage into `source + error` scope instantly.
+- changed(web/mcp): improved source trend row layout in inspector to show source focus, reliability signal, and scoped failure drill-down in one compact strip.
+
 ## [2.7.142] — 2026-03-14
 
 - feat(web/mcp): added source-level telemetry trend strips to `/dashboard/mcp/inspector` for `runtime-search`, `cached-ranking`, and `live-aggregator`, with per-source success/error momentum mini-bars.

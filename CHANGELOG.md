@@ -4,6 +4,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.7.147] — 2026-03-14
+
+- fix(web/mcp): `telemetryToolBreakdown` leaderboard now uses `baselineScopedEvents` (pre-tool-filter) instead of `scopedTelemetryEvents` so the leaderboard remains fully populated when a tool is focused, enabling pivot to other tools.
+- feat(web/mcp): added event-list pagination in `/dashboard/mcp/inspector` telemetry section (12 events per page) with Prev/Next buttons and "X–Y of Z" counter; page resets automatically on filter change.
+- changed(web/mcp): split `scopedTelemetryEvents` derivation into `baselineScopedEvents` (type/status/window/source filters) and `scopedTelemetryEvents` (adds tool filter) for correct per-axis scoping.
+
 ## [2.7.146] — 2026-03-14
 
 - feat(web/mcp): added URL sync and localStorage persistence for `telemetryTool` filter in `/dashboard/mcp/inspector` so tool-focused triage sessions are bookmarkable and survive page refresh.

@@ -193,6 +193,8 @@ function InspectorDashboardContent() {
     const [telemetrySourceFilter, setTelemetrySourceFilter] = useState<TelemetrySourceFilter>('all');
     // Per-tool filter — set via leaderboard "Focus errors" or source-trend tooltip inference
     const [telemetryToolFilter, setTelemetryToolFilter] = useState<string | null>(null);
+    // Pagination for the event card list (12 cards per page)
+    const [telemetryPage, setTelemetryPage] = useState(0);
     const [selectedTool, setSelectedTool] = useState<InspectorTool | null>(null);
     const [argsJson, setArgsJson] = useState('{}');
     const [result, setResult] = useState<any | null>(null);
@@ -366,13 +368,20 @@ function InspectorDashboardContent() {
     });
 
     const telemetryWindowStart = resolveTelemetryWindowStart(telemetryWindowFilter);
-    const scopedTelemetryEvents = telemetry
+    // Baseline: all filters except the per-tool one — used by the leaderboard so it always shows all tools.
+    const baselineScopedEvents = telemetry
         .filter((event) => telemetryWindowStart == null || event.timestamp >= telemetryWindowStart)
         .filter((event) => telemetryTypeFilter === 'all' || event.type === telemetryTypeFilter)
         .filter((event) => telemetryStatusFilter === 'all' || event.status === telemetryStatusFilter)
-        .filter((event) => telemetrySourceFilter === 'all' || event.source === telemetrySourceFilter)
+        .filter((event) => telemetrySourceFilter === 'all' || event.source === telemetrySourceFilter);
+    const scopedTelemetryEvents = baselineScopedEvents
         .filter((event) => telemetryToolFilter == null || event.toolName === telemetryToolFilter || event.topResultName === telemetryToolFilter);
-    const filteredTelemetry = scopedTelemetryEvents.slice(0, 12);
+    const TELEMETRY_PAGE_SIZE = 12;
+    const telemetryTotalPages = Math.ceil(scopedTelemetryEvents.length / TELEMETRY_PAGE_SIZE);
+    const filteredTelemetry = scopedTelemetryEvents.slice(
+        telemetryPage * TELEMETRY_PAGE_SIZE,
+        (telemetryPage + 1) * TELEMETRY_PAGE_SIZE,
+    );
     const telemetrySummary = {
         total: scopedTelemetryEvents.length,
         success: scopedTelemetryEvents.filter((event) => event.status === 'success').length,
@@ -432,10 +441,11 @@ function InspectorDashboardContent() {
             trend,
         };
     });
-    // Compute per-tool error breakdown from scoped events (before tool filter to show full picture)
+    // Compute per-tool error breakdown from BASELINE events (before tool filter) so the leaderboard
+    // always shows all tools and remains usable as a pivot when a specific tool is currently focused.
     const telemetryToolBreakdown = (() => {
         const toolMap = new Map<string, { total: number; errorCount: number; successCount: number }>();
-        scopedTelemetryEvents.forEach((event) => {
+        baselineScopedEvents.forEach((event) => {
             const name = event.toolName ?? event.topResultName;
             if (!name) return;
             const existing = toolMap.get(name) ?? { total: 0, errorCount: 0, successCount: 0 };
@@ -644,6 +654,11 @@ function InspectorDashboardContent() {
 
         router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname, { scroll: false });
     }, [pathname, router, searchParams, telemetryTypeFilter, telemetryStatusFilter, telemetryWindowFilter, telemetrySourceFilter, telemetryToolFilter]);
+
+    // Reset pagination to page 0 whenever any filter changes so stale page offsets are avoided.
+    useEffect(() => {
+        setTelemetryPage(0);
+    }, [telemetryTypeFilter, telemetryStatusFilter, telemetryWindowFilter, telemetrySourceFilter, telemetryToolFilter]);
 
     const handleRun = () => {
         if (!selectedTool) return;
@@ -1574,6 +1589,35 @@ function InspectorDashboardContent() {
                             </div>
                         )}
                     </div>
+
+                    {telemetryTotalPages > 1 && (
+                        <div className="flex items-center justify-between text-xs text-zinc-500 mt-1">
+                            <span>
+                                Showing {telemetryPage * TELEMETRY_PAGE_SIZE + 1}–{Math.min((telemetryPage + 1) * TELEMETRY_PAGE_SIZE, scopedTelemetryEvents.length)} of {scopedTelemetryEvents.length} events
+                            </span>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    type="button"
+                                    disabled={telemetryPage === 0}
+                                    onClick={() => setTelemetryPage((p) => p - 1)}
+                                    className="rounded border border-zinc-700 bg-zinc-950/70 px-2 py-1 text-zinc-300 transition-colors hover:bg-zinc-800 disabled:opacity-40"
+                                    aria-label="Previous page of telemetry events"
+                                >
+                                    ← Prev
+                                </button>
+                                <span>{telemetryPage + 1} / {telemetryTotalPages}</span>
+                                <button
+                                    type="button"
+                                    disabled={telemetryPage >= telemetryTotalPages - 1}
+                                    onClick={() => setTelemetryPage((p) => p + 1)}
+                                    className="rounded border border-zinc-700 bg-zinc-950/70 px-2 py-1 text-zinc-300 transition-colors hover:bg-zinc-800 disabled:opacity-40"
+                                    aria-label="Next page of telemetry events"
+                                >
+                                    Next →
+                                </button>
+                            </div>
+                        </div>
+                    )}
                 </CardContent>
             </Card>
 

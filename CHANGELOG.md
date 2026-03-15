@@ -4,6 +4,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.7.226] — 2026-03-15
+
+- refactor(web/sidebar): added shared `safeStorageSetJson(...)` in `apps/web/src/components/Sidebar.tsx` so persisted navigation preference writes now flow through one JSON-serialization helper instead of repeating inline `JSON.stringify(...)` calls.
+- changed(web/sidebar): favorites persistence, recent-route persistence, recent-search persistence, imported preference writes, pathname-driven recent writes, and collapse-state writes now share the same storage-write path.
+- test(web/navigation): reran focused nav validation/config suites after the Sidebar storage-write convergence cleanup (`37` tests passing).
+
 ## [2.7.225] — 2026-03-15
 
 - changed(web/navigation): added shared `buildExportedNavPreferences(...)` in `apps/web/src/components/mcp/nav-validation.ts` so exported sidebar preference files now use the same canonical sanitization contract as import and runtime hydration.

@@ -39,9 +39,15 @@ export class McpServerPool {
 
     // Default number of idle sessions per server UUID
     private readonly defaultIdleCount: number;
+    // Lazy mode keeps downstream servers stopped until a tool is actually executed.
+    private readonly lazySessionMode: boolean;
+    // Single-active mode ensures only one downstream server process is active per session.
+    private readonly singleActiveServerMode: boolean;
 
     private constructor(defaultIdleCount: number = 1) {
         this.defaultIdleCount = defaultIdleCount;
+        this.lazySessionMode = process.env.BORG_MCP_LAZY_SESSIONS !== 'false';
+        this.singleActiveServerMode = process.env.BORG_MCP_SINGLE_ACTIVE_SERVER !== 'false';
         this.startCleanupTimer();
     }
 
@@ -72,6 +78,10 @@ export class McpServerPool {
             return this.activeSessions[sessionId][serverUuid];
         }
 
+        if (this.singleActiveServerMode) {
+            await this.cleanupOtherActiveServersGlobal(serverUuid);
+        }
+
         // Initialize session if it doesn't exist
         if (!this.activeSessions[sessionId]) {
             this.activeSessions[sessionId] = {};
@@ -91,8 +101,10 @@ export class McpServerPool {
                 `Converted idle session to active for server ${serverUuid}, session ${sessionId}`,
             );
 
-            // Create a new idle session to replace the one we just used (ASYNC - NON-BLOCKING)
-            this.createIdleSessionAsync(serverUuid, params, namespaceUuid);
+            // In eager mode we prewarm a replacement idle session.
+            if (!this.lazySessionMode) {
+                this.createIdleSessionAsync(serverUuid, params, namespaceUuid);
+            }
 
             return idleClient;
         }
@@ -110,10 +122,53 @@ export class McpServerPool {
             `Created new active session for server ${serverUuid}, session ${sessionId}`,
         );
 
-        // Also create an idle session for future use (ASYNC - NON-BLOCKING)
-        this.createIdleSessionAsync(serverUuid, params, namespaceUuid);
+        // In eager mode we prewarm one idle session for future reuse.
+        if (!this.lazySessionMode) {
+            this.createIdleSessionAsync(serverUuid, params, namespaceUuid);
+        }
 
         return newClient;
+    }
+
+    private async cleanupOtherActiveServersGlobal(keepServerUuid: string): Promise<void> {
+        const cleanupOperations: Array<Promise<void>> = [];
+
+        Object.entries(this.activeSessions).forEach(([sessionId, sessionServers]) => {
+            Object.entries(sessionServers)
+                .filter(([uuid]) => uuid !== keepServerUuid)
+                .forEach(([uuid, client]) => {
+                    cleanupOperations.push((async () => {
+                        try {
+                            await client.cleanup();
+                        } catch (error) {
+                            console.error(`Error cleaning up stale active server ${uuid} for session ${sessionId}:`, error);
+                        }
+                        delete sessionServers[uuid];
+                        this.sessionToServers[sessionId]?.delete(uuid);
+                    })());
+                });
+        });
+
+        if (cleanupOperations.length > 0) {
+            await Promise.allSettled(cleanupOperations);
+        }
+
+        Object.entries(this.idleSessions)
+            .filter(([uuid]) => uuid !== keepServerUuid)
+            .forEach(([uuid, client]) => {
+                cleanupOperations.push((async () => {
+                    try {
+                        await client.cleanup();
+                    } catch (error) {
+                        console.error(`Error cleaning up stale idle server ${uuid}:`, error);
+                    }
+                    delete this.idleSessions[uuid];
+                })());
+            });
+
+        if (cleanupOperations.length > 0) {
+            await Promise.allSettled(cleanupOperations);
+        }
     }
 
     /**
@@ -178,6 +233,10 @@ export class McpServerPool {
         params: ServerParameters,
         namespaceUuid?: string,
     ): Promise<void> {
+        if (this.lazySessionMode) {
+            return;
+        }
+
         // Don't create if we already have an idle session for this server
         if (this.idleSessions[serverUuid]) {
             return;
@@ -198,6 +257,10 @@ export class McpServerPool {
         params: ServerParameters,
         namespaceUuid?: string,
     ): void {
+        if (this.lazySessionMode) {
+            return;
+        }
+
         // Don't create if we already have an idle session or are already creating one
         if (
             this.idleSessions[serverUuid] ||
@@ -282,15 +345,17 @@ export class McpServerPool {
         // Clean up session to servers mapping
         const serverUuids = this.sessionToServers[sessionId];
         if (serverUuids) {
-            // For each server this session was using, create new idle sessions if needed (ASYNC - NON-BLOCKING)
-            Array.from(serverUuids).forEach((serverUuid) => {
-                const params = this.serverParamsCache[serverUuid];
-                if (params) {
-                    // Note: We don't have namespaceUuid here, so we can't track crashes properly
-                    // This is a limitation of the current design - we'll need to pass namespaceUuid from the caller
-                    this.createIdleSessionAsync(serverUuid, params);
-                }
-            });
+            if (!this.lazySessionMode) {
+                // For each server this session was using, create new idle sessions if needed (ASYNC - NON-BLOCKING)
+                Array.from(serverUuids).forEach((serverUuid) => {
+                    const params = this.serverParamsCache[serverUuid];
+                    if (params) {
+                        // Note: We don't have namespaceUuid here, so we can't track crashes properly
+                        // This is a limitation of the current design - we'll need to pass namespaceUuid from the caller
+                        this.createIdleSessionAsync(serverUuid, params);
+                    }
+                });
+            }
 
             delete this.sessionToServers[sessionId];
         }

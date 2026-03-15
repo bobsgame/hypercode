@@ -4,6 +4,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.7.151] — 2026-03-15
+
+- feat(core/mcp): downstream MCP processes now default to lazy session mode (`BORG_MCP_LAZY_SESSIONS`), preventing idle prewarm spawns until a tool is actually executed.
+- feat(core/mcp): global single-active downstream lifecycle added (`BORG_MCP_SINGLE_ACTIVE_SERVER`) so one downstream server process remains active at a time; stale active/idle sessions are cleaned before switching.
+- changed(core/mcp): `tools/list` in MetaMCP proxy now prefers cached tool inventory (`getCachedToolInventory`) to avoid spawning all downstream servers during initial MCP host load.
+- changed(core/mcp): downstream tool execution now lazy-connects on first call when no active client mapping exists, instead of requiring eager bootstrap during discovery.
+- changed(core/mcp): STDIO downstream client wiring now logs both `stderr` and `stdout` to MetaMCP log store while keeping child processes hidden on Windows.
+
 ## [2.7.150] — 2026-03-14
 
 - feat(web/mcp): added free-text search input for telemetry events in `/dashboard/mcp/inspector`

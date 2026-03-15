@@ -103,6 +103,34 @@ export const createMetaMcpClient = (
                 );
             });
         }
+
+        // Also capture stdout for diagnostics. This includes MCP protocol frames and
+        // server-side logs written to stdout by some tools.
+        if ((transport as ProcessManagedStdioTransport).stdout) {
+            const stdoutStream = (transport as ProcessManagedStdioTransport).stdout;
+
+            stdoutStream?.on("data", (chunk: Buffer) => {
+                const message = chunk.toString().trim();
+                if (!message) {
+                    return;
+                }
+
+                metamcpLogStore.addLog(
+                    serverParams.name,
+                    "info",
+                    message,
+                );
+            });
+
+            stdoutStream?.on("error", (error: Error) => {
+                metamcpLogStore.addLog(
+                    serverParams.name,
+                    "error",
+                    "stdout error",
+                    error,
+                );
+            });
+        }
     } else if (serverParams.type === "SSE" && serverParams.url) {
         // Transform the URL if TRANSFORM_LOCALHOST_TO_DOCKER_INTERNAL is set to "true"
         const transformedUrl = transformDockerUrl(serverParams.url);

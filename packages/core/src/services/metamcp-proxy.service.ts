@@ -70,6 +70,7 @@ import {
     executeCompatibleLoadToolSet,
     executeCompatibleSaveToolSet,
 } from "../mcp/toolSetCompatibility.js";
+import { getCachedToolInventory } from "../mcp/cachedToolInventory.js";
 
 // Middleware
 import {
@@ -282,6 +283,37 @@ export const attachTo = async (
         return false;
     };
 
+    const ensureClientForTool = async (toolName: string): Promise<ConnectedClient> => {
+        if (toolToClient[toolName]) {
+            return toolToClient[toolName];
+        }
+
+        const parsed = parseToolName(toolName);
+        if (!parsed) {
+            throw new Error(`Invalid tool name: ${toolName}`);
+        }
+
+        const allServers = await getMcpServers(namespaceUuid, includeInactiveServers);
+        const targetEntry = Object.entries(allServers).find(([_uuid, params]) => {
+            const candidate = sanitizeName(params.name || "");
+            return candidate === parsed.serverName;
+        });
+
+        if (!targetEntry) {
+            throw new Error(`No downstream MCP server mapping found for ${toolName}`);
+        }
+
+        const [serverUuid, params] = targetEntry;
+        const session = await mcpServerPool.getSession(sessionId, serverUuid, params, namespaceUuid);
+        if (!session) {
+            throw new Error(`Unable to create downstream MCP session for ${toolName}`);
+        }
+
+        toolToClient[toolName] = session;
+        toolToServerUuid[toolName] = serverUuid;
+        return session;
+    };
+
     // Server instance is passed in, so we don't create it here.
     // However, we might want to ensure capabilities are set if not already?
     // The caller (MCPServer) handles Server creation and capability definition.
@@ -336,126 +368,166 @@ export const attachTo = async (
             console.error("Error fetching saved scripts", e);
         }
 
-        const serverParams = await getMcpServers(
-            context.namespaceUuid,
-            includeInactiveServers,
-        );
-
-        const visitedServers = new Set<string>();
-        const allServerEntries = Object.entries(serverParams);
         const allAvailableTools: Tool[] = [];
 
-        console.log(`[DEBUG-TOOLS] 📋 Processing ${allServerEntries.length} servers`);
+        // Preferred path: use cached inventory so initial MCP host startup does not spawn
+        // downstream binaries. This keeps server loading invisible and lazy.
+        const cachedInventory = await getCachedToolInventory().catch(() => null);
+        if (cachedInventory && cachedInventory.tools.length > 0) {
+            const serverUuidByName = new Map(
+                cachedInventory.servers.map((server) => [server.name, server.uuid]),
+            );
 
-        await Promise.allSettled(
-            allServerEntries.map(async ([mcpServerUuid, params]) => {
-                if (visitedServers.has(mcpServerUuid)) return;
+            cachedInventory.tools.forEach((tool) => {
+                const namespacedTool: Tool = {
+                    name: tool.name,
+                    description: tool.description ?? '',
+                    inputSchema: (tool.inputSchema as Tool['inputSchema']) ?? { type: 'object', properties: {} },
+                };
 
-                const session = await mcpServerPool.getSession(
-                    context.sessionId,
-                    mcpServerUuid,
-                    params,
-                    namespaceUuid,
-                );
-                if (!session) {
-                    console.log(`[DEBUG-TOOLS] ❌ No session for: ${params.name}`);
-                    return;
+                const uuid = serverUuidByName.get(tool.server);
+                if (uuid) {
+                    toolToServerUuid[namespacedTool.name] = uuid;
                 }
 
-                const serverVersion = session.client.getServerVersion();
-                const actualServerName = serverVersion?.name || params.name || "";
-                const ourServerName = `metamcp-unified-${namespaceUuid}`;
-                if (actualServerName === ourServerName) return;
-                if (isSameServerInstance(params, mcpServerUuid)) return;
-
-                visitedServers.add(mcpServerUuid);
-
-                const capabilities = session.client.getServerCapabilities();
-                if (!capabilities?.tools) return;
-
-                const serverName = params.name || session.client.getServerVersion()?.name || "";
-
-                try {
-                    const allServerTools: Tool[] = [];
-                    let cursor: string | undefined = undefined;
-                    let hasMore = true;
-
-                    while (hasMore) {
-                        const result = await session.client.request(
-                            {
-                                method: "tools/list",
-                                params: { cursor, _meta: request.params?._meta }
-                            },
-                            ListToolsResultSchema as unknown as import("zod").ZodType<any>
-                        ) as import("@modelcontextprotocol/sdk/types.js").ListToolsResult;
-                        if (result.tools) allServerTools.push(...result.tools);
-                        cursor = result.nextCursor;
-                        hasMore = !!result.nextCursor;
-                    }
-
-                    if (allServerTools.length > 0) {
-                        try {
-                            const toolsToSave = await filterOutOverrideTools(
-                                allServerTools,
-                                namespaceUuid,
-                                serverName
-                            );
-                            if (toolsToSave.length > 0) {
-                                // Use in-memory registry with namespaced names to match Proxy/Dashboard expectations
-                                const namespacedTools = toolsToSave.map(t => ({
-                                    ...t,
-                                    name: `${sanitizeName(serverName)}__${t.name}`
-                                }));
-                                if (deferredSchemaMode) {
-                                    namespacedTools.forEach((tool) => {
-                                        deferredLoadingService.cacheToolSchema(tool.name, tool);
-                                        const deferred = deferredLoadingService.createDeferredTool(tool, mcpServerUuid);
-                                        const minimalTool = deferredLoadingService.createMinimalTool(deferred);
-                                        toolRegistry.registerTool(minimalTool, mcpServerUuid, serverName, {
-                                            isDeferred: true,
-                                            fullTool: tool,
-                                        });
-                                    });
-                                } else {
-                                    toolRegistry.registerTools(
-                                        namespacedTools,
-                                        mcpServerUuid,
-                                        serverName
-                                    );
-                                }
-                            }
-                        } catch (e) {
-                            console.error("DB Save Error", e);
-                        }
-                    }
-
-                    allServerTools.forEach(tool => {
-                        const toolName = `${sanitizeName(serverName)}__${tool.name}`;
-                        toolToClient[toolName] = session;
-                        toolToServerUuid[toolName] = mcpServerUuid;
-                        const namespacedTool = {
-                            ...tool,
-                            name: toolName
-                        };
-
-                        if (deferredSchemaMode) {
-                            deferredLoadingService.cacheToolSchema(toolName, namespacedTool);
-                        }
-
-                        allAvailableTools.push({
-                            ...(deferredSchemaMode
-                                ? deferredLoadingService.createMinimalTool(
-                                    deferredLoadingService.createDeferredTool(namespacedTool, mcpServerUuid)
-                                )
-                                : namespacedTool)
-                        });
+                if (deferredSchemaMode) {
+                    deferredLoadingService.cacheToolSchema(namespacedTool.name, namespacedTool);
+                    const deferred = deferredLoadingService.createDeferredTool(namespacedTool, uuid ?? 'cached');
+                    const minimalTool = deferredLoadingService.createMinimalTool(deferred);
+                    toolRegistry.registerTool(minimalTool, uuid ?? 'cached', tool.server, {
+                        isDeferred: true,
+                        fullTool: namespacedTool,
                     });
-
-                } catch (error) {
-                    console.error(`Error fetching tools from ${serverName}:`, error);
+                    allAvailableTools.push(minimalTool);
+                } else {
+                    toolRegistry.registerTool(namespacedTool, uuid ?? 'cached', tool.server, {
+                        isDeferred: false,
+                        fullTool: namespacedTool,
+                    });
+                    allAvailableTools.push(namespacedTool);
                 }
-            })
-        );
+            });
+        } else {
+            // Fallback path if cache is empty: perform one live discovery pass.
+            const serverParams = await getMcpServers(
+                context.namespaceUuid,
+                includeInactiveServers,
+            );
+
+            const visitedServers = new Set<string>();
+            const allServerEntries = Object.entries(serverParams);
+
+            console.log(`[DEBUG-TOOLS] 📋 Processing ${allServerEntries.length} servers`);
+
+            await Promise.allSettled(
+                allServerEntries.map(async ([mcpServerUuid, params]) => {
+                    if (visitedServers.has(mcpServerUuid)) return;
+
+                    const session = await mcpServerPool.getSession(
+                        context.sessionId,
+                        mcpServerUuid,
+                        params,
+                        namespaceUuid,
+                    );
+                    if (!session) {
+                        console.log(`[DEBUG-TOOLS] ❌ No session for: ${params.name}`);
+                        return;
+                    }
+
+                    const serverVersion = session.client.getServerVersion();
+                    const actualServerName = serverVersion?.name || params.name || "";
+                    const ourServerName = `metamcp-unified-${namespaceUuid}`;
+                    if (actualServerName === ourServerName) return;
+                    if (isSameServerInstance(params, mcpServerUuid)) return;
+
+                    visitedServers.add(mcpServerUuid);
+
+                    const capabilities = session.client.getServerCapabilities();
+                    if (!capabilities?.tools) return;
+
+                    const serverName = params.name || session.client.getServerVersion()?.name || "";
+
+                    try {
+                        const allServerTools: Tool[] = [];
+                        let cursor: string | undefined = undefined;
+                        let hasMore = true;
+
+                        while (hasMore) {
+                            const result = await session.client.request(
+                                {
+                                    method: "tools/list",
+                                    params: { cursor, _meta: request.params?._meta }
+                                },
+                                ListToolsResultSchema as unknown as import("zod").ZodType<any>
+                            ) as import("@modelcontextprotocol/sdk/types.js").ListToolsResult;
+                            if (result.tools) allServerTools.push(...result.tools);
+                            cursor = result.nextCursor;
+                            hasMore = !!result.nextCursor;
+                        }
+
+                        if (allServerTools.length > 0) {
+                            try {
+                                const toolsToSave = await filterOutOverrideTools(
+                                    allServerTools,
+                                    namespaceUuid,
+                                    serverName
+                                );
+                                if (toolsToSave.length > 0) {
+                                    const namespacedTools = toolsToSave.map(t => ({
+                                        ...t,
+                                        name: `${sanitizeName(serverName)}__${t.name}`
+                                    }));
+                                    if (deferredSchemaMode) {
+                                        namespacedTools.forEach((tool) => {
+                                            deferredLoadingService.cacheToolSchema(tool.name, tool);
+                                            const deferred = deferredLoadingService.createDeferredTool(tool, mcpServerUuid);
+                                            const minimalTool = deferredLoadingService.createMinimalTool(deferred);
+                                            toolRegistry.registerTool(minimalTool, mcpServerUuid, serverName, {
+                                                isDeferred: true,
+                                                fullTool: tool,
+                                            });
+                                        });
+                                    } else {
+                                        toolRegistry.registerTools(
+                                            namespacedTools,
+                                            mcpServerUuid,
+                                            serverName
+                                        );
+                                    }
+                                }
+                            } catch (e) {
+                                console.error("DB Save Error", e);
+                            }
+                        }
+
+                        allServerTools.forEach(tool => {
+                            const toolName = `${sanitizeName(serverName)}__${tool.name}`;
+                            toolToClient[toolName] = session;
+                            toolToServerUuid[toolName] = mcpServerUuid;
+                            const namespacedTool = {
+                                ...tool,
+                                name: toolName
+                            };
+
+                            if (deferredSchemaMode) {
+                                deferredLoadingService.cacheToolSchema(toolName, namespacedTool);
+                            }
+
+                            allAvailableTools.push({
+                                ...(deferredSchemaMode
+                                    ? deferredLoadingService.createMinimalTool(
+                                        deferredLoadingService.createDeferredTool(namespacedTool, mcpServerUuid)
+                                    )
+                                    : namespacedTool)
+                            });
+                        });
+
+                    } catch (error) {
+                        console.error(`Error fetching tools from ${serverName}:`, error);
+                    }
+                })
+            );
+        }
 
         const resultTools = [...metaTools];
         const alwaysVisibleTools = new Set(await getAlwaysVisibleTools());
@@ -831,7 +903,11 @@ export const attachTo = async (
         }
 
         // 4. Downstream Tools
-        const clientForTool = toolToClient[name];
+        let clientForTool = toolToClient[name];
+
+        if (!clientForTool) {
+            clientForTool = await ensureClientForTool(name);
+        }
 
         if (!clientForTool) {
             throw new Error(`Unknown tool: ${name}`);

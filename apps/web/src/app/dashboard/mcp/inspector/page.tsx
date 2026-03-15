@@ -404,6 +404,24 @@ function InspectorDashboardContent() {
             errorCount,
         };
     });
+    // Latency distribution over the current scope — null when no events carry latencyMs
+    const telemetryLatencyStats = (() => {
+        const values = scopedTelemetryEvents
+            .map((e) => e.latencyMs)
+            .filter((v): v is number => v != null)
+            .sort((a, b) => a - b);
+        if (values.length === 0) return null;
+        const pct = (p: number) => values[Math.max(0, Math.ceil(values.length * p / 100) - 1)];
+        return {
+            count: values.length,
+            min: values[0],
+            max: values[values.length - 1],
+            mean: Math.round(values.reduce((a, b) => a + b, 0) / values.length),
+            p50: pct(50),
+            p90: pct(90),
+            p99: pct(99),
+        };
+    })();
     const telemetrySourceBreakdown = INSPECTOR_TELEMETRY_SOURCES.map((source) => {
         const sourceEvents = scopedTelemetryEvents.filter((event) => event.source === source.value);
         const successCount = sourceEvents.filter((event) => event.status === 'success').length;
@@ -1417,6 +1435,35 @@ function InspectorDashboardContent() {
                                                 >
                                                     Focus errors
                                                 </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {telemetryLatencyStats && (
+                            <div className="space-y-1.5 rounded-lg border border-zinc-800 bg-zinc-950/50 p-3">
+                                <div className="text-[10px] uppercase tracking-wider text-zinc-500">
+                                    Latency statistics ({telemetryLatencyStats.count} samples)
+                                </div>
+                                <div className="grid grid-cols-6 gap-2">
+                                    {([
+                                        { label: 'min', value: telemetryLatencyStats.min },
+                                        { label: 'p50', value: telemetryLatencyStats.p50 },
+                                        { label: 'mean', value: telemetryLatencyStats.mean },
+                                        { label: 'p90', value: telemetryLatencyStats.p90 },
+                                        { label: 'p99', value: telemetryLatencyStats.p99 },
+                                        { label: 'max', value: telemetryLatencyStats.max },
+                                    ] as const).map(({ label, value }) => (
+                                        <div key={`latency-stat-${label}`} className="text-center">
+                                            <div className="text-[10px] text-zinc-500">{label}</div>
+                                            <div className={`font-mono text-[11px] font-semibold ${
+                                                value > 1000 ? 'text-red-300'
+                                                : value > 500 ? 'text-amber-300'
+                                                : 'text-emerald-300'
+                                            }`}>
+                                                {value}ms
                                             </div>
                                         </div>
                                     ))}

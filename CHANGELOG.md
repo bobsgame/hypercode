@@ -4,6 +4,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.7.148] — 2026-03-14
+
+- feat(web/mcp): added latency statistics panel in `/dashboard/mcp/inspector` telemetry section displaying min/p50/mean/p90/p99/max computed from `latencyMs` values across scoped events; values are color-coded green (<500ms) / amber (<1s) / red (≥1s).
+- changed(web/mcp): `telemetryLatencyStats` is derived inline from `scopedTelemetryEvents` and is `null` when no events carry latency data, so the panel hides cleanly.
+
 ## [2.7.147] — 2026-03-14
 
 - fix(web/mcp): `telemetryToolBreakdown` leaderboard now uses `baselineScopedEvents` (pre-tool-filter) instead of `scopedTelemetryEvents` so the leaderboard remains fully populated when a tool is focused, enabling pivot to other tools.

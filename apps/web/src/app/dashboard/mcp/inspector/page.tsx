@@ -95,6 +95,11 @@ const INSPECTOR_TELEMETRY_TYPE_QUERY_KEY = 'telemetryType';
 const INSPECTOR_TELEMETRY_STATUS_QUERY_KEY = 'telemetryStatus';
 const INSPECTOR_TELEMETRY_WINDOW_QUERY_KEY = 'telemetryWindow';
 const INSPECTOR_TELEMETRY_SOURCE_QUERY_KEY = 'telemetrySource';
+const INSPECTOR_TELEMETRY_SOURCES: Array<{ value: Exclude<TelemetrySourceFilter, 'all'>; label: string }> = [
+    { value: 'runtime-search', label: 'Runtime' },
+    { value: 'cached-ranking', label: 'Cached' },
+    { value: 'live-aggregator', label: 'Live' },
+];
 
 function resolveTelemetryWindowStart(windowPreset: TelemetryWindowPreset): number | null {
     const now = Date.now();
@@ -384,6 +389,29 @@ function InspectorDashboardContent() {
             total: bucketEvents.length,
             successCount,
             errorCount,
+        };
+    });
+    const telemetrySourceBreakdown = INSPECTOR_TELEMETRY_SOURCES.map((source) => {
+        const sourceEvents = scopedTelemetryEvents.filter((event) => event.source === source.value);
+        const successCount = sourceEvents.filter((event) => event.status === 'success').length;
+        const errorCount = sourceEvents.filter((event) => event.status === 'error').length;
+        const trend = telemetryTrendBuckets.map((bucket) => {
+            const bucketEvents = sourceEvents.filter((event) => event.timestamp >= bucket.start && event.timestamp < bucket.end);
+            return {
+                label: bucket.label,
+                total: bucketEvents.length,
+                successCount: bucketEvents.filter((event) => event.status === 'success').length,
+                errorCount: bucketEvents.filter((event) => event.status === 'error').length,
+            };
+        });
+
+        return {
+            value: source.value,
+            label: source.label,
+            total: sourceEvents.length,
+            successCount,
+            errorCount,
+            trend,
         };
     });
     const telemetryFiltersAtDefault = telemetryTypeFilter === 'all'
@@ -1183,6 +1211,54 @@ function InspectorDashboardContent() {
                             )}
                         </div>
 
+                        <div className="space-y-2 rounded-lg border border-zinc-800 bg-zinc-950/50 p-3">
+                            <div className="text-[10px] uppercase tracking-wider text-zinc-500">Source trend breakdown</div>
+                            {telemetrySourceBreakdown.some((source) => source.total > 0) ? (
+                                <div className="space-y-2">
+                                    {telemetrySourceBreakdown.map((source) => {
+                                        if (source.total === 0) {
+                                            return null;
+                                        }
+
+                                        return (
+                                            <div key={`inspector-source-trend-${source.value}`} className="rounded border border-zinc-800/80 bg-zinc-900/60 p-2 space-y-1.5">
+                                                <div className="flex items-center justify-between gap-2 text-[10px]">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setTelemetrySourceFilter(source.value)}
+                                                        className="uppercase tracking-wider text-amber-200 hover:text-amber-100"
+                                                        title={`Focus telemetry source: ${source.label}`}
+                                                        aria-label={`Focus telemetry source ${source.label}`}
+                                                    >
+                                                        {source.label}
+                                                    </button>
+                                                    <span className="text-zinc-400">{source.successCount} ok / {source.errorCount} err</span>
+                                                </div>
+
+                                                <div className="grid grid-cols-6 gap-1">
+                                                    {source.trend.map((bucket) => {
+                                                        const successWidth = bucket.total > 0 ? Math.round((bucket.successCount / bucket.total) * 100) : 0;
+                                                        const errorWidth = bucket.total > 0 ? Math.round((bucket.errorCount / bucket.total) * 100) : 0;
+
+                                                        return (
+                                                            <div key={`inspector-source-trend-${source.value}-${bucket.label}`} title={`${source.label} • ${bucket.label} • ${bucket.successCount} ok / ${bucket.errorCount} err`}>
+                                                                <div className="h-1.5 rounded border border-zinc-800/80 bg-zinc-900/80 overflow-hidden flex">
+                                                                    <div className="h-full bg-emerald-500/70" style={{ width: `${successWidth}%` }} />
+                                                                    <div className="h-full bg-red-500/75" style={{ width: `${errorWidth}%` }} />
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            ) : (
+                                <div className="text-xs text-zinc-500">No source trend data in the selected scope.</div>
+                            )}
+                        </div>
+
                         <div className="flex flex-wrap items-center gap-2 text-xs">
                             <span className="text-zinc-500 uppercase tracking-wider">Type</span>
                             {(['all', 'search', 'load', 'hydrate', 'unload'] as const).map((option) => {
@@ -1257,12 +1333,7 @@ function InspectorDashboardContent() {
 
                         <div className="flex flex-wrap items-center gap-2 text-xs">
                             <span className="text-zinc-500 uppercase tracking-wider">Source</span>
-                            {([
-                                { value: 'all', label: 'All' },
-                                { value: 'runtime-search', label: 'Runtime' },
-                                { value: 'cached-ranking', label: 'Cached' },
-                                { value: 'live-aggregator', label: 'Live' },
-                            ] as const).map((option) => {
+                            {[{ value: 'all', label: 'All' }, ...INSPECTOR_TELEMETRY_SOURCES].map((option) => {
                                 const active = telemetrySourceFilter === option.value;
                                 return (
                                     <button

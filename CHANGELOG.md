@@ -4,6 +4,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.7.142] — 2026-03-14
+
+- feat(web/mcp): added source-level telemetry trend strips to `/dashboard/mcp/inspector` for `runtime-search`, `cached-ranking`, and `live-aggregator`, with per-source success/error momentum mini-bars.
+- feat(web/mcp): added per-source scoped success/error counters in inspector telemetry so operators can compare source reliability without leaving the panel.
+- changed(web/mcp): source trend rows now provide one-click source focus to immediately pivot telemetry filters into the selected source context.
+
 ## [2.7.141] — 2026-03-14
 
 - feat(web/mcp): added a filter-scoped status trend strip to `/dashboard/mcp/inspector` telemetry, showing per-bucket success/error mix for faster incident momentum detection.

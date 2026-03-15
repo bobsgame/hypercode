@@ -1054,8 +1054,7 @@ export const mcpRouter = t.router({
     getStatus: publicProcedure.query(async () => {
         const aggregator = getMcpAggregator();
         const poolStatus = mcpServerPool.getPoolStatus();
-        const lazySessionMode = process.env.BORG_MCP_LAZY_SESSIONS !== 'false';
-        const singleActiveServerMode = process.env.BORG_MCP_SINGLE_ACTIVE_SERVER !== 'false';
+        const lifecycleModes = mcpServerPool.getLifecycleModes();
 
         try {
             const [{ servers, tools }, liveServers, liveTools] = await Promise.all([
@@ -1082,8 +1081,8 @@ export const mcpRouter = t.router({
                     activeSessionCount: poolStatus.activeSessionIds.length,
                 },
                 lifecycle: {
-                    lazySessionMode,
-                    singleActiveServerMode,
+                    lazySessionMode: lifecycleModes.lazySessionMode,
+                    singleActiveServerMode: lifecycleModes.singleActiveServerMode,
                 },
             };
         } catch {
@@ -1098,11 +1097,26 @@ export const mcpRouter = t.router({
                     activeSessionCount: poolStatus.activeSessionIds.length,
                 },
                 lifecycle: {
-                    lazySessionMode,
-                    singleActiveServerMode,
+                    lazySessionMode: lifecycleModes.lazySessionMode,
+                    singleActiveServerMode: lifecycleModes.singleActiveServerMode,
                 },
             };
         }
+    }),
+
+    setLifecycleModes: adminProcedure.input(z.object({
+        lazySessionMode: z.boolean().optional(),
+        singleActiveServerMode: z.boolean().optional(),
+    })).mutation(async ({ input }) => {
+        const next = await mcpServerPool.setLifecycleModes({
+            lazySessionMode: input.lazySessionMode,
+            singleActiveServerMode: input.singleActiveServerMode,
+        });
+
+        return {
+            ok: true,
+            lifecycle: next,
+        };
     }),
 
     /** Add a new downstream MCP server */

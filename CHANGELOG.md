@@ -4,6 +4,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.7.154] — 2026-03-15
+
+- feat(core/mcp): added runtime lifecycle mode controls in `McpServerPool` via `getLifecycleModes()` and `setLifecycleModes()` so lazy/single-active policy can be changed without restarting Borg.
+- feat(core/mcp): added `mcp.setLifecycleModes` admin mutation to update lazy session startup and single-active downstream policy at runtime.
+- feat(web/mcp): added Router Status control buttons in `/dashboard/mcp` to toggle Lazy Sessions and Single-active mode directly from the dashboard.
+- changed(core/mcp): `mcp.getStatus` lifecycle values now reflect live pool runtime settings rather than process env defaults.
+
 ## [2.7.153] — 2026-03-15
 
 - feat(core/mcp): `mcp.getStatus` now returns downstream pool metrics (`idle`, `active`, `activeSessionCount`) and lifecycle mode flags (`lazySessionMode`, `singleActiveServerMode`) for operator visibility.

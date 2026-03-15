@@ -738,6 +738,7 @@ export default function MCPDashboard(): React.JSX.Element {
     const deleteServerMutation = mcpServersClient.delete.useMutation();
     const updateServerMutation = mcpServersClient.update.useMutation();
     const resetServerHealthMutation = trpc.serverHealth.reset.useMutation();
+    const setLifecycleModesMutation = trpc.mcp.setLifecycleModes.useMutation();
     const { data: editingServer } = mcpServersClient.get.useQuery(
         { uuid: editingServerUuid ?? '' },
         { enabled: Boolean(editingServerUuid) },
@@ -784,6 +785,24 @@ export default function MCPDashboard(): React.JSX.Element {
             refetchStatus(),
             inspectingServerUuid ? refetchInspectingServer() : Promise.resolve(undefined),
         ]);
+    }
+
+    async function handleToggleLifecycleMode(mode: 'lazySessionMode' | 'singleActiveServerMode') {
+        const currentValue = mode === 'lazySessionMode'
+            ? summary.lifecycle?.lazySessionMode !== false
+            : summary.lifecycle?.singleActiveServerMode !== false;
+        const nextValue = !currentValue;
+
+        try {
+            await setLifecycleModesMutation.mutateAsync({
+                [mode]: nextValue,
+            });
+            await refetchStatus();
+            toast.success(`${mode === 'lazySessionMode' ? 'Lazy sessions' : 'Single-active mode'} ${nextValue ? 'enabled' : 'disabled'}.`);
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Failed to update lifecycle mode.';
+            toast.error(message);
+        }
     }
 
     async function handleDeleteServer(uuid: string, serverName: string) {
@@ -1042,6 +1061,32 @@ export default function MCPDashboard(): React.JSX.Element {
                                     <div>
                                         sessions <span className="font-semibold text-white">{summary.pool?.activeSessionCount ?? 0}</span> • lazy <span className="font-semibold text-white">{summary.lifecycle?.lazySessionMode === false ? 'off' : 'on'}</span> • single-active <span className="font-semibold text-white">{summary.lifecycle?.singleActiveServerMode === false ? 'off' : 'on'}</span>
                                     </div>
+                                </div>
+                                <div className="mt-3 flex flex-wrap gap-2">
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        disabled={setLifecycleModesMutation.isPending}
+                                        onClick={() => void handleToggleLifecycleMode('lazySessionMode')}
+                                        className="border-zinc-700 bg-zinc-950/60 text-zinc-300 hover:bg-zinc-800"
+                                        title="Toggle lazy downstream session startup"
+                                        aria-label="Toggle lazy downstream session startup"
+                                    >
+                                        Lazy {summary.lifecycle?.lazySessionMode === false ? 'off' : 'on'}
+                                    </Button>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        disabled={setLifecycleModesMutation.isPending}
+                                        onClick={() => void handleToggleLifecycleMode('singleActiveServerMode')}
+                                        className="border-zinc-700 bg-zinc-950/60 text-zinc-300 hover:bg-zinc-800"
+                                        title="Toggle single-active downstream server policy"
+                                        aria-label="Toggle single-active downstream server policy"
+                                    >
+                                        Single-active {summary.lifecycle?.singleActiveServerMode === false ? 'off' : 'on'}
+                                    </Button>
                                 </div>
                             </div>
                             <Zap className="h-5 w-5 text-yellow-400" />

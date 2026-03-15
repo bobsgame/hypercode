@@ -12,6 +12,11 @@ export interface McpServerPoolStatus {
     idleServerUuids: string[];
 }
 
+export interface McpServerPoolLifecycleModes {
+    lazySessionMode: boolean;
+    singleActiveServerMode: boolean;
+}
+
 export class McpServerPool {
     // Singleton instance
     private static instance: McpServerPool | null = null;
@@ -40,9 +45,9 @@ export class McpServerPool {
     // Default number of idle sessions per server UUID
     private readonly defaultIdleCount: number;
     // Lazy mode keeps downstream servers stopped until a tool is actually executed.
-    private readonly lazySessionMode: boolean;
+    private lazySessionMode: boolean;
     // Single-active mode ensures only one downstream server process is active per session.
-    private readonly singleActiveServerMode: boolean;
+    private singleActiveServerMode: boolean;
 
     private constructor(defaultIdleCount: number = 1) {
         this.defaultIdleCount = defaultIdleCount;
@@ -414,6 +419,41 @@ export class McpServerPool {
             activeSessionIds: Object.keys(this.activeSessions),
             idleServerUuids: Object.keys(this.idleSessions),
         };
+    }
+
+    getLifecycleModes(): McpServerPoolLifecycleModes {
+        return {
+            lazySessionMode: this.lazySessionMode,
+            singleActiveServerMode: this.singleActiveServerMode,
+        };
+    }
+
+    async setLifecycleModes(next: Partial<McpServerPoolLifecycleModes>): Promise<McpServerPoolLifecycleModes> {
+        const previousLazyMode = this.lazySessionMode;
+
+        if (typeof next.lazySessionMode === 'boolean') {
+            this.lazySessionMode = next.lazySessionMode;
+        }
+
+        if (typeof next.singleActiveServerMode === 'boolean') {
+            this.singleActiveServerMode = next.singleActiveServerMode;
+        }
+
+        // If lazy mode has just been enabled, proactively drain idle sessions.
+        if (!previousLazyMode && this.lazySessionMode) {
+            await Promise.allSettled(
+                Object.entries(this.idleSessions).map(async ([serverUuid, client]) => {
+                    try {
+                        await client.cleanup();
+                    } catch (error) {
+                        console.error(`Error cleaning up idle session while enabling lazy mode for ${serverUuid}:`, error);
+                    }
+                    delete this.idleSessions[serverUuid];
+                }),
+            );
+        }
+
+        return this.getLifecycleModes();
     }
 
     /**

@@ -4,6 +4,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.7.168] — 2026-03-15
+
+- feat(web/mcp): added `Reason trend (window buckets)` mini-strip in `/dashboard/mcp` lifecycle timeline, surfacing per-bucket dominant reason codes across the current type/window/scope slice.
+- changed(web/mcp): lifecycle reason-trend buckets are now one-click drilldowns into reason filtering, improving momentum-aware incident triage beyond static top-reason counts.
+
 ## [2.7.167] — 2026-03-15
 
 - changed(web/mcp): lifecycle `Top reasons (current scope)` facets now show per-reason percentage share in addition to raw counts, making dominant root causes easier to rank during active incidents.

@@ -856,7 +856,7 @@ export default function MCPDashboard(): React.JSX.Element {
                 .filter((reason): reason is string => Boolean(reason)),
         )).sort();
     }, [lifecycleEvents]);
-    const lifecycleReasonFacetCounts = useMemo(() => {
+    const scopedLifecycleEvents = useMemo(() => {
         const activeServerUuid = summary.pool?.currentActiveServerUuid ?? null;
         const now = Date.now();
         const windowMs = lifecycleWindowFilter === 'all'
@@ -865,7 +865,7 @@ export default function MCPDashboard(): React.JSX.Element {
                 ? 5 * 60 * 1000
                 : lifecycleWindowFilter === '15m'
                     ? 15 * 60 * 1000
-                    : 60 * 60 * 1000;
+        return lifecycleEvents.filter((event) => {
 
         const scopedEvents = lifecycleEvents.filter((event) => {
             if (windowMs !== null && now - event.timestamp > windowMs) {
@@ -886,9 +886,11 @@ export default function MCPDashboard(): React.JSX.Element {
 
             return true;
         });
+    }, [lifecycleEvents, lifecycleScopeFilter, lifecycleTypeFilter, lifecycleWindowFilter, summary.pool?.currentActiveServerUuid]);
 
+    const lifecycleReasonFacetCounts = useMemo(() => {
         const counts = new Map<string, number>();
-        scopedEvents.forEach((event) => {
+        scopedLifecycleEvents.forEach((event) => {
             if (!event.reasonCode) {
                 return;
             }
@@ -900,7 +902,7 @@ export default function MCPDashboard(): React.JSX.Element {
             .map(([reasonCode, count]) => ({
                 reasonCode,
                 count,
-                sharePct: scopedEvents.length > 0 ? Math.round((count / scopedEvents.length) * 100) : 0,
+                sharePct: scopedLifecycleEvents.length > 0 ? Math.round((count / scopedLifecycleEvents.length) * 100) : 0,
             }))
             .sort((left, right) => {
                 if (right.count !== left.count) {
@@ -910,42 +912,89 @@ export default function MCPDashboard(): React.JSX.Element {
                 return left.reasonCode.localeCompare(right.reasonCode);
             })
             .slice(0, 6);
-    }, [lifecycleEvents, lifecycleScopeFilter, lifecycleTypeFilter, lifecycleWindowFilter, summary.pool?.currentActiveServerUuid]);
+    }, [scopedLifecycleEvents]);
     const filteredLifecycleEvents = useMemo(() => {
-        const activeServerUuid = summary.pool?.currentActiveServerUuid ?? null;
-        const now = Date.now();
-        const windowMs = lifecycleWindowFilter === 'all'
-            ? null
-            : lifecycleWindowFilter === '5m'
-                ? 5 * 60 * 1000
-                : lifecycleWindowFilter === '15m'
-                    ? 15 * 60 * 1000
-                    : 60 * 60 * 1000;
-
-        return lifecycleEvents.filter((event) => {
-            if (windowMs !== null && now - event.timestamp > windowMs) {
-                return false;
-            }
-
-            if (lifecycleTypeFilter !== 'all' && event.type !== lifecycleTypeFilter) {
-                return false;
-            }
-
+        return scopedLifecycleEvents.filter((event) => {
             if (lifecycleReasonFilter !== 'all' && event.reasonCode !== lifecycleReasonFilter) {
                 return false;
             }
-
-            if (lifecycleScopeFilter === 'active-server') {
-                if (!activeServerUuid) {
-                    return false;
-                }
-
-                return event.serverUuid === activeServerUuid;
-            }
-
             return true;
         });
-    }, [lifecycleEvents, lifecycleReasonFilter, lifecycleScopeFilter, lifecycleTypeFilter, lifecycleWindowFilter, summary.pool?.currentActiveServerUuid]);
+    }, [lifecycleReasonFilter, scopedLifecycleEvents]);
+    const lifecycleReasonTrendBuckets = useMemo(() => {
+        if (scopedLifecycleEvents.length === 0) {
+            return [] as Array<{
+                label: string;
+                bucketStart: number;
+                bucketEnd: number;
+                topReasonCode: string;
+                topReasonCount: number;
+                totalCount: number;
+            }>;
+        }
+
+        const timestamps = scopedLifecycleEvents.map((event) => event.timestamp);
+        const latestTimestamp = Math.max(...timestamps);
+        const earliestTimestamp = lifecycleWindowFilter === 'all'
+            ? Math.min(...timestamps)
+            : lifecycleWindowFilter === '5m'
+                ? latestTimestamp - (5 * 60 * 1000)
+                : lifecycleWindowFilter === '15m'
+                    ? latestTimestamp - (15 * 60 * 1000)
+                    : latestTimestamp - (60 * 60 * 1000);
+        const bucketCount = lifecycleWindowFilter === '1h' ? 6 : 5;
+        const spanMs = Math.max(latestTimestamp - earliestTimestamp, 1);
+        const bucketSizeMs = Math.max(Math.ceil(spanMs / bucketCount), 1);
+
+        const buckets = Array.from({ length: bucketCount }, (_, index) => {
+            const bucketStart = earliestTimestamp + (index * bucketSizeMs);
+            const bucketEnd = index === bucketCount - 1
+                ? latestTimestamp + 1
+                : bucketStart + bucketSizeMs;
+
+            return {
+                bucketStart,
+                bucketEnd,
+                totalCount: 0,
+                reasonCounts: new Map<string, number>(),
+            };
+        });
+
+        scopedLifecycleEvents.forEach((event) => {
+            const rawBucketIndex = Math.floor((event.timestamp - earliestTimestamp) / bucketSizeMs);
+            const bucketIndex = Math.min(Math.max(rawBucketIndex, 0), bucketCount - 1);
+            const bucket = buckets[bucketIndex];
+
+            bucket.totalCount += 1;
+
+            if (event.reasonCode) {
+                bucket.reasonCounts.set(event.reasonCode, (bucket.reasonCounts.get(event.reasonCode) ?? 0) + 1);
+            }
+        });
+
+        return buckets.map((bucket) => {
+            const sortedReasons = Array.from(bucket.reasonCounts.entries()).sort((left, right) => {
+                if (right[1] !== left[1]) {
+                    return right[1] - left[1];
+                }
+
+                return left[0].localeCompare(right[0]);
+            });
+            const topReason = sortedReasons[0] ?? ['none', 0];
+
+            return {
+                label: new Date(bucket.bucketStart).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                bucketStart: bucket.bucketStart,
+                bucketEnd: bucket.bucketEnd,
+                topReasonCode: topReason[0],
+                topReasonCount: topReason[1],
+                totalCount: bucket.totalCount,
+            };
+        });
+    }, [lifecycleWindowFilter, scopedLifecycleEvents]);
+    const lifecycleReasonTrendMaxBucketCount = useMemo(() => {
+        return lifecycleReasonTrendBuckets.reduce((max, bucket) => Math.max(max, bucket.totalCount), 0);
+    }, [lifecycleReasonTrendBuckets]);
     const recentLifecycleEvents = filteredLifecycleEvents.slice(0, 8);
     const bulkActionsDisabled = bulkRefreshState !== null || reloadMetadataMutation.isPending || clearMetadataCacheMutation.isPending;
     const unresolvedActionableCount = unresolvedDiscoveryTargetUuids.length;
@@ -1582,6 +1631,50 @@ export default function MCPDashboard(): React.JSX.Element {
                                                         <span className="ml-1 text-[10px] text-zinc-400">{facet.sharePct}%</span>
                                                     </Button>
                                                 ))}
+                                            </div>
+                                        </div>
+                                    ) : null}
+                                    {lifecycleReasonTrendBuckets.length > 0 ? (
+                                        <div className="mt-2 rounded border border-zinc-800 bg-zinc-900/50 p-2">
+                                            <div className="flex items-center justify-between gap-2 text-[10px] uppercase tracking-wider text-zinc-500">
+                                                <span>Reason trend (window buckets)</span>
+                                                <span>{lifecycleReasonTrendBuckets.length} buckets</span>
+                                            </div>
+                                            <div className="mt-1.5 flex items-end gap-1.5">
+                                                {lifecycleReasonTrendBuckets.map((bucket) => {
+                                                    const heightPct = lifecycleReasonTrendMaxBucketCount > 0
+                                                        ? Math.max((bucket.totalCount / lifecycleReasonTrendMaxBucketCount) * 100, bucket.totalCount > 0 ? 22 : 8)
+                                                        : 8;
+
+                                                    return (
+                                                        <button
+                                                            key={`${bucket.bucketStart}-${bucket.bucketEnd}`}
+                                                            type="button"
+                                                            onClick={() => {
+                                                                if (bucket.topReasonCode !== 'none') {
+                                                                    setLifecycleReasonFilter(bucket.topReasonCode);
+                                                                }
+                                                            }}
+                                                            disabled={bucket.topReasonCode === 'none'}
+                                                            title={bucket.topReasonCode === 'none'
+                                                                ? `${bucket.label} · no reason-coded events`
+                                                                : `${bucket.label} · top reason ${bucket.topReasonCode} (${bucket.topReasonCount}/${bucket.totalCount})`}
+                                                            aria-label={bucket.topReasonCode === 'none'
+                                                                ? `${bucket.label} no reason-coded lifecycle events`
+                                                                : `Filter by top reason ${bucket.topReasonCode} from ${bucket.label}`}
+                                                            className="group flex min-w-0 flex-1 flex-col items-center gap-1 disabled:cursor-not-allowed"
+                                                        >
+                                                            <div className="flex h-14 w-full items-end">
+                                                                <div
+                                                                    className={`w-full rounded-sm border ${bucket.topReasonCode === 'none' ? 'border-zinc-800 bg-zinc-800/60' : lifecycleReasonFilter === bucket.topReasonCode ? 'border-cyan-500/40 bg-cyan-500/20' : 'border-zinc-700 bg-zinc-700/80 group-hover:bg-zinc-600/80'}`}
+                                                                    style={{ height: `${heightPct}%` }}
+                                                                />
+                                                            </div>
+                                                            <span className="text-[10px] text-zinc-500">{bucket.label}</span>
+                                                            <span className="max-w-full truncate text-[10px] text-zinc-300">{bucket.topReasonCode}</span>
+                                                        </button>
+                                                    );
+                                                })}
                                             </div>
                                         </div>
                                     ) : null}

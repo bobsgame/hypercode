@@ -4,6 +4,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.7.177] — 2026-03-15
+
+- feat(core/cloud-dev): added `cloudDev.previewBroadcastRecipients` query to provide a dry-run recipient preview (targeted/skipped totals, per-status counts, and targeted session IDs) before sending broadcasts.
+- changed(core/cloud-dev): refactored broadcast target selection into shared logic so preview and delivery use identical status/force routing rules.
+- feat(web/cloud-dev): broadcast composer in `/dashboard/cloud-dev` now shows live recipient preview chips and counts, making force/status targeting auditable before dispatch.
+
 ## [2.7.176] — 2026-03-15
 
 - feat(web/cloud-dev): added broadcast `Target statuses` controls in `/dashboard/cloud-dev`, wiring the existing backend `statusFilter` capability into the UI for explicit status-scoped delivery.

@@ -96,6 +96,22 @@ const sessions: CloudDevSession[] = [];
  */
 const TERMINAL_STATUSES = new Set<CloudDevSession['status']>(['completed', 'failed', 'cancelled']);
 
+function selectBroadcastTargets(options: {
+    force: boolean;
+    statusFilter?: CloudDevSession['status'][];
+}) {
+    const { force, statusFilter } = options;
+
+    return sessions.filter((session) => {
+        if (statusFilter && statusFilter.length > 0) {
+            return statusFilter.includes(session.status);
+        }
+        // Default: target non-terminal sessions unless force is enabled.
+        if (!force && TERMINAL_STATUSES.has(session.status)) return false;
+        return true;
+    });
+}
+
 function mkId(prefix: string) {
     return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
@@ -365,13 +381,9 @@ export const cloudDevRouter = t.router({
             })
         )
         .mutation(({ input }) => {
-            const targets = sessions.filter(s => {
-                if (input.statusFilter && input.statusFilter.length > 0) {
-                    return input.statusFilter.includes(s.status);
-                }
-                // Default: send to all non-terminal unless force
-                if (!input.force && TERMINAL_STATUSES.has(s.status)) return false;
-                return true;
+            const targets = selectBroadcastTargets({
+                force: input.force,
+                statusFilter: input.statusFilter,
             });
 
             const results = targets.map(session => {
@@ -384,6 +396,37 @@ export const cloudDevRouter = t.router({
                 delivered: results.length,
                 skipped: sessions.length - results.length,
                 results,
+            };
+        }),
+
+    /**
+     * Dry-run preview for broadcast targeting.
+     * Uses the exact same targeting rules as broadcastMessage.
+     */
+    previewBroadcastRecipients: publicProcedure
+        .input(
+            z.object({
+                force: z.boolean().default(false),
+                statusFilter: z.array(CloudDevSessionStatusSchema).optional(),
+            })
+        )
+        .query(({ input }) => {
+            const targets = selectBroadcastTargets({
+                force: input.force,
+                statusFilter: input.statusFilter,
+            });
+
+            const byStatus: Partial<Record<CloudDevSession['status'], number>> = {};
+            targets.forEach((session) => {
+                byStatus[session.status] = (byStatus[session.status] ?? 0) + 1;
+            });
+
+            return {
+                totalSessions: sessions.length,
+                targeted: targets.length,
+                skipped: sessions.length - targets.length,
+                byStatus,
+                sessionIds: targets.map((session) => session.id),
             };
         }),
 

@@ -298,6 +298,15 @@ export default function CloudDevDashboardPage() {
             setBroadcastMsg("");
         },
     });
+    const broadcastPreviewQuery = trpc.cloudDev.previewBroadcastRecipients.useQuery(
+        {
+            force: broadcastForce,
+            statusFilter: broadcastStatusFilter.length > 0 ? broadcastStatusFilter : undefined,
+        },
+        {
+            refetchInterval: 5000,
+        }
+    );
 
     const handleCreate = useCallback(() => {
         if (!newSession.projectName.trim() || !newSession.task.trim()) return;
@@ -444,6 +453,26 @@ export default function CloudDevDashboardPage() {
                                 Broadcast
                             </button>
                         </div>
+                    </div>
+                    <div className="mt-2 rounded border border-purple-800/60 bg-purple-950/25 px-2 py-1.5 text-[11px] text-zinc-300">
+                        {broadcastPreviewQuery.isLoading ? (
+                            <span className="text-zinc-500">Calculating recipients…</span>
+                        ) : broadcastPreviewQuery.data ? (
+                            <div className="flex flex-wrap items-center gap-2">
+                                <span>
+                                    Preview: targeting <span className="font-semibold text-purple-200">{broadcastPreviewQuery.data.targeted}</span>
+                                    {" "}of {broadcastPreviewQuery.data.totalSessions} sessions
+                                    {broadcastPreviewQuery.data.skipped > 0 ? ` (skipping ${broadcastPreviewQuery.data.skipped})` : ""}.
+                                </span>
+                                {Object.entries(broadcastPreviewQuery.data.byStatus).map(([status, count]) => (
+                                    <span key={`preview-status-${status}`} className="rounded border border-purple-700/60 bg-purple-900/40 px-1.5 py-0.5 text-[10px] text-purple-200">
+                                        {status.replace("_", " ")}: {count}
+                                    </span>
+                                ))}
+                            </div>
+                        ) : (
+                            <span className="text-zinc-500">No preview available.</span>
+                        )}
                     </div>
                     {broadcastResult && (
                         <p className="mt-2 text-xs text-emerald-400">

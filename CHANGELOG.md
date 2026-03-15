@@ -4,6 +4,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.7.140] — 2026-03-14
+
+- feat(web/mcp): `/dashboard/mcp/inspector` telemetry filters now sync to URL query params (`telemetryType`, `telemetryStatus`, `telemetryWindow`, `telemetrySource`) for reproducible incident triage links.
+- feat(web/mcp): added inspector telemetry `Copy link` action that copies the current filter-scoped inspector URL for handoff/debug sharing.
+- feat(web/mcp): inspector telemetry filters now persist in browser storage and hydrate from URL-first semantics (with local-storage fallback), matching search-page diagnostics ergonomics.
+
 ## [2.7.139] — 2026-03-14
 
 - feat(web/mcp): expanded `/dashboard/mcp/inspector` telemetry panel with multi-axis triage filters (`type`, `status`, `window`, `source`) to match operator workflow parity with `/dashboard/mcp/search`.

@@ -84,6 +84,12 @@ type TelemetryWindowPreset = 'all' | '5m' | '15m' | '1h' | '24h';
 type TelemetrySourceFilter = 'all' | 'runtime-search' | 'cached-ranking' | 'live-aggregator';
 type TelemetryTriagePreset = 'errors-now' | 'runtime-failures' | 'load-incidents' | 'hydration-failures' | 'live-aggregator-focus';
 
+const INSPECTOR_TELEMETRY_FILTERS_STORAGE_KEY = 'borg.mcp.inspector.telemetryFilters.v1';
+const INSPECTOR_TELEMETRY_TYPE_QUERY_KEY = 'telemetryType';
+const INSPECTOR_TELEMETRY_STATUS_QUERY_KEY = 'telemetryStatus';
+const INSPECTOR_TELEMETRY_WINDOW_QUERY_KEY = 'telemetryWindow';
+const INSPECTOR_TELEMETRY_SOURCE_QUERY_KEY = 'telemetrySource';
+
 function resolveTelemetryWindowStart(windowPreset: TelemetryWindowPreset): number | null {
     const now = Date.now();
 
@@ -395,6 +401,123 @@ function InspectorDashboardContent() {
         setToolFilter((currentFilter) => currentFilter || matchedTool.name);
     }, [searchParams, selectedTool, toolList]);
 
+    useEffect(() => {
+        let hasHydratedFromUrl = false;
+
+        const urlType = searchParams.get(INSPECTOR_TELEMETRY_TYPE_QUERY_KEY);
+        const urlStatus = searchParams.get(INSPECTOR_TELEMETRY_STATUS_QUERY_KEY);
+        const urlWindow = searchParams.get(INSPECTOR_TELEMETRY_WINDOW_QUERY_KEY);
+        const urlSource = searchParams.get(INSPECTOR_TELEMETRY_SOURCE_QUERY_KEY);
+
+        if (urlType && ['all', 'search', 'load', 'hydrate', 'unload'].includes(urlType)) {
+            setTelemetryTypeFilter(urlType as 'all' | ToolSelectionTelemetryEvent['type']);
+            hasHydratedFromUrl = true;
+        }
+
+        if (urlStatus && ['all', 'success', 'error'].includes(urlStatus)) {
+            setTelemetryStatusFilter(urlStatus as 'all' | ToolSelectionTelemetryEvent['status']);
+            hasHydratedFromUrl = true;
+        }
+
+        if (urlWindow && ['all', '5m', '15m', '1h', '24h'].includes(urlWindow)) {
+            setTelemetryWindowFilter(urlWindow as TelemetryWindowPreset);
+            hasHydratedFromUrl = true;
+        }
+
+        if (urlSource && ['all', 'runtime-search', 'cached-ranking', 'live-aggregator'].includes(urlSource)) {
+            setTelemetrySourceFilter(urlSource as TelemetrySourceFilter);
+            hasHydratedFromUrl = true;
+        }
+
+        if (hasHydratedFromUrl) {
+            return;
+        }
+
+        try {
+            const raw = window.localStorage.getItem(INSPECTOR_TELEMETRY_FILTERS_STORAGE_KEY);
+            if (!raw) {
+                return;
+            }
+
+            const parsed = JSON.parse(raw) as {
+                type?: string;
+                status?: string;
+                window?: string;
+                source?: string;
+            };
+
+            if (parsed.type && ['all', 'search', 'load', 'hydrate', 'unload'].includes(parsed.type)) {
+                setTelemetryTypeFilter(parsed.type as 'all' | ToolSelectionTelemetryEvent['type']);
+            }
+
+            if (parsed.status && ['all', 'success', 'error'].includes(parsed.status)) {
+                setTelemetryStatusFilter(parsed.status as 'all' | ToolSelectionTelemetryEvent['status']);
+            }
+
+            if (parsed.window && ['all', '5m', '15m', '1h', '24h'].includes(parsed.window)) {
+                setTelemetryWindowFilter(parsed.window as TelemetryWindowPreset);
+            }
+
+            if (parsed.source && ['all', 'runtime-search', 'cached-ranking', 'live-aggregator'].includes(parsed.source)) {
+                setTelemetrySourceFilter(parsed.source as TelemetrySourceFilter);
+            }
+        } catch {
+            // Ignore invalid persisted payloads and continue with defaults.
+        }
+    }, [searchParams]);
+
+    useEffect(() => {
+        try {
+            window.localStorage.setItem(
+                INSPECTOR_TELEMETRY_FILTERS_STORAGE_KEY,
+                JSON.stringify({
+                    type: telemetryTypeFilter,
+                    status: telemetryStatusFilter,
+                    window: telemetryWindowFilter,
+                    source: telemetrySourceFilter,
+                }),
+            );
+        } catch {
+            // Ignore local storage write failures.
+        }
+    }, [telemetryTypeFilter, telemetryStatusFilter, telemetryWindowFilter, telemetrySourceFilter]);
+
+    useEffect(() => {
+        const nextParams = new URLSearchParams(searchParams.toString());
+
+        if (telemetryTypeFilter === 'all') {
+            nextParams.delete(INSPECTOR_TELEMETRY_TYPE_QUERY_KEY);
+        } else {
+            nextParams.set(INSPECTOR_TELEMETRY_TYPE_QUERY_KEY, telemetryTypeFilter);
+        }
+
+        if (telemetryStatusFilter === 'all') {
+            nextParams.delete(INSPECTOR_TELEMETRY_STATUS_QUERY_KEY);
+        } else {
+            nextParams.set(INSPECTOR_TELEMETRY_STATUS_QUERY_KEY, telemetryStatusFilter);
+        }
+
+        if (telemetryWindowFilter === '15m') {
+            nextParams.delete(INSPECTOR_TELEMETRY_WINDOW_QUERY_KEY);
+        } else {
+            nextParams.set(INSPECTOR_TELEMETRY_WINDOW_QUERY_KEY, telemetryWindowFilter);
+        }
+
+        if (telemetrySourceFilter === 'all') {
+            nextParams.delete(INSPECTOR_TELEMETRY_SOURCE_QUERY_KEY);
+        } else {
+            nextParams.set(INSPECTOR_TELEMETRY_SOURCE_QUERY_KEY, telemetrySourceFilter);
+        }
+
+        const currentQuery = searchParams.toString();
+        const nextQuery = nextParams.toString();
+        if (currentQuery === nextQuery) {
+            return;
+        }
+
+        router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname, { scroll: false });
+    }, [pathname, router, searchParams, telemetryTypeFilter, telemetryStatusFilter, telemetryWindowFilter, telemetrySourceFilter]);
+
     const handleRun = () => {
         if (!selectedTool) return;
         if (!parsedArgs.ok) {
@@ -480,6 +603,29 @@ function InspectorDashboardContent() {
         setTelemetryStatusFilter('all');
         setTelemetryWindowFilter('15m');
         setTelemetrySourceFilter('all');
+
+        try {
+            window.localStorage.removeItem(INSPECTOR_TELEMETRY_FILTERS_STORAGE_KEY);
+        } catch {
+            // Ignore local storage cleanup errors.
+        }
+    };
+
+    const copyTelemetryShareLink = async () => {
+        if (typeof window === 'undefined' || !navigator.clipboard) {
+            toast.error('Clipboard unavailable');
+            return;
+        }
+
+        const nextParams = new URLSearchParams(searchParams.toString());
+        const shareUrl = `${window.location.origin}${pathname}${nextParams.toString() ? `?${nextParams.toString()}` : ''}`;
+
+        try {
+            await navigator.clipboard.writeText(shareUrl);
+            toast.success('Share link copied');
+        } catch {
+            toast.error('Failed to copy share link');
+        }
     };
 
     const applyTelemetryPreset = (preset: TelemetryTriagePreset) => {
@@ -1078,6 +1224,16 @@ function InspectorDashboardContent() {
                                 aria-label="Reset telemetry filters"
                             >
                                 Reset filters
+                            </button>
+
+                            <button
+                                type="button"
+                                onClick={copyTelemetryShareLink}
+                                className="rounded-md border border-zinc-700 bg-zinc-950/70 px-2 py-1 text-zinc-300 transition-colors hover:bg-zinc-800"
+                                title="Copy URL with current inspector telemetry filters"
+                                aria-label="Copy inspector telemetry share link"
+                            >
+                                Copy link
                             </button>
                         </div>
                     </div>

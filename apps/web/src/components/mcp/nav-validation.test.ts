@@ -17,6 +17,7 @@ import {
     normalizeNavHrefList,
     sanitizeCollapsedSections,
     sanitizeNavPreferences,
+    sanitizeRecentRoutes,
     sanitizeRecentSearches,
     validateSidebarSections,
 } from './nav-validation';
@@ -90,6 +91,25 @@ describe('sanitizeRecentSearches', () => {
 
     it('ignores non-string recent search values', () => {
         expect(sanitizeRecentSearches(['valid', 42, null, ' next '], 5)).toEqual(['valid', 'next']);
+    });
+});
+
+describe('sanitizeRecentRoutes', () => {
+    it('keeps only allowed canonical recent routes and enforces the limit', () => {
+        expect(sanitizeRecentRoutes([
+            '/dashboard/library/?tab=overview',
+            '/dashboard/unknown',
+            '/dashboard/library/',
+            '/dashboard/tools#top',
+            '/dashboard/settings',
+        ], new Set(['/dashboard/library', '/dashboard/tools', '/dashboard/settings']), 2)).toEqual([
+            '/dashboard/library',
+            '/dashboard/tools',
+        ]);
+    });
+
+    it('returns an empty list for malformed recent-route payloads', () => {
+        expect(sanitizeRecentRoutes('not-an-array', new Set(['/dashboard/library']), 8)).toEqual([]);
     });
 });
 

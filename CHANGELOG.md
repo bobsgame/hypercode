@@ -4,6 +4,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.7.220] — 2026-03-15
+
+- changed(web/navigation): added shared `sanitizeRecentRoutes(...)` in `apps/web/src/components/mcp/nav-validation.ts` so stored recent-route payloads now use one canonical path for string extraction, href normalization, config-aware filtering, and length capping.
+- refactor(web/sidebar): `Sidebar.tsx` now hydrates stored recent routes through the shared recent-route sanitizer, preventing orphaned recents from lingering after nav config entries are removed or renamed.
+- changed(web/navigation): `sanitizeNavPreferences(...)` now reuses the shared recent-route sanitizer, keeping imported recent-route payload cleanup behavior aligned with runtime storage hydration.
+- test(web/navigation): expanded `apps/web/src/components/mcp/nav-validation.test.ts` with recent-route sanitizer coverage and revalidated focused nav suites (`32` tests passing).
+
 ## [2.7.219] — 2026-03-15
 
 - changed(web/navigation): added shared `filterNavHrefsByAllowedSet(...)` in `apps/web/src/components/mcp/nav-validation.ts` so canonical href normalization and config-aware route filtering now reuse one helper.

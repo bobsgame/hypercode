@@ -4,6 +4,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.7.215] — 2026-03-15
+
+- changed(web/navigation): added shared `sanitizeNavPreferences(...)` in `apps/web/src/components/mcp/nav-validation.ts` so canonical validation of imported sidebar preference payloads now lives with the other reusable nav sanitizers.
+- refactor(web/sidebar): `Sidebar.tsx` now delegates imported preference cleanup to the shared payload sanitizer, keeping allowed-route filtering, collapse-state cleanup, and recent-search normalization on one tested path.
+- test(web/navigation): expanded `apps/web/src/components/mcp/nav-validation.test.ts` with payload-sanitizer coverage and revalidated focused nav suites (`24` tests passing).
+
 ## [2.7.214] — 2026-03-15
 
 - changed(web/navigation): added shared `extractStringArray(...)`, `sanitizeRecentSearches(...)`, and `sanitizeCollapsedSections(...)` helpers in `apps/web/src/components/mcp/nav-validation.ts` so Sidebar preference payloads now use one canonical sanitization path.

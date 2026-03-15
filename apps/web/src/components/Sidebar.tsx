@@ -10,7 +10,7 @@ import { SortableContext, arrayMove, rectSortingStrategy, useSortable } from "@d
 import { CSS } from "@dnd-kit/utilities";
 import { cn } from "@/lib/utils";
 import { SIDEBAR_SECTIONS } from "./mcp/nav-config";
-import { buildNavItemsByNormalizedHref, extractStringArray, hasNavValidationIssues, isNavHrefActive, matchesNavQuery, normalizeNavHref, normalizeNavHrefList, sanitizeCollapsedSections, sanitizeRecentSearches, validateSidebarSections } from "./mcp/nav-validation";
+import { buildNavItemsByNormalizedHref, extractStringArray, hasNavValidationIssues, isNavHrefActive, matchesNavQuery, normalizeNavHref, normalizeNavHrefList, sanitizeCollapsedSections, sanitizeNavPreferences, sanitizeRecentSearches, validateSidebarSections } from "./mcp/nav-validation";
 
 interface SidebarProps extends React.HTMLAttributes<HTMLDivElement> { }
 
@@ -476,25 +476,21 @@ export function Sidebar({ className }: SidebarProps) {
                 recentSearches?: string[];
             };
 
-            const nextCollapsed = sanitizeCollapsedSections(parsed.collapsedSections);
-            const nextFavorites = normalizeNavHrefList(
-                extractStringArray(parsed.favorites)
-            ).filter((href) => allItemsByHref.has(href));
-            const nextRecent = normalizeNavHrefList(
-                extractStringArray(parsed.recentRoutes)
-            )
-                .filter((href) => allItemsByHref.has(href))
-                .slice(0, MAX_RECENT_ROUTES);
-            const nextSearches = sanitizeRecentSearches(parsed.recentSearches, MAX_RECENT_SEARCHES);
+            const sanitized = sanitizeNavPreferences(
+                parsed,
+                new Set(allItemsByHref.keys()),
+                MAX_RECENT_ROUTES,
+                MAX_RECENT_SEARCHES,
+            );
 
-            setCollapsedSections(nextCollapsed);
-            setFavorites(nextFavorites);
-            setRecentRoutes(nextRecent);
-            setRecentSearches(nextSearches);
-            safeStorageSet(SIDEBAR_COLLAPSE_STORAGE_KEY, JSON.stringify(nextCollapsed));
-            safeStorageSet(SIDEBAR_FAVORITES_STORAGE_KEY, JSON.stringify(nextFavorites));
-            safeStorageSet(SIDEBAR_RECENT_STORAGE_KEY, JSON.stringify(nextRecent));
-            safeStorageSet(SIDEBAR_RECENT_SEARCHES_STORAGE_KEY, JSON.stringify(nextSearches));
+            setCollapsedSections(sanitized.collapsedSections);
+            setFavorites(sanitized.favorites);
+            setRecentRoutes(sanitized.recentRoutes);
+            setRecentSearches(sanitized.recentSearches);
+            safeStorageSet(SIDEBAR_COLLAPSE_STORAGE_KEY, JSON.stringify(sanitized.collapsedSections));
+            safeStorageSet(SIDEBAR_FAVORITES_STORAGE_KEY, JSON.stringify(sanitized.favorites));
+            safeStorageSet(SIDEBAR_RECENT_STORAGE_KEY, JSON.stringify(sanitized.recentRoutes));
+            safeStorageSet(SIDEBAR_RECENT_SEARCHES_STORAGE_KEY, JSON.stringify(sanitized.recentSearches));
             showNotice('Navigation preferences imported.');
         } catch {
             showNotice('Failed to import preferences file.');

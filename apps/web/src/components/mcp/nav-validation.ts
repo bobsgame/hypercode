@@ -26,6 +26,13 @@ export interface NavValidationResult {
     }>;
 }
 
+export interface SanitizedNavPreferences {
+    collapsedSections: Record<string, boolean>;
+    favorites: string[];
+    recentRoutes: string[];
+    recentSearches: string[];
+}
+
 export function extractStringArray(values: unknown): string[] {
     if (!Array.isArray(values)) {
         return [];
@@ -108,6 +115,32 @@ export function sanitizeCollapsedSections(value: unknown): Record<string, boolea
     }
 
     return sanitized;
+}
+
+export function sanitizeNavPreferences(
+    value: {
+        collapsedSections?: unknown;
+        favorites?: unknown;
+        recentRoutes?: unknown;
+        recentSearches?: unknown;
+    },
+    allowedHrefs: ReadonlySet<string>,
+    routeLimit: number,
+    searchLimit: number,
+): SanitizedNavPreferences {
+    const favorites = normalizeNavHrefList(extractStringArray(value.favorites))
+        .filter((href) => allowedHrefs.has(href));
+
+    const recentRoutes = normalizeNavHrefList(extractStringArray(value.recentRoutes))
+        .filter((href) => allowedHrefs.has(href))
+        .slice(0, routeLimit);
+
+    return {
+        collapsedSections: sanitizeCollapsedSections(value.collapsedSections),
+        favorites,
+        recentRoutes,
+        recentSearches: sanitizeRecentSearches(value.recentSearches, searchLimit),
+    };
 }
 
 export function isNavHrefActive(currentPathname: string, href: string): boolean {

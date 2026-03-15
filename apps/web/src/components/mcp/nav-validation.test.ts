@@ -11,6 +11,7 @@ import {
     normalizeNavHref,
     normalizeNavHrefList,
     sanitizeCollapsedSections,
+    sanitizeNavPreferences,
     sanitizeRecentSearches,
     validateSidebarSections,
 } from './nav-validation';
@@ -89,6 +90,38 @@ describe('sanitizeCollapsedSections', () => {
     it('returns an empty object for non-object values', () => {
         expect(sanitizeCollapsedSections(null)).toEqual({});
         expect(sanitizeCollapsedSections(['Favorites'])).toEqual({});
+    });
+});
+
+describe('sanitizeNavPreferences', () => {
+    it('keeps only allowed canonical route values and sanitized metadata', () => {
+        const allowed = new Set(['/dashboard/library', '/dashboard/tools']);
+
+        expect(sanitizeNavPreferences({
+            collapsedSections: {
+                Favorites: true,
+                Invalid: 'yes',
+            },
+            favorites: ['/dashboard/library/?tab=overview', '/dashboard/unknown', '/dashboard/library/'],
+            recentRoutes: ['/dashboard/tools#top', '/dashboard/unknown', '/dashboard/library/'],
+            recentSearches: [' tools ', '', 'library', 'tools'],
+        }, allowed, 2, 3)).toEqual({
+            collapsedSections: {
+                Favorites: true,
+            },
+            favorites: ['/dashboard/library'],
+            recentRoutes: ['/dashboard/tools', '/dashboard/library'],
+            recentSearches: ['tools', 'library'],
+        });
+    });
+
+    it('falls back to empty safe defaults for malformed payloads', () => {
+        expect(sanitizeNavPreferences({}, new Set(['/dashboard/library']), 8, 6)).toEqual({
+            collapsedSections: {},
+            favorites: [],
+            recentRoutes: [],
+            recentSearches: [],
+        });
     });
 });
 

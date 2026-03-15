@@ -4,6 +4,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.7.212] — 2026-03-15
+
+- refactor(web/sidebar): centralized quick-switch palette activation in `Sidebar.tsx` so keyboard and click selection now share one execution path for remembering searches and triggering route/action behavior.
+- changed(web/sidebar): palette interaction modes now stay behaviorally aligned through the shared activation helper, reducing drift risk between input methods.
+- test(web/navigation): revalidated the focused nav suites after the palette activation refactor (`15` tests passing).
+
 ## [2.7.211] — 2026-03-15
 
 - refactor(web/sidebar): reused the existing `rememberPaletteSearch(...)` helper for both keyboard and click selection flows in `Sidebar.tsx`, removing duplicated recent-search persistence logic in the quick-switch palette.

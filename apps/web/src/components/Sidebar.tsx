@@ -413,6 +413,19 @@ export function Sidebar({ className }: SidebarProps) {
         }
     };
 
+    const activatePaletteItem = (item: PaletteItem, openInNewTab = false) => {
+        rememberPaletteSearch(paletteQuery);
+
+        if (item.kind === 'action' && item.id) {
+            runPaletteAction(item.id);
+            return;
+        }
+
+        if (item.href) {
+            selectPaletteItem(item.href, openInNewTab);
+        }
+    };
+
     const resetNavigationState = () => {
         setQuery('');
         setCollapsedSections({});
@@ -615,16 +628,7 @@ export function Sidebar({ className }: SidebarProps) {
                 const selected = paletteItems[paletteIndex];
                 if (selected) {
                     event.preventDefault();
-                    rememberPaletteSearch(paletteQuery);
-
-                    if (selected.kind === 'action' && selected.id) {
-                        runPaletteAction(selected.id);
-                        return;
-                    }
-
-                    if (selected.href) {
-                        selectPaletteItem(selected.href, event.metaKey || event.ctrlKey);
-                    }
+                    activatePaletteItem(selected, event.metaKey || event.ctrlKey);
                 }
             }
         };
@@ -929,18 +933,7 @@ export function Sidebar({ className }: SidebarProps) {
                                             key={item.kind === 'route' ? item.href : item.id}
                                             type="button"
                                             onMouseEnter={() => setPaletteIndex(index)}
-                                            onClick={(event) => {
-                                                rememberPaletteSearch(paletteQuery);
-
-                                                if (item.kind === 'action' && item.id) {
-                                                    runPaletteAction(item.id);
-                                                    return;
-                                                }
-
-                                                if (item.href) {
-                                                    selectPaletteItem(item.href, event.metaKey || event.ctrlKey);
-                                                }
-                                            }}
+                                            onClick={(event) => activatePaletteItem(item, event.metaKey || event.ctrlKey)}
                                             className={cn(
                                                 "w-full text-left rounded-md px-3 py-2 transition-colors border",
                                                 active

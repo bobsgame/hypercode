@@ -4,6 +4,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.7.176] — 2026-03-15
+
+- feat(web/cloud-dev): added broadcast `Target statuses` controls in `/dashboard/cloud-dev`, wiring the existing backend `statusFilter` capability into the UI for explicit status-scoped delivery.
+- changed(web/cloud-dev): broadcast help text now clearly explains default non-terminal delivery vs `Force` behavior for completed/failed/cancelled sessions.
+- changed(web/cloud-dev): broadcast results now include delivered status breakdown context to make force-send and targeted-delivery outcomes auditable at a glance.
+
 ## [2.7.175] — 2026-03-15
 
 - feat(web/cloud-dev): added a direct session-row `Open logs` action in `/dashboard/cloud-dev` so operators can jump straight into the logs pane without first opening chat.

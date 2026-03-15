@@ -264,7 +264,12 @@ export default function CloudDevDashboardPage() {
     const [showBroadcast, setShowBroadcast] = useState(false);
     const [broadcastMsg, setBroadcastMsg] = useState("");
     const [broadcastForce, setBroadcastForce] = useState(false);
-    const [broadcastResult, setBroadcastResult] = useState<{ delivered: number; skipped: number } | null>(null);
+    const [broadcastStatusFilter, setBroadcastStatusFilter] = useState<SessionStatus[]>([]);
+    const [broadcastResult, setBroadcastResult] = useState<{
+        delivered: number;
+        skipped: number;
+        statuses: SessionStatus[];
+    } | null>(null);
 
     const sessionsQuery = trpc.cloudDev.listSessions.useQuery(undefined, { refetchInterval: 5000 });
     const statsQuery = trpc.cloudDev.stats.useQuery(undefined, { refetchInterval: 5000 });
@@ -285,7 +290,11 @@ export default function CloudDevDashboardPage() {
     });
     const broadcastMutation = trpc.cloudDev.broadcastMessage.useMutation({
         onSuccess: (result) => {
-            setBroadcastResult({ delivered: result.delivered, skipped: result.skipped });
+            setBroadcastResult({
+                delivered: result.delivered,
+                skipped: result.skipped,
+                statuses: Array.from(new Set((result.results ?? []).map((entry) => entry.status as SessionStatus))),
+            });
             setBroadcastMsg("");
         },
     });
@@ -297,8 +306,18 @@ export default function CloudDevDashboardPage() {
 
     const handleBroadcast = useCallback(() => {
         if (!broadcastMsg.trim()) return;
-        broadcastMutation.mutate({ content: broadcastMsg.trim(), force: broadcastForce });
-    }, [broadcastMsg, broadcastForce, broadcastMutation]);
+        broadcastMutation.mutate({
+            content: broadcastMsg.trim(),
+            force: broadcastForce,
+            statusFilter: broadcastStatusFilter.length > 0 ? broadcastStatusFilter : undefined,
+        });
+    }, [broadcastMsg, broadcastForce, broadcastMutation, broadcastStatusFilter]);
+
+    const toggleBroadcastStatusFilter = useCallback((status: SessionStatus) => {
+        setBroadcastStatusFilter((current) =>
+            current.includes(status) ? current.filter((value) => value !== status) : [...current, status]
+        );
+    }, []);
 
     const sessions: SessionSummary[] = (sessionsQuery.data ?? []) as SessionSummary[];
     const stats = statsQuery.data;
@@ -378,9 +397,37 @@ export default function CloudDevDashboardPage() {
                     <h2 className="text-sm font-semibold mb-2 flex items-center gap-2">
                         <Radio className="h-4 w-4 text-purple-400" /> Broadcast Message
                         <span className="text-xs text-zinc-500 font-normal">
-                            - sends to all active sessions; Force delivers to completed/failed too
+                            - sends to non-terminal sessions by default; Force includes terminal sessions
                         </span>
                     </h2>
+                    <div className="mb-2 flex flex-wrap items-center gap-2 text-[11px]">
+                        <span className="text-zinc-500">Target statuses:</span>
+                        {(["pending", "active", "paused", "awaiting_approval", "completed", "failed", "cancelled"] as SessionStatus[]).map((status) => {
+                            const selected = broadcastStatusFilter.includes(status);
+                            return (
+                                <button
+                                    key={`broadcast-status-${status}`}
+                                    type="button"
+                                    onClick={() => toggleBroadcastStatusFilter(status)}
+                                    className={`rounded border px-2 py-0.5 transition-colors ${selected
+                                        ? "border-purple-500/60 bg-purple-500/15 text-purple-200"
+                                        : "border-zinc-700 bg-zinc-900 text-zinc-400 hover:bg-zinc-800"
+                                        }`}
+                                >
+                                    {status.replace("_", " ")}
+                                </button>
+                            );
+                        })}
+                        {broadcastStatusFilter.length > 0 && (
+                            <button
+                                type="button"
+                                onClick={() => setBroadcastStatusFilter([])}
+                                className="rounded border border-zinc-700 bg-zinc-900 px-2 py-0.5 text-zinc-400 hover:bg-zinc-800"
+                            >
+                                clear
+                            </button>
+                        )}
+                    </div>
                     <div className="flex flex-wrap items-end gap-2">
                         <textarea rows={2} value={broadcastMsg} onChange={(e) => setBroadcastMsg(e.target.value)}
                             placeholder="Enter message to broadcast to all sessions..."
@@ -401,7 +448,8 @@ export default function CloudDevDashboardPage() {
                     {broadcastResult && (
                         <p className="mt-2 text-xs text-emerald-400">
                             Delivered to {broadcastResult.delivered} session{broadcastResult.delivered !== 1 ? "s" : ""}
-                            {broadcastResult.skipped > 0 ? `, skipped ${broadcastResult.skipped}` : ""}.
+                            {broadcastResult.skipped > 0 ? `, skipped ${broadcastResult.skipped}` : ""}
+                            {broadcastResult.statuses.length > 0 ? ` (${broadcastResult.statuses.join(", ")})` : ""}.
                         </p>
                     )}
                 </div>

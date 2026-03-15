@@ -4,6 +4,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.7.208] — 2026-03-15
+
+- changed(web/sidebar): active-route highlighting in `Sidebar.tsx` now compares canonicalized pathname and href values, so query/hash/trailing-slash aliases resolve to one consistent active state.
+- changed(web/sidebar): section highlight prefix matching now runs on normalized route values, keeping nested-route activation stable when nav config contains semantic alias forms.
+- test(web/navigation): revalidated focused nav validation/config suites after active-state normalization hardening (`11` tests passing).
+
 ## [2.7.207] — 2026-03-15
 
 - changed(web/sidebar): command-palette route metadata in `Sidebar.tsx` is now keyed by canonicalized hrefs and preserves first-seen entries, preventing alias routes from duplicating or shadowing quick-switch results.

@@ -197,11 +197,14 @@ export function Sidebar({ className }: SidebarProps) {
         }
     }, []);
 
+    const normalizedPathname = normalizeNavHref(pathname);
+
     const isActive = (href: string) => {
-        if (pathname === href) {
+        const normalizedHref = normalizeNavHref(href);
+        if (normalizedPathname === normalizedHref) {
             return true;
         }
-        return href !== '/dashboard' && pathname.startsWith(`${href}/`);
+        return normalizedHref !== '/dashboard' && normalizedPathname.startsWith(`${normalizedHref}/`);
     };
 
     const normalizedQuery = query.trim().toLowerCase();
@@ -548,7 +551,6 @@ export function Sidebar({ className }: SidebarProps) {
             return;
         }
 
-        const normalizedPathname = normalizeNavHref(pathname);
         if (!allItemsByHref.has(normalizedPathname)) {
             return;
         }
@@ -558,7 +560,7 @@ export function Sidebar({ className }: SidebarProps) {
             safeStorageSet(SIDEBAR_RECENT_STORAGE_KEY, JSON.stringify(next));
             return next;
         });
-    }, [allItemsByHref, pathname]);
+    }, [allItemsByHref, normalizedPathname]);
 
     useEffect(() => {
         if (process.env.NODE_ENV === 'production') {

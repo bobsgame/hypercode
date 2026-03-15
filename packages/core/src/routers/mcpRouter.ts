@@ -1055,6 +1055,7 @@ export const mcpRouter = t.router({
         const aggregator = getMcpAggregator();
         const poolStatus = mcpServerPool.getPoolStatus();
         const lifecycleModes = mcpServerPool.getLifecycleModes();
+        const lifecycleEvents = mcpServerPool.getLifecycleEvents(20);
 
         try {
             const [{ servers, tools }, liveServers, liveTools] = await Promise.all([
@@ -1083,6 +1084,7 @@ export const mcpRouter = t.router({
                 lifecycle: {
                     lazySessionMode: lifecycleModes.lazySessionMode,
                     singleActiveServerMode: lifecycleModes.singleActiveServerMode,
+                    events: lifecycleEvents,
                 },
             };
         } catch {
@@ -1099,6 +1101,7 @@ export const mcpRouter = t.router({
                 lifecycle: {
                     lazySessionMode: lifecycleModes.lazySessionMode,
                     singleActiveServerMode: lifecycleModes.singleActiveServerMode,
+                    events: lifecycleEvents,
                 },
             };
         }

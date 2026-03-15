@@ -17,6 +17,21 @@ export interface McpServerPoolLifecycleModes {
     singleActiveServerMode: boolean;
 }
 
+export interface McpServerPoolLifecycleEvent {
+    id: number;
+    timestamp: number;
+    type:
+        | 'session-created'
+        | 'session-converted'
+        | 'session-cleanup'
+        | 'mode-updated'
+        | 'single-active-prune'
+        | 'server-crash';
+    message: string;
+    sessionId?: string;
+    serverUuid?: string;
+}
+
 export class McpServerPool {
     // Singleton instance
     private static instance: McpServerPool | null = null;
@@ -48,12 +63,33 @@ export class McpServerPool {
     private lazySessionMode: boolean;
     // Single-active mode ensures only one downstream server process is active per session.
     private singleActiveServerMode: boolean;
+    // Bounded timeline of lifecycle decisions for dashboard/operator observability.
+    private lifecycleEvents: McpServerPoolLifecycleEvent[] = [];
+    private lifecycleEventSequence = 0;
+    private readonly maxLifecycleEvents = 200;
 
     private constructor(defaultIdleCount: number = 1) {
         this.defaultIdleCount = defaultIdleCount;
         this.lazySessionMode = process.env.BORG_MCP_LAZY_SESSIONS !== 'false';
         this.singleActiveServerMode = process.env.BORG_MCP_SINGLE_ACTIVE_SERVER !== 'false';
+        this.recordLifecycleEvent({
+            type: 'mode-updated',
+            message: `Initialized lifecycle modes (lazy=${this.lazySessionMode ? 'on' : 'off'}, single-active=${this.singleActiveServerMode ? 'on' : 'off'})`,
+        });
         this.startCleanupTimer();
+    }
+
+    private recordLifecycleEvent(event: Omit<McpServerPoolLifecycleEvent, 'id' | 'timestamp'>): void {
+        const next: McpServerPoolLifecycleEvent = {
+            ...event,
+            id: ++this.lifecycleEventSequence,
+            timestamp: Date.now(),
+        };
+
+        this.lifecycleEvents.push(next);
+        if (this.lifecycleEvents.length > this.maxLifecycleEvents) {
+            this.lifecycleEvents.splice(0, this.lifecycleEvents.length - this.maxLifecycleEvents);
+        }
     }
 
     /**
@@ -80,6 +116,12 @@ export class McpServerPool {
 
         // Check if we already have an active session for this sessionId and server
         if (this.activeSessions[sessionId]?.[serverUuid]) {
+            this.recordLifecycleEvent({
+                type: 'session-converted',
+                sessionId,
+                serverUuid,
+                message: `Reused active session binding for server ${serverUuid} in session ${sessionId}`,
+            });
             return this.activeSessions[sessionId][serverUuid];
         }
 
@@ -101,6 +143,12 @@ export class McpServerPool {
             delete this.idleSessions[serverUuid];
             this.activeSessions[sessionId][serverUuid] = idleClient;
             this.sessionToServers[sessionId].add(serverUuid);
+            this.recordLifecycleEvent({
+                type: 'session-converted',
+                sessionId,
+                serverUuid,
+                message: `Promoted idle server ${serverUuid} into active session ${sessionId}`,
+            });
 
             console.log(
                 `Converted idle session to active for server ${serverUuid}, session ${sessionId}`,
@@ -122,6 +170,12 @@ export class McpServerPool {
 
         this.activeSessions[sessionId][serverUuid] = newClient;
         this.sessionToServers[sessionId].add(serverUuid);
+        this.recordLifecycleEvent({
+            type: 'session-created',
+            sessionId,
+            serverUuid,
+            message: `Created new active downstream session for server ${serverUuid} in ${sessionId}`,
+        });
 
         console.log(
             `Created new active session for server ${serverUuid}, session ${sessionId}`,
@@ -137,6 +191,8 @@ export class McpServerPool {
 
     private async cleanupOtherActiveServersGlobal(keepServerUuid: string): Promise<void> {
         const cleanupOperations: Array<Promise<void>> = [];
+        let cleanedActive = 0;
+        let cleanedIdle = 0;
 
         Object.entries(this.activeSessions).forEach(([sessionId, sessionServers]) => {
             Object.entries(sessionServers)
@@ -150,6 +206,7 @@ export class McpServerPool {
                         }
                         delete sessionServers[uuid];
                         this.sessionToServers[sessionId]?.delete(uuid);
+                        cleanedActive += 1;
                     })());
                 });
         });
@@ -168,11 +225,17 @@ export class McpServerPool {
                         console.error(`Error cleaning up stale idle server ${uuid}:`, error);
                     }
                     delete this.idleSessions[uuid];
+                    cleanedIdle += 1;
                 })());
             });
 
         if (cleanupOperations.length > 0) {
             await Promise.allSettled(cleanupOperations);
+            this.recordLifecycleEvent({
+                type: 'single-active-prune',
+                serverUuid: keepServerUuid,
+                message: `Pruned stale downstream sessions for single-active policy (kept=${keepServerUuid}, activePruned=${cleanedActive}, idlePruned=${cleanedIdle})`,
+            });
         }
     }
 
@@ -365,6 +428,12 @@ export class McpServerPool {
             delete this.sessionToServers[sessionId];
         }
 
+        this.recordLifecycleEvent({
+            type: 'session-cleanup',
+            sessionId,
+            message: `Cleaned up downstream session ${sessionId}`,
+        });
+
         console.log(`Cleaned up MCP server pool session ${sessionId}`);
     }
 
@@ -430,6 +499,7 @@ export class McpServerPool {
 
     async setLifecycleModes(next: Partial<McpServerPoolLifecycleModes>): Promise<McpServerPoolLifecycleModes> {
         const previousLazyMode = this.lazySessionMode;
+        const previousSingleActiveMode = this.singleActiveServerMode;
 
         if (typeof next.lazySessionMode === 'boolean') {
             this.lazySessionMode = next.lazySessionMode;
@@ -453,7 +523,19 @@ export class McpServerPool {
             );
         }
 
+        if (previousLazyMode !== this.lazySessionMode || previousSingleActiveMode !== this.singleActiveServerMode) {
+            this.recordLifecycleEvent({
+                type: 'mode-updated',
+                message: `Updated lifecycle modes (lazy=${this.lazySessionMode ? 'on' : 'off'}, single-active=${this.singleActiveServerMode ? 'on' : 'off'})`,
+            });
+        }
+
         return this.getLifecycleModes();
+    }
+
+    getLifecycleEvents(limit: number = 25): McpServerPoolLifecycleEvent[] {
+        const normalizedLimit = Math.max(1, Math.min(limit, this.maxLifecycleEvents));
+        return this.lifecycleEvents.slice(-normalizedLimit).reverse();
     }
 
     /**
@@ -591,6 +673,11 @@ export class McpServerPool {
 
         await serverErrorTracker.recordServerCrash(serverUuid, exitCode, signal);
         await this.cleanupServerSessions(serverUuid);
+        this.recordLifecycleEvent({
+            type: 'server-crash',
+            serverUuid,
+            message: `Detected downstream server crash for ${serverUuid} in namespace ${namespaceUuid} (exit=${exitCode ?? 'null'}, signal=${signal ?? 'null'})`,
+        });
 
         const serverName =
             this.serverParamsCache[serverUuid]?.name ?? `server-${serverUuid}`;
@@ -613,6 +700,11 @@ export class McpServerPool {
         console.log(`Recording crash for server ${serverUuid}`);
         await serverErrorTracker.recordServerCrash(serverUuid, exitCode, signal);
         await this.cleanupServerSessions(serverUuid);
+        this.recordLifecycleEvent({
+            type: 'server-crash',
+            serverUuid,
+            message: `Detected downstream server crash for ${serverUuid} (exit=${exitCode ?? 'null'}, signal=${signal ?? 'null'})`,
+        });
 
         const serverName =
             this.serverParamsCache[serverUuid]?.name ?? `server-${serverUuid}`;

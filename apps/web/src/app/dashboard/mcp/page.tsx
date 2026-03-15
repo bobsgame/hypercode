@@ -100,6 +100,14 @@ type StatusSummary = {
     lifecycle?: {
         lazySessionMode?: boolean;
         singleActiveServerMode?: boolean;
+        events?: Array<{
+            id: number;
+            timestamp: number;
+            type: string;
+            message: string;
+            sessionId?: string;
+            serverUuid?: string;
+        }>;
     };
 };
 
@@ -771,6 +779,7 @@ export default function MCPDashboard(): React.JSX.Element {
     }) as StatusSummary;
 
     const topTools = toolList.slice(0, 8);
+    const recentLifecycleEvents = (summary.lifecycle?.events ?? []).slice(0, 5);
     const bulkActionsDisabled = bulkRefreshState !== null || reloadMetadataMutation.isPending || clearMetadataCacheMutation.isPending;
     const unresolvedActionableCount = unresolvedDiscoveryTargetUuids.length;
     const allActionableCount = allDiscoveryTargetUuids.length;
@@ -1087,6 +1096,24 @@ export default function MCPDashboard(): React.JSX.Element {
                                     >
                                         Single-active {summary.lifecycle?.singleActiveServerMode === false ? 'off' : 'on'}
                                     </Button>
+                                </div>
+                                <div className="mt-3 rounded-md border border-zinc-800 bg-zinc-950/60 p-2.5">
+                                    <div className="text-[11px] uppercase tracking-wider text-zinc-500">Lifecycle timeline</div>
+                                    {recentLifecycleEvents.length > 0 ? (
+                                        <div className="mt-2 space-y-1.5 text-[11px] text-zinc-400">
+                                            {recentLifecycleEvents.map((event) => (
+                                                <div key={event.id} className="rounded border border-zinc-800 bg-zinc-900/60 px-2 py-1.5">
+                                                    <div className="flex items-center justify-between gap-2">
+                                                        <span className="font-semibold text-zinc-300">{event.type}</span>
+                                                        <span className="text-zinc-500">{new Date(event.timestamp).toLocaleTimeString()}</span>
+                                                    </div>
+                                                    <div className="mt-1 text-zinc-400">{event.message}</div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div className="mt-2 text-[11px] text-zinc-500">No lifecycle events captured yet.</div>
+                                    )}
                                 </div>
                             </div>
                             <Zap className="h-5 w-5 text-yellow-400" />

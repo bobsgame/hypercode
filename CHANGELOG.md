@@ -4,6 +4,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.7.155] — 2026-03-15
+
+- feat(core/mcp): added a bounded lifecycle event timeline in `McpServerPool` (session create/promote/cleanup, single-active pruning, mode updates, crash events) for operator-grade observability.
+- feat(core/mcp): `mcp.getStatus` now includes recent lifecycle events so dashboard clients can render real-time lifecycle decision context alongside pool counters.
+- feat(web/mcp): added a Router Status lifecycle timeline panel in `/dashboard/mcp` showing recent lifecycle events with type, message, and timestamp.
+
 ## [2.7.154] — 2026-03-15
 
 - feat(core/mcp): added runtime lifecycle mode controls in `McpServerPool` via `getLifecycleModes()` and `setLifecycleModes()` so lazy/single-active policy can be changed without restarting Borg.

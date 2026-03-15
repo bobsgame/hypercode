@@ -421,12 +421,16 @@ export default function CloudDevDashboardPage() {
         );
     }, []);
 
+    const mergeStatusFilter = useCallback((base: SessionStatus[] | undefined, statuses: SessionStatus[]) => {
+        const merged = new Set<SessionStatus>([...(base ?? []), ...statuses]);
+        return BROADCAST_STATUS_ORDER.filter((status) => merged.has(status));
+    }, []);
+
     const addBroadcastStatuses = useCallback((statuses: SessionStatus[]) => {
         setBroadcastStatusFilter((current) => {
-            const merged = new Set<SessionStatus>([...current, ...statuses]);
-            return BROADCAST_STATUS_ORDER.filter((status) => merged.has(status));
+            return mergeStatusFilter(current, statuses);
         });
-    }, []);
+    }, [mergeStatusFilter]);
 
     useEffect(() => {
         setShowAllPreviewRecipients(false);
@@ -458,6 +462,19 @@ export default function CloudDevDashboardPage() {
         });
         return BROADCAST_STATUS_ORDER.filter((status) => statuses.has(status));
     }, [broadcastPreview]);
+
+    const retryLastBroadcastWithSuggestions = useCallback((force: boolean) => {
+        if (!lastBroadcastPayload?.content) return;
+        const baseFilter = lastBroadcastPayload.statusFilter ?? broadcastStatusFilter;
+        const statusFilter = mergeStatusFilter(baseFilter, skippedStatusSuggestions);
+        setBroadcastStatusFilter(statusFilter);
+        setBroadcastForce(force);
+        broadcastMutation.mutate({
+            content: lastBroadcastPayload.content,
+            force,
+            statusFilter: statusFilter.length > 0 ? statusFilter : undefined,
+        });
+    }, [broadcastMutation, broadcastStatusFilter, lastBroadcastPayload, mergeStatusFilter, skippedStatusSuggestions]);
 
     const activeSessions = useMemo(() => sessions.filter((s) => s.status === "active").length, [sessions]);
     const pendingSessions = useMemo(() => sessions.filter((s) => s.status === "pending").length, [sessions]);
@@ -695,21 +712,20 @@ export default function CloudDevDashboardPage() {
                                                         <button
                                                             type="button"
                                                             disabled={broadcastMutation.isPending}
-                                                            onClick={() => {
-                                                                const baseFilter = lastBroadcastPayload.statusFilter ?? broadcastStatusFilter;
-                                                                const merged = new Set<SessionStatus>([...baseFilter, ...skippedStatusSuggestions]);
-                                                                const statusFilter = BROADCAST_STATUS_ORDER.filter((status) => merged.has(status));
-                                                                setBroadcastStatusFilter(statusFilter);
-                                                                setBroadcastForce(lastBroadcastPayload.force);
-                                                                broadcastMutation.mutate({
-                                                                    content: lastBroadcastPayload.content,
-                                                                    force: lastBroadcastPayload.force,
-                                                                    statusFilter: statusFilter.length > 0 ? statusFilter : undefined,
-                                                                });
-                                                            }}
+                                                            onClick={() => retryLastBroadcastWithSuggestions(lastBroadcastPayload.force)}
                                                             className="rounded border border-purple-500/60 bg-purple-700/40 px-2 py-0.5 text-[10px] text-purple-100 hover:bg-purple-700/60 disabled:opacity-50"
                                                         >
                                                             Retry last with suggested statuses
+                                                        </button>
+                                                    )}
+                                                    {lastBroadcastPayload?.content && (broadcastPreview.skippedByReason.terminal_requires_force ?? 0) > 0 && !lastBroadcastPayload.force && (
+                                                        <button
+                                                            type="button"
+                                                            disabled={broadcastMutation.isPending}
+                                                            onClick={() => retryLastBroadcastWithSuggestions(true)}
+                                                            className="rounded border border-amber-500/60 bg-amber-700/40 px-2 py-0.5 text-[10px] text-amber-100 hover:bg-amber-700/60 disabled:opacity-50"
+                                                        >
+                                                            Retry last with suggested + Force
                                                         </button>
                                                     )}
                                                 </div>

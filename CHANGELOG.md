@@ -4,6 +4,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.7.186] — 2026-03-15
+
+- feat(web/cloud-dev): broadcast preview skip diagnostics now offer one-click `Retry last with suggested + Force` when status-filter mismatches and terminal-session skips occur together.
+- changed(web/cloud-dev): refactored suggested-status retry flow to share a canonical merged-status helper, keeping filter order deterministic across add/retry actions.
+- changed(web/cloud-dev): `Retry last with suggested statuses` now reuses a common retry helper, reducing duplicated payload assembly and keeping force/non-force retries behaviorally aligned.
+
 ## [2.7.185] — 2026-03-15
 
 - feat(web/cloud-dev): skip-diagnostic suggestions in broadcast preview now include one-click `Retry last with suggested statuses`, reusing the last payload and merged suggested status filters.

@@ -4,6 +4,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.7.188] — 2026-03-15
+
+- feat(web/cloud-dev): added one-click `Use only suggested` targeting controls in both preview and post-send skip diagnostics, replacing broad status filters with mismatch-derived suggested statuses.
+- changed(web/cloud-dev): introduced canonical `setBroadcastStatuses(...)` helper so suggestion-only targeting preserves deterministic cloud-dev status ordering.
+- changed(web/cloud-dev): preview/result suggestion workflows now support both additive (`Add all`) and replacement (`Use only suggested`) targeting paths for faster operator recovery.
+
 ## [2.7.187] — 2026-03-15
 
 - feat(web/cloud-dev): post-send skipped-session diagnostics now provide status-mismatch suggestions with one-click `+ status` and `Add all suggested` controls.

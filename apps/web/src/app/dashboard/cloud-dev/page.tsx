@@ -432,6 +432,11 @@ export default function CloudDevDashboardPage() {
         });
     }, [mergeStatusFilter]);
 
+    const setBroadcastStatuses = useCallback((statuses: SessionStatus[]) => {
+        const normalized = BROADCAST_STATUS_ORDER.filter((status) => statuses.includes(status));
+        setBroadcastStatusFilter(normalized);
+    }, []);
+
     useEffect(() => {
         setShowAllPreviewRecipients(false);
     }, [broadcastForce, broadcastStatusFilter]);
@@ -719,6 +724,13 @@ export default function CloudDevDashboardPage() {
                                                             Add all suggested
                                                         </button>
                                                     )}
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setBroadcastStatuses(skippedStatusSuggestions)}
+                                                        className="rounded border border-zinc-700 bg-zinc-900 px-2 py-0.5 text-[10px] text-zinc-300 hover:bg-zinc-800"
+                                                    >
+                                                        Use only suggested
+                                                    </button>
                                                     {lastBroadcastPayload?.content && (
                                                         <button
                                                             type="button"
@@ -847,6 +859,13 @@ export default function CloudDevDashboardPage() {
                                                         Add all suggested
                                                     </button>
                                                 )}
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setBroadcastStatuses(resultSkippedStatusSuggestions)}
+                                                    className="rounded border border-zinc-700 bg-zinc-900 px-2 py-0.5 text-[10px] text-zinc-300 hover:bg-zinc-800"
+                                                >
+                                                    Use only suggested
+                                                </button>
                                                 {lastBroadcastPayload?.content && (
                                                     <button
                                                         type="button"

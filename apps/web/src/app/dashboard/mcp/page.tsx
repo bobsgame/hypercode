@@ -110,6 +110,7 @@ type StatusSummary = {
             message: string;
             sessionId?: string;
             serverUuid?: string;
+            serverName?: string;
         }>;
     };
 };
@@ -1119,6 +1120,12 @@ export default function MCPDashboard(): React.JSX.Element {
                                                         <span className="font-semibold text-zinc-300">{event.type}</span>
                                                         <span className="text-zinc-500">{new Date(event.timestamp).toLocaleTimeString()}</span>
                                                     </div>
+                                                    {event.serverName || event.serverUuid ? (
+                                                        <div className="mt-1 text-[10px] uppercase tracking-wider text-zinc-500">
+                                                            server {event.serverName ?? event.serverUuid}
+                                                            {event.serverName && event.serverUuid ? ` (${event.serverUuid})` : ''}
+                                                        </div>
+                                                    ) : null}
                                                     <div className="mt-1 text-zinc-400">{event.message}</div>
                                                 </div>
                                             ))}

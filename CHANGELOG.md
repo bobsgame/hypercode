@@ -4,6 +4,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.7.158] — 2026-03-15
+
+- feat(core/mcp): enriched pool lifecycle events with `serverName` metadata so timeline records carry human-readable server identity in addition to UUID/session context.
+- changed(core/mcp): session-created/session-converted/single-active-prune/server-crash/active-server-switch events now attach server identity details when available.
+- changed(web/mcp): lifecycle timeline rows in `/dashboard/mcp` now render server identity (`name` and UUID annotation) for faster incident triage.
+
 ## [2.7.157] — 2026-03-15
 
 - feat(core/mcp): `mcp.getStatus.pool` now resolves `currentActiveServerName` from cached server inventory for more readable single-active status reporting.

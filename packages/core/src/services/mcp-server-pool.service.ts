@@ -33,6 +33,7 @@ export interface McpServerPoolLifecycleEvent {
     message: string;
     sessionId?: string;
     serverUuid?: string;
+    serverName?: string;
 }
 
 export class McpServerPool {
@@ -102,6 +103,7 @@ export class McpServerPool {
             return;
         }
 
+        const serverName = this.serverParamsCache[serverUuid]?.name;
         const serverLabel = this.serverParamsCache[serverUuid]?.name
             ? `${this.serverParamsCache[serverUuid].name} (${serverUuid})`
             : serverUuid;
@@ -111,6 +113,7 @@ export class McpServerPool {
         this.recordLifecycleEvent({
             type: 'active-server-switch',
             serverUuid,
+            serverName,
             sessionId,
             message: `Active downstream focus switched to ${serverLabel} (session ${sessionId})`,
         });
@@ -164,6 +167,7 @@ export class McpServerPool {
                 type: 'session-converted',
                 sessionId,
                 serverUuid,
+                serverName: params.name,
                 message: `Reused active session binding for server ${serverUuid} in session ${sessionId}`,
             });
             return this.activeSessions[sessionId][serverUuid];
@@ -192,6 +196,7 @@ export class McpServerPool {
                 type: 'session-converted',
                 sessionId,
                 serverUuid,
+                serverName: params.name,
                 message: `Promoted idle server ${serverUuid} into active session ${sessionId}`,
             });
 
@@ -220,6 +225,7 @@ export class McpServerPool {
             type: 'session-created',
             sessionId,
             serverUuid,
+            serverName: params.name,
             message: `Created new active downstream session for server ${serverUuid} in ${sessionId}`,
         });
 
@@ -280,6 +286,7 @@ export class McpServerPool {
             this.recordLifecycleEvent({
                 type: 'single-active-prune',
                 serverUuid: keepServerUuid,
+                serverName: this.serverParamsCache[keepServerUuid]?.name,
                 message: `Pruned stale downstream sessions for single-active policy (kept=${keepServerUuid}, activePruned=${cleanedActive}, idlePruned=${cleanedIdle})`,
             });
             this.recomputeActiveServerFocus();
@@ -727,6 +734,7 @@ export class McpServerPool {
         this.recordLifecycleEvent({
             type: 'server-crash',
             serverUuid,
+            serverName: this.serverParamsCache[serverUuid]?.name,
             message: `Detected downstream server crash for ${serverUuid} in namespace ${namespaceUuid} (exit=${exitCode ?? 'null'}, signal=${signal ?? 'null'})`,
         });
 
@@ -754,6 +762,7 @@ export class McpServerPool {
         this.recordLifecycleEvent({
             type: 'server-crash',
             serverUuid,
+            serverName: this.serverParamsCache[serverUuid]?.name,
             message: `Detected downstream server crash for ${serverUuid} (exit=${exitCode ?? 'null'}, signal=${signal ?? 'null'})`,
         });
 

@@ -103,21 +103,28 @@ function SessionPanel({
     session,
     onClose,
     initialTab,
+    onSessionMutation,
 }: {
     session: SessionSummary;
     onClose: () => void;
     initialTab: "chat" | "logs";
+    onSessionMutation: () => void;
 }) {
     const [activeTab, setActiveTab] = useState<"chat" | "logs">(initialTab);
     const [msgInput, setMsgInput] = useState("");
     const [forceFlag, setForceFlag] = useState(false);
     const [messageLimit, setMessageLimit] = useState(100);
     const [logLimit, setLogLimit] = useState(200);
+    const [localAutoAcceptPlan, setLocalAutoAcceptPlan] = useState(session.autoAcceptPlan);
     const chatEndRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         setActiveTab(initialTab);
     }, [initialTab, session.id]);
+
+    useEffect(() => {
+        setLocalAutoAcceptPlan(session.autoAcceptPlan);
+    }, [session.autoAcceptPlan, session.id]);
 
     const messagesQuery = trpc.cloudDev.getMessages.useQuery(
         { sessionId: session.id, limit: messageLimit },
@@ -130,8 +137,21 @@ function SessionPanel({
     const sendMutation = trpc.cloudDev.sendMessage.useMutation({
         onSuccess: () => { setMsgInput(""); void messagesQuery.refetch(); },
     });
-    const acceptPlanMutation = trpc.cloudDev.acceptPlan.useMutation();
-    const autoAcceptMutation = trpc.cloudDev.setAutoAcceptPlan.useMutation();
+    const acceptPlanMutation = trpc.cloudDev.acceptPlan.useMutation({
+        onSuccess: async () => {
+            onSessionMutation();
+            await Promise.all([messagesQuery.refetch(), logsQuery.refetch()]);
+        },
+    });
+    const autoAcceptMutation = trpc.cloudDev.setAutoAcceptPlan.useMutation({
+        onSuccess: ({ autoAcceptPlan }) => {
+            setLocalAutoAcceptPlan(autoAcceptPlan);
+            onSessionMutation();
+        },
+        onError: () => {
+            setLocalAutoAcceptPlan(session.autoAcceptPlan);
+        },
+    });
 
     const handleSend = useCallback(() => {
         if (!msgInput.trim()) return;
@@ -157,8 +177,17 @@ function SessionPanel({
                 </div>
                 <div className="flex items-center gap-1.5">
                     <label className="flex items-center gap-1 cursor-pointer text-[11px] text-zinc-400 select-none">
-                        <input type="checkbox" className="accent-amber-500" checked={session.autoAcceptPlan}
-                            onChange={(e) => autoAcceptMutation.mutate({ sessionId: session.id, enabled: e.target.checked })} />
+                        <input
+                            type="checkbox"
+                            className="accent-amber-500"
+                            checked={localAutoAcceptPlan}
+                            disabled={autoAcceptMutation.isPending}
+                            onChange={(e) => {
+                                const next = e.target.checked;
+                                setLocalAutoAcceptPlan(next);
+                                autoAcceptMutation.mutate({ sessionId: session.id, enabled: next });
+                            }}
+                        />
                         Auto-accept plan
                     </label>
                     {session.status === "awaiting_approval" && (
@@ -617,6 +646,9 @@ export default function CloudDevDashboardPage() {
                                     session={session}
                                     onClose={() => setExpandedSession(null)}
                                     initialTab={expandedSession.tab}
+                                    onSessionMutation={() => {
+                                        void sessionsQuery.refetch();
+                                    }}
                                 />
                             )}
                         </div>

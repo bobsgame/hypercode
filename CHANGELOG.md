@@ -4,6 +4,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.7.178] — 2026-03-15
+
+- changed(web/cloud-dev): `Auto-accept plan` toggle in `/dashboard/cloud-dev` now uses optimistic local state with mutation lifecycle handling, so checkbox changes are reflected immediately and no longer feel stale while list polling catches up.
+- changed(web/cloud-dev): session panel `acceptPlan` and `setAutoAcceptPlan` actions now trigger immediate parent session-list refresh plus scoped message/log refresh, improving perceived reliability of status transitions.
+- fix(web/cloud-dev): auto-accept UI state now resynchronizes from incoming session props after list updates, preventing drift between mutation outcomes and rendered controls.
+
 ## [2.7.177] — 2026-03-15
 
 - feat(core/cloud-dev): added `cloudDev.previewBroadcastRecipients` query to provide a dry-run recipient preview (targeted/skipped totals, per-status counts, and targeted session IDs) before sending broadcasts.

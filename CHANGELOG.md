@@ -4,6 +4,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.7.224] — 2026-03-15
+
+- fix(web/sidebar): repaired a corrupted `paletteItems` filter block in `apps/web/src/components/Sidebar.tsx`, restoring the intended quick-switch action filtering and route matching flow.
+- refactor(web/sidebar): memoized the live allowed-nav href set in `Sidebar.tsx` and reused it across favorites hydration, recent-route hydration, favorite persistence, and imported preference sanitization.
+- test(web/navigation): reran focused nav validation/config suites after the Sidebar repair and sanitizer reuse cleanup (`35` tests passing).
+
 ## [2.7.223] — 2026-03-15
 
 - changed(web/navigation): added shared `sanitizeFavoriteRoutes(...)` in `apps/web/src/components/mcp/nav-validation.ts` so unknown favorite payloads now reuse one canonical path for string extraction, href normalization, and config-aware filtering.

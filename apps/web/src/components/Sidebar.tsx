@@ -121,11 +121,11 @@ export function Sidebar({ className }: SidebarProps) {
                 return;
             }
             const parsed = JSON.parse(raw);
-            setFavorites(sanitizeFavoriteRoutes(parsed, new Set(allItemsByHref.keys())));
+            setFavorites(sanitizeFavoriteRoutes(parsed, allowedNavHrefs));
         } catch {
             // ignore invalid stored state
         }
-    }, [allItemsByHref]);
+    }, [allowedNavHrefs]);
 
     useEffect(() => {
         try {
@@ -134,11 +134,11 @@ export function Sidebar({ className }: SidebarProps) {
                 return;
             }
             const parsed = JSON.parse(raw);
-            setRecentRoutes(sanitizeRecentRoutes(parsed, new Set(allItemsByHref.keys()), MAX_RECENT_ROUTES));
+            setRecentRoutes(sanitizeRecentRoutes(parsed, allowedNavHrefs, MAX_RECENT_ROUTES));
         } catch {
             // ignore invalid stored state
         }
-    }, [allItemsByHref]);
+    }, [allowedNavHrefs]);
 
     useEffect(() => {
         try {
@@ -165,6 +165,7 @@ export function Sidebar({ className }: SidebarProps) {
     const sectionTitles = useMemo(() => new Set(SIDEBAR_SECTIONS.map((section) => section.title)), []);
 
     const allItemsByHref = useMemo(() => buildNavItemsByNormalizedHref(SIDEBAR_SECTIONS), []);
+    const allowedNavHrefs = useMemo(() => new Set(allItemsByHref.keys()), [allItemsByHref]);
 
     const filteredSections = useMemo(() => {
         return SIDEBAR_SECTIONS
@@ -201,7 +202,7 @@ export function Sidebar({ className }: SidebarProps) {
         const actions: PaletteItem[] = [
             {
                 kind: 'action' as const,
-                    id: 'open-mcp-router',
+                id: 'open-mcp-router',
                 title: 'Open MCP Router Dashboard',
                 section: 'Actions',
                 description: 'Go to Borg\'s MCP router control plane',
@@ -236,11 +237,11 @@ export function Sidebar({ className }: SidebarProps) {
                 return true;
             }
             return `${item.title} ${item.description ?? ''}`.toLowerCase().includes(q);
-            setCollapsedSections(sanitizeCollapsedSections(parsed, sectionTitles));
+        });
 
         const rows = Array.from(routeMeta.values()).filter((item) => {
             return matchesNavQuery(q, item, item.section);
-    }, [sectionTitles]);
+        });
 
         rows.sort((a, b) => {
             const aFav = favoriteSet.has(a.href) ? 1 : 0;
@@ -285,7 +286,7 @@ export function Sidebar({ className }: SidebarProps) {
     }, [allItemsByHref, normalizedQuery, recentRoutes]);
 
     const persistFavorites = (next: string[]) => {
-        const normalized = sanitizeFavoriteRoutes(next, new Set(allItemsByHref.keys()));
+        const normalized = sanitizeFavoriteRoutes(next, allowedNavHrefs);
         setFavorites(normalized);
         safeStorageSet(SIDEBAR_FAVORITES_STORAGE_KEY, JSON.stringify(normalized));
     };
@@ -457,7 +458,7 @@ export function Sidebar({ className }: SidebarProps) {
 
             const sanitized = sanitizeNavPreferences(
                 parsed,
-                new Set(allItemsByHref.keys()),
+                allowedNavHrefs,
                 sectionTitles,
                 MAX_RECENT_ROUTES,
                 MAX_RECENT_SEARCHES,

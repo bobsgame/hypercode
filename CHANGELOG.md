@@ -4,6 +4,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.7.195] — 2026-03-15
+
+- fix(web/cloud-dev): post-send broadcast summaries now capture session-ID scope from dispatch time, preventing scope-count drift when operators change targeting state after a send.
+- changed(web/cloud-dev): broadcast dispatch paths now stage pending scope IDs before mutation and persist them into result diagnostics for accurate historical reporting.
+- changed(web/cloud-dev): force-retry action now participates in the same per-dispatch scope capture path used by other broadcast actions.
+
 ## [2.7.194] — 2026-03-15
 
 - feat(web/cloud-dev): preview diagnostics now include `Use preview skipped as scope`, allowing operators to set skipped session IDs as the active target scope without immediately sending.

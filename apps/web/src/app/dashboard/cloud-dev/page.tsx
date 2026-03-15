@@ -348,11 +348,13 @@ export default function CloudDevDashboardPage() {
         statusFilter?: SessionStatus[];
         sessionIds?: string[];
     } | null>(null);
+    const [pendingBroadcastScopeIds, setPendingBroadcastScopeIds] = useState<string[] | null>(null);
     const [broadcastResult, setBroadcastResult] = useState<{
         delivered: number;
         skipped: number;
         statuses: SessionStatus[];
         skippedByReason: Partial<Record<BroadcastSkipReason, number>>;
+        scopeSessionIds: string[];
         skippedSessionIds: string[];
         skippedSessions: BroadcastSkippedSession[];
         skippedSessionsSampled: boolean;
@@ -384,11 +386,16 @@ export default function CloudDevDashboardPage() {
                 skipped: result.skipped,
                 statuses: Array.from(new Set((result.results ?? []).map((entry) => entry.status as SessionStatus))),
                 skippedByReason: (result.skippedByReason ?? {}) as Partial<Record<BroadcastSkipReason, number>>,
+                scopeSessionIds: pendingBroadcastScopeIds ?? [],
                 skippedSessionIds: (result.skippedSessionIds ?? []) as string[],
                 skippedSessions: (result.skippedSessions ?? []) as BroadcastSkippedSession[],
                 skippedSessionsSampled: Boolean(result.skippedSessionsSampled),
             });
+            setPendingBroadcastScopeIds(null);
             setBroadcastMsg("");
+        },
+        onError: () => {
+            setPendingBroadcastScopeIds(null);
         },
     });
     const broadcastPreviewQuery = trpc.cloudDev.previewBroadcastRecipients.useQuery(
@@ -416,6 +423,7 @@ export default function CloudDevDashboardPage() {
             sessionIds: broadcastSessionScopeIds && broadcastSessionScopeIds.length > 0 ? [...broadcastSessionScopeIds] : undefined,
         };
         setLastBroadcastPayload(payload);
+        setPendingBroadcastScopeIds(payload.sessionIds ?? null);
         broadcastMutation.mutate({
             content: payload.content,
             force: payload.force,
@@ -494,6 +502,7 @@ export default function CloudDevDashboardPage() {
             sessionIds: undefined,
         };
         setLastBroadcastPayload(payload);
+        setPendingBroadcastScopeIds(payload.sessionIds ?? null);
         broadcastMutation.mutate({
             content: payload.content,
             force: payload.force,
@@ -514,6 +523,7 @@ export default function CloudDevDashboardPage() {
             sessionIds,
         };
         setLastBroadcastPayload(payload);
+        setPendingBroadcastScopeIds(payload.sessionIds ?? null);
         broadcastMutation.mutate({
             content: payload.content,
             force: payload.force,
@@ -535,6 +545,7 @@ export default function CloudDevDashboardPage() {
             sessionIds,
         };
         setLastBroadcastPayload(payload);
+        setPendingBroadcastScopeIds(payload.sessionIds ?? null);
         broadcastMutation.mutate({
             content: payload.content,
             force: payload.force,
@@ -918,8 +929,8 @@ export default function CloudDevDashboardPage() {
                                 {Object.keys(broadcastResult.skippedByReason).length > 0
                                     ? ` Skip reasons: ${(Object.entries(broadcastResult.skippedByReason) as Array<[BroadcastSkipReason, number]>).map(([reason, count]) => `${BROADCAST_SKIP_REASON_LABELS[reason]}=${count}`).join(", ")}.`
                                     : ""}
-                                {broadcastSessionScopeIds && broadcastSessionScopeIds.length > 0
-                                    ? ` Session scope: ${broadcastSessionScopeIds.length} IDs.`
+                                {broadcastResult.scopeSessionIds.length > 0
+                                    ? ` Session scope: ${broadcastResult.scopeSessionIds.length} IDs.`
                                     : ""}
                             </p>
                             {(broadcastResult.skippedByReason.terminal_requires_force ?? 0) > 0 && !broadcastForce && (
@@ -937,6 +948,7 @@ export default function CloudDevDashboardPage() {
                                         onClick={() => {
                                             if (!lastBroadcastPayload?.content) return;
                                             setBroadcastForce(true);
+                                            setPendingBroadcastScopeIds(lastBroadcastPayload.sessionIds ?? null);
                                             broadcastMutation.mutate({
                                                 content: lastBroadcastPayload.content,
                                                 force: true,

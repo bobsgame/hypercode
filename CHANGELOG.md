@@ -4,6 +4,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.7.222] — 2026-03-15
+
+- fix(web/sidebar): corrected the initial `Sidebar.tsx` collapsed-section hydration path to pass the live section-title set into `sanitizeCollapsedSections(...)`, matching the import path and preventing stale collapse flags from surviving first load.
+- changed(web/navigation): revalidated the shared collapsed-section filtering flow so runtime hydration and imported preference payloads now use the same allowed-section behavior from first render onward.
+- test(web/navigation): reran focused nav validation/config suites after the hydration bugfix (`33` tests passing).
+
 ## [2.7.221] — 2026-03-15
 
 - changed(web/navigation): `sanitizeCollapsedSections(...)` in `apps/web/src/components/mcp/nav-validation.ts` now accepts an allowed section-title set so stored collapse-state payloads can drop stale keys from removed or renamed nav sections.

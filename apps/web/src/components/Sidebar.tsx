@@ -108,11 +108,11 @@ export function Sidebar({ className }: SidebarProps) {
                 return;
             }
             const parsed = JSON.parse(raw);
-            setCollapsedSections(sanitizeCollapsedSections(parsed));
+            setCollapsedSections(sanitizeCollapsedSections(parsed, sectionTitles));
         } catch {
             // ignore invalid stored state
         }
-    }, []);
+    }, [sectionTitles]);
 
     useEffect(() => {
         try {

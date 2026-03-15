@@ -14,6 +14,10 @@ export interface NavDescriptionCandidate {
     description?: string;
 }
 
+export interface NavPaletteRouteCandidate extends NavSearchCandidate {
+    section: string;
+}
+
 export interface NavDuplicateIssue {
     href: string;
     sections: string[];
@@ -208,6 +212,27 @@ export function buildRecentSearchHistory(currentSearches: string[], nextQuery: s
         nextQuery,
         ...currentSearches,
     ], limit);
+}
+
+export function comparePaletteRoutes(
+    a: NavPaletteRouteCandidate,
+    b: NavPaletteRouteCandidate,
+    favoriteHrefs: ReadonlySet<string>,
+    recencyRank: ReadonlyMap<string, number>,
+): number {
+    const aFav = favoriteHrefs.has(a.href) ? 1 : 0;
+    const bFav = favoriteHrefs.has(b.href) ? 1 : 0;
+    if (aFav !== bFav) {
+        return bFav - aFav;
+    }
+
+    const aRecent = recencyRank.get(a.href) ?? Number.MAX_SAFE_INTEGER;
+    const bRecent = recencyRank.get(b.href) ?? Number.MAX_SAFE_INTEGER;
+    if (aRecent !== bRecent) {
+        return aRecent - bRecent;
+    }
+
+    return a.title.localeCompare(b.title);
 }
 
 export function buildFallbackNavDescription(title: string, section: string, href?: string): string {

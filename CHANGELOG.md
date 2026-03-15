@@ -4,6 +4,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.7.229] — 2026-03-15
+
+- changed(web/navigation): added shared `comparePaletteRoutes(...)` in `apps/web/src/components/mcp/nav-validation.ts` so quick-switch route ranking now has one reusable contract for favorite priority, recency priority, and stable title fallback ordering.
+- refactor(web/sidebar): `apps/web/src/components/Sidebar.tsx` now delegates palette route sorting to the shared comparator instead of keeping the ranking rules embedded inline inside the palette memo.
+- test(web/navigation): expanded `apps/web/src/components/mcp/nav-validation.test.ts` with explicit palette ranking coverage for favorites, recency, and title fallback ordering; focused nav suites now pass with `40` total tests.
+
 ## [2.7.228] — 2026-03-15
 
 - refactor(web/sidebar): added shared `safeStorageGetJson(...)` in `apps/web/src/components/Sidebar.tsx` so stored navigation preference hydration now reads and parses localStorage payloads through one helper instead of repeating inline `safeStorageGet(...)` + `JSON.parse(...)` flows.

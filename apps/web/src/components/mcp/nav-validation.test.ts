@@ -8,6 +8,7 @@ import {
     buildNavItemsByNormalizedHref,
     buildRecentRouteHistory,
     buildRecentSearchHistory,
+    comparePaletteRoutes,
     extractStringArray,
     filterNavHrefsByAllowedSet,
     getNavDescription,
@@ -252,6 +253,56 @@ describe('buildRecentSearchHistory', () => {
             'tools',
             'logs',
         ]);
+    });
+});
+
+describe('comparePaletteRoutes', () => {
+    const library = {
+        title: 'Library',
+        href: '/dashboard/library',
+        section: 'Knowledge',
+    };
+
+    const tools = {
+        title: 'Tools',
+        href: '/dashboard/tools',
+        section: 'Operations',
+    };
+
+    const audit = {
+        title: 'Audit',
+        href: '/dashboard/audit',
+        section: 'Security',
+    };
+
+    it('ranks favorited routes ahead of non-favorited routes', () => {
+        expect(comparePaletteRoutes(
+            library,
+            tools,
+            new Set(['/dashboard/library']),
+            new Map(),
+        )).toBeLessThan(0);
+    });
+
+    it('ranks more recent routes ahead when favorite status is equal', () => {
+        expect(comparePaletteRoutes(
+            tools,
+            audit,
+            new Set(),
+            new Map([
+                ['/dashboard/tools', 0],
+                ['/dashboard/audit', 2],
+            ]),
+        )).toBeLessThan(0);
+    });
+
+    it('falls back to title ordering when favorite and recency status are equal', () => {
+        expect(comparePaletteRoutes(
+            audit,
+            library,
+            new Set(),
+            new Map(),
+        )).toBeLessThan(0);
     });
 });
 

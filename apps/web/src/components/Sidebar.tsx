@@ -10,7 +10,7 @@ import { SortableContext, arrayMove, rectSortingStrategy, useSortable } from "@d
 import { CSS } from "@dnd-kit/utilities";
 import { cn } from "@/lib/utils";
 import { SIDEBAR_SECTIONS } from "./mcp/nav-config";
-import { buildExportedNavPreferences, buildNavItemsByNormalizedHref, buildRecentRouteHistory, buildRecentSearchHistory, getNavDescription, hasNavValidationIssues, isNavHrefActive, matchesNavQuery, normalizeNavHref, sanitizeCollapsedSections, sanitizeFavoriteRoutes, sanitizeNavPreferences, sanitizeRecentRoutes, sanitizeRecentSearches, validateSidebarSections } from "./mcp/nav-validation";
+import { buildExportedNavPreferences, buildNavItemsByNormalizedHref, buildRecentRouteHistory, buildRecentSearchHistory, comparePaletteRoutes, getNavDescription, hasNavValidationIssues, isNavHrefActive, matchesNavQuery, normalizeNavHref, sanitizeCollapsedSections, sanitizeFavoriteRoutes, sanitizeNavPreferences, sanitizeRecentRoutes, sanitizeRecentSearches, validateSidebarSections } from "./mcp/nav-validation";
 
 interface SidebarProps extends React.HTMLAttributes<HTMLDivElement> { }
 
@@ -250,21 +250,7 @@ export function Sidebar({ className }: SidebarProps) {
             return matchesNavQuery(q, item, item.section);
         });
 
-        rows.sort((a, b) => {
-            const aFav = favoriteSet.has(a.href) ? 1 : 0;
-            const bFav = favoriteSet.has(b.href) ? 1 : 0;
-            if (aFav !== bFav) {
-                return bFav - aFav;
-            }
-
-            const aRecent = recencyRank.has(a.href) ? recencyRank.get(a.href)! : Number.MAX_SAFE_INTEGER;
-            const bRecent = recencyRank.has(b.href) ? recencyRank.get(b.href)! : Number.MAX_SAFE_INTEGER;
-            if (aRecent !== bRecent) {
-                return aRecent - bRecent;
-            }
-
-            return a.title.localeCompare(b.title);
-        });
+        rows.sort((a, b) => comparePaletteRoutes(a, b, favoriteSet, recencyRank));
 
         const routeItems: PaletteItem[] = rows.map((item) => ({
             kind: 'route',

@@ -8,6 +8,12 @@ export interface NavSearchCandidate {
     description?: string;
 }
 
+export interface NavDescriptionCandidate {
+    title: string;
+    href?: string;
+    description?: string;
+}
+
 export interface NavDuplicateIssue {
     href: string;
     sections: string[];
@@ -143,6 +149,28 @@ export function sanitizeNavPreferences(
     };
 }
 
+export function buildFallbackNavDescription(title: string, section: string, href?: string): string {
+    const normalized = title.toLowerCase();
+
+    if (normalized.includes('dashboard')) return `Open ${title} to view high-level system status, active services, and operational summaries.`;
+    if (normalized.includes('director')) return `Open ${title} to manage autonomous orchestration policy, run loops, and execution controls.`;
+    if (normalized.includes('council')) return `Open ${title} to review multi-model consensus sessions, votes, and recommendations.`;
+    if (normalized.includes('memory')) return `Open ${title} to inspect stored context, retrieval behavior, and memory lifecycle data.`;
+    if (normalized.includes('research')) return `Open ${title} to run or review research workflows, evidence, and generated findings.`;
+    if (normalized.includes('security')) return `Open ${title} to review policies, controls, and security posture signals.`;
+    if (normalized.includes('settings') || normalized.includes('config')) return `Open ${title} to configure platform behavior, routing options, and runtime preferences.`;
+    if (normalized.includes('mcp')) return `Open ${title} to manage MCP routing, aggregation, server status, and tool catalog behavior.`;
+    if (normalized.includes('tools')) return `Open ${title} to browse tool metadata, invocation options, and execution diagnostics.`;
+    if (normalized.includes('logs') || normalized.includes('events') || normalized.includes('inspector')) return `Open ${title} to inspect runtime events, logs, and trace-level diagnostics.`;
+
+    const location = href ?? 'its route';
+    return `Open ${title} (${section}) at ${location} to access this subsystem's controls, status, and detailed operational data.`;
+}
+
+export function getNavDescription(item: NavDescriptionCandidate, section: string): string {
+    return item.description?.trim() || buildFallbackNavDescription(item.title, section, item.href);
+}
+
 export function isNavHrefActive(currentPathname: string, href: string): boolean {
     const normalizedPathname = normalizeNavHref(currentPathname);
     const normalizedHref = normalizeNavHref(href);
@@ -167,7 +195,7 @@ export function matchesNavQuery(
     const normalizedHref = normalizeNavHref(item.href).toLowerCase();
     return item.title.toLowerCase().includes(normalizedQuery)
         || normalizedHref.includes(normalizedQuery)
-        || (item.description ?? '').toLowerCase().includes(normalizedQuery)
+        || getNavDescription(item, section ?? '').toLowerCase().includes(normalizedQuery)
         || (section ?? '').toLowerCase().includes(normalizedQuery);
 }
 

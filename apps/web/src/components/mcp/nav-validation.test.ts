@@ -2,9 +2,11 @@ import { describe, expect, it } from 'vitest';
 
 import type { NavSection } from './nav-config';
 import {
+    buildFallbackNavDescription,
     buildNavItemsByHref,
     buildNavItemsByNormalizedHref,
     extractStringArray,
+    getNavDescription,
     hasNavValidationIssues,
     isNavHrefActive,
     matchesNavQuery,
@@ -125,6 +127,24 @@ describe('sanitizeNavPreferences', () => {
     });
 });
 
+describe('getNavDescription', () => {
+    it('returns trimmed explicit descriptions before fallback text', () => {
+        expect(getNavDescription({
+            title: 'Library',
+            href: '/dashboard/library',
+            description: '  Browse tools and documents  ',
+        }, 'Knowledge')).toBe('Browse tools and documents');
+    });
+
+    it('builds consistent fallback descriptions for missing descriptions', () => {
+        expect(buildFallbackNavDescription('MCP Router', 'Operations', '/dashboard/mcp')).toContain('manage MCP routing');
+        expect(getNavDescription({
+            title: 'MCP Router',
+            href: '/dashboard/mcp',
+        }, 'Operations')).toContain('manage MCP routing');
+    });
+});
+
 describe('isNavHrefActive', () => {
     it('treats semantic aliases as active matches', () => {
         expect(isNavHrefActive('/dashboard/library?tab=overview', '/dashboard/library/')).toBe(true);
@@ -154,6 +174,18 @@ describe('matchesNavQuery', () => {
     it('treats blank queries as match-all and rejects unrelated terms', () => {
         expect(matchesNavQuery('', candidate, 'Knowledge')).toBe(true);
         expect(matchesNavQuery('totally-unrelated', candidate, 'Knowledge')).toBe(false);
+    });
+
+    it('matches fallback description keywords when explicit descriptions are absent', () => {
+        expect(matchesNavQuery('routing', {
+            title: 'MCP Router',
+            href: '/dashboard/mcp',
+        }, 'Operations')).toBe(true);
+
+        expect(matchesNavQuery('operational data', {
+            title: 'Sessions',
+            href: '/dashboard/sessions',
+        }, 'Operations')).toBe(true);
     });
 });
 

@@ -4,6 +4,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.7.216] — 2026-03-15
+
+- changed(web/navigation): added shared `buildFallbackNavDescription(...)` and `getNavDescription(...)` helpers in `apps/web/src/components/mcp/nav-validation.ts` so nav tooltip/fallback copy now comes from one reusable source of truth.
+- changed(web/navigation): `matchesNavQuery(...)` now matches against shared fallback descriptions too, keeping search/filter behavior aligned with the descriptive text operators actually see in Sidebar tooltips and palette rows.
+- refactor(web/sidebar): `Sidebar.tsx` now consumes the shared nav-description helpers for recent rows, section rows, palette rows, and favorites, removing the remaining component-local fallback-description logic.
+- test(web/navigation): expanded `apps/web/src/components/mcp/nav-validation.test.ts` with fallback-description and fallback-query coverage and revalidated focused nav suites (`27` tests passing).
+
 ## [2.7.215] — 2026-03-15
 
 - changed(web/navigation): added shared `sanitizeNavPreferences(...)` in `apps/web/src/components/mcp/nav-validation.ts` so canonical validation of imported sidebar preference payloads now lives with the other reusable nav sanitizers.

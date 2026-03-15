@@ -4,6 +4,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.7.145] — 2026-03-14
+
+- feat(web/mcp): added per-tool error leaderboard panel in `/dashboard/mcp/inspector` telemetry section showing top 10 tools ranked by error count with severity badges and one-click "Focus errors" action.
+- feat(web/mcp): added `telemetryToolFilter` state enabling click-to-focus on any tool from the leaderboard; active tool filter shown as a dismissible violet chip in the summary row.
+- changed(web/mcp): `scopedTelemetryEvents` now applies tool-name filter so all downstream trend and breakdown panels automatically scope to the focused tool.
+- changed(web/mcp): `telemetryFiltersAtDefault` now includes tool filter in default-state check so reset detection is accurate.
+
 ## [2.7.144] — 2026-03-14
 
 - feat(web/mcp): enriched per-source mini-trend bar tooltips in `/dashboard/mcp/inspector` to include top failing tool name and error message from that bucket, enabling instant triage without opening individual event cards.

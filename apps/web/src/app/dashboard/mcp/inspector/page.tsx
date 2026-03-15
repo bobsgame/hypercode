@@ -190,6 +190,8 @@ function InspectorDashboardContent() {
     const [telemetryStatusFilter, setTelemetryStatusFilter] = useState<'all' | ToolSelectionTelemetryEvent['status']>('all');
     const [telemetryWindowFilter, setTelemetryWindowFilter] = useState<TelemetryWindowPreset>('15m');
     const [telemetrySourceFilter, setTelemetrySourceFilter] = useState<TelemetrySourceFilter>('all');
+    // Per-tool filter — set via leaderboard "Focus errors" or source-trend tooltip inference
+    const [telemetryToolFilter, setTelemetryToolFilter] = useState<string | null>(null);
     const [selectedTool, setSelectedTool] = useState<InspectorTool | null>(null);
     const [argsJson, setArgsJson] = useState('{}');
     const [result, setResult] = useState<any | null>(null);
@@ -367,7 +369,8 @@ function InspectorDashboardContent() {
         .filter((event) => telemetryWindowStart == null || event.timestamp >= telemetryWindowStart)
         .filter((event) => telemetryTypeFilter === 'all' || event.type === telemetryTypeFilter)
         .filter((event) => telemetryStatusFilter === 'all' || event.status === telemetryStatusFilter)
-        .filter((event) => telemetrySourceFilter === 'all' || event.source === telemetrySourceFilter);
+        .filter((event) => telemetrySourceFilter === 'all' || event.source === telemetrySourceFilter)
+        .filter((event) => telemetryToolFilter == null || event.toolName === telemetryToolFilter || event.topResultName === telemetryToolFilter);
     const filteredTelemetry = scopedTelemetryEvents.slice(0, 12);
     const telemetrySummary = {
         total: scopedTelemetryEvents.length,
@@ -428,10 +431,33 @@ function InspectorDashboardContent() {
             trend,
         };
     });
+    // Compute per-tool error breakdown from scoped events (before tool filter to show full picture)
+    const telemetryToolBreakdown = (() => {
+        const toolMap = new Map<string, { total: number; errorCount: number; successCount: number }>();
+        scopedTelemetryEvents.forEach((event) => {
+            const name = event.toolName ?? event.topResultName;
+            if (!name) return;
+            const existing = toolMap.get(name) ?? { total: 0, errorCount: 0, successCount: 0 };
+            existing.total += 1;
+            if (event.status === 'error') existing.errorCount += 1;
+            else existing.successCount += 1;
+            toolMap.set(name, existing);
+        });
+        return Array.from(toolMap.entries())
+            .map(([toolName, stats]) => ({
+                toolName,
+                ...stats,
+                errorRatePercent: Math.round((stats.errorCount / stats.total) * 100),
+            }))
+            .filter((t) => t.errorCount > 0)
+            .sort((a, b) => b.errorCount - a.errorCount || b.errorRatePercent - a.errorRatePercent)
+            .slice(0, 10);
+    })();
     const telemetryFiltersAtDefault = telemetryTypeFilter === 'all'
         && telemetryStatusFilter === 'all'
         && telemetryWindowFilter === '15m'
-        && telemetrySourceFilter === 'all';
+        && telemetrySourceFilter === 'all'
+        && telemetryToolFilter == null;
 
     useEffect(() => {
         const requestedServer = searchParams.get('server');
@@ -1197,6 +1223,17 @@ function InspectorDashboardContent() {
                             <span className="rounded-md border border-zinc-700 bg-zinc-950/70 px-2 py-1 text-zinc-300">total: {telemetrySummary.total}</span>
                             <span className="rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2 py-1 text-emerald-300">success: {telemetrySummary.success}</span>
                             <span className="rounded-md border border-red-500/30 bg-red-500/10 px-2 py-1 text-red-300">errors: {telemetrySummary.error}</span>
+                            {telemetryToolFilter != null && (
+                                <button
+                                    type="button"
+                                    onClick={() => setTelemetryToolFilter(null)}
+                                    className="rounded-md border border-violet-500/40 bg-violet-500/15 px-2 py-1 text-violet-200 transition-colors hover:bg-violet-500/25"
+                                    title="Clear tool focus filter"
+                                    aria-label="Clear tool focus filter"
+                                >
+                                    tool: {telemetryToolFilter} ×
+                                </button>
+                            )}
                         </div>
 
                         <div className="space-y-2 rounded-lg border border-zinc-800 bg-zinc-950/50 p-3">
@@ -1304,6 +1341,53 @@ function InspectorDashboardContent() {
                                 <div className="text-xs text-zinc-500">No source trend data in the selected scope.</div>
                             )}
                         </div>
+
+                        {telemetryToolBreakdown.length > 0 && (
+                            <div className="space-y-2 rounded-lg border border-zinc-800 bg-zinc-950/50 p-3">
+                                <div className="text-[10px] uppercase tracking-wider text-zinc-500">Tool error leaderboard</div>
+                                <div className="space-y-1">
+                                    {telemetryToolBreakdown.map((tool) => (
+                                        <div key={`inspector-tool-err-${tool.toolName}`} className="flex items-center justify-between gap-2 rounded border border-zinc-800/60 bg-zinc-900/50 px-2 py-1 text-[10px]">
+                                            <div className="flex min-w-0 items-center gap-1.5">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setTelemetryToolFilter(tool.toolName)}
+                                                    className="truncate text-left text-zinc-200 hover:text-white"
+                                                    title={`Focus telemetry on tool: ${tool.toolName}`}
+                                                    aria-label={`Focus telemetry on tool ${tool.toolName}`}
+                                                >
+                                                    {tool.toolName}
+                                                </button>
+                                                <span className={`shrink-0 rounded border px-1 py-0.5 ${
+                                                    tool.errorRatePercent >= 50
+                                                        ? 'border-red-500/30 bg-red-500/10 text-red-300'
+                                                        : tool.errorRatePercent >= 20
+                                                            ? 'border-amber-500/30 bg-amber-500/10 text-amber-300'
+                                                            : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
+                                                }`}>
+                                                    err {tool.errorRatePercent}%
+                                                </span>
+                                            </div>
+                                            <div className="flex shrink-0 items-center gap-2 text-zinc-400">
+                                                <span>{tool.successCount} ok / {tool.errorCount} err</span>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setTelemetryToolFilter(tool.toolName);
+                                                        setTelemetryStatusFilter('error');
+                                                    }}
+                                                    className="rounded border border-red-500/30 bg-red-500/10 px-1.5 py-0.5 text-red-200 transition-colors hover:bg-red-500/20"
+                                                    title={`Focus errors for tool: ${tool.toolName}`}
+                                                    aria-label={`Focus errors for ${tool.toolName}`}
+                                                >
+                                                    Focus errors
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
 
                         <div className="flex flex-wrap items-center gap-2 text-xs">
                             <span className="text-zinc-500 uppercase tracking-wider">Type</span>

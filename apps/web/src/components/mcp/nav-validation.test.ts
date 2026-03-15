@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { NavSection } from './nav-config';
 import {
+    buildExportedNavPreferences,
     buildFallbackNavDescription,
     buildNavItemsByHref,
     buildNavItemsByNormalizedHref,
@@ -189,6 +190,39 @@ describe('sanitizeNavPreferences', () => {
             favorites: [],
             recentRoutes: [],
             recentSearches: [],
+        });
+    });
+});
+
+describe('buildExportedNavPreferences', () => {
+    it('exports a canonical sanitized payload with the provided timestamp', () => {
+        expect(buildExportedNavPreferences({
+            collapsedSections: {
+                Favorites: true,
+                Legacy: false,
+            },
+            favorites: ['/dashboard/library/?tab=overview', '/dashboard/unknown'],
+            recentRoutes: ['/dashboard/tools#top', '/dashboard/library/'],
+            recentSearches: [' tools ', '', 'library'],
+            exportedAt: ' 2026-03-15T14:13:00.000Z ',
+        }, new Set(['/dashboard/library', '/dashboard/tools']), new Set(['Favorites', 'Recent']), 2, 3, 'fallback')).toEqual({
+            collapsedSections: {
+                Favorites: true,
+            },
+            favorites: ['/dashboard/library'],
+            recentRoutes: ['/dashboard/tools', '/dashboard/library'],
+            recentSearches: ['tools', 'library'],
+            exportedAt: '2026-03-15T14:13:00.000Z',
+        });
+    });
+
+    it('falls back to the provided exportedAt value when the payload timestamp is malformed', () => {
+        expect(buildExportedNavPreferences({}, new Set(['/dashboard/library']), new Set(['Favorites']), 8, 6, '2026-03-15T00:00:00.000Z')).toEqual({
+            collapsedSections: {},
+            favorites: [],
+            recentRoutes: [],
+            recentSearches: [],
+            exportedAt: '2026-03-15T00:00:00.000Z',
         });
     });
 });

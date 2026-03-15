@@ -39,6 +39,10 @@ export interface SanitizedNavPreferences {
     recentSearches: string[];
 }
 
+export interface ExportedNavPreferences extends SanitizedNavPreferences {
+    exportedAt: string;
+}
+
 export function extractStringArray(values: unknown): string[] {
     if (!Array.isArray(values)) {
         return [];
@@ -165,6 +169,30 @@ export function sanitizeNavPreferences(
         favorites,
         recentRoutes,
         recentSearches: sanitizeRecentSearches(value.recentSearches, searchLimit),
+    };
+}
+
+export function buildExportedNavPreferences(
+    value: {
+        collapsedSections?: unknown;
+        favorites?: unknown;
+        recentRoutes?: unknown;
+        recentSearches?: unknown;
+        exportedAt?: unknown;
+    },
+    allowedHrefs: ReadonlySet<string>,
+    allowedSections: ReadonlySet<string>,
+    routeLimit: number,
+    searchLimit: number,
+    fallbackExportedAt: string,
+): ExportedNavPreferences {
+    const exportedAt = typeof value.exportedAt === 'string' && value.exportedAt.trim()
+        ? value.exportedAt.trim()
+        : fallbackExportedAt;
+
+    return {
+        ...sanitizeNavPreferences(value, allowedHrefs, allowedSections, routeLimit, searchLimit),
+        exportedAt,
     };
 }
 

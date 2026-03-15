@@ -4,6 +4,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.7.225] — 2026-03-15
+
+- changed(web/navigation): added shared `buildExportedNavPreferences(...)` in `apps/web/src/components/mcp/nav-validation.ts` so exported sidebar preference files now use the same canonical sanitization contract as import and runtime hydration.
+- refactor(web/sidebar): `Sidebar.tsx` now exports navigation preferences through the shared builder, keeping exported favorites, recents, collapsed sections, recent searches, and `exportedAt` metadata normalized against the live nav config.
+- test(web/navigation): expanded `apps/web/src/components/mcp/nav-validation.test.ts` with canonical export-payload coverage and revalidated focused nav suites (`37` tests passing).
+
 ## [2.7.224] — 2026-03-15
 
 - fix(web/sidebar): repaired a corrupted `paletteItems` filter block in `apps/web/src/components/Sidebar.tsx`, restoring the intended quick-switch action filtering and route matching flow.

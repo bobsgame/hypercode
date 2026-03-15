@@ -10,7 +10,7 @@ import { SortableContext, arrayMove, rectSortingStrategy, useSortable } from "@d
 import { CSS } from "@dnd-kit/utilities";
 import { cn } from "@/lib/utils";
 import { SIDEBAR_SECTIONS } from "./mcp/nav-config";
-import { buildNavItemsByNormalizedHref, buildRecentRouteHistory, buildRecentSearchHistory, getNavDescription, hasNavValidationIssues, isNavHrefActive, matchesNavQuery, normalizeNavHref, sanitizeCollapsedSections, sanitizeFavoriteRoutes, sanitizeNavPreferences, sanitizeRecentRoutes, sanitizeRecentSearches, validateSidebarSections } from "./mcp/nav-validation";
+import { buildExportedNavPreferences, buildNavItemsByNormalizedHref, buildRecentRouteHistory, buildRecentSearchHistory, getNavDescription, hasNavValidationIssues, isNavHrefActive, matchesNavQuery, normalizeNavHref, sanitizeCollapsedSections, sanitizeFavoriteRoutes, sanitizeNavPreferences, sanitizeRecentRoutes, sanitizeRecentSearches, validateSidebarSections } from "./mcp/nav-validation";
 
 interface SidebarProps extends React.HTMLAttributes<HTMLDivElement> { }
 
@@ -416,13 +416,14 @@ export function Sidebar({ className }: SidebarProps) {
     };
 
     const exportPreferences = () => {
-        const payload = {
+        const exportedAt = new Date().toISOString();
+        const payload = buildExportedNavPreferences({
             collapsedSections,
             favorites,
             recentRoutes,
             recentSearches,
-            exportedAt: new Date().toISOString(),
-        };
+            exportedAt,
+        }, allowedNavHrefs, sectionTitles, MAX_RECENT_ROUTES, MAX_RECENT_SEARCHES, exportedAt);
 
         const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);

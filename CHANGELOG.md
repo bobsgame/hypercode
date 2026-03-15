@@ -4,6 +4,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.7.197] — 2026-03-15
+
+- fix(web/cloud-dev): broadcast target-shaping controls (status toggles, clear actions, session-scope clear, and Force toggle) are now locked while a broadcast mutation is pending to prevent in-flight targeting drift.
+- changed(web/cloud-dev): pending-state UI now uses a shared `isBroadcastPending` guard across preview/result retry actions and broadcast controls for consistent disabled behavior.
+- changed(web/cloud-dev): operator interactions that alter scope/filter state are now aligned with dispatch lifecycle, improving preview/send coherence under rapid click workflows.
+- fix(web/sidebar): section-item render keys now include section/title/index context so duplicate route href entries no longer trigger React duplicate-key warnings for routes like `/dashboard/chronicle` and `/dashboard/library`.
+
 ## [2.7.196] — 2026-03-15
 
 - fix(web/cloud-dev): preview scope-staging actions (`Use preview skipped as scope`, `Use skipped scope + Force`) are now disabled while a broadcast mutation is pending, preventing in-flight target drift.

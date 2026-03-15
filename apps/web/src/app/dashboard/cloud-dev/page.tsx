@@ -568,6 +568,7 @@ export default function CloudDevDashboardPage() {
     const activeSessions = useMemo(() => sessions.filter((s) => s.status === "active").length, [sessions]);
     const pendingSessions = useMemo(() => sessions.filter((s) => s.status === "pending").length, [sessions]);
     const awaitingApproval = useMemo(() => sessions.filter((s) => s.status === "awaiting_approval").length, [sessions]);
+    const isBroadcastPending = broadcastMutation.isPending;
 
     return (
         <div className="w-full h-full flex flex-col bg-black text-white overflow-auto">
@@ -650,11 +651,12 @@ export default function CloudDevDashboardPage() {
                                 <button
                                     key={`broadcast-status-${status}`}
                                     type="button"
+                                    disabled={isBroadcastPending}
                                     onClick={() => toggleBroadcastStatusFilter(status)}
                                     className={`rounded border px-2 py-0.5 transition-colors ${selected
                                         ? "border-purple-500/60 bg-purple-500/15 text-purple-200"
                                         : "border-zinc-700 bg-zinc-900 text-zinc-400 hover:bg-zinc-800"
-                                        }`}
+                                        } disabled:opacity-50`}
                                 >
                                     {status.replace("_", " ")}
                                 </button>
@@ -663,11 +665,12 @@ export default function CloudDevDashboardPage() {
                         {broadcastStatusFilter.length > 0 && (
                             <button
                                 type="button"
+                                disabled={isBroadcastPending}
                                 onClick={() => {
                                     setBroadcastStatusFilter([]);
                                     setBroadcastSessionScopeIds(null);
                                 }}
-                                className="rounded border border-zinc-700 bg-zinc-900 px-2 py-0.5 text-zinc-400 hover:bg-zinc-800"
+                                className="rounded border border-zinc-700 bg-zinc-900 px-2 py-0.5 text-zinc-400 hover:bg-zinc-800 disabled:opacity-50"
                             >
                                 clear
                             </button>
@@ -675,8 +678,9 @@ export default function CloudDevDashboardPage() {
                         {broadcastSessionScopeIds && broadcastSessionScopeIds.length > 0 && (
                             <button
                                 type="button"
+                                disabled={isBroadcastPending}
                                 onClick={() => setBroadcastSessionScopeIds(null)}
-                                className="rounded border border-cyan-700/60 bg-cyan-900/30 px-2 py-0.5 text-cyan-200 hover:bg-cyan-900/50"
+                                className="rounded border border-cyan-700/60 bg-cyan-900/30 px-2 py-0.5 text-cyan-200 hover:bg-cyan-900/50 disabled:opacity-50"
                                 title="Clear session-scoped retry targeting"
                             >
                                 Session scope: {broadcastSessionScopeIds.length} IDs (clear)
@@ -690,12 +694,13 @@ export default function CloudDevDashboardPage() {
                         <div className="flex flex-col gap-1.5">
                             <label className="flex items-center gap-1.5 text-xs text-zinc-400 cursor-pointer select-none">
                                 <input type="checkbox" className="accent-amber-500" checked={broadcastForce}
+                                    disabled={isBroadcastPending}
                                     onChange={(e) => setBroadcastForce(e.target.checked)} />
                                 Force (include terminal sessions)
                             </label>
-                            <button onClick={handleBroadcast} disabled={broadcastMutation.isPending || !broadcastMsg.trim()}
+                            <button onClick={handleBroadcast} disabled={isBroadcastPending || !broadcastMsg.trim()}
                                 className="px-3 py-1.5 bg-purple-700 hover:bg-purple-600 disabled:opacity-40 rounded text-xs flex items-center gap-1.5">
-                                {broadcastMutation.isPending ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Radio className="h-3.5 w-3.5" />}
+                                {isBroadcastPending ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Radio className="h-3.5 w-3.5" />}
                                 Broadcast
                             </button>
                         </div>
@@ -820,7 +825,7 @@ export default function CloudDevDashboardPage() {
                                                     {lastBroadcastPayload?.content && (
                                                         <button
                                                             type="button"
-                                                            disabled={broadcastMutation.isPending}
+                                                            disabled={isBroadcastPending}
                                                             onClick={() => retryLastBroadcastWithStatuses(skippedStatusSuggestions, lastBroadcastPayload.force)}
                                                             className="rounded border border-purple-500/60 bg-purple-700/40 px-2 py-0.5 text-[10px] text-purple-100 hover:bg-purple-700/60 disabled:opacity-50"
                                                         >
@@ -830,7 +835,7 @@ export default function CloudDevDashboardPage() {
                                                     {lastBroadcastPayload?.content && (broadcastPreview.skippedByReason.terminal_requires_force ?? 0) > 0 && !lastBroadcastPayload.force && (
                                                         <button
                                                             type="button"
-                                                            disabled={broadcastMutation.isPending}
+                                                            disabled={isBroadcastPending}
                                                             onClick={() => retryLastBroadcastWithStatuses(skippedStatusSuggestions, true)}
                                                             className="rounded border border-amber-500/60 bg-amber-700/40 px-2 py-0.5 text-[10px] text-amber-100 hover:bg-amber-700/60 disabled:opacity-50"
                                                         >
@@ -844,7 +849,7 @@ export default function CloudDevDashboardPage() {
                                             <div className="flex flex-wrap items-center gap-1.5">
                                                 <button
                                                     type="button"
-                                                    disabled={broadcastMutation.isPending}
+                                                    disabled={isBroadcastPending}
                                                     onClick={() => retryLastBroadcastToSessionIds(broadcastPreview.skippedSessionIds, false)}
                                                     className="rounded border border-cyan-500/60 bg-cyan-700/35 px-2 py-0.5 text-[10px] text-cyan-100 hover:bg-cyan-700/55 disabled:opacity-50"
                                                 >
@@ -852,7 +857,7 @@ export default function CloudDevDashboardPage() {
                                                 </button>
                                                 <button
                                                     type="button"
-                                                    disabled={broadcastMutation.isPending}
+                                                    disabled={isBroadcastPending}
                                                     onClick={() => retryLastBroadcastToSessionIds(broadcastPreview.skippedSessionIds, true)}
                                                     className="rounded border border-amber-500/60 bg-amber-700/35 px-2 py-0.5 text-[10px] text-amber-100 hover:bg-amber-700/55 disabled:opacity-50"
                                                 >
@@ -869,7 +874,7 @@ export default function CloudDevDashboardPage() {
                                             <div className="flex flex-wrap items-center gap-1.5">
                                                 <button
                                                     type="button"
-                                                    disabled={broadcastMutation.isPending}
+                                                    disabled={isBroadcastPending}
                                                     onClick={() => {
                                                         setBroadcastSessionScopeIds(broadcastPreview.skippedSessionIds);
                                                         setBroadcastStatusFilter([]);
@@ -880,7 +885,7 @@ export default function CloudDevDashboardPage() {
                                                 </button>
                                                 <button
                                                     type="button"
-                                                    disabled={broadcastMutation.isPending}
+                                                    disabled={isBroadcastPending}
                                                     onClick={() => {
                                                         setBroadcastSessionScopeIds(broadcastPreview.skippedSessionIds);
                                                         setBroadcastStatusFilter([]);
@@ -899,7 +904,7 @@ export default function CloudDevDashboardPage() {
                                             <div className="flex flex-wrap items-center gap-1.5">
                                                 <button
                                                     type="button"
-                                                    disabled={broadcastMutation.isPending}
+                                                    disabled={isBroadcastPending}
                                                     onClick={() => broadcastDraftToSessionIds(broadcastPreview.skippedSessionIds, false)}
                                                     className="rounded border border-purple-500/60 bg-purple-700/35 px-2 py-0.5 text-[10px] text-purple-100 hover:bg-purple-700/55 disabled:opacity-50"
                                                 >
@@ -907,7 +912,7 @@ export default function CloudDevDashboardPage() {
                                                 </button>
                                                 <button
                                                     type="button"
-                                                    disabled={broadcastMutation.isPending}
+                                                    disabled={isBroadcastPending}
                                                     onClick={() => broadcastDraftToSessionIds(broadcastPreview.skippedSessionIds, true)}
                                                     className="rounded border border-amber-500/60 bg-amber-700/35 px-2 py-0.5 text-[10px] text-amber-100 hover:bg-amber-700/55 disabled:opacity-50"
                                                 >
@@ -946,7 +951,7 @@ export default function CloudDevDashboardPage() {
                                     </button>
                                     <button
                                         type="button"
-                                        disabled={broadcastMutation.isPending || !lastBroadcastPayload}
+                                            disabled={isBroadcastPending || !lastBroadcastPayload}
                                         onClick={() => {
                                             if (!lastBroadcastPayload?.content) return;
                                             setBroadcastForce(true);
@@ -1035,7 +1040,7 @@ export default function CloudDevDashboardPage() {
                                                 {lastBroadcastPayload?.content && (
                                                     <button
                                                         type="button"
-                                                        disabled={broadcastMutation.isPending}
+                                                            disabled={isBroadcastPending}
                                                         onClick={() => retryLastBroadcastWithStatuses(resultSkippedStatusSuggestions, lastBroadcastPayload.force)}
                                                         className="rounded border border-purple-500/60 bg-purple-700/40 px-2 py-0.5 text-[10px] text-purple-100 hover:bg-purple-700/60 disabled:opacity-50"
                                                     >
@@ -1045,7 +1050,7 @@ export default function CloudDevDashboardPage() {
                                                 {lastBroadcastPayload?.content && (broadcastResult.skippedByReason.terminal_requires_force ?? 0) > 0 && !lastBroadcastPayload.force && (
                                                     <button
                                                         type="button"
-                                                        disabled={broadcastMutation.isPending}
+                                                            disabled={isBroadcastPending}
                                                         onClick={() => retryLastBroadcastWithStatuses(resultSkippedStatusSuggestions, true)}
                                                         className="rounded border border-amber-500/60 bg-amber-700/40 px-2 py-0.5 text-[10px] text-amber-100 hover:bg-amber-700/60 disabled:opacity-50"
                                                     >
@@ -1059,7 +1064,7 @@ export default function CloudDevDashboardPage() {
                                         <div className="flex flex-wrap items-center gap-1.5">
                                             <button
                                                 type="button"
-                                                disabled={broadcastMutation.isPending}
+                                                disabled={isBroadcastPending}
                                                 onClick={() => retryLastBroadcastToSessionIds(broadcastResult.skippedSessionIds, false)}
                                                 className="rounded border border-cyan-500/60 bg-cyan-700/35 px-2 py-0.5 text-[10px] text-cyan-100 hover:bg-cyan-700/55 disabled:opacity-50"
                                             >
@@ -1067,7 +1072,7 @@ export default function CloudDevDashboardPage() {
                                             </button>
                                             <button
                                                 type="button"
-                                                disabled={broadcastMutation.isPending}
+                                                disabled={isBroadcastPending}
                                                 onClick={() => retryLastBroadcastToSessionIds(broadcastResult.skippedSessionIds, true)}
                                                 className="rounded border border-amber-500/60 bg-amber-700/35 px-2 py-0.5 text-[10px] text-amber-100 hover:bg-amber-700/55 disabled:opacity-50"
                                             >

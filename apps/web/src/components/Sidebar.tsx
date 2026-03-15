@@ -826,8 +826,8 @@ export function Sidebar({ className }: SidebarProps) {
                                 </button>
                                 {!isCollapsed ? (
                                     <div className="space-y-1">
-                                        {section.items.map((item) => (
-                                            <div key={item.href} className="group flex items-center gap-1">
+                                        {section.items.map((item, itemIndex) => (
+                                            <div key={`${section.title}:${item.href}:${item.title}:${itemIndex}`} className="group flex items-center gap-1">
                                                 <Link
                                                     href={item.href}
                                                     title={`${item.title} • ${getNavDescription(item, section.title)}`}

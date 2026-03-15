@@ -694,7 +694,13 @@ export const mcpRouter = t.router({
 
         try {
             const result = await server.executeTool('get_eviction_history', {});
-            return parseToolJson<Array<{ toolName: string; timestamp: number; tier: string }>>(result, []);
+            return parseToolJson<Array<{
+                toolName: string;
+                timestamp: number;
+                tier: 'loaded' | 'hydrated';
+                idleEvicted: boolean;
+                idleDurationMs: number;
+            }>>(result, []);
         } catch {
             return [];
         }
@@ -948,7 +954,7 @@ export const mcpRouter = t.router({
         const server = getMcpServer();
         if (!server) {
             return {
-                limits: { maxLoadedTools: 0, maxHydratedSchemas: 0 },
+                limits: { maxLoadedTools: 0, maxHydratedSchemas: 0, idleEvictionThresholdMs: 0 },
                 tools: [],
             };
         }
@@ -957,12 +963,12 @@ export const mcpRouter = t.router({
             await ensureAlwaysLoadedTools(server, await readToolPreferences());
             const result = await server.executeTool('list_loaded_tools', {});
             return parseToolJson(result, {
-                limits: { maxLoadedTools: 0, maxHydratedSchemas: 0 },
+                limits: { maxLoadedTools: 0, maxHydratedSchemas: 0, idleEvictionThresholdMs: 0 },
                 tools: [],
             });
         } catch {
             return {
-                limits: { maxLoadedTools: 0, maxHydratedSchemas: 0 },
+                limits: { maxLoadedTools: 0, maxHydratedSchemas: 0, idleEvictionThresholdMs: 0 },
                 tools: [],
             };
         }

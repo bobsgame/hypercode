@@ -4,6 +4,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.7.137] — 2026-03-14
+
+- feat(core/mcp): strengthened `mcp.getWorkingSet` fallback payload to always include `idleEvictionThresholdMs` in `limits` for stable UI rendering even when server state is unavailable.
+- feat(core/mcp): widened `mcp.getWorkingSetEvictionHistory` contract to include `idleEvicted` and `idleDurationMs` fields for explicit idle-vs-capacity eviction reasoning in dashboards.
+- feat(web/mcp): updated `/dashboard/mcp/search` working-set model and preferences model to include `lastAccessedAt`, eviction `idleEvicted`/`idleDurationMs`, and `idleEvictionThresholdMs`.
+- feat(web/mcp): added editable **Idle eviction threshold (minutes)** control in the working-set capacity card and wired persistence through `mcp.setToolPreferences`.
+- feat(web/mcp): enriched **Recent evictions** panel with idle duration and reason labels (`idle eviction` vs `capacity eviction`) to improve operator triage.
+
+## [2.7.136] — 2026-03-14
+
+- feat(ai): `ModelSelector.reportFailure()` now accepts an optional `cause` argument and distinguishes **permanent** auth failures (status 401/403, code `invalid_api_key`/`authentication_error`, message `api key not configured`/`unauthorized`) from transient 429 quota errors — permanent failures set `retryAfter: Infinity` so the model stays blocked for the session.
+- feat(ai): added `ModelSelector.getDepletedModels()` public method returning a snapshot of all blocked/cooling-down entries with `{ key, provider, modelId, depletedAt, retryAfter, isPermanent, coolsDownAt }`.
+- feat(core): added `billing.getDepletedModels` tRPC endpoint wired to `ModelSelector.getDepletedModels()` for dashboard consumption.
+- feat(core): extended `ModelSelectorRuntime` type in `trpc-core.ts` with optional `getDepletedModels?` signature to maintain full type safety across the router boundary.
+- feat(web): added **Blocked / Cooling-Down Models** alert panel to `/dashboard/billing` — appears only when there are entries, shows red for permanent auth blocks and amber for transient 429 cooldowns; refetches every 15s.
+- test(ai): added 3 new `ModelSelector` tests — permanent failure sets `retryAfter: Infinity`, transient failure sets timed cooldown, `getDepletedModels()` returns empty array by default; all 6 `ModelSelector` tests + 4 `LLMService` tests pass (10 total).
+
 ## [2.7.135] — 2026-03-14
 
 - feat(ai): added `RoutingEvent` interface and in-memory ring buffer (last 50) to `LLMService` — every `generateText` call now records `timestamp`, `initialProvider`, `finalProvider`, `attempts`, `durationMs`, `hadFailover`, and per-hop `failovers[]`.

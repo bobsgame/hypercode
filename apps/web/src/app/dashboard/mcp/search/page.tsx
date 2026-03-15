@@ -39,6 +39,7 @@ type WorkingSetTool = {
     hydrated: boolean;
     lastLoadedAt: number;
     lastHydratedAt: number | null;
+    lastAccessedAt: number;
 };
 
 type ToolSearchProfile = 'web-research' | 'repo-coding' | 'browser-automation' | 'local-ops' | 'database';
@@ -77,6 +78,8 @@ type WorkingSetEvictionEvent = {
     toolName: string;
     timestamp: number;
     tier: 'loaded' | 'hydrated';
+    idleEvicted: boolean;
+    idleDurationMs: number;
 };
 
 type ToolPreferences = {
@@ -85,6 +88,7 @@ type ToolPreferences = {
     autoLoadMinConfidence: number;
     maxLoadedTools: number;
     maxHydratedSchemas: number;
+    idleEvictionThresholdMs: number;
 };
 
 type ToolPreferenceMutationInput = {
@@ -93,6 +97,7 @@ type ToolPreferenceMutationInput = {
     autoLoadMinConfidence?: number;
     maxLoadedTools?: number;
     maxHydratedSchemas?: number;
+    idleEvictionThresholdMs?: number;
 };
 
 type TelemetryWindowPreset = 'all' | '5m' | '15m' | '1h' | '24h';
@@ -196,6 +201,7 @@ export default function SearchDashboard() {
     const [autoLoadMinConfidenceDraft, setAutoLoadMinConfidenceDraft] = useState(0.85);
     const [maxLoadedToolsDraft, setMaxLoadedToolsDraft] = useState(16);
     const [maxHydratedSchemasDraft, setMaxHydratedSchemasDraft] = useState(8);
+    const [idleEvictionThresholdDraftMs, setIdleEvictionThresholdDraftMs] = useState(5 * 60 * 1000);
     const [jsoncDraft, setJsoncDraft] = useState('');
     const [telemetryTypeFilter, setTelemetryTypeFilter] = useState<'all' | ToolSelectionTelemetryEvent['type']>('all');
     const [telemetryStatusFilter, setTelemetryStatusFilter] = useState<'all' | ToolSelectionTelemetryEvent['status']>('all');
@@ -386,6 +392,7 @@ export default function SearchDashboard() {
         autoLoadMinConfidence: 0.85,
         maxLoadedTools: 16,
         maxHydratedSchemas: 8,
+        idleEvictionThresholdMs: 5 * 60 * 1000,
     };
     const importantTools = new Set(preferences.importantTools);
     const alwaysLoadedTools = new Set(preferences.alwaysLoadedTools);
@@ -414,7 +421,8 @@ export default function SearchDashboard() {
     useEffect(() => {
         setMaxLoadedToolsDraft(preferences.maxLoadedTools ?? 16);
         setMaxHydratedSchemasDraft(preferences.maxHydratedSchemas ?? 8);
-    }, [preferences.maxLoadedTools, preferences.maxHydratedSchemas]);
+        setIdleEvictionThresholdDraftMs(preferences.idleEvictionThresholdMs ?? (5 * 60 * 1000));
+    }, [preferences.maxLoadedTools, preferences.maxHydratedSchemas, preferences.idleEvictionThresholdMs]);
 
     useEffect(() => {
         let hasHydratedFromUrl = false;
@@ -591,10 +599,16 @@ export default function SearchDashboard() {
     const saveCapacity = () => {
         const nextMax = Math.max(4, Math.min(64, Math.round(maxLoadedToolsDraft)));
         const nextHydrated = Math.max(2, Math.min(32, Math.round(maxHydratedSchemasDraft)));
+        const nextIdleEvictionThresholdMs = Math.max(10_000, Math.min(24 * 60 * 60 * 1000, Math.round(idleEvictionThresholdDraftMs)));
         setMaxLoadedToolsDraft(nextMax);
         setMaxHydratedSchemasDraft(nextHydrated);
+        setIdleEvictionThresholdDraftMs(nextIdleEvictionThresholdMs);
 
-        if (nextMax === preferences.maxLoadedTools && nextHydrated === preferences.maxHydratedSchemas) {
+        if (
+            nextMax === preferences.maxLoadedTools
+            && nextHydrated === preferences.maxHydratedSchemas
+            && nextIdleEvictionThresholdMs === preferences.idleEvictionThresholdMs
+        ) {
             return;
         }
 
@@ -604,8 +618,11 @@ export default function SearchDashboard() {
             autoLoadMinConfidence: preferences.autoLoadMinConfidence,
             maxLoadedTools: nextMax,
             maxHydratedSchemas: nextHydrated,
+            idleEvictionThresholdMs: nextIdleEvictionThresholdMs,
         });
     };
+
+    const idleEvictionThresholdMinutes = Math.max(0.17, Number((idleEvictionThresholdDraftMs / 60000).toFixed(2)));
 
     const resetTelemetryFilters = () => {
         setTelemetryTypeFilter('all');
@@ -1025,6 +1042,12 @@ export default function SearchDashboard() {
                                     <div className="text-xs uppercase tracking-wider text-zinc-500">Schema cap</div>
                                     <div className="mt-1 text-xl font-semibold text-white">{workingSetQuery.data?.limits?.maxHydratedSchemas ?? 0}</div>
                                 </div>
+                                <div className="rounded-lg border border-zinc-800 bg-zinc-950/70 p-3 col-span-2">
+                                    <div className="text-xs uppercase tracking-wider text-zinc-500">Idle eviction threshold</div>
+                                    <div className="mt-1 text-xl font-semibold text-white">
+                                        {Math.max(0.17, Number((((workingSetQuery.data?.limits as { idleEvictionThresholdMs?: number } | undefined)?.idleEvictionThresholdMs ?? 0) / 60000).toFixed(2)))} min
+                                    </div>
+                                </div>
                             </div>
 
                             <div className="space-y-3 max-h-[420px] overflow-y-auto">
@@ -1114,7 +1137,7 @@ export default function SearchDashboard() {
                         </CardHeader>
                         <CardContent className="p-4 space-y-4">
                             <p className="text-xs text-zinc-500">
-                                Controls how many tools and schemas the session keeps warm before LRU eviction.
+                                Controls how many tools/schemas the session keeps warm and when long-idle tools become preferred eviction candidates.
                             </p>
 
                             {/* maxLoadedTools slider */}
@@ -1181,6 +1204,38 @@ export default function SearchDashboard() {
                                 </div>
                             </div>
 
+                            {/* idleEvictionThresholdMs slider */}
+                            <div className="space-y-2">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-xs uppercase tracking-wider text-zinc-400">Idle eviction threshold (minutes)</span>
+                                    <span className="text-sm font-semibold text-white">{idleEvictionThresholdMinutes}</span>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                    <input
+                                        type="range"
+                                        min={0.17}
+                                        max={1440}
+                                        step={0.01}
+                                        value={idleEvictionThresholdMinutes}
+                                        onChange={(e) => setIdleEvictionThresholdDraftMs(Math.round(Number(e.target.value) * 60_000))}
+                                        className="w-full"
+                                        title="Idle duration threshold (minutes) after which tools are preferred eviction candidates"
+                                        aria-label="Idle eviction threshold in minutes"
+                                    />
+                                    <input
+                                        type="number"
+                                        min={0.17}
+                                        max={1440}
+                                        step={0.01}
+                                        value={idleEvictionThresholdMinutes}
+                                        onChange={(e) => setIdleEvictionThresholdDraftMs(Math.round(Number(e.target.value) * 60_000))}
+                                        className="w-20 rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1 text-sm text-zinc-100"
+                                        title="Idle eviction threshold in minutes"
+                                        aria-label="Idle eviction threshold numeric input"
+                                    />
+                                </div>
+                            </div>
+
                             <Button
                                 type="button"
                                 variant="outline"
@@ -1221,7 +1276,12 @@ export default function SearchDashboard() {
                                     {recentEvictions.slice(0, 10).map((event, index) => (
                                         // eslint-disable-next-line react/no-array-index-key
                                         <div key={`${event.toolName}-${event.timestamp}-${index}`} className="flex items-center justify-between gap-3 rounded-lg border border-zinc-800 bg-zinc-950/60 px-3 py-2">
-                                            <span className="font-mono text-xs text-zinc-200 break-all min-w-0">{event.toolName}</span>
+                                            <div className="min-w-0">
+                                                <span className="font-mono text-xs text-zinc-200 break-all block">{event.toolName}</span>
+                                                <span className="text-[10px] text-zinc-500 block mt-0.5">
+                                                    idle {Math.max(0, Math.round((event.idleDurationMs ?? 0) / 1000))}s • {event.idleEvicted ? 'idle eviction' : 'capacity eviction'}
+                                                </span>
+                                            </div>
                                             <div className="flex items-center gap-2 shrink-0">
                                                 <span className={`text-[10px] px-1.5 py-0.5 rounded border ${event.tier === 'loaded' ? 'border-red-500/20 bg-red-500/10 text-red-300' : 'border-amber-500/20 bg-amber-500/10 text-amber-300'}`}>
                                                     {event.tier}

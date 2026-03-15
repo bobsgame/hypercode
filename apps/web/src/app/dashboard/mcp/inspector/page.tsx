@@ -37,8 +37,11 @@ type ToolSelectionTelemetryEvent = {
     topMatchReason?: string;
     topScore?: number;
     secondResultName?: string;
+    secondMatchReason?: string;
     secondScore?: number;
     scoreGap?: number;
+    ignoredResultCount?: number;
+    ignoredResultNames?: string[];
     toolName?: string;
     status: 'success' | 'error';
     message?: string;
@@ -82,7 +85,7 @@ type ToolPreferenceMutationInput = {
 
 type TelemetryWindowPreset = 'all' | '5m' | '15m' | '1h' | '24h';
 type TelemetrySourceFilter = 'all' | 'runtime-search' | 'cached-ranking' | 'live-aggregator';
-type TelemetryTriagePreset = 'errors-now' | 'runtime-failures' | 'load-incidents' | 'hydration-failures' | 'live-aggregator-focus';
+type TelemetryTriagePreset = 'errors-now' | 'runtime-failures' | 'load-incidents' | 'hydration-failures' | 'auto-load-skips' | 'live-aggregator-focus';
 
 type TelemetryTrendBucket = {
     start: number;
@@ -406,6 +409,7 @@ function InspectorDashboardContent() {
         total: scopedTelemetryEvents.length,
         success: scopedTelemetryEvents.filter((event) => event.status === 'success').length,
         error: scopedTelemetryEvents.filter((event) => event.status === 'error').length,
+        ignoredResults: scopedTelemetryEvents.reduce((sum, event) => sum + (event.ignoredResultCount ?? 0), 0),
     };
     const telemetryTrendBuckets = buildTelemetryTrendBuckets({
         windowPreset: telemetryWindowFilter,
@@ -885,6 +889,14 @@ function InspectorDashboardContent() {
             return;
         }
 
+        if (preset === 'auto-load-skips') {
+            setTelemetryTypeFilter('search');
+            setTelemetryStatusFilter('all');
+            setTelemetryWindowFilter('1h');
+            setTelemetrySourceFilter('cached-ranking');
+            return;
+        }
+
         setTelemetryTypeFilter('all');
         setTelemetryStatusFilter('all');
         setTelemetryWindowFilter('15m');
@@ -1320,6 +1332,7 @@ function InspectorDashboardContent() {
                                 { value: 'runtime-failures', label: 'Runtime failures' },
                                 { value: 'load-incidents', label: 'Load incidents' },
                                 { value: 'hydration-failures', label: 'Hydration failures' },
+                                { value: 'auto-load-skips', label: 'Auto-load skips' },
                                 { value: 'live-aggregator-focus', label: 'Live aggregator' },
                             ] as const).map((preset) => (
                                 <button
@@ -1339,6 +1352,7 @@ function InspectorDashboardContent() {
                             <span className="rounded-md border border-zinc-700 bg-zinc-950/70 px-2 py-1 text-zinc-300">total: {telemetrySummary.total}</span>
                             <span className="rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2 py-1 text-emerald-300">success: {telemetrySummary.success}</span>
                             <span className="rounded-md border border-red-500/30 bg-red-500/10 px-2 py-1 text-red-300">errors: {telemetrySummary.error}</span>
+                            <span className="rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-amber-200">ignored results: {telemetrySummary.ignoredResults}</span>
                             {telemetryToolFilter != null && (
                                 <button
                                     type="button"
@@ -1730,7 +1744,11 @@ function InspectorDashboardContent() {
                                     {event.toolName ? <div className="text-xs text-zinc-400 break-all">tool: <span className="font-mono text-zinc-200">{event.toolName}</span></div> : null}
                                     {typeof event.resultCount === 'number' ? <div className="text-xs text-zinc-400">results: <span className="text-zinc-200">{event.resultCount}</span></div> : null}
                                     {event.topResultName ? <div className="text-xs text-zinc-400 break-all">top result: <span className="font-mono text-zinc-200">{event.topResultName}</span>{typeof event.topScore === 'number' ? <span className="text-zinc-500 ml-1">score {event.topScore}</span> : null}</div> : null}
+                                    {event.secondResultName ? <div className="text-xs text-zinc-500 break-all">second result: <span className="font-mono text-zinc-300">{event.secondResultName}</span>{typeof event.secondScore === 'number' ? <span className="text-zinc-500 ml-1">score {event.secondScore}</span> : null}</div> : null}
+                                    {event.secondMatchReason ? <div className="text-xs text-zinc-500">second why: <span className="text-zinc-300">{event.secondMatchReason}</span></div> : null}
                                     {typeof event.scoreGap === 'number' ? <div className="text-xs text-zinc-400">score gap: <span className="text-zinc-200">{event.scoreGap}</span></div> : null}
+                                    {typeof event.ignoredResultCount === 'number' ? <div className="text-xs text-amber-300">ignored results: {event.ignoredResultCount}</div> : null}
+                                    {event.ignoredResultNames && event.ignoredResultNames.length > 0 ? <div className="text-xs text-zinc-400 break-all">ignored top choices: <span className="font-mono text-zinc-200">{event.ignoredResultNames.join(', ')}</span></div> : null}
                                     {event.topMatchReason ? <div className="text-xs text-zinc-400">why: <span className="text-zinc-200">{event.topMatchReason}</span></div> : null}
                                     {event.profile ? <div className="text-xs text-zinc-500">profile: {event.profile}</div> : null}
                                     {event.source ? <div className="text-xs text-zinc-500">source: {event.source}</div> : null}

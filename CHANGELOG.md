@@ -4,6 +4,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.7.173] — 2026-03-15
+
+- changed(web/mcp): `/dashboard/mcp/inspector` telemetry now mirrors search-page decision observability by surfacing ignored-result counts and ignored top-choice names per event.
+- feat(web/mcp): added an inspector telemetry triage preset for `Auto-load skips` to quickly isolate cached-ranking search decisions where Borg intentionally did not auto-load.
+- changed(web/mcp): inspector telemetry cards now include second-result context (`secondResultName`, `secondMatchReason`, `secondScore`) to make ranking ambiguity easier to debug during operator triage.
+
 ## [2.7.172] — 2026-03-15
 
 - feat(core/mcp): search telemetry now records `ignoredResultCount` and compact `ignoredResultNames` so operators can see what ranked options Borg intentionally did not load.

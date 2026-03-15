@@ -4,6 +4,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.7.198] — 2026-03-15
+
+- fix(web/navigation): removed duplicate `Chronicle` and `Library` entries from `LABS_DASHBOARD_NAV` so sidebar route lists no longer render repeated links for the same dashboard destinations.
+- changed(web/navigation): standardized Labs nav metadata to keep descriptive single-source entries for `/dashboard/chronicle` and `/dashboard/library`.
+- changed(web/sidebar): duplicate-key hardening remains in place while nav source data is now deduplicated, improving both render stability and operator UX clarity.
+
 ## [2.7.197] — 2026-03-15
 
 - fix(web/cloud-dev): broadcast target-shaping controls (status toggles, clear actions, session-scope clear, and Force toggle) are now locked while a broadcast mutation is pending to prevent in-flight targeting drift.

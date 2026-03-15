@@ -31,6 +31,7 @@ export interface McpServerPoolLifecycleEvent {
         | 'server-crash'
         | 'active-server-switch';
     message: string;
+    reasonCode?: string;
     sessionId?: string;
     serverUuid?: string;
     serverName?: string;
@@ -80,6 +81,7 @@ export class McpServerPool {
         this.singleActiveServerMode = process.env.BORG_MCP_SINGLE_ACTIVE_SERVER !== 'false';
         this.recordLifecycleEvent({
             type: 'mode-updated',
+            reasonCode: 'mode-initialized',
             message: `Initialized lifecycle modes (lazy=${this.lazySessionMode ? 'on' : 'off'}, single-active=${this.singleActiveServerMode ? 'on' : 'off'})`,
         });
         this.startCleanupTimer();
@@ -112,6 +114,7 @@ export class McpServerPool {
         this.lastActiveServerSwitchAt = Date.now();
         this.recordLifecycleEvent({
             type: 'active-server-switch',
+            reasonCode: 'focus-shift',
             serverUuid,
             serverName,
             sessionId,
@@ -165,6 +168,7 @@ export class McpServerPool {
             this.markActiveServer(serverUuid, sessionId);
             this.recordLifecycleEvent({
                 type: 'session-converted',
+                reasonCode: 'reuse-active',
                 sessionId,
                 serverUuid,
                 serverName: params.name,
@@ -194,6 +198,7 @@ export class McpServerPool {
             this.markActiveServer(serverUuid, sessionId);
             this.recordLifecycleEvent({
                 type: 'session-converted',
+                reasonCode: 'promote-idle',
                 sessionId,
                 serverUuid,
                 serverName: params.name,
@@ -223,6 +228,7 @@ export class McpServerPool {
         this.markActiveServer(serverUuid, sessionId);
         this.recordLifecycleEvent({
             type: 'session-created',
+            reasonCode: 'create-new',
             sessionId,
             serverUuid,
             serverName: params.name,
@@ -285,6 +291,7 @@ export class McpServerPool {
             await Promise.allSettled(cleanupOperations);
             this.recordLifecycleEvent({
                 type: 'single-active-prune',
+                reasonCode: 'single-active-policy',
                 serverUuid: keepServerUuid,
                 serverName: this.serverParamsCache[keepServerUuid]?.name,
                 message: `Pruned stale downstream sessions for single-active policy (kept=${keepServerUuid}, activePruned=${cleanedActive}, idlePruned=${cleanedIdle})`,
@@ -484,6 +491,7 @@ export class McpServerPool {
 
         this.recordLifecycleEvent({
             type: 'session-cleanup',
+            reasonCode: 'cleanup-request',
             sessionId,
             message: `Cleaned up downstream session ${sessionId}`,
         });
@@ -584,6 +592,7 @@ export class McpServerPool {
         if (previousLazyMode !== this.lazySessionMode || previousSingleActiveMode !== this.singleActiveServerMode) {
             this.recordLifecycleEvent({
                 type: 'mode-updated',
+                reasonCode: 'mode-change',
                 message: `Updated lifecycle modes (lazy=${this.lazySessionMode ? 'on' : 'off'}, single-active=${this.singleActiveServerMode ? 'on' : 'off'})`,
             });
         }
@@ -733,6 +742,7 @@ export class McpServerPool {
         await this.cleanupServerSessions(serverUuid);
         this.recordLifecycleEvent({
             type: 'server-crash',
+            reasonCode: 'process-exit',
             serverUuid,
             serverName: this.serverParamsCache[serverUuid]?.name,
             message: `Detected downstream server crash for ${serverUuid} in namespace ${namespaceUuid} (exit=${exitCode ?? 'null'}, signal=${signal ?? 'null'})`,
@@ -761,6 +771,7 @@ export class McpServerPool {
         await this.cleanupServerSessions(serverUuid);
         this.recordLifecycleEvent({
             type: 'server-crash',
+            reasonCode: 'process-exit',
             serverUuid,
             serverName: this.serverParamsCache[serverUuid]?.name,
             message: `Detected downstream server crash for ${serverUuid} (exit=${exitCode ?? 'null'}, signal=${signal ?? 'null'})`,

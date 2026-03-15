@@ -108,6 +108,7 @@ type StatusSummary = {
             timestamp: number;
             type: string;
             message: string;
+            reasonCode?: string;
             sessionId?: string;
             serverUuid?: string;
             serverName?: string;
@@ -1179,7 +1180,14 @@ export default function MCPDashboard(): React.JSX.Element {
                                             {recentLifecycleEvents.map((event) => (
                                                 <div key={event.id} className="rounded border border-zinc-800 bg-zinc-900/60 px-2 py-1.5">
                                                     <div className="flex items-center justify-between gap-2">
-                                                        <span className="font-semibold text-zinc-300">{event.type}</span>
+                                                        <div className="flex items-center gap-1.5">
+                                                            <span className="font-semibold text-zinc-300">{event.type}</span>
+                                                            {event.reasonCode ? (
+                                                                <span className="rounded border border-cyan-500/20 bg-cyan-500/10 px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-cyan-200">
+                                                                    {event.reasonCode}
+                                                                </span>
+                                                            ) : null}
+                                                        </div>
                                                         <span className="text-zinc-500">{new Date(event.timestamp).toLocaleTimeString()}</span>
                                                     </div>
                                                     {event.serverName || event.serverUuid ? (

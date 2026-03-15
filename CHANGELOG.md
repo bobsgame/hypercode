@@ -4,6 +4,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.7.141] — 2026-03-14
+
+- feat(web/mcp): added a filter-scoped status trend strip to `/dashboard/mcp/inspector` telemetry, showing per-bucket success/error mix for faster incident momentum detection.
+- refactor(web/mcp): consolidated inspector telemetry scoping into a single derived event set (`window/type/status/source`) and reused it for summary counts, trend buckets, and rendered event list.
+- changed(web/mcp): inspector status trend respects active telemetry filters and selected window presets, matching search-page triage semantics.
+
 ## [2.7.140] — 2026-03-14
 
 - feat(web/mcp): `/dashboard/mcp/inspector` telemetry filters now sync to URL query params (`telemetryType`, `telemetryStatus`, `telemetryWindow`, `telemetrySource`) for reproducible incident triage links.

@@ -84,6 +84,12 @@ type TelemetryWindowPreset = 'all' | '5m' | '15m' | '1h' | '24h';
 type TelemetrySourceFilter = 'all' | 'runtime-search' | 'cached-ranking' | 'live-aggregator';
 type TelemetryTriagePreset = 'errors-now' | 'runtime-failures' | 'load-incidents' | 'hydration-failures' | 'live-aggregator-focus';
 
+type TelemetryTrendBucket = {
+    start: number;
+    end: number;
+    label: string;
+};
+
 const INSPECTOR_TELEMETRY_FILTERS_STORAGE_KEY = 'borg.mcp.inspector.telemetryFilters.v1';
 const INSPECTOR_TELEMETRY_TYPE_QUERY_KEY = 'telemetryType';
 const INSPECTOR_TELEMETRY_STATUS_QUERY_KEY = 'telemetryStatus';
@@ -110,6 +116,37 @@ function resolveTelemetryWindowStart(windowPreset: TelemetryWindowPreset): numbe
     }
 
     return null;
+}
+
+function buildTelemetryTrendBuckets(options: {
+    windowPreset: TelemetryWindowPreset;
+    windowStart: number | null;
+    events: ToolSelectionTelemetryEvent[];
+}): TelemetryTrendBucket[] {
+    if (options.events.length === 0) {
+        return [];
+    }
+
+    const now = Date.now();
+    const earliestEventTimestamp = Math.min(...options.events.map((event) => event.timestamp));
+    const computedStart = options.windowStart ?? earliestEventTimestamp;
+    const start = Math.min(computedStart, now - 1000);
+
+    const targetBucketCount = options.windowPreset === 'all' || options.windowPreset === '24h' ? 6 : 5;
+    const totalWindowMs = Math.max(60_000, now - start);
+    const bucketSizeMs = Math.max(1, Math.ceil(totalWindowMs / targetBucketCount));
+
+    return Array.from({ length: targetBucketCount }, (_value, index) => {
+        const bucketStart = start + (index * bucketSizeMs);
+        const bucketEnd = index === targetBucketCount - 1 ? now : Math.min(now, bucketStart + bucketSizeMs);
+        const label = new Date(bucketEnd).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+        return {
+            start: bucketStart,
+            end: bucketEnd,
+            label,
+        };
+    });
 }
 
 function formatRelativeTimestamp(timestamp: number | null): string {
@@ -321,31 +358,34 @@ function InspectorDashboardContent() {
     });
 
     const telemetryWindowStart = resolveTelemetryWindowStart(telemetryWindowFilter);
-    const filteredTelemetry = telemetry
+    const scopedTelemetryEvents = telemetry
         .filter((event) => telemetryWindowStart == null || event.timestamp >= telemetryWindowStart)
         .filter((event) => telemetryTypeFilter === 'all' || event.type === telemetryTypeFilter)
         .filter((event) => telemetryStatusFilter === 'all' || event.status === telemetryStatusFilter)
-        .filter((event) => telemetrySourceFilter === 'all' || event.source === telemetrySourceFilter)
-        .slice(0, 12);
+        .filter((event) => telemetrySourceFilter === 'all' || event.source === telemetrySourceFilter);
+    const filteredTelemetry = scopedTelemetryEvents.slice(0, 12);
     const telemetrySummary = {
-        total: telemetry
-            .filter((event) => telemetryWindowStart == null || event.timestamp >= telemetryWindowStart)
-            .filter((event) => telemetryTypeFilter === 'all' || event.type === telemetryTypeFilter)
-            .filter((event) => telemetryStatusFilter === 'all' || event.status === telemetryStatusFilter)
-            .filter((event) => telemetrySourceFilter === 'all' || event.source === telemetrySourceFilter).length,
-        success: telemetry
-            .filter((event) => telemetryWindowStart == null || event.timestamp >= telemetryWindowStart)
-            .filter((event) => telemetryTypeFilter === 'all' || event.type === telemetryTypeFilter)
-            .filter((event) => telemetryStatusFilter === 'all' || event.status === telemetryStatusFilter)
-            .filter((event) => telemetrySourceFilter === 'all' || event.source === telemetrySourceFilter)
-            .filter((event) => event.status === 'success').length,
-        error: telemetry
-            .filter((event) => telemetryWindowStart == null || event.timestamp >= telemetryWindowStart)
-            .filter((event) => telemetryTypeFilter === 'all' || event.type === telemetryTypeFilter)
-            .filter((event) => telemetryStatusFilter === 'all' || event.status === telemetryStatusFilter)
-            .filter((event) => telemetrySourceFilter === 'all' || event.source === telemetrySourceFilter)
-            .filter((event) => event.status === 'error').length,
+        total: scopedTelemetryEvents.length,
+        success: scopedTelemetryEvents.filter((event) => event.status === 'success').length,
+        error: scopedTelemetryEvents.filter((event) => event.status === 'error').length,
     };
+    const telemetryTrendBuckets = buildTelemetryTrendBuckets({
+        windowPreset: telemetryWindowFilter,
+        windowStart: telemetryWindowStart,
+        events: scopedTelemetryEvents,
+    });
+    const telemetryStatusTrend = telemetryTrendBuckets.map((bucket) => {
+        const bucketEvents = scopedTelemetryEvents.filter((event) => event.timestamp >= bucket.start && event.timestamp < bucket.end);
+        const successCount = bucketEvents.filter((event) => event.status === 'success').length;
+        const errorCount = bucketEvents.filter((event) => event.status === 'error').length;
+
+        return {
+            label: bucket.label,
+            total: bucketEvents.length,
+            successCount,
+            errorCount,
+        };
+    });
     const telemetryFiltersAtDefault = telemetryTypeFilter === 'all'
         && telemetryStatusFilter === 'all'
         && telemetryWindowFilter === '15m'
@@ -1115,6 +1155,32 @@ function InspectorDashboardContent() {
                             <span className="rounded-md border border-zinc-700 bg-zinc-950/70 px-2 py-1 text-zinc-300">total: {telemetrySummary.total}</span>
                             <span className="rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2 py-1 text-emerald-300">success: {telemetrySummary.success}</span>
                             <span className="rounded-md border border-red-500/30 bg-red-500/10 px-2 py-1 text-red-300">errors: {telemetrySummary.error}</span>
+                        </div>
+
+                        <div className="space-y-2 rounded-lg border border-zinc-800 bg-zinc-950/50 p-3">
+                            <div className="text-[10px] uppercase tracking-wider text-zinc-500">Status trend ({telemetryWindowFilter})</div>
+                            {telemetryStatusTrend.some((bucket) => bucket.total > 0) ? (
+                                <div className="grid grid-cols-6 gap-1">
+                                    {telemetryStatusTrend.map((bucket) => {
+                                        const successWidth = bucket.total > 0 ? Math.round((bucket.successCount / bucket.total) * 100) : 0;
+                                        const errorWidth = bucket.total > 0 ? Math.round((bucket.errorCount / bucket.total) * 100) : 0;
+
+                                        return (
+                                            <div key={`inspector-status-trend-${bucket.label}`} className="space-y-1" title={`${bucket.label} • ${bucket.successCount} ok / ${bucket.errorCount} err`}>
+                                                <div className="h-2 rounded border border-zinc-800/80 bg-zinc-900/80 overflow-hidden flex">
+                                                    <div className="h-full bg-emerald-500/70" style={{ width: `${successWidth}%` }} />
+                                                    <div className="h-full bg-red-500/75" style={{ width: `${errorWidth}%` }} />
+                                                </div>
+                                                <div className="text-[9px] text-zinc-500 text-center">{bucket.label}</div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            ) : (
+                                <div className="text-xs text-zinc-500">
+                                    No status trend data in the selected scope.
+                                </div>
+                            )}
                         </div>
 
                         <div className="flex flex-wrap items-center gap-2 text-xs">

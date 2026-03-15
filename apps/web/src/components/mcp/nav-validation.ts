@@ -32,7 +32,14 @@ export function normalizeNavHref(href: string): string {
         return '/';
     }
 
-    const withoutTrailingSlash = trimmed.endsWith('/') ? trimmed.replace(/\/+$/, '') : trimmed;
+    const withoutSearchOrHash = trimmed.split(/[?#]/, 1)[0] ?? trimmed;
+    if (withoutSearchOrHash === '') {
+        return '/';
+    }
+
+    const withoutTrailingSlash = withoutSearchOrHash.endsWith('/')
+        ? withoutSearchOrHash.replace(/\/+$/, '')
+        : withoutSearchOrHash;
     return withoutTrailingSlash === '' ? '/' : withoutTrailingSlash;
 }
 

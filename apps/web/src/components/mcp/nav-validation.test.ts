@@ -9,6 +9,12 @@ describe('normalizeNavHref', () => {
         expect(normalizeNavHref('/dashboard/library/')).toBe('/dashboard/library');
         expect(normalizeNavHref('/')).toBe('/');
     });
+
+    it('strips query/hash fragments and trims surrounding whitespace', () => {
+        expect(normalizeNavHref(' /dashboard/library/?tab=overview#top ')).toBe('/dashboard/library');
+        expect(normalizeNavHref('/dashboard/library?tab=overview')).toBe('/dashboard/library');
+        expect(normalizeNavHref('/dashboard/library#summary')).toBe('/dashboard/library');
+    });
 });
 
 describe('validateSidebarSections', () => {
@@ -99,6 +105,34 @@ describe('validateSidebarSections', () => {
             {
                 normalizedHref: '/dashboard/library',
                 hrefs: ['/dashboard/library', '/dashboard/library/'],
+                sections: ['One', 'Two'],
+            },
+        ]);
+        expect(hasNavValidationIssues(diagnostics)).toBe(true);
+    });
+
+    it('detects normalized href collisions for query and hash variants', () => {
+        const sections: NavSection[] = [
+            {
+                title: 'One',
+                items: [
+                    { title: 'A', href: '/dashboard/library?tab=overview', icon: null, variant: 'ghost' },
+                ],
+            },
+            {
+                title: 'Two',
+                items: [
+                    { title: 'B', href: '/dashboard/library#top', icon: null, variant: 'ghost' },
+                ],
+            },
+        ];
+
+        const diagnostics = validateSidebarSections(sections);
+
+        expect(diagnostics.normalizedHrefCollisions).toEqual([
+            {
+                normalizedHref: '/dashboard/library',
+                hrefs: ['/dashboard/library#top', '/dashboard/library?tab=overview'],
                 sections: ['One', 'Two'],
             },
         ]);

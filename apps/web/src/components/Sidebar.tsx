@@ -10,7 +10,7 @@ import { SortableContext, arrayMove, rectSortingStrategy, useSortable } from "@d
 import { CSS } from "@dnd-kit/utilities";
 import { cn } from "@/lib/utils";
 import { SIDEBAR_SECTIONS } from "./mcp/nav-config";
-import { buildNavItemsByHref, hasNavValidationIssues, validateSidebarSections } from "./mcp/nav-validation";
+import { buildNavItemsByHref, hasNavValidationIssues, normalizeNavHref, validateSidebarSections } from "./mcp/nav-validation";
 
 interface SidebarProps extends React.HTMLAttributes<HTMLDivElement> { }
 
@@ -73,6 +73,22 @@ function safeStorageRemove(key: string): void {
     } catch {
         // Ignore storage failures in restricted contexts.
     }
+}
+
+function normalizeHrefList(values: string[]): string[] {
+    const seen = new Set<string>();
+    const normalized: string[] = [];
+
+    for (const value of values) {
+        const href = normalizeNavHref(value);
+        if (seen.has(href)) {
+            continue;
+        }
+        seen.add(href);
+        normalized.push(href);
+    }
+
+    return normalized;
 }
 
 type PaletteItem = {
@@ -144,7 +160,7 @@ export function Sidebar({ className }: SidebarProps) {
             }
             const parsed = JSON.parse(raw);
             if (Array.isArray(parsed)) {
-                setFavorites(parsed.filter((value): value is string => typeof value === 'string'));
+                setFavorites(normalizeHrefList(parsed.filter((value): value is string => typeof value === 'string')));
             }
         } catch {
             // ignore invalid stored state
@@ -159,7 +175,7 @@ export function Sidebar({ className }: SidebarProps) {
             }
             const parsed = JSON.parse(raw);
             if (Array.isArray(parsed)) {
-                setRecentRoutes(parsed.filter((value): value is string => typeof value === 'string'));
+                setRecentRoutes(normalizeHrefList(parsed.filter((value): value is string => typeof value === 'string')).slice(0, MAX_RECENT_ROUTES));
             }
         } catch {
             // ignore invalid stored state
@@ -335,8 +351,9 @@ export function Sidebar({ className }: SidebarProps) {
     }, [allItemsByHref, normalizedQuery, recentRoutes]);
 
     const persistFavorites = (next: string[]) => {
-        setFavorites(next);
-        safeStorageSet(SIDEBAR_FAVORITES_STORAGE_KEY, JSON.stringify(next));
+        const normalized = normalizeHrefList(next);
+        setFavorites(normalized);
+        safeStorageSet(SIDEBAR_FAVORITES_STORAGE_KEY, JSON.stringify(normalized));
     };
 
     const showNotice = (message: string) => {
@@ -365,20 +382,22 @@ export function Sidebar({ className }: SidebarProps) {
     };
 
     const toggleFavorite = (href: string) => {
-        if (!allItemsByHref.has(href)) {
+        const normalizedHref = normalizeNavHref(href);
+        if (!allItemsByHref.has(normalizedHref)) {
             return;
         }
-        const exists = favoriteSet.has(href);
+        const exists = favoriteSet.has(normalizedHref);
         if (exists) {
-            persistFavorites(favorites.filter((entry) => entry !== href));
+            persistFavorites(favorites.filter((entry) => entry !== normalizedHref));
             return;
         }
-        persistFavorites([...favorites, href]);
+        persistFavorites([...favorites, normalizedHref]);
     };
 
     const persistRecentRoutes = (next: string[]) => {
-        setRecentRoutes(next);
-        safeStorageSet(SIDEBAR_RECENT_STORAGE_KEY, JSON.stringify(next));
+        const normalized = normalizeHrefList(next).slice(0, MAX_RECENT_ROUTES);
+        setRecentRoutes(normalized);
+        safeStorageSet(SIDEBAR_RECENT_STORAGE_KEY, JSON.stringify(normalized));
     };
 
     const persistRecentSearches = (next: string[]) => {
@@ -490,12 +509,13 @@ export function Sidebar({ className }: SidebarProps) {
 
             const nextCollapsed = parsed.collapsedSections ?? {};
             const nextFavoritesRaw = Array.isArray(parsed.favorites) ? parsed.favorites : [];
-            const nextFavorites = nextFavoritesRaw
-                .filter((href): href is string => typeof href === 'string')
-                .filter((href) => allItemsByHref.has(href));
+            const nextFavorites = normalizeHrefList(
+                nextFavoritesRaw.filter((href): href is string => typeof href === 'string')
+            ).filter((href) => allItemsByHref.has(href));
             const nextRecentRaw = Array.isArray(parsed.recentRoutes) ? parsed.recentRoutes : [];
-            const nextRecent = nextRecentRaw
-                .filter((href): href is string => typeof href === 'string')
+            const nextRecent = normalizeHrefList(
+                nextRecentRaw.filter((href): href is string => typeof href === 'string')
+            )
                 .filter((href) => allItemsByHref.has(href))
                 .slice(0, MAX_RECENT_ROUTES);
             const nextSearchesRaw = Array.isArray(parsed.recentSearches) ? parsed.recentSearches : [];
@@ -520,12 +540,17 @@ export function Sidebar({ className }: SidebarProps) {
     };
 
     useEffect(() => {
-        if (!pathname || !allItemsByHref.has(pathname)) {
+        if (!pathname) {
+            return;
+        }
+
+        const normalizedPathname = normalizeNavHref(pathname);
+        if (!allItemsByHref.has(normalizedPathname)) {
             return;
         }
 
         setRecentRoutes((current) => {
-            const next = [pathname, ...current.filter((href) => href !== pathname)].slice(0, MAX_RECENT_ROUTES);
+            const next = [normalizedPathname, ...current.filter((href) => href !== normalizedPathname)].slice(0, MAX_RECENT_ROUTES);
             safeStorageSet(SIDEBAR_RECENT_STORAGE_KEY, JSON.stringify(next));
             return next;
         });

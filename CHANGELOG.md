@@ -4,6 +4,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.7.205] — 2026-03-15
+
+- changed(web/navigation): `normalizeNavHref(...)` now canonicalizes hrefs by trimming whitespace and stripping query/hash fragments before trailing-slash normalization, improving semantic route matching consistency.
+- changed(web/sidebar): `Sidebar.tsx` now normalizes favorites, recents, imported preference routes, and pathname-based recents through canonical href rules to prevent alias drift in persisted navigation state.
+- test(web/navigation): expanded `nav-validation.test.ts` coverage to assert query/hash canonicalization and normalized-collision detection for search/hash href variants.
+
 ## [2.7.204] — 2026-03-15
 
 - changed(web/navigation): added `hasNavValidationIssues(...)` helper in `nav-validation.ts` so all nav issue classes (within-section duplicates, cross-section duplicates, normalized collisions) are evaluated through one shared gate.

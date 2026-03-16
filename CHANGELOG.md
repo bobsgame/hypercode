@@ -4,6 +4,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.7.259] — 2026-03-16
+
+- feat(web/mcp/search): Added `Most ambiguous search decisions` facet to telemetry in `dashboard/mcp/search/page.tsx`, ranking by smallest score-gap for faster ambiguity triage.
+- feat(web/mcp/inspector): Added parity ambiguity facet in `dashboard/mcp/inspector/page.tsx` with confidence, top-vs-second candidate visibility, and one-click cached-ranking focus.
+- feat(web/mcp): Added operator pivots for ambiguity-focused filter presets without leaving current telemetry context.
+- test(validation): `WEB_TSC_OK` — no TypeScript errors.
+
 ## [2.7.258] — 2026-03-16
 
 - feat(web/mcp/search): Added confidence-band telemetry aggregation in `dashboard/mcp/search/page.tsx` (below-floor, near-floor, high-confidence) with average confidence and average score-gap context.

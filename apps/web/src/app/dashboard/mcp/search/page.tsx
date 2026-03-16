@@ -448,6 +448,19 @@ export default function SearchDashboard() {
         .map(([toolName, count]) => ({ toolName, count }))
         .sort((left, right) => right.count - left.count || left.toolName.localeCompare(right.toolName))
         .slice(0, 6);
+    const telemetryAmbiguousSearchRows = filteredTelemetryEvents
+        .filter((event) => event.type === 'search' && typeof event.scoreGap === 'number' && Boolean(event.secondResultName))
+        .map((event) => ({
+            id: event.id,
+            query: event.query ?? event.topResultName ?? 'n/a',
+            topResultName: event.topResultName ?? 'n/a',
+            secondResultName: event.secondResultName ?? 'n/a',
+            scoreGap: Number((event.scoreGap ?? 0).toFixed(1)),
+            confidencePct: typeof event.autoLoadConfidence === 'number' ? Math.round(event.autoLoadConfidence * 100) : null,
+            timestamp: event.timestamp,
+        }))
+        .sort((left, right) => left.scoreGap - right.scoreGap || right.timestamp - left.timestamp)
+        .slice(0, 6);
     const telemetryTrendBuckets = buildTelemetryTrendBuckets({
         windowPreset: telemetryWindowFilter,
         windowStart: telemetryWindowStart,
@@ -1845,6 +1858,47 @@ export default function SearchDashboard() {
                                                     {row.toolName}
                                                 </button>
                                                 <span className="rounded border border-red-500/30 bg-red-500/10 px-1.5 py-0.5 text-red-200">{row.count}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            ) : null}
+
+                            {telemetryAmbiguousSearchRows.length > 0 ? (
+                                <div className="mb-4 space-y-2 rounded-lg border border-zinc-800 bg-zinc-950/50 p-3">
+                                    <div className="flex items-center justify-between gap-2">
+                                        <div className="text-[10px] uppercase tracking-wider text-zinc-500">Most ambiguous search decisions</div>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setTelemetryTypeFilter('search');
+                                                setTelemetrySourceFilter('cached-ranking');
+                                                setTelemetryStatusFilter('all');
+                                                setTelemetryWindowFilter('1h');
+                                            }}
+                                            className="rounded border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 text-[10px] text-amber-200 hover:bg-amber-500/20"
+                                            title="Focus cached ranking decisions likely affected by ambiguity"
+                                            aria-label="Focus ambiguous cached ranking decisions"
+                                        >
+                                            Focus ambiguity
+                                        </button>
+                                    </div>
+                                    <div className="space-y-1">
+                                        {telemetryAmbiguousSearchRows.map((row) => (
+                                            <div key={`search-ambiguity-${row.id}`} className="rounded border border-zinc-800/70 bg-zinc-900/60 px-2 py-1 text-[10px] space-y-1">
+                                                <div className="flex items-center justify-between gap-2">
+                                                    <span className="truncate text-zinc-300" title={row.query}>{row.query}</span>
+                                                    <span className="rounded border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 text-amber-200">
+                                                        gap {row.scoreGap}
+                                                    </span>
+                                                </div>
+                                                <div className="text-zinc-500 truncate" title={`${row.topResultName} vs ${row.secondResultName}`}>
+                                                    {row.topResultName} vs {row.secondResultName}
+                                                </div>
+                                                <div className="flex items-center justify-between gap-2 text-zinc-500">
+                                                    <span>{row.confidencePct !== null ? `${row.confidencePct}% conf` : 'conf n/a'}</span>
+                                                    <span>{formatRelativeTimestamp(row.timestamp)}</span>
+                                                </div>
                                             </div>
                                         ))}
                                     </div>

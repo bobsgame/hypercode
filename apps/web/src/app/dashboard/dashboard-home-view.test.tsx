@@ -701,6 +701,90 @@ describe('dashboard home helpers', () => {
     )).not.toThrow();
   });
 
+  it('shows deferred resident runtime checklist detail when lazy mode is enabled', () => {
+    const startupStatus = {
+      status: 'running',
+      ready: true,
+      uptime: 42,
+      checks: {
+        mcpAggregator: {
+          ready: true,
+          liveReady: true,
+          residentReady: true,
+          lazySessionMode: true,
+          serverCount: 4,
+          connectedCount: 0,
+          residentConnectedCount: 0,
+          initialization: null,
+          persistedServerCount: 4,
+          persistedToolCount: 10,
+          configuredServerCount: 4,
+          advertisedServerCount: 4,
+          advertisedToolCount: 10,
+          advertisedAlwaysOnServerCount: 2,
+          inventoryReady: true,
+        },
+        configSync: {
+          ready: true,
+          status: null,
+        },
+        memory: {
+          ready: true,
+          initialized: true,
+          agentMemory: true,
+        },
+        browser: {
+          ready: true,
+          active: false,
+          pageCount: 0,
+        },
+        sessionSupervisor: {
+          ready: true,
+          sessionCount: 0,
+          restore: {
+            restoredSessionCount: 0,
+            autoResumeCount: 0,
+          },
+        },
+        extensionBridge: {
+          ready: true,
+          acceptingConnections: true,
+          clientCount: 0,
+          hasConnectedClients: false,
+        },
+        executionEnvironment: {
+          ready: true,
+          preferredShellId: 'pwsh',
+          preferredShellLabel: 'PowerShell 7',
+          shellCount: 1,
+          verifiedShellCount: 1,
+          toolCount: 1,
+          verifiedToolCount: 1,
+          harnessCount: 0,
+          verifiedHarnessCount: 0,
+          supportsPowerShell: true,
+          supportsPosixShell: false,
+        },
+      },
+    } as DashboardStartupStatus;
+
+    expect(buildStartupChecklist(startupStatus)).toContainEqual({
+      label: 'Resident MCP runtime',
+      ready: true,
+      detail: '4 configured servers are in deferred lazy mode · downstream binaries launch on first tool call',
+    });
+
+    expect(buildDashboardAlerts(
+      { initialized: true, serverCount: 4, toolCount: 10, connectedCount: 0 },
+      startupStatus,
+      [],
+      [],
+      [],
+      false,
+      undefined,
+    ).find((alert) => alert.id === 'router-disconnected')).toBeUndefined();
+  });
+
   it('renders a neutral connecting state before the first live startup snapshot arrives', () => {
     const html = renderToStaticMarkup(
       <DashboardHomeView

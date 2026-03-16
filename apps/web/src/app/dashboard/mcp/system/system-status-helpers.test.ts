@@ -357,6 +357,28 @@ describe('system status startup helpers', () => {
         });
     });
 
+    it('renders deferred resident runtime posture when lazy mode is enabled', () => {
+        const startupStatus = createStartupStatus({
+            mcpAggregator: {
+                ready: true,
+                liveReady: true,
+                residentReady: true,
+                lazySessionMode: true,
+                configuredServerCount: 4,
+                advertisedServerCount: 4,
+                advertisedAlwaysOnServerCount: 2,
+                residentConnectedCount: 0,
+            },
+        });
+
+        expect(buildSystemStartupChecks(startupStatus)).toContainEqual({
+            name: 'Resident MCP Runtime',
+            status: 'Operational',
+            latency: 'deferred lazy mode · 4 configured',
+            detail: '4 configured servers are in deferred lazy mode · downstream binaries launch on first tool call',
+        });
+    });
+
     it('formats uptime from core seconds and shows runtime metadata from startup status', () => {
         expect(formatUptimeSeconds(3_661)).toBe('1h 1m');
 

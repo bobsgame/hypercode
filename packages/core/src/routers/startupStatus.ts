@@ -320,6 +320,7 @@ export async function buildStartupStatusSnapshot(input: StartupStatusInput) {
                 ready: liveReady,
                 liveReady,
                 residentReady,
+                lazySessionMode,
                 serverCount: knownServerCount,
                 connectedCount: liveServerCount,
                 residentConnectedCount: residentLiveServerCount,

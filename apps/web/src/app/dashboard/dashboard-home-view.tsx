@@ -26,6 +26,7 @@ export interface DashboardStartupStatus {
             ready: boolean;
             liveReady?: boolean;
             residentReady?: boolean;
+            lazySessionMode?: boolean;
             serverCount: number;
             connectedCount?: number;
             residentConnectedCount?: number;
@@ -267,6 +268,7 @@ const DEFAULT_DASHBOARD_STARTUP_CHECKS: DashboardStartupChecks = {
         ready: false,
         liveReady: false,
         residentReady: false,
+        lazySessionMode: false,
         serverCount: 0,
         connectedCount: 0,
         residentConnectedCount: 0,
@@ -475,12 +477,19 @@ function getCachedInventoryDetail(aggregator: DashboardStartupStatus['checks']['
 }
 
 function getResidentMcpDetail(aggregator: DashboardStartupStatus['checks']['mcpAggregator']): string {
+    const lazySessionMode = aggregator.lazySessionMode === true;
     const residentTargetCount = aggregator.advertisedAlwaysOnServerCount ?? 0;
     const residentConnectedCount = aggregator.residentConnectedCount ?? 0;
     const totalServerCount = Math.max(aggregator.configuredServerCount ?? 0, getAdvertisedServerCount(aggregator));
     const warmingCount = aggregator.warmingServerCount ?? 0;
     const failedWarmupCount = aggregator.failedWarmupServerCount ?? 0;
     const residentReady = aggregator.residentReady ?? ((aggregator.liveReady ?? aggregator.ready) && residentConnectedCount >= residentTargetCount);
+
+    if (lazySessionMode) {
+        return totalServerCount === 0
+            ? 'No downstream servers configured · on-demand MCP launches are ready when needed'
+            : `${totalServerCount} configured server${totalServerCount === 1 ? '' : 's'} are in deferred lazy mode · downstream binaries launch on first tool call`;
+    }
 
     if (residentTargetCount === 0) {
         return totalServerCount === 0
@@ -503,6 +512,15 @@ function getResidentMcpDetail(aggregator: DashboardStartupStatus['checks']['mcpA
     }
 
     return 'Waiting for resident MCP runtime initialization';
+}
+
+function isResidentRuntimeReady(aggregator: DashboardStartupStatus['checks']['mcpAggregator']): boolean {
+    const liveReady = aggregator.liveReady ?? aggregator.ready;
+    if (aggregator.lazySessionMode === true) {
+        return Boolean(liveReady);
+    }
+
+    return aggregator.residentReady ?? Boolean(liveReady);
 }
 
 function getMemoryContextDetail(memory: DashboardStartupStatus['checks']['memory']): string {
@@ -773,7 +791,7 @@ export function buildStartupChecklist(
         },
         {
             label: 'Resident MCP runtime',
-            ready: aggregator.residentReady ?? (aggregator.liveReady ?? aggregator.ready),
+            ready: isResidentRuntimeReady(aggregator),
             detail: getResidentMcpDetail(aggregator),
         },
         {
@@ -845,6 +863,8 @@ export function buildDashboardAlerts(
             hrefLabel: 'Inspect MCP router',
         });
     } else if (
+        checks.mcpAggregator.lazySessionMode !== true
+        &&
         (checks.mcpAggregator.advertisedAlwaysOnServerCount ?? 0) > 0
         && (checks.mcpAggregator.residentConnectedCount ?? 0) === 0
         && Boolean(checks.mcpAggregator.liveReady ?? checks.mcpAggregator.ready)

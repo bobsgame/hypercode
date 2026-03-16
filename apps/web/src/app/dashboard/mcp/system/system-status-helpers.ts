@@ -13,6 +13,7 @@ export interface SystemStartupStatusInput {
             ready?: boolean;
             liveReady?: boolean;
             residentReady?: boolean;
+            lazySessionMode?: boolean;
             connectedCount?: number;
             residentConnectedCount?: number;
             warmingServerCount?: number;
@@ -301,6 +302,7 @@ function getRouterInventoryDetail(startupStatus: SystemStartupStatusInput): stri
 
 function getResidentMcpDetail(startupStatus: SystemStartupStatusInput): string {
     const aggregator = startupStatus.checks?.mcpAggregator;
+    const lazySessionMode = aggregator?.lazySessionMode === true;
     const configuredServerCount = Math.max(
         aggregator?.configuredServerCount ?? 0,
         aggregator?.advertisedServerCount ?? aggregator?.persistedServerCount ?? 0,
@@ -310,6 +312,14 @@ function getResidentMcpDetail(startupStatus: SystemStartupStatusInput): string {
     const warmingCount = aggregator?.warmingServerCount ?? 0;
     const failedWarmupCount = aggregator?.failedWarmupServerCount ?? 0;
     const residentReady = aggregator?.residentReady ?? ((aggregator?.liveReady ?? aggregator?.ready) && residentConnectedCount >= residentServerCount);
+
+    if (lazySessionMode) {
+        if (configuredServerCount === 0) {
+            return 'No downstream servers configured · on-demand MCP launches are ready when needed';
+        }
+
+        return `${configuredServerCount} configured server${configuredServerCount === 1 ? '' : 's'} are in deferred lazy mode · downstream binaries launch on first tool call`;
+    }
 
     if (residentServerCount === 0) {
         if (configuredServerCount === 0) {
@@ -397,9 +407,14 @@ function getMemoryContextDetail(startupStatus: SystemStartupStatusInput): string
 
 function getResidentRuntimeStatus(startupStatus: SystemStartupStatusInput): 'Operational' | 'Pending' {
     const aggregator = startupStatus.checks?.mcpAggregator;
+    const lazySessionMode = aggregator?.lazySessionMode === true;
     const residentCount = aggregator?.advertisedAlwaysOnServerCount ?? 0;
     const residentConnectedCount = aggregator?.residentConnectedCount ?? 0;
     const liveReady = aggregator?.liveReady ?? aggregator?.ready;
+
+    if (lazySessionMode) {
+        return liveReady ? 'Operational' : 'Pending';
+    }
 
     if (residentCount === 0) {
         return liveReady ? 'Operational' : 'Pending';
@@ -632,6 +647,7 @@ export function buildSystemStartupChecks(
     const warmingCount = aggregator?.warmingServerCount ?? 0;
     const failedWarmupCount = aggregator?.failedWarmupServerCount ?? 0;
     const residentCount = aggregator?.advertisedAlwaysOnServerCount ?? 0;
+    const lazySessionMode = aggregator?.lazySessionMode === true;
     const extensionArtifactSummary = getBrowserExtensionArtifactSummary(installSurfaceArtifacts);
 
     return [
@@ -644,7 +660,9 @@ export function buildSystemStartupChecks(
         {
             name: 'Resident MCP Runtime',
             status: getResidentRuntimeStatus(startupStatus),
-            latency: `${residentConnectedCount}/${residentCount || residentConnectedCount} servers${warmingCount > 0 ? ` · ${warmingCount} warming` : ''}${failedWarmupCount > 0 ? ` · ${failedWarmupCount} failed` : ''}`,
+            latency: lazySessionMode
+                ? `deferred lazy mode · ${aggregator?.configuredServerCount ?? aggregator?.advertisedServerCount ?? aggregator?.persistedServerCount ?? 0} configured`
+                : `${residentConnectedCount}/${residentCount || residentConnectedCount} servers${warmingCount > 0 ? ` · ${warmingCount} warming` : ''}${failedWarmupCount > 0 ? ` · ${failedWarmupCount} failed` : ''}`,
             detail: getResidentMcpDetail(startupStatus),
         },
         {

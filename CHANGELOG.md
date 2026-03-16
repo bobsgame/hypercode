@@ -4,6 +4,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.7.247] — 2026-03-16
+
+- changed(web/dashboard): `apps/web/src/app/dashboard/mcp/system/system-status-helpers.ts` now renders **deferred lazy mode** resident-runtime posture so startup/system cards no longer imply resident preconnect requirements when lazy MCP mode is enabled.
+- changed(web/dashboard): `apps/web/src/app/dashboard/dashboard-home-view.tsx` aligns resident runtime checklist + alerting semantics with lazy mode, suppressing false "all resident servers disconnected" critical alerts during intentional on-demand operation.
+- changed(core/startup-status): `packages/core/src/routers/startupStatus.ts` now publishes `checks.mcpAggregator.lazySessionMode` so dashboard logic can reliably reflect lifecycle mode.
+- test(web/dashboard): added regression coverage for lazy-mode resident runtime detail/latency + alert suppression in `system-status-helpers.test.ts` and `dashboard-home-view.test.tsx`.
+- test(validation): revalidated focused dashboard tests and strict TypeScript gates (`vitest dashboard helper/home-view`, `WEB_TSC_OK`, `CORE_TSC_OK`).
+
 ## [2.7.246] — 2026-03-16
 
 - changed(core/mcp): `packages/core/src/MCPServer.ts` now honors lifecycle lazy-session mode during startup and skips eager `warmAdvertisedServers()` preconnects when lazy mode is enabled, preventing downstream MCP binaries from auto-spawning at boot.

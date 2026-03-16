@@ -4,6 +4,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.7.233] — 2026-03-15
+
+- test(web/session): expanded `apps/web/src/app/dashboard/session/session-page-normalizers.test.ts` with explicit regression coverage for `isolateWorktree`, `lastExitCode`, and `lastExitSignal` normalization to protect crash/worktree visibility cards in the session dashboard.
+- test(web): reran focused session+navigation suites (`session-page-normalizers`, `mcp/nav-validation`) with `40` tests passing; web `tsc --noEmit` passes.
+
 ## [2.7.232] — 2026-03-15
 
 - changed(web/logs): upgraded `apps/web/src/app/dashboard/logs/page.tsx` into a stronger operator surface with server/session filter inputs, level filtering, controllable auto-refresh, corrected table column structure, and improved visibility of message/error details.

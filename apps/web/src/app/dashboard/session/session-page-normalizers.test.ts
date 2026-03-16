@@ -102,7 +102,51 @@ describe('session page normalizers', () => {
       restartCount: 0,
       maxRestartAttempts: 0,
       autoRestart: true,
+      isolateWorktree: false,
+      lastExitCode: undefined,
+      lastExitSignal: undefined,
       logs: [],
+    });
+  });
+
+  it('normalizes worktree and exit metadata for crash visibility cards', () => {
+    const sessions = normalizeSessionList([
+      {
+        id: 'ses-crash',
+        name: 'Crash Session',
+        cliType: 'codex',
+        workingDirectory: 'C:/repo',
+        isolateWorktree: true,
+        lastExitCode: 137,
+        lastExitSignal: ' SIGKILL ',
+        lastError: 'process terminated',
+        status: 'error',
+      },
+      {
+        id: 'ses-bad-exit',
+        name: 'Bad Exit Values',
+        cliType: 'gemini',
+        workingDirectory: 'C:/repo2',
+        isolateWorktree: 'yes',
+        lastExitCode: '1',
+        lastExitSignal: 9,
+      },
+    ] as any);
+
+    expect(sessions[0]).toMatchObject({
+      id: 'ses-crash',
+      isolateWorktree: true,
+      lastExitCode: 137,
+      lastExitSignal: 'SIGKILL',
+      lastError: 'process terminated',
+      status: 'error',
+    });
+
+    expect(sessions[1]).toMatchObject({
+      id: 'ses-bad-exit',
+      isolateWorktree: false,
+      lastExitCode: undefined,
+      lastExitSignal: undefined,
     });
   });
 });

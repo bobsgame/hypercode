@@ -4,6 +4,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.7.273] — 2026-03-16
+
+- feat(web/mcp/search): `Copy link` now rebuilds MCP Search share URLs from the current in-memory telemetry filters so freshly clicked bucket/segment drilldowns copy the exact active scope.
+- feat(web/mcp/search): `Copy summary` now includes a `Segment scope` line and keeps focused-source incident URLs aligned with the latest bucket/status drilldown state.
+- feat(web/mcp/inspector): Added parity state-driven share-link and summary URL generation so Inspector handoff links also preserve the latest segment drilldown scope.
+- test(validation): `WEB_TSC_OK` — no TypeScript errors.
+
 ## [2.7.272] — 2026-03-16
 
 - feat(web/mcp/search): Status trend buckets now support segment-level drilldown — clicking green/red segments applies the selected bucket time-range plus `status=success|error` scope.

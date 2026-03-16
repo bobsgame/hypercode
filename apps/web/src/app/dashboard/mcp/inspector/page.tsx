@@ -1029,7 +1029,37 @@ function InspectorDashboardContent() {
             return;
         }
 
-        const nextParams = new URLSearchParams(searchParams.toString());
+        const nextParams = new URLSearchParams();
+
+        if (telemetryTypeFilter !== 'all') {
+            nextParams.set(INSPECTOR_TELEMETRY_TYPE_QUERY_KEY, telemetryTypeFilter);
+        }
+
+        if (telemetryStatusFilter !== 'all') {
+            nextParams.set(INSPECTOR_TELEMETRY_STATUS_QUERY_KEY, telemetryStatusFilter);
+        }
+
+        if (telemetryWindowFilter !== '15m') {
+            nextParams.set(INSPECTOR_TELEMETRY_WINDOW_QUERY_KEY, telemetryWindowFilter);
+        }
+
+        if (telemetrySourceFilter !== 'all') {
+            nextParams.set(INSPECTOR_TELEMETRY_SOURCE_QUERY_KEY, telemetrySourceFilter);
+        }
+
+        if (telemetryToolFilter) {
+            nextParams.set(INSPECTOR_TELEMETRY_TOOL_QUERY_KEY, telemetryToolFilter);
+        }
+
+        if (telemetryBucketTimeFilter) {
+            nextParams.set(INSPECTOR_TELEMETRY_BUCKET_START_QUERY_KEY, String(telemetryBucketTimeFilter.start));
+            nextParams.set(INSPECTOR_TELEMETRY_BUCKET_END_QUERY_KEY, String(telemetryBucketTimeFilter.end));
+        }
+
+        if (telemetrySearchQuery) {
+            nextParams.set(INSPECTOR_TELEMETRY_SEARCH_QUERY_KEY, telemetrySearchQuery);
+        }
+
         const shareUrl = `${window.location.origin}${pathname}${nextParams.toString() ? `?${nextParams.toString()}` : ''}`;
 
         try {
@@ -1101,9 +1131,32 @@ function InspectorDashboardContent() {
                 return null;
             }
 
-            const nextParams = new URLSearchParams(searchParams.toString());
-            nextParams.set(INSPECTOR_TELEMETRY_SOURCE_QUERY_KEY, dominantSourceByErrors.value);
+            const nextParams = new URLSearchParams();
+
+            if (telemetryTypeFilter !== 'all') {
+                nextParams.set(INSPECTOR_TELEMETRY_TYPE_QUERY_KEY, telemetryTypeFilter);
+            }
+
             nextParams.set(INSPECTOR_TELEMETRY_STATUS_QUERY_KEY, 'error');
+
+            if (telemetryWindowFilter !== '15m') {
+                nextParams.set(INSPECTOR_TELEMETRY_WINDOW_QUERY_KEY, telemetryWindowFilter);
+            }
+
+            nextParams.set(INSPECTOR_TELEMETRY_SOURCE_QUERY_KEY, dominantSourceByErrors.value);
+
+            if (telemetryToolFilter) {
+                nextParams.set(INSPECTOR_TELEMETRY_TOOL_QUERY_KEY, telemetryToolFilter);
+            }
+
+            if (telemetryBucketTimeFilter) {
+                nextParams.set(INSPECTOR_TELEMETRY_BUCKET_START_QUERY_KEY, String(telemetryBucketTimeFilter.start));
+                nextParams.set(INSPECTOR_TELEMETRY_BUCKET_END_QUERY_KEY, String(telemetryBucketTimeFilter.end));
+            }
+
+            if (telemetrySearchQuery) {
+                nextParams.set(INSPECTOR_TELEMETRY_SEARCH_QUERY_KEY, telemetrySearchQuery);
+            }
 
             return `${window.location.origin}${pathname}?${nextParams.toString()}`;
         })();
@@ -1129,6 +1182,7 @@ function InspectorDashboardContent() {
         const summary = [
             `MCP Inspector telemetry summary`,
             `Filters: ${filterSummary}`,
+            `Segment scope: ${telemetryBucketTimeFilter && telemetryStatusFilter !== 'all' ? `${telemetryStatusFilter} within ${formatTelemetryBucketRange(telemetryBucketTimeFilter.start, telemetryBucketTimeFilter.end)}` : 'none'}`,
             `Events: total=${telemetrySummary.total}, success=${telemetrySummary.success}, error=${telemetrySummary.error}, ignored=${telemetrySummary.ignoredResults}`,
             `Dominant source (volume): ${dominantSourceByVolume ? `${dominantSourceByVolume.value} (${dominantSourceByVolume.total} events, ${dominantSourceByVolume.errorCount} errors, ${dominantSourceByVolume.errorRatePercent}% error rate)` : 'none'}`,
             `Dominant source (errors): ${dominantSourceByErrors ? `${dominantSourceByErrors.value} (${dominantSourceByErrors.errorCount} errors, ${dominantSourceByErrors.errorRatePercent}% error rate)` : 'none'}`,

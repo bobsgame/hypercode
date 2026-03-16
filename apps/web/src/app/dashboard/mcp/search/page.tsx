@@ -936,7 +936,33 @@ export default function SearchDashboard() {
     };
 
     const copyTelemetryShareLink = async () => {
-        const nextParams = new URLSearchParams(searchParams.toString());
+        const nextParams = new URLSearchParams();
+
+        if (telemetryTypeFilter !== 'all') {
+            nextParams.set(TELEMETRY_TYPE_QUERY_KEY, telemetryTypeFilter);
+        }
+
+        if (telemetryStatusFilter !== 'all') {
+            nextParams.set(TELEMETRY_STATUS_QUERY_KEY, telemetryStatusFilter);
+        }
+
+        if (telemetryWindowFilter !== '15m') {
+            nextParams.set(TELEMETRY_WINDOW_QUERY_KEY, telemetryWindowFilter);
+        }
+
+        if (telemetrySourceFilter !== 'all') {
+            nextParams.set(TELEMETRY_SOURCE_QUERY_KEY, telemetrySourceFilter);
+        }
+
+        if (telemetryToolFilter !== 'all') {
+            nextParams.set(TELEMETRY_TOOL_QUERY_KEY, telemetryToolFilter);
+        }
+
+        if (telemetryBucketTimeFilter) {
+            nextParams.set(TELEMETRY_BUCKET_START_QUERY_KEY, String(telemetryBucketTimeFilter.start));
+            nextParams.set(TELEMETRY_BUCKET_END_QUERY_KEY, String(telemetryBucketTimeFilter.end));
+        }
+
         const shareUrl = `${window.location.origin}${pathname}${nextParams.toString() ? `?${nextParams.toString()}` : ''}`;
 
         try {
@@ -1012,9 +1038,28 @@ export default function SearchDashboard() {
                 return null;
             }
 
-            const nextParams = new URLSearchParams(searchParams.toString());
-            nextParams.set(TELEMETRY_SOURCE_QUERY_KEY, dominantSourceByErrors.source);
+            const nextParams = new URLSearchParams();
+
+            if (telemetryTypeFilter !== 'all') {
+                nextParams.set(TELEMETRY_TYPE_QUERY_KEY, telemetryTypeFilter);
+            }
+
             nextParams.set(TELEMETRY_STATUS_QUERY_KEY, 'error');
+
+            if (telemetryWindowFilter !== '15m') {
+                nextParams.set(TELEMETRY_WINDOW_QUERY_KEY, telemetryWindowFilter);
+            }
+
+            nextParams.set(TELEMETRY_SOURCE_QUERY_KEY, dominantSourceByErrors.source);
+
+            if (telemetryToolFilter !== 'all') {
+                nextParams.set(TELEMETRY_TOOL_QUERY_KEY, telemetryToolFilter);
+            }
+
+            if (telemetryBucketTimeFilter) {
+                nextParams.set(TELEMETRY_BUCKET_START_QUERY_KEY, String(telemetryBucketTimeFilter.start));
+                nextParams.set(TELEMETRY_BUCKET_END_QUERY_KEY, String(telemetryBucketTimeFilter.end));
+            }
 
             return `${window.location.origin}${pathname}?${nextParams.toString()}`;
         })();
@@ -1039,6 +1084,7 @@ export default function SearchDashboard() {
         const summary = [
             `MCP Search telemetry summary`,
             `Filters: ${filterSummary}`,
+            `Segment scope: ${telemetryBucketTimeFilter && telemetryStatusFilter !== 'all' ? `${telemetryStatusFilter} within ${formatTelemetryBucketRange(telemetryBucketTimeFilter.start, telemetryBucketTimeFilter.end)}` : 'none'}`,
             `Events: total=${telemetrySummary.total}, success=${telemetrySummary.success}, error=${telemetrySummary.error}, ignored=${telemetrySummary.ignoredResults}`,
             `Dominant source (volume): ${dominantSourceByVolume ? `${dominantSourceByVolume.source} (${dominantSourceByVolume.count} events, ${dominantSourceByVolume.error} errors, ${Math.round((dominantSourceByVolume.error / dominantSourceByVolume.count) * 100)}% error rate)` : 'none'}`,
             `Dominant source (errors): ${dominantSourceByErrors ? `${dominantSourceByErrors.source} (${dominantSourceByErrors.error} errors, ${Math.round((dominantSourceByErrors.error / dominantSourceByErrors.count) * 100)}% error rate)` : 'none'}`,
@@ -2056,7 +2102,6 @@ export default function SearchDashboard() {
                                                             title={errorDrilldownDisabled ? 'No error events in this bucket' : `Focus error events for ${bucket.label}`}
                                                             aria-label={errorDrilldownDisabled ? `${bucket.label} has no error events` : `Focus error events for ${bucket.label}`}
                                                         />
-                                                    </div>
                                                     </div>
                                                     <div className="text-[9px] text-zinc-500 text-center">{bucket.label}</div>
                                                 </div>

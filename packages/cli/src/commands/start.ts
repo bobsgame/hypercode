@@ -15,7 +15,8 @@
 import { closeSync, mkdirSync, openSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import net from 'node:net';
 import { homedir } from 'node:os';
-import { isAbsolute, join, resolve, sep } from 'node:path';
+import { isAbsolute, join, resolve, sep, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import type { Command } from 'commander';
 
@@ -312,7 +313,14 @@ Examples:
       const explicitPort = process.argv.includes('--port') || process.argv.includes('-p');
       let lockHandle: BorgStartLockHandle | null = null;
 
-      console.log(chalk.bold.cyan('\n  ⬡ Borg AIOS v2.5.0'));
+      let borgVersion = 'unknown';
+      try {
+        // Walk up from the cli package to find the repo root VERSION file
+        const cliDir = dirname(fileURLToPath(import.meta.url));
+        const repoRoot = resolve(cliDir, '..', '..', '..', '..');
+        borgVersion = readFileSync(join(repoRoot, 'VERSION'), 'utf-8').trim() || 'unknown';
+      } catch { /* VERSION file not found — continue */ }
+      console.log(chalk.bold.cyan(`\n  ⬡ Borg AIOS v${borgVersion}`));
       console.log(chalk.dim('  The Neural Operating System\n'));
 
       try {

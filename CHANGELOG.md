@@ -4,6 +4,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.7.250] — 2026-03-16
+
+- fix(core/startup): `buildStartupStatusSnapshot` no longer blocks a **zero-server fresh install** on `mcp_config_sync_pending`. When `configuredServerCount === 0 && persistedServerCount === 0`, config sync is trivially satisfied — waiting for `lastCompletedAt` would stall the boot indefinitely with no MCP servers to sync.
+- fix(core/startup): `configuredServerCount` is now computed before `configSyncReady` so the zero-server guard can reference it cleanly.
+- fix(cli/start): `borg start` banner now reads the actual version from the repo `VERSION` file instead of the hardcoded `v2.5.0` string.
+- test(core/startup): 2 new tests — `zero-server fresh install boots cleanly when aggregator is initialized even if config sync has never run` + `zero-server pre-init: shows mcp_aggregator_not_initialized but not mcp_config_sync_pending while aggregator bootstraps`; total `startupStatus.test.ts` now 13/13.
+- test(validation): `vitest startupStatus.test.ts` 13/13 passed · `CORE_TSC_OK`.
+
 ## [2.7.249] — 2026-03-16
 
 - feat(web/dashboard): New `PageStatusBanner` component (`apps/web/src/components/PageStatusBanner.tsx`) provides reusable `experimental` (amber), `beta` (blue), and `external-embed` (gray) status labels for dashboard pages.

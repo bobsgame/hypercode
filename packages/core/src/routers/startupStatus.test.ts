@@ -843,4 +843,156 @@ describe('buildStartupStatusSnapshot', () => {
             ]),
         );
     });
+
+        it('zero-server fresh install boots cleanly when aggregator is initialized even if config sync has never run', async () => {
+            const snapshot = await buildStartupStatusSnapshot({
+                mcpServer: {
+                    memoryManager: {},
+                    isMemoryInitialized: true,
+                    getBridgeStatus: () => ({
+                        ready: true,
+                        clientCount: 0,
+                        clients: [],
+                        supportedCapabilities: [],
+                        supportedHookPhases: [],
+                    }),
+                },
+                aggregator: {
+                    getInitializationStatus: () => ({
+                        inProgress: false,
+                        initialized: true,
+                        connectedClientCount: 0,
+                        configuredServerCount: 0,
+                    }),
+                },
+                agentMemory: {},
+                browserService: {},
+                browserStatus: { active: false, pageCount: 0, pageIds: [] },
+                sessionSupervisor: {
+                    getRestoreStatus: () => ({
+                        lastRestoreAt: Date.now(),
+                        restoredSessionCount: 0,
+                        autoResumeCount: 0,
+                    }),
+                },
+                sessionCount: 0,
+                // Fresh install: config sync has NEVER completed (lastCompletedAt is null)
+                mcpConfigService: {
+                    getStatus: () => ({
+                        inProgress: false,
+                        lastCompletedAt: undefined,
+                        lastSuccessAt: undefined,
+                        lastServerCount: 0,
+                        lastToolCount: 0,
+                    }),
+                },
+                liveServerCount: 0,
+                persistedServerCount: 0,
+                persistedToolCount: 0,
+                persistedAlwaysOnServerCount: 0,
+                persistedAlwaysOnToolCount: 0,
+                executionEnvironment: {
+                    ready: true,
+                    preferredShellId: 'pwsh',
+                    preferredShellLabel: 'PowerShell 7',
+                    shellCount: 1,
+                    verifiedShellCount: 1,
+                    toolCount: 2,
+                    verifiedToolCount: 2,
+                    harnessCount: 1,
+                    verifiedHarnessCount: 1,
+                    supportsPowerShell: true,
+                    supportsPosixShell: false,
+                    notes: [],
+                },
+            });
+
+            expect(snapshot.ready).toBe(true);
+            expect(snapshot.checks.configSync.ready).toBe(true);
+            expect(snapshot.blockingReasons).not.toEqual(
+                expect.arrayContaining([
+                    expect.objectContaining({ code: 'mcp_config_sync_pending' }),
+                ]),
+            );
+            expect(snapshot.checks.mcpAggregator.inventoryReady).toBe(true);
+            expect(snapshot.checks.mcpAggregator.residentReady).toBe(true);
+        });
+
+        it('zero-server pre-init: shows mcp_aggregator_not_initialized but not mcp_config_sync_pending while aggregator bootstraps', async () => {
+            const snapshot = await buildStartupStatusSnapshot({
+                mcpServer: {
+                    memoryManager: {},
+                    isMemoryInitialized: true,
+                    getBridgeStatus: () => ({
+                        ready: true,
+                        clientCount: 0,
+                        clients: [],
+                        supportedCapabilities: [],
+                        supportedHookPhases: [],
+                    }),
+                },
+                // Aggregator is still bootstrapping (initialized: false)
+                aggregator: {
+                    getInitializationStatus: () => ({
+                        inProgress: true,
+                        initialized: false,
+                        connectedClientCount: 0,
+                        configuredServerCount: 0,
+                    }),
+                },
+                agentMemory: {},
+                browserService: {},
+                browserStatus: { active: false, pageCount: 0, pageIds: [] },
+                sessionSupervisor: {
+                    getRestoreStatus: () => ({
+                        lastRestoreAt: Date.now(),
+                        restoredSessionCount: 0,
+                        autoResumeCount: 0,
+                    }),
+                },
+                sessionCount: 0,
+                mcpConfigService: {
+                    getStatus: () => ({
+                        inProgress: false,
+                        lastCompletedAt: undefined,
+                        lastSuccessAt: undefined,
+                        lastServerCount: 0,
+                        lastToolCount: 0,
+                    }),
+                },
+                liveServerCount: 0,
+                persistedServerCount: 0,
+                persistedToolCount: 0,
+                persistedAlwaysOnServerCount: 0,
+                persistedAlwaysOnToolCount: 0,
+                executionEnvironment: {
+                    ready: true,
+                    preferredShellId: 'pwsh',
+                    preferredShellLabel: 'PowerShell 7',
+                    shellCount: 1,
+                    verifiedShellCount: 1,
+                    toolCount: 2,
+                    verifiedToolCount: 2,
+                    harnessCount: 1,
+                    verifiedHarnessCount: 1,
+                    supportsPowerShell: true,
+                    supportsPosixShell: false,
+                    notes: [],
+                },
+            });
+
+            // Pre-init state: should be pending (transient, resolves in <100ms on actual hardware)
+            expect(snapshot.ready).toBe(false);
+            expect(snapshot.blockingReasons).toEqual(
+                expect.arrayContaining([
+                    expect.objectContaining({ code: 'mcp_aggregator_not_initialized' }),
+                ]),
+            );
+            // But config sync must NOT be a blocker — nothing to sync on zero-server install
+            expect(snapshot.blockingReasons).not.toEqual(
+                expect.arrayContaining([
+                    expect.objectContaining({ code: 'mcp_config_sync_pending' }),
+                ]),
+            );
+        });
 });

@@ -172,13 +172,18 @@ export async function buildStartupStatusSnapshot(input: StartupStatusInput) {
     const sessionReady = Boolean(sessionSupervisor);
     const browserReady = Boolean(browserService);
     const mcpReady = Boolean(aggregator);
-    const configSyncReady = Boolean(configSyncStatus?.lastCompletedAt) && !configSyncStatus?.inProgress && !configSyncStatus?.lastError;
-    const sessionRestoreReady = Boolean(restoreStatus?.lastRestoreAt);
     const configuredServerCount = Number(
         configSyncStatus?.lastServerCount
         ?? aggregatorStatus?.configuredServerCount
         ?? persistedServerCount,
     );
+    // On a fresh install with zero configured servers, config sync is trivially satisfied —
+    // there is nothing to sync, and blocking on lastCompletedAt would stall the boot indefinitely.
+    const zeroServersConfigured = configuredServerCount === 0 && persistedServerCount === 0;
+    const configSyncReady = zeroServersConfigured
+        ? (!configSyncStatus?.inProgress && !configSyncStatus?.lastError)
+        : Boolean(configSyncStatus?.lastCompletedAt) && !configSyncStatus?.inProgress && !configSyncStatus?.lastError;
+    const sessionRestoreReady = Boolean(restoreStatus?.lastRestoreAt);
     const knownServerCount = Math.max(liveServerCount, persistedServerCount, configuredServerCount);
     const advertisedServerCount = Math.max(persistedServerCount, configuredServerCount);
     const advertisedToolCount = Math.max(persistedToolCount, Number(configSyncStatus?.lastToolCount ?? 0));

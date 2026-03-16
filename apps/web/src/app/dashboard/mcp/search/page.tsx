@@ -1139,6 +1139,7 @@ export default function SearchDashboard() {
 
             return `${window.location.origin}${pathname}?${nextParams.toString()}`;
         })();
+        const currentScopeUrl = `${window.location.origin}${pathname}${window.location.search}`;
 
         const filterSummary = [
             `type=${telemetryTypeFilter}`,
@@ -1162,6 +1163,7 @@ export default function SearchDashboard() {
             `Generated at: ${new Date().toISOString()}`,
             `Filters: ${filterSummary}`,
             `Active preset: ${activeTelemetryPreset ? activeTelemetryPreset.label : 'custom'}`,
+            `Scope URL: ${currentScopeUrl}`,
             `Segment scope: ${telemetryBucketTimeFilter && telemetryStatusFilter !== 'all' ? `${telemetryStatusFilter} within ${formatTelemetryBucketRange(telemetryBucketTimeFilter.start, telemetryBucketTimeFilter.end)}` : 'none'}`,
             `Events: total=${telemetrySummary.total}, success=${telemetrySummary.success}, error=${telemetrySummary.error}, ignored=${telemetrySummary.ignoredResults}`,
             `Dominant source (volume): ${dominantSourceByVolume ? `${dominantSourceByVolume.source} (${dominantSourceByVolume.count} events, ${dominantSourceByVolume.error} errors, ${Math.round((dominantSourceByVolume.error / dominantSourceByVolume.count) * 100)}% error rate)` : 'none'}`,

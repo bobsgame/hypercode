@@ -4,6 +4,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.7.300] — 2026-03-16
+
+- feat(web/mcp/search): Added `Scope URL` line to telemetry summary copy output so handoff recipients can open the exact active filter state directly.
+- feat(web/mcp/inspector): Added matching `Scope URL` line in Inspector telemetry summary copy output for Search/Inspector incident-link parity.
+- test(validation): `WEB_TSC_OK`; focused fallback/billing slice tests passed (`packages/core/src/routers/billingRouter.test.ts`, `apps/web/src/app/dashboard/billing/page.test.tsx`, `apps/web/src/app/dashboard/DashboardHomeClient.test.tsx`, `apps/web/tests/integration/fallback-e2e.test.ts`).
+
 ## [2.7.299] — 2026-03-16
 
 - feat(web/mcp/search): Added explicit `Generated at` ISO timestamp line to telemetry summary copy output so incident handoffs include an unambiguous capture time.

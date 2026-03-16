@@ -50,7 +50,7 @@ type ToolSelectionTelemetryEvent = {
     timestamp: number;
     query?: string;
     profile?: string;
-    source?: 'runtime-search' | 'cached-ranking' | 'live-aggregator';
+    source?: 'runtime-search' | 'cached-ranking' | 'live-aggregator' | 'manual-action';
     resultCount?: number;
     topResultName?: string;
     topMatchReason?: string;
@@ -110,7 +110,7 @@ type ToolPreferenceMutationInput = {
 };
 
 type TelemetryWindowPreset = 'all' | '5m' | '15m' | '1h' | '24h';
-type TelemetrySourceFilter = 'all' | 'runtime-search' | 'cached-ranking' | 'live-aggregator';
+type TelemetrySourceFilter = 'all' | 'runtime-search' | 'cached-ranking' | 'live-aggregator' | 'manual-action';
 type TelemetryTriagePreset = 'errors-now' | 'runtime-failures' | 'load-incidents' | 'hydration-failures' | 'auto-load-skips' | 'live-aggregator-focus';
 
 const TELEMETRY_FILTERS_STORAGE_KEY = 'borg.mcp.search.telemetryFilters.v1';
@@ -395,7 +395,7 @@ export default function SearchDashboard() {
             errorCount,
         };
     });
-    const telemetrySourceStats = (['runtime-search', 'cached-ranking', 'live-aggregator'] as const)
+    const telemetrySourceStats = (['runtime-search', 'cached-ranking', 'live-aggregator', 'manual-action'] as const)
         .map((source) => {
             const sourceEvents = filteredTelemetryEvents.filter((event) => event.source === source);
             const avgLatencyMs = sourceEvents.length > 0
@@ -494,7 +494,7 @@ export default function SearchDashboard() {
             hasHydratedFromUrl = true;
         }
 
-        if (urlSource && ['all', 'runtime-search', 'cached-ranking', 'live-aggregator'].includes(urlSource)) {
+        if (urlSource && ['all', 'runtime-search', 'cached-ranking', 'live-aggregator', 'manual-action'].includes(urlSource)) {
             setTelemetrySourceFilter(urlSource as TelemetrySourceFilter);
             hasHydratedFromUrl = true;
         }
@@ -528,7 +528,7 @@ export default function SearchDashboard() {
                 setTelemetryWindowFilter(parsed.window as TelemetryWindowPreset);
             }
 
-            if (parsed.source && ['all', 'runtime-search', 'cached-ranking', 'live-aggregator'].includes(parsed.source)) {
+            if (parsed.source && ['all', 'runtime-search', 'cached-ranking', 'live-aggregator', 'manual-action'].includes(parsed.source)) {
                 setTelemetrySourceFilter(parsed.source as TelemetrySourceFilter);
             }
         } catch {
@@ -1560,6 +1560,7 @@ export default function SearchDashboard() {
                                         { value: 'runtime-search', label: 'Runtime' },
                                         { value: 'cached-ranking', label: 'Cached' },
                                         { value: 'live-aggregator', label: 'Live' },
+                                        { value: 'manual-action', label: 'Manual' },
                                     ] as const).map((option) => {
                                         const active = telemetrySourceFilter === option.value;
                                         return (

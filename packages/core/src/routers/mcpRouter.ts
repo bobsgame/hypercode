@@ -507,6 +507,7 @@ export const mcpRouter = t.router({
                             toolSelectionTelemetry.record({
                                 type: 'load',
                                 toolName: runtimeAutoLoadedResult.name,
+                                source: 'runtime-search',
                                 status: 'success',
                                 message: `Tool '${runtimeAutoLoadedResult.name}' auto-loaded by runtime search.`,
                                 autoLoadReason: autoLoadDecision.reason,
@@ -525,6 +526,7 @@ export const mcpRouter = t.router({
                                 toolSelectionTelemetry.record({
                                     type: 'load',
                                     toolName: autoLoadDecision.toolName,
+                                    source: 'runtime-search',
                                     status: 'success',
                                     message: loadMessage,
                                     evictedTools: parseEvictedToolsFromMessage(loadMessage),
@@ -541,6 +543,7 @@ export const mcpRouter = t.router({
                                 toolSelectionTelemetry.record({
                                     type: 'load',
                                     toolName: autoLoadDecision.toolName,
+                                    source: 'runtime-search',
                                     status: 'error',
                                     message: autoLoadExecutionError,
                                     latencyMs: toLatencyMs(autoLoadStartedAt),
@@ -648,6 +651,7 @@ export const mcpRouter = t.router({
                         toolSelectionTelemetry.record({
                             type: 'load',
                             toolName: autoLoadDecision.toolName,
+                            source: 'cached-ranking',
                             status: 'success',
                             message: getToolTextContent(loadResult),
                             evictedTools: parseEvictedToolsFromMessage(getToolTextContent(loadResult)),
@@ -664,6 +668,7 @@ export const mcpRouter = t.router({
                         toolSelectionTelemetry.record({
                             type: 'load',
                             toolName: autoLoadDecision.toolName,
+                            source: 'cached-ranking',
                             status: 'error',
                             message: autoLoadExecutionError,
                             latencyMs: toLatencyMs(autoLoadStartedAt),
@@ -1155,6 +1160,7 @@ export const mcpRouter = t.router({
         toolSelectionTelemetry.record({
             type: 'load',
             toolName: input.name,
+            source: 'manual-action',
             status: 'success',
             message,
             evictedTools,
@@ -1182,6 +1188,7 @@ export const mcpRouter = t.router({
         toolSelectionTelemetry.record({
             type: 'unload',
             toolName: input.name,
+            source: 'manual-action',
             status: 'success',
             message,
             latencyMs: toLatencyMs(startedAt),
@@ -1211,6 +1218,7 @@ export const mcpRouter = t.router({
         toolSelectionTelemetry.record({
             type: 'hydrate',
             toolName: input.name,
+            source: 'manual-action',
             status: 'success',
             message: 'schema hydrated',
             evictedTools: Array.isArray(parsed.evictedHydratedTools) ? parsed.evictedHydratedTools : [],

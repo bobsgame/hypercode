@@ -7,7 +7,7 @@ export interface ToolSelectionTelemetryEvent {
     sessionId?: string;
     query?: string;
     profile?: string;
-    source?: 'runtime-search' | 'cached-ranking' | 'live-aggregator';
+    source?: 'runtime-search' | 'cached-ranking' | 'live-aggregator' | 'manual-action';
     resultCount?: number;
     topResultName?: string;
     topMatchReason?: string;

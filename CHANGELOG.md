@@ -4,6 +4,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.7.238] — 2026-03-15
+
+- feat(core/mcp): `packages/core/src/routers/mcpRouter.ts` now emits explicit telemetry `source` attribution for non-search events: `runtime-search` and `cached-ranking` for auto-load load events, and `manual-action` for direct load/unload/hydrate actions.
+- feat(core/mcp): `packages/core/src/mcp/toolSelectionTelemetry.ts` extends the telemetry source contract to include `manual-action`, enabling reliable operator triage of user-triggered actions versus automatic routing.
+- changed(web/mcp-search): `apps/web/src/app/dashboard/mcp/search/page.tsx` now supports `manual-action` in telemetry source URL hydration, local filter persistence, source stats/trends, and source filter controls.
+- test(validation): reran focused MCP suites (`toolSearchRanking`, `metamcp-session-working-set`) with `18` tests passing and revalidated web TypeScript gate (`WEB_TSC_OK`).
+
 ## [2.7.237] — 2026-03-15
 
 - feat(core/mcp): `packages/core/src/mcp/toolSearchRanking.ts` now treats runtime auto-loaded top results (`loaded + autoLoaded`) as a first-class evaluated `loaded` outcome, preserving confidence/score-gap/min-threshold context instead of collapsing to a non-applicable state.

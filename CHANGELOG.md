@@ -4,6 +4,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.7.278] — 2026-03-16
+
+- feat(web/mcp/search): Added lane-level bulk actions in `Tool visibility lanes` — operators can now `Load all` or `Hydrate all` tools in the `Always-on advertised` and `Keep warm profile` lanes.
+- feat(web/mcp/search): Added lane-action progress states and safe disabled conditions to prevent overlapping bulk load/hydrate operations.
+- feat(web/mcp/search): Bulk lane actions now skip already-ready tools (already loaded/hydrated) and provide concise completion feedback.
+- test(validation): `WEB_TSC_OK`; focused MCP tests passed (`apps/web/src/lib/mcp-import.test.ts`, `apps/web/src/app/dashboard/mcp/mcp-dashboard-utils.test.ts`).
+
 ## [2.7.277] — 2026-03-16
 
 - feat(web/mcp/search): `Hydrate schema` now supports load-aware hydration from search results and lane cards — if a tool is not loaded, Borg performs `load -> hydrate` in one action.

@@ -256,6 +256,7 @@ export default function SearchDashboard() {
         source?: TelemetrySourceFilter;
     } | null>(null);
     const [activeHydrationToolName, setActiveHydrationToolName] = useState<string | null>(null);
+    const [activeLaneAction, setActiveLaneAction] = useState<string | null>(null);
     const utils = trpc.useUtils();
     const searchQuery = trpc.mcp.searchTools.useQuery(
         { query, profile: profile === 'default' ? undefined : profile },
@@ -1128,6 +1129,49 @@ export default function SearchDashboard() {
         }
     };
 
+    const runLaneAction = async (
+        laneId: 'always-on-lane' | 'keep-warm-lane',
+        action: 'load' | 'hydrate',
+        tools: SearchResult[],
+    ) => {
+        const actionKey = `${laneId}:${action}`;
+        setActiveLaneAction(actionKey);
+
+        try {
+            const candidateTools = tools.filter((tool) => {
+                const loaded = loadedToolNames.has(tool.name);
+                const hydrated = Boolean(workingSetByName.get(tool.name)?.hydrated || tool.hydrated);
+
+                if (action === 'load') {
+                    return !loaded;
+                }
+
+                return !hydrated;
+            });
+
+            if (candidateTools.length === 0) {
+                toast.info(action === 'load' ? 'All lane tools are already loaded' : 'All lane tools are already hydrated');
+                return;
+            }
+
+            for (const tool of candidateTools) {
+                if (action === 'load') {
+                    await loadMutation.mutateAsync({ name: tool.name });
+                    continue;
+                }
+
+                const loaded = loadedToolNames.has(tool.name);
+                await hydrateToolSchema(tool.name, loaded);
+            }
+
+            toast.success(action === 'load'
+                ? `Loaded ${candidateTools.length} lane tool${candidateTools.length === 1 ? '' : 's'}`
+                : `Hydrated ${candidateTools.length} lane tool${candidateTools.length === 1 ? '' : 's'}`);
+        } finally {
+            setActiveLaneAction((current) => (current === actionKey ? null : current));
+        }
+    };
+
     return (
         <div className="p-8 space-y-8 h-full flex flex-col">
             <PageStatusBanner status="beta" message="MCP Semantic Search" note="Tool discovery and ranking are functional. Schema hydration depth and score tuning are ongoing." />
@@ -1748,8 +1792,50 @@ export default function SearchDashboard() {
                                 },
                             ] as const).map((lane) => (
                                 <div key={lane.id} className="space-y-2">
-                                    <div className={`text-[10px] uppercase tracking-wider ${lane.tone}`}>
-                                        {lane.label} ({lane.tools.length})
+                                    <div className="flex items-center justify-between gap-2">
+                                        <div className={`text-[10px] uppercase tracking-wider ${lane.tone}`}>
+                                            {lane.label} ({lane.tools.length})
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => {
+                                                    void runLaneAction(lane.id, 'load', lane.tools as SearchResult[]);
+                                                }}
+                                                disabled={loadMutation.isPending || hydrateMutation.isPending || activeLaneAction != null || lane.tools.length === 0}
+                                                title={`Load all ${lane.label.toLowerCase()} tools into working set`}
+                                                aria-label={`Load all ${lane.label.toLowerCase()} tools`}
+                                                className="border-blue-700 text-blue-200 hover:bg-blue-950/30"
+                                            >
+                                                {activeLaneAction === `${lane.id}:load` ? (
+                                                    <>
+                                                        <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                                                        Loading...
+                                                    </>
+                                                ) : 'Load all'}
+                                            </Button>
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => {
+                                                    void runLaneAction(lane.id, 'hydrate', lane.tools as SearchResult[]);
+                                                }}
+                                                disabled={loadMutation.isPending || hydrateMutation.isPending || activeLaneAction != null || lane.tools.length === 0}
+                                                title={`Hydrate all ${lane.label.toLowerCase()} tools`}
+                                                aria-label={`Hydrate all ${lane.label.toLowerCase()} tools`}
+                                                className="border-purple-700 text-purple-200 hover:bg-purple-950/30"
+                                            >
+                                                {activeLaneAction === `${lane.id}:hydrate` ? (
+                                                    <>
+                                                        <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                                                        Hydrating...
+                                                    </>
+                                                ) : 'Hydrate all'}
+                                            </Button>
+                                        </div>
                                     </div>
                                     {lane.tools.length > 0 ? (
                                         <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1">

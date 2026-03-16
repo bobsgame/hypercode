@@ -101,6 +101,8 @@ const INSPECTOR_TELEMETRY_WINDOW_QUERY_KEY = 'telemetryWindow';
 const INSPECTOR_TELEMETRY_SOURCE_QUERY_KEY = 'telemetrySource';
 const INSPECTOR_TELEMETRY_TOOL_QUERY_KEY = 'telemetryTool';
 const INSPECTOR_TELEMETRY_SEARCH_QUERY_KEY = 'telemetrySearch';
+const INSPECTOR_TELEMETRY_BUCKET_START_QUERY_KEY = 'telemetryBucketStart';
+const INSPECTOR_TELEMETRY_BUCKET_END_QUERY_KEY = 'telemetryBucketEnd';
 const INSPECTOR_TELEMETRY_SOURCES: Array<{ value: Exclude<TelemetrySourceFilter, 'all'>; label: string }> = [
     { value: 'runtime-search', label: 'Runtime' },
     { value: 'cached-ranking', label: 'Cached' },
@@ -196,6 +198,18 @@ function formatTrendTooltipErrorMessage(message: string | undefined): string | n
     return `${compact.slice(0, 117)}...`;
 }
 
+function formatTelemetryBucketRange(start: number, end: number): string {
+    const sameDay = new Date(start).toDateString() === new Date(end).toDateString();
+    const startLabel = sameDay
+        ? new Date(start).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        : new Date(start).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    const endLabel = sameDay
+        ? new Date(end).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        : new Date(end).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+    return `${startLabel} → ${endLabel}`;
+}
+
 function InspectorDashboardContent() {
     const router = useRouter();
     const pathname = usePathname();
@@ -213,6 +227,11 @@ function InspectorDashboardContent() {
     const [telemetryStatusFilter, setTelemetryStatusFilter] = useState<'all' | ToolSelectionTelemetryEvent['status']>('all');
     const [telemetryWindowFilter, setTelemetryWindowFilter] = useState<TelemetryWindowPreset>('15m');
     const [telemetrySourceFilter, setTelemetrySourceFilter] = useState<TelemetrySourceFilter>('all');
+    const [telemetryBucketTimeFilter, setTelemetryBucketTimeFilter] = useState<{
+        start: number;
+        end: number;
+        source?: TelemetrySourceFilter;
+    } | null>(null);
     // Per-tool filter — set via leaderboard "Focus errors" or source-trend tooltip inference
     const [telemetryToolFilter, setTelemetryToolFilter] = useState<string | null>(null);
     // Pagination for the event card list (12 cards per page)
@@ -396,6 +415,13 @@ function InspectorDashboardContent() {
     const baselineScopedEvents = telemetry
         .filter((event) => telemetryWindowStart == null || event.timestamp >= telemetryWindowStart)
         .filter((event) => telemetryTypeFilter === 'all' || event.type === telemetryTypeFilter)
+        .filter((event) => {
+            if (!telemetryBucketTimeFilter) {
+                return true;
+            }
+
+            return event.timestamp >= telemetryBucketTimeFilter.start && event.timestamp < telemetryBucketTimeFilter.end;
+        })
         .filter((event) => telemetryStatusFilter === 'all' || event.status === telemetryStatusFilter)
         .filter((event) => telemetrySourceFilter === 'all' || event.source === telemetrySourceFilter);
     const scopedTelemetryEvents = baselineScopedEvents
@@ -526,6 +552,8 @@ function InspectorDashboardContent() {
             const topFailingTool = Object.entries(toolCounts).sort((a, b) => b[1] - a[1])[0]?.[0];
             const topErrorMessage = bucketErrorEvents[0]?.message;
             return {
+                start: bucket.start,
+                end: bucket.end,
                 label: bucket.label,
                 total: bucketEvents.length,
                 successCount: bucketEvents.filter((event) => event.status === 'success').length,
@@ -638,6 +666,7 @@ function InspectorDashboardContent() {
         && telemetryWindowFilter === '15m'
         && telemetrySourceFilter === 'all'
         && telemetryToolFilter == null
+        && telemetryBucketTimeFilter == null
         && telemetrySearchQuery === '';
 
     useEffect(() => {
@@ -697,6 +726,8 @@ function InspectorDashboardContent() {
         const urlStatus = searchParams.get(INSPECTOR_TELEMETRY_STATUS_QUERY_KEY);
         const urlWindow = searchParams.get(INSPECTOR_TELEMETRY_WINDOW_QUERY_KEY);
         const urlSource = searchParams.get(INSPECTOR_TELEMETRY_SOURCE_QUERY_KEY);
+        const urlBucketStart = searchParams.get(INSPECTOR_TELEMETRY_BUCKET_START_QUERY_KEY);
+        const urlBucketEnd = searchParams.get(INSPECTOR_TELEMETRY_BUCKET_END_QUERY_KEY);
 
         if (urlType && ['all', 'search', 'load', 'hydrate', 'unload'].includes(urlType)) {
             setTelemetryTypeFilter(urlType as 'all' | ToolSelectionTelemetryEvent['type']);
@@ -730,6 +761,21 @@ function InspectorDashboardContent() {
             hasHydratedFromUrl = true;
         }
 
+        if (urlBucketStart && urlBucketEnd) {
+            const parsedStart = Number(urlBucketStart);
+            const parsedEnd = Number(urlBucketEnd);
+            if (Number.isFinite(parsedStart) && Number.isFinite(parsedEnd) && parsedStart < parsedEnd) {
+                setTelemetryBucketTimeFilter({
+                    start: parsedStart,
+                    end: parsedEnd,
+                    source: urlSource && ['runtime-search', 'cached-ranking', 'live-aggregator'].includes(urlSource)
+                        ? (urlSource as TelemetrySourceFilter)
+                        : undefined,
+                });
+                hasHydratedFromUrl = true;
+            }
+        }
+
         if (hasHydratedFromUrl) {
             return;
         }
@@ -747,6 +793,9 @@ function InspectorDashboardContent() {
                 source?: string;
                 tool?: string;
                 search?: string;
+                bucketStart?: number;
+                bucketEnd?: number;
+                bucketSource?: string;
             };
 
             if (parsed.type && ['all', 'search', 'load', 'hydrate', 'unload'].includes(parsed.type)) {
@@ -772,6 +821,22 @@ function InspectorDashboardContent() {
             if (parsed.search) {
                 setTelemetrySearchQuery(parsed.search);
             }
+
+            if (
+                typeof parsed.bucketStart === 'number'
+                && typeof parsed.bucketEnd === 'number'
+                && Number.isFinite(parsed.bucketStart)
+                && Number.isFinite(parsed.bucketEnd)
+                && parsed.bucketStart < parsed.bucketEnd
+            ) {
+                setTelemetryBucketTimeFilter({
+                    start: parsed.bucketStart,
+                    end: parsed.bucketEnd,
+                    source: parsed.bucketSource && ['runtime-search', 'cached-ranking', 'live-aggregator'].includes(parsed.bucketSource)
+                        ? (parsed.bucketSource as TelemetrySourceFilter)
+                        : undefined,
+                });
+            }
         } catch {
             // Ignore invalid persisted payloads and continue with defaults.
         }
@@ -788,12 +853,15 @@ function InspectorDashboardContent() {
                     source: telemetrySourceFilter,
                     tool: telemetryToolFilter ?? undefined,
                     search: telemetrySearchQuery || undefined,
+                    bucketStart: telemetryBucketTimeFilter?.start,
+                    bucketEnd: telemetryBucketTimeFilter?.end,
+                    bucketSource: telemetryBucketTimeFilter?.source,
                 }),
             );
         } catch {
             // Ignore local storage write failures.
         }
-    }, [telemetryTypeFilter, telemetryStatusFilter, telemetryWindowFilter, telemetrySourceFilter, telemetryToolFilter, telemetrySearchQuery]);
+    }, [telemetryTypeFilter, telemetryStatusFilter, telemetryWindowFilter, telemetrySourceFilter, telemetryToolFilter, telemetrySearchQuery, telemetryBucketTimeFilter]);
 
     useEffect(() => {
         const nextParams = new URLSearchParams(searchParams.toString());
@@ -834,6 +902,14 @@ function InspectorDashboardContent() {
             nextParams.set(INSPECTOR_TELEMETRY_SEARCH_QUERY_KEY, telemetrySearchQuery);
         }
 
+        if (!telemetryBucketTimeFilter) {
+            nextParams.delete(INSPECTOR_TELEMETRY_BUCKET_START_QUERY_KEY);
+            nextParams.delete(INSPECTOR_TELEMETRY_BUCKET_END_QUERY_KEY);
+        } else {
+            nextParams.set(INSPECTOR_TELEMETRY_BUCKET_START_QUERY_KEY, String(telemetryBucketTimeFilter.start));
+            nextParams.set(INSPECTOR_TELEMETRY_BUCKET_END_QUERY_KEY, String(telemetryBucketTimeFilter.end));
+        }
+
         const currentQuery = searchParams.toString();
         const nextQuery = nextParams.toString();
         if (currentQuery === nextQuery) {
@@ -841,12 +917,12 @@ function InspectorDashboardContent() {
         }
 
         router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname, { scroll: false });
-    }, [pathname, router, searchParams, telemetryTypeFilter, telemetryStatusFilter, telemetryWindowFilter, telemetrySourceFilter, telemetryToolFilter, telemetrySearchQuery]);
+    }, [pathname, router, searchParams, telemetryTypeFilter, telemetryStatusFilter, telemetryWindowFilter, telemetrySourceFilter, telemetryToolFilter, telemetrySearchQuery, telemetryBucketTimeFilter]);
 
     // Reset pagination to page 0 whenever any filter changes so stale page offsets are avoided.
     useEffect(() => {
         setTelemetryPage(0);
-    }, [telemetryTypeFilter, telemetryStatusFilter, telemetryWindowFilter, telemetrySourceFilter, telemetryToolFilter, telemetrySearchQuery]);
+    }, [telemetryTypeFilter, telemetryStatusFilter, telemetryWindowFilter, telemetrySourceFilter, telemetryToolFilter, telemetrySearchQuery, telemetryBucketTimeFilter]);
 
     const handleRun = () => {
         if (!selectedTool) return;
@@ -935,6 +1011,7 @@ function InspectorDashboardContent() {
         setTelemetrySourceFilter('all');
         setTelemetryToolFilter(null);
         setTelemetrySearchQuery('');
+        setTelemetryBucketTimeFilter(null);
 
         try {
             window.localStorage.removeItem(INSPECTOR_TELEMETRY_FILTERS_STORAGE_KEY);
@@ -993,6 +1070,7 @@ function InspectorDashboardContent() {
             `window=${telemetryWindowFilter}`,
             `source=${telemetrySourceFilter}`,
             `tool=${telemetryToolFilter ?? 'all'}`,
+            `bucket=${telemetryBucketTimeFilter ? formatTelemetryBucketRange(telemetryBucketTimeFilter.start, telemetryBucketTimeFilter.end) : 'all'}`,
             `search=${telemetrySearchQuery || 'none'}`,
         ].join(', ');
         const topFailingTools = telemetryErrorToolRows.length > 0
@@ -1027,6 +1105,8 @@ function InspectorDashboardContent() {
     };
 
     const applyTelemetryPreset = (preset: TelemetryTriagePreset) => {
+        setTelemetryBucketTimeFilter(null);
+
         if (preset === 'errors-now') {
             setTelemetryTypeFilter('all');
             setTelemetryStatusFilter('error');
@@ -1535,6 +1615,17 @@ function InspectorDashboardContent() {
                                     tool: {telemetryToolFilter} ×
                                 </button>
                             )}
+                            {telemetryBucketTimeFilter != null && (
+                                <button
+                                    type="button"
+                                    onClick={() => setTelemetryBucketTimeFilter(null)}
+                                    className="rounded-md border border-teal-500/40 bg-teal-500/15 px-2 py-1 text-teal-200 transition-colors hover:bg-teal-500/25"
+                                    title="Clear bucket time-range filter"
+                                    aria-label="Clear bucket time-range filter"
+                                >
+                                    bucket: {formatTelemetryBucketRange(telemetryBucketTimeFilter.start, telemetryBucketTimeFilter.end)} ×
+                                </button>
+                            )}
                         </div>
 
                         <div className="space-y-2 rounded-lg border border-zinc-800 bg-zinc-950/50 p-3">
@@ -1613,6 +1704,9 @@ function InspectorDashboardContent() {
 
                                                 <div className="grid grid-cols-6 gap-1">
                                                     {source.trend.map((bucket) => {
+                                                        const bucketSelected = telemetryBucketTimeFilter != null
+                                                            && telemetryBucketTimeFilter.start === bucket.start
+                                                            && telemetryBucketTimeFilter.end === bucket.end;
                                                         const successWidth = bucket.total > 0 ? Math.round((bucket.successCount / bucket.total) * 100) : 0;
                                                         const errorWidth = bucket.total > 0 ? Math.round((bucket.errorCount / bucket.total) * 100) : 0;
                                                         const bucketErrorRatePercent = bucket.total > 0
@@ -1629,11 +1723,19 @@ function InspectorDashboardContent() {
                                                                 onClick={() => {
                                                                     setTelemetrySourceFilter(source.value);
                                                                     setTelemetryStatusFilter('error');
+                                                                    setTelemetryBucketTimeFilter({
+                                                                        start: bucket.start,
+                                                                        end: bucket.end,
+                                                                        source: source.value,
+                                                                    });
                                                                     if (bucket.topFailingTool) {
                                                                         setTelemetryToolFilter(bucket.topFailingTool);
                                                                     }
                                                                 }}
-                                                                className="disabled:cursor-not-allowed disabled:opacity-40"
+                                                                className={`rounded-sm border px-0.5 py-0.5 transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${bucketSelected
+                                                                    ? 'border-teal-500/50 bg-teal-500/10'
+                                                                    : 'border-transparent hover:border-zinc-700/80'
+                                                                    }`}
                                                                 title={[
                                                                     `${source.label} • ${bucket.label}`,
                                                                     `${bucket.successCount} ok / ${bucket.errorCount} err`,

@@ -4,6 +4,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.7.269] — 2026-03-16
+
+- feat(web/mcp/inspector): Source trend bucket drilldown now applies a concrete bucket time-range filter (`telemetryBucketStart` / `telemetryBucketEnd`) so incident triage is constrained to the exact clicked window.
+- feat(web/mcp/inspector): Added bucket-time active filter chip, reset/preset clear behavior, and URL/local-storage persistence for shareable inspector slices.
+- feat(web/mcp/inspector): Source trend bars now show selected-state highlighting for the active bucket-time scope.
+- test(validation): `WEB_TSC_OK` — no TypeScript errors.
+
 ## [2.7.268] — 2026-03-16
 
 - feat(web/mcp/search): Source trend bucket drilldown now applies a concrete bucket time-range filter (`telemetryBucketStart` / `telemetryBucketEnd`) so triage focuses on the exact period represented by the clicked bar.

@@ -33,7 +33,7 @@ type ToolSelectionTelemetryEvent = {
     timestamp: number;
     query?: string;
     profile?: string;
-    source?: 'runtime-search' | 'cached-ranking' | 'live-aggregator';
+    source?: 'runtime-search' | 'cached-ranking' | 'live-aggregator' | 'manual-action';
     resultCount?: number;
     topResultName?: string;
     topMatchReason?: string;
@@ -86,7 +86,7 @@ type ToolPreferenceMutationInput = {
 };
 
 type TelemetryWindowPreset = 'all' | '5m' | '15m' | '1h' | '24h';
-type TelemetrySourceFilter = 'all' | 'runtime-search' | 'cached-ranking' | 'live-aggregator';
+type TelemetrySourceFilter = 'all' | 'runtime-search' | 'cached-ranking' | 'live-aggregator' | 'manual-action';
 type TelemetryTriagePreset = 'errors-now' | 'runtime-failures' | 'load-incidents' | 'hydration-failures' | 'auto-load-skips' | 'live-aggregator-focus';
 
 type TelemetryTrendBucket = {
@@ -108,6 +108,7 @@ const INSPECTOR_TELEMETRY_SOURCES: Array<{ value: Exclude<TelemetrySourceFilter,
     { value: 'runtime-search', label: 'Runtime' },
     { value: 'cached-ranking', label: 'Cached' },
     { value: 'live-aggregator', label: 'Live' },
+    { value: 'manual-action', label: 'Manual' },
 ];
 
 function resolveTelemetryWindowStart(windowPreset: TelemetryWindowPreset): number | null {
@@ -760,7 +761,7 @@ function InspectorDashboardContent() {
             hasHydratedFromUrl = true;
         }
 
-        if (urlSource && ['all', 'runtime-search', 'cached-ranking', 'live-aggregator'].includes(urlSource)) {
+        if (urlSource && ['all', 'runtime-search', 'cached-ranking', 'live-aggregator', 'manual-action'].includes(urlSource)) {
             setTelemetrySourceFilter(urlSource as TelemetrySourceFilter);
             hasHydratedFromUrl = true;
         }
@@ -784,7 +785,7 @@ function InspectorDashboardContent() {
                 setTelemetryBucketTimeFilter({
                     start: parsedStart,
                     end: parsedEnd,
-                    source: urlSource && ['runtime-search', 'cached-ranking', 'live-aggregator'].includes(urlSource)
+                    source: urlSource && ['runtime-search', 'cached-ranking', 'live-aggregator', 'manual-action'].includes(urlSource)
                         ? (urlSource as TelemetrySourceFilter)
                         : undefined,
                 });
@@ -826,7 +827,7 @@ function InspectorDashboardContent() {
                 setTelemetryWindowFilter(parsed.window as TelemetryWindowPreset);
             }
 
-            if (parsed.source && ['all', 'runtime-search', 'cached-ranking', 'live-aggregator'].includes(parsed.source)) {
+            if (parsed.source && ['all', 'runtime-search', 'cached-ranking', 'live-aggregator', 'manual-action'].includes(parsed.source)) {
                 setTelemetrySourceFilter(parsed.source as TelemetrySourceFilter);
             }
 
@@ -848,7 +849,7 @@ function InspectorDashboardContent() {
                 setTelemetryBucketTimeFilter({
                     start: parsed.bucketStart,
                     end: parsed.bucketEnd,
-                    source: parsed.bucketSource && ['runtime-search', 'cached-ranking', 'live-aggregator'].includes(parsed.bucketSource)
+                    source: parsed.bucketSource && ['runtime-search', 'cached-ranking', 'live-aggregator', 'manual-action'].includes(parsed.bucketSource)
                         ? (parsed.bucketSource as TelemetrySourceFilter)
                         : undefined,
                 });
@@ -1534,15 +1535,26 @@ function InspectorDashboardContent() {
                                             ) : 'Load'}
                                         </Button>
                                         <Button
-                                            onClick={() => schemaMutation.mutate({ name: selectedTool.name })}
-                                            disabled={schemaMutation.isPending}
+                                            onClick={() => {
+                                                void hydrateToolSchema(selectedTool.name, selectedIsLoaded);
+                                            }}
+                                            disabled={schemaMutation.isPending || loadMutation.isPending || unloadMutation.isPending || activeHydrationToolName === selectedTool.name}
                                             variant="outline"
-                                            title="Hydrate and fetch full input schema for this tool"
+                                            title={selectedIsLoaded ? "Hydrate and fetch full input schema for this tool" : "Load then hydrate and fetch full input schema for this tool"}
                                             aria-label={`Hydrate schema for ${selectedTool.name}`}
                                             className="border-zinc-700 text-zinc-300 hover:bg-zinc-800"
                                         >
-                                            <Database className="mr-2 h-4 w-4" />
-                                            Schema
+                                            {activeHydrationToolName === selectedTool.name ? (
+                                                <>
+                                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                    Hydrating...
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <Database className="mr-2 h-4 w-4" />
+                                                    {selectedIsLoaded ? 'Schema' : 'Load + schema'}
+                                                </>
+                                            )}
                                         </Button>
                                         <Button
                                             onClick={() => {

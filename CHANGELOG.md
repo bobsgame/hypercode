@@ -4,6 +4,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.7.290] — 2026-03-16
+
+- feat(web/mcp/inspector): Added telemetry source parity with Search by including `manual-action` in Inspector source filters, source breakdown rows, and URL/local-storage filter hydration.
+- feat(web/mcp/inspector): Updated selected-tool schema action to use row-scoped hydration state so operator actions show explicit `Hydrating...` progress and support `load -> hydrate` in one click when the tool is not already loaded.
+- test(validation): `WEB_TSC_OK`; focused fallback/billing slice tests passed (`packages/core/src/routers/billingRouter.test.ts`, `apps/web/src/app/dashboard/billing/page.test.tsx`, `apps/web/src/app/dashboard/DashboardHomeClient.test.tsx`, `apps/web/tests/integration/fallback-e2e.test.ts`).
+
 ## [2.7.289] — 2026-03-16
 
 - feat(web/mcp/search): Added row-level hydration in-flight feedback to loaded working-set cards so per-tool `Hydrate` actions now show `Hydrating...` state consistently across Search surfaces.

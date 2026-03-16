@@ -124,6 +124,16 @@ export function Sidebar({ className }: SidebarProps) {
     const searchInputRef = useRef<HTMLInputElement | null>(null);
     const paletteInputRef = useRef<HTMLInputElement | null>(null);
 
+    const normalizedPathname = normalizeNavHref(pathname);
+    const normalizedQuery = query.trim().toLowerCase();
+
+    const navDiagnostics = useMemo(() => validateSidebarSections(SIDEBAR_SECTIONS), []);
+    const sectionTitles = useMemo(() => new Set(SIDEBAR_SECTIONS.map((section) => section.title)), []);
+
+    const allItemsByHref = useMemo(() => buildNavItemsByNormalizedHref(SIDEBAR_SECTIONS), []);
+    const allowedNavHrefs = useMemo(() => new Set(allItemsByHref.keys()), [allItemsByHref]);
+    const favoriteSet = useMemo(() => new Set(favorites), [favorites]);
+
     useEffect(() => {
         const parsed = safeStorageGetJson<unknown>(SIDEBAR_COLLAPSE_STORAGE_KEY);
         if (parsed === null) {
@@ -160,19 +170,9 @@ export function Sidebar({ className }: SidebarProps) {
         setRecentSearches(sanitizeRecentSearches(parsed, MAX_RECENT_SEARCHES));
     }, []);
 
-    const normalizedPathname = normalizeNavHref(pathname);
-
     const isActive = (href: string) => {
         return isNavHrefActive(normalizedPathname, href);
     };
-
-    const normalizedQuery = query.trim().toLowerCase();
-
-    const navDiagnostics = useMemo(() => validateSidebarSections(SIDEBAR_SECTIONS), []);
-    const sectionTitles = useMemo(() => new Set(SIDEBAR_SECTIONS.map((section) => section.title)), []);
-
-    const allItemsByHref = useMemo(() => buildNavItemsByNormalizedHref(SIDEBAR_SECTIONS), []);
-    const allowedNavHrefs = useMemo(() => new Set(allItemsByHref.keys()), [allItemsByHref]);
 
     const filteredSections = useMemo(() => {
         return SIDEBAR_SECTIONS
@@ -182,8 +182,6 @@ export function Sidebar({ className }: SidebarProps) {
             }))
             .filter((section) => section.items.length > 0);
     }, [normalizedQuery]);
-
-    const favoriteSet = useMemo(() => new Set(favorites), [favorites]);
 
     const paletteItems = useMemo<PaletteItem[]>(() => {
         const routeMeta = new Map<string, { title: string; href: string; icon: any; description?: string; section: string }>();
@@ -263,7 +261,7 @@ export function Sidebar({ className }: SidebarProps) {
     const favoriteItems = useMemo(() => {
         return favorites
             .map((href) => allItemsByHref.get(href))
-            .filter((item): item is { title: string; href: string; icon: any; description?: string } => Boolean(item))
+            .filter((item): item is NonNullable<typeof item> => item != null)
             .filter((item) => {
                 return matchesNavQuery(normalizedQuery, item, 'Favorites');
             });
@@ -272,7 +270,7 @@ export function Sidebar({ className }: SidebarProps) {
     const recentItems = useMemo(() => {
         return recentRoutes
             .map((href) => allItemsByHref.get(href))
-            .filter((item): item is { title: string; href: string; icon: any; description?: string } => Boolean(item))
+            .filter((item): item is NonNullable<typeof item> => item != null)
             .filter((item) => {
                 return matchesNavQuery(normalizedQuery, item, 'Recent');
             });

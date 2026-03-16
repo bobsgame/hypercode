@@ -800,10 +800,15 @@ export default function SearchDashboard() {
                                     <div className="text-xs uppercase tracking-wider text-zinc-500">Hydrated schemas</div>
                                     <div className="mt-1 text-2xl font-semibold text-white">{hydratedCount}</div>
                                 </div>
-                                <div className="rounded-lg border border-zinc-800 bg-zinc-950/70 p-3 md:col-span-3">
+                                <div className="rounded-lg border border-zinc-800 bg-zinc-950/70 p-3">
                                     <div className="text-xs uppercase tracking-wider text-zinc-500">Always-on tools</div>
+                                    <div className="mt-1 text-2xl font-semibold text-white">{alwaysOnAdvertisedNames.size}</div>
+                                    <div className="mt-1 text-xs text-zinc-500">Advertised immediately by always-on MCP servers.</div>
+                                </div>
+                                <div className="rounded-lg border border-zinc-800 bg-zinc-950/70 p-3">
+                                    <div className="text-xs uppercase tracking-wider text-zinc-500">Keep warm tools</div>
                                     <div className="mt-1 text-2xl font-semibold text-white">{alwaysLoadedTools.size}</div>
-                                    <div className="mt-1 text-xs text-zinc-500">Pinned warm tools auto-load into the session working set when MCP state refreshes.</div>
+                                    <div className="mt-1 text-xs text-zinc-500">Pinned tools Borg auto-loads into the working set.</div>
                                 </div>
                                 <div className="rounded-lg border border-zinc-800 bg-zinc-950/70 p-3 md:col-span-3 space-y-3">
                                     <div className="flex items-center justify-between gap-3">
@@ -994,11 +999,11 @@ export default function SearchDashboard() {
                                                         onClick={() => toggleAlwaysLoaded(tool.name)}
                                                         disabled={setPreferencesMutation.isPending}
                                                         title="Keep this tool warm so it auto-loads into the active working set"
-                                                        aria-label={`${(tool.alwaysLoaded || alwaysLoadedTools.has(tool.name)) ? 'Stop keeping' : 'Keep'} tool ${tool.name} always loaded`}
+                                                        aria-label={`${(tool.alwaysLoaded || alwaysLoadedTools.has(tool.name)) ? 'Stop keeping' : 'Keep'} tool ${tool.name} warm`}
                                                         variant="outline"
                                                         className="border-cyan-700 text-cyan-200 hover:bg-cyan-950/30"
                                                     >
-                                                        {(tool.alwaysLoaded || alwaysLoadedTools.has(tool.name)) ? 'Disable always-on' : 'Keep warm'}
+                                                        {(tool.alwaysLoaded || alwaysLoadedTools.has(tool.name)) ? 'Disable keep warm' : 'Keep warm'}
                                                     </Button>
                                                     <Button
                                                         onClick={() => callToolMutation.mutate({ name: tool.name, args: {} })}

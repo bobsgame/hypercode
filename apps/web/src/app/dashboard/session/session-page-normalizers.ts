@@ -72,6 +72,12 @@ export interface NormalizedSessionRow {
     scheduledRestartAt?: number;
     lastActivityAt: number;
     lastError?: string;
+    /** Worktree isolation flag surfaced from the supervisor snapshot. */
+    isolateWorktree: boolean;
+    /** Exit code of the last process run, when available. */
+    lastExitCode?: number;
+    /** Exit signal of the last process run (e.g. 'SIGTERM'), when available. */
+    lastExitSignal?: string;
     logs: NormalizedSessionLog[];
     metadata?: {
         memoryBootstrap?: {
@@ -200,6 +206,11 @@ export const normalizeSessionList = (payload: unknown): NormalizedSessionRow[] =
                 : undefined,
             lastActivityAt: asFiniteNumber(session.lastActivityAt, Date.now()),
             lastError: asOptionalTrimmedString(session.lastError),
+            isolateWorktree: asBoolean(session.isolateWorktree, false),
+            lastExitCode: typeof session.lastExitCode === 'number' && Number.isFinite(session.lastExitCode)
+                ? session.lastExitCode
+                : undefined,
+            lastExitSignal: asOptionalTrimmedString(session.lastExitSignal),
             logs,
             metadata: session.metadata && typeof session.metadata === 'object'
                 ? (session.metadata as NormalizedSessionRow['metadata'])

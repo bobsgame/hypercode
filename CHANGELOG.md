@@ -4,6 +4,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.7.231] — 2026-03-15
+
+- changed(web/mcp-search): `apps/web/src/app/dashboard/mcp/search/page.tsx` now clearly separates **server always-on** tool inventory from **keep warm** (always-loaded preference) inventory, with corrected summary counts and clearer UI wording.
+- changed(web/mcp-search): updated keep-warm toggle copy/ARIA labels to avoid confusing keep-warm preferences with server-level always-on advertisement.
+- fix(web/session): repaired `apps/web/src/app/dashboard/session/session-page-normalizers.ts` after a merge corruption by restoring `isolateWorktree`, `lastExitCode`, and `lastExitSignal` inside `normalizeSessionList(...)` and removing dangling duplicate fragments that broke TypeScript parsing.
+- fix(web/sidebar): `apps/web/src/components/Sidebar.tsx` now declares memoized nav dependency sets before first use and uses safe non-null narrowing for favorites/recent item projection, resolving web typecheck blockers.
+- test(web): reran focused suites (`session-page-normalizers`, `mcp/tools-page-normalizers`, `mcp/nav-validation`) with `41` tests passing; web `tsc --noEmit` passes.
+
 ## [2.7.230] — 2026-03-15
 
 - fix(core/providers): `CoreModelSelector` now overrides `getDepletedModels()` to read from `candidateCooldowns` (per-model transient backoffs) and `NormalizedQuotaService.getAllQuotas()` (provider-wide quota states) — the billing dashboard "Blocked / Cooling-Down Models" card now populates when providers are rate-limited or quota-exhausted instead of always showing empty.

@@ -8,6 +8,7 @@ import { Button } from "@borg/ui";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@borg/ui";
 import { ScrollArea } from "@borg/ui";
 import { Bot, Wrench, Server, Cpu, Activity, Zap, Loader2, RefreshCw, AlertTriangle, Chrome, Globe, PlugZap, Route, LayoutPanelTop, ShieldAlert, CheckCircle2 } from "lucide-react";
+import { PageStatusBanner } from "@/components/PageStatusBanner";
 
 interface ToolItem {
     uuid: string;
@@ -113,6 +114,7 @@ export default function SuperAssistantDashboardPage() {
 
     return (
         <div className="w-full h-full flex flex-col">
+            <PageStatusBanner status="beta" message="MCP Super Assistant" note="Adapter scaffolds are live across all 14 platforms. Per-site automation depth and input/submit integration vary — full parity is a later release slice." />
             <div className="p-4 border-b border-gray-800 flex justify-between items-center bg-gray-900">
                 <div>
                     <div className="flex items-center gap-3">

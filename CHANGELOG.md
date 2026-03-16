@@ -6,6 +6,14 @@ All notable changes to this project will be documented in this file.
 
 ## [2.7.252] — 2026-03-16
 ## [2.7.253] — 2026-03-16
+## [2.7.254] — 2026-03-16
+
+- feat(web/nav): Added `Agents` entry to `LABS_DASHBOARD_NAV` with `experimental` badge, linking to `/dashboard/agents`.
+- feat(web/dashboard): `super-assistant/page.tsx` — added `PageStatusBanner` (beta) communicating that adapter scaffolds are live but per-site automation depth varies.
+- feat(web/dashboard): `agents/page.tsx` — added `PageStatusBanner` (experimental) clarifying that full orchestration controls and harness configuration UI are a later release slice.
+- test(validation): `WEB_TSC_OK` — no TypeScript errors.
+
+## [2.7.253] — 2026-03-16
 
 - feat(web/nav): Tagged `Super Assistant` → beta badge in `LABS_DASHBOARD_NAV`.
 - feat(web/nav): Tagged `MCP Search` → beta, `MCP Inspector` → beta, `Agent Playground` → experimental, `AI Tools` → experimental in `MCP_TESTING_NAV`.

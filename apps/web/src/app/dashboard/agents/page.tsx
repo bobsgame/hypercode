@@ -1,6 +1,7 @@
 "use client";
 
 import { Activity, Brain, Database, Network, Terminal } from 'lucide-react';
+import { PageStatusBanner } from '@/components/PageStatusBanner';
 import { AgentPlayground } from '@/components/agents/AgentPlayground';
 import { trpc } from '@/utils/trpc';
 import { Card, CardHeader, CardTitle, CardContent, Badge, Button } from '@borg/ui';
@@ -14,6 +15,7 @@ export default function AgentsDashboard() {
 
     return (
         <div className="p-8 space-y-8 h-full flex flex-col">
+            <PageStatusBanner status="experimental" message="Agent Command Center" note="Live agent pool, memory access, and AgentPlayground are wired. Full orchestration controls and harness configuration UI are a later release slice." />
             <div className="flex justify-between items-center shrink-0">
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight text-white flex items-center gap-3">

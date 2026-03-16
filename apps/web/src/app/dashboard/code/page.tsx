@@ -6,6 +6,7 @@ import { Card } from '@borg/ui';
 import { Input } from '@borg/ui';
 import { Button } from '@borg/ui';
 import { ScrollArea } from '@borg/ui';
+import { PageStatusBanner } from '@/components/PageStatusBanner';
 
 export default function CodeDashboard() {
     const [filePath, setFilePath] = useState('packages/core/src/MCPServer.ts');
@@ -29,6 +30,7 @@ export default function CodeDashboard() {
 
     return (
         <div className="p-6 space-y-6 h-full flex flex-col">
+            <PageStatusBanner status="beta" message="Code Intelligence" note="LSP symbol search and indexing are live. Full graph exploration and deeper language-provider parity are in progress." />
             <div className="flex justify-between items-center">
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight text-blue-400">Code Intelligence</h1>

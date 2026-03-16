@@ -4,6 +4,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.7.257] — 2026-03-16
+
+- feat(web/labs): Added `PageStatusBanner` (beta) to `dashboard/symbols/page.tsx` to clarify current maturity and remaining indexing depth work.
+- feat(web/labs): Added `PageStatusBanner` (beta) to `dashboard/code/page.tsx` to clarify LSP scope and remaining graph/parity work.
+- feat(web/labs): Added `PageStatusBanner` (beta) to `dashboard/tests/page.tsx` to clarify watcher maturity and remaining analytics/triage depth.
+- feat(web/nav): Tagged `Symbols`, `Code`, and `Tests` entries in `LABS_DASHBOARD_NAV` with `beta` badges.
+- test(validation): `WEB_TSC_OK` — no TypeScript errors.
+
 ## [2.7.256] — 2026-03-16
 
 - feat(web/billing): Added `PageStatusBanner` (beta) to `dashboard/billing/page.tsx` clarifying that routing/fallback controls are live while quota/cost fidelity varies by provider auth/API support.

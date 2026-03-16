@@ -6,6 +6,7 @@ import { Loader2, Code2, Trash2, Pin, Search, StickyNote, Star, Trash } from "lu
 import { trpc } from '@/utils/trpc';
 import { toast } from 'sonner';
 import { filterSymbols, normalizeSymbols, type NormalizedSymbol, type SymbolType } from './symbols-page-normalizers';
+import { PageStatusBanner } from '@/components/PageStatusBanner';
 
 export default function SymbolsDashboard() {
     const { data: symbols, isLoading, refetch } = trpc.symbols.list.useQuery();
@@ -36,6 +37,7 @@ export default function SymbolsDashboard() {
 
     return (
         <div className="p-8 space-y-8">
+            <PageStatusBanner status="beta" message="Symbol Explorer" note="Pinned symbol workflows are active. Cross-repository indexing depth and richer LSP-derived metadata are still expanding." />
             <div className="flex justify-between items-center">
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight text-white flex items-center gap-3">

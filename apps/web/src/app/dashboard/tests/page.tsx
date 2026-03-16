@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, Button, Badge, ScrollArea } f
 import { FlaskConical, Play, Square, Loader2, RefreshCw, CheckCircle2, XCircle, Clock, AlertCircle, RotateCcw, ChevronDown, ChevronRight } from "lucide-react";
 import { trpc } from '@/utils/trpc';
 import { toast } from 'sonner';
+import { PageStatusBanner } from '@/components/PageStatusBanner';
 
 type TestResult = {
     file: string;
@@ -126,6 +127,7 @@ export default function TestsDashboard() {
 
     return (
         <div className="p-8 space-y-8">
+            <PageStatusBanner status="beta" message="Auto-Test Runner" note="Watcher control and per-file status are live. Advanced flake analytics and cross-session failure triage are still maturing." />
             {/* Header */}
             <div className="flex items-start justify-between gap-4">
                 <div>

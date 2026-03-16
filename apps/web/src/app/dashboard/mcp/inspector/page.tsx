@@ -955,6 +955,9 @@ function InspectorDashboardContent() {
         const dominantSourceByErrors = telemetrySourceBreakdown
             .filter((source) => source.errorCount > 0)
             .sort((left, right) => right.errorCount - left.errorCount || right.total - left.total)[0] ?? null;
+        const dominantSourceByErrorRate = telemetrySourceBreakdown
+            .filter((source) => source.total > 0)
+            .sort((left, right) => right.errorRatePercent - left.errorRatePercent || right.errorCount - left.errorCount || right.total - left.total)[0] ?? null;
 
         const filterSummary = [
             `type=${telemetryTypeFilter}`,
@@ -977,8 +980,9 @@ function InspectorDashboardContent() {
             `MCP Inspector telemetry summary`,
             `Filters: ${filterSummary}`,
             `Events: total=${telemetrySummary.total}, success=${telemetrySummary.success}, error=${telemetrySummary.error}, ignored=${telemetrySummary.ignoredResults}`,
-            `Dominant source (volume): ${dominantSourceByVolume ? `${dominantSourceByVolume.value} (${dominantSourceByVolume.total} events, ${dominantSourceByVolume.errorCount} errors)` : 'none'}`,
-            `Dominant source (errors): ${dominantSourceByErrors ? `${dominantSourceByErrors.value} (${dominantSourceByErrors.errorCount} errors)` : 'none'}`,
+            `Dominant source (volume): ${dominantSourceByVolume ? `${dominantSourceByVolume.value} (${dominantSourceByVolume.total} events, ${dominantSourceByVolume.errorCount} errors, ${dominantSourceByVolume.errorRatePercent}% error rate)` : 'none'}`,
+            `Dominant source (errors): ${dominantSourceByErrors ? `${dominantSourceByErrors.value} (${dominantSourceByErrors.errorCount} errors, ${dominantSourceByErrors.errorRatePercent}% error rate)` : 'none'}`,
+            `Dominant source (error-rate): ${dominantSourceByErrorRate ? `${dominantSourceByErrorRate.value} (${dominantSourceByErrorRate.errorRatePercent}% error rate on ${dominantSourceByErrorRate.total} events)` : 'none'}`,
             `Confidence: belowFloor=${telemetryConfidenceStats.belowFloor}, nearFloor=${telemetryConfidenceStats.nearFloor}, high=${telemetryConfidenceStats.highConfidence}, mean=${telemetryMeanConfidencePct ?? 'n/a'}%, meanGap=${telemetryMeanScoreGap ?? 'n/a'}`,
             `Top failing tools: ${topFailingTools}`,
             `Top skip reasons: ${topSkipReasons}`,

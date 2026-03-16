@@ -865,6 +865,13 @@ export default function SearchDashboard() {
         const dominantSourceByErrors = telemetrySourceStats
             .filter((source) => source.error > 0)
             .sort((left, right) => right.error - left.error || right.count - left.count)[0] ?? null;
+        const dominantSourceByErrorRate = telemetrySourceStats
+            .filter((source) => source.count > 0)
+            .sort((left, right) => {
+                const leftRate = left.error / left.count;
+                const rightRate = right.error / right.count;
+                return rightRate - leftRate || right.error - left.error || right.count - left.count;
+            })[0] ?? null;
 
         const filterSummary = [
             `type=${telemetryTypeFilter}`,
@@ -886,8 +893,9 @@ export default function SearchDashboard() {
             `MCP Search telemetry summary`,
             `Filters: ${filterSummary}`,
             `Events: total=${telemetrySummary.total}, success=${telemetrySummary.success}, error=${telemetrySummary.error}, ignored=${telemetrySummary.ignoredResults}`,
-            `Dominant source (volume): ${dominantSourceByVolume ? `${dominantSourceByVolume.source} (${dominantSourceByVolume.count} events, ${dominantSourceByVolume.error} errors)` : 'none'}`,
-            `Dominant source (errors): ${dominantSourceByErrors ? `${dominantSourceByErrors.source} (${dominantSourceByErrors.error} errors)` : 'none'}`,
+            `Dominant source (volume): ${dominantSourceByVolume ? `${dominantSourceByVolume.source} (${dominantSourceByVolume.count} events, ${dominantSourceByVolume.error} errors, ${Math.round((dominantSourceByVolume.error / dominantSourceByVolume.count) * 100)}% error rate)` : 'none'}`,
+            `Dominant source (errors): ${dominantSourceByErrors ? `${dominantSourceByErrors.source} (${dominantSourceByErrors.error} errors, ${Math.round((dominantSourceByErrors.error / dominantSourceByErrors.count) * 100)}% error rate)` : 'none'}`,
+            `Dominant source (error-rate): ${dominantSourceByErrorRate ? `${dominantSourceByErrorRate.source} (${Math.round((dominantSourceByErrorRate.error / dominantSourceByErrorRate.count) * 100)}% error rate on ${dominantSourceByErrorRate.count} events)` : 'none'}`,
             `Confidence: belowFloor=${telemetryConfidenceStats.belowFloor}, nearFloor=${telemetryConfidenceStats.nearFloor}, high=${telemetryConfidenceStats.highConfidence}, mean=${telemetryMeanConfidencePct ?? 'n/a'}%, meanGap=${telemetryMeanScoreGap ?? 'n/a'}`,
             `Top failing tools: ${topFailingTools}`,
             `Top skip reasons: ${topSkipReasons}`,

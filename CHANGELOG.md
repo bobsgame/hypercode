@@ -4,6 +4,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.7.262] — 2026-03-16
+
+- feat(web/mcp/search): Expanded `Copy summary` in `dashboard/mcp/search/page.tsx` with dominant-source error-rate context (volume source rate, error source rate, and highest error-rate source).
+- feat(web/mcp/inspector): Added parity dominant-source error-rate summary lines in `dashboard/mcp/inspector/page.tsx` for operator handoff consistency.
+- feat(web/mcp): Telemetry summary snapshots now better distinguish high-volume sources from high-failure-rate sources.
+- test(validation): `WEB_TSC_OK` — no TypeScript errors.
+
 ## [2.7.261] — 2026-03-16
 
 - feat(web/mcp/search): `Copy summary` in `dashboard/mcp/search/page.tsx` now includes dominant telemetry source context by event volume and by error count.

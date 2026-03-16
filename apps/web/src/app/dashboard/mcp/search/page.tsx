@@ -877,6 +877,17 @@ export default function SearchDashboard() {
                 const rightRate = right.error / right.count;
                 return rightRate - leftRate || right.error - left.error || right.count - left.count;
             })[0] ?? null;
+        const focusedSourceIncidentUrl = (() => {
+            if (!dominantSourceByErrors) {
+                return null;
+            }
+
+            const nextParams = new URLSearchParams(searchParams.toString());
+            nextParams.set(TELEMETRY_SOURCE_QUERY_KEY, dominantSourceByErrors.source);
+            nextParams.set(TELEMETRY_STATUS_QUERY_KEY, 'error');
+
+            return `${window.location.origin}${pathname}?${nextParams.toString()}`;
+        })();
 
         const filterSummary = [
             `type=${telemetryTypeFilter}`,
@@ -901,6 +912,7 @@ export default function SearchDashboard() {
             `Dominant source (volume): ${dominantSourceByVolume ? `${dominantSourceByVolume.source} (${dominantSourceByVolume.count} events, ${dominantSourceByVolume.error} errors, ${Math.round((dominantSourceByVolume.error / dominantSourceByVolume.count) * 100)}% error rate)` : 'none'}`,
             `Dominant source (errors): ${dominantSourceByErrors ? `${dominantSourceByErrors.source} (${dominantSourceByErrors.error} errors, ${Math.round((dominantSourceByErrors.error / dominantSourceByErrors.count) * 100)}% error rate)` : 'none'}`,
             `Dominant source (error-rate): ${dominantSourceByErrorRate ? `${dominantSourceByErrorRate.source} (${Math.round((dominantSourceByErrorRate.error / dominantSourceByErrorRate.count) * 100)}% error rate on ${dominantSourceByErrorRate.count} events)` : 'none'}`,
+            `Focused source URL: ${focusedSourceIncidentUrl ?? 'none'}`,
             `Confidence: belowFloor=${telemetryConfidenceStats.belowFloor}, nearFloor=${telemetryConfidenceStats.nearFloor}, high=${telemetryConfidenceStats.highConfidence}, mean=${telemetryMeanConfidencePct ?? 'n/a'}%, meanGap=${telemetryMeanScoreGap ?? 'n/a'}`,
             `Top failing tools: ${topFailingTools}`,
             `Top skip reasons: ${topSkipReasons}`,

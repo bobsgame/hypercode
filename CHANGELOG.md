@@ -4,6 +4,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.7.264] — 2026-03-16
+
+- feat(web/mcp/search): `Copy summary` now includes a `Focused source URL` pre-filtered to the dominant failing source (`source + status=error`) for one-click handoff.
+- feat(web/mcp/inspector): Added parity focused-source incident URL line to inspector telemetry summary copy output.
+- feat(web/mcp): Summary handoffs now include both textual triage context and direct scoped links for faster escalation workflows.
+- test(validation): `WEB_TSC_OK` — no TypeScript errors.
+
 ## [2.7.263] — 2026-03-16
 
 - feat(web/mcp/search): Added color-coded per-source `err %` severity badges in telemetry `Per-source breakdown` for quicker incident triage.

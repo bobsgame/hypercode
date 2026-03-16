@@ -958,6 +958,17 @@ function InspectorDashboardContent() {
         const dominantSourceByErrorRate = telemetrySourceBreakdown
             .filter((source) => source.total > 0)
             .sort((left, right) => right.errorRatePercent - left.errorRatePercent || right.errorCount - left.errorCount || right.total - left.total)[0] ?? null;
+        const focusedSourceIncidentUrl = (() => {
+            if (!dominantSourceByErrors) {
+                return null;
+            }
+
+            const nextParams = new URLSearchParams(searchParams.toString());
+            nextParams.set(INSPECTOR_TELEMETRY_SOURCE_QUERY_KEY, dominantSourceByErrors.value);
+            nextParams.set(INSPECTOR_TELEMETRY_STATUS_QUERY_KEY, 'error');
+
+            return `${window.location.origin}${pathname}?${nextParams.toString()}`;
+        })();
 
         const filterSummary = [
             `type=${telemetryTypeFilter}`,
@@ -983,6 +994,7 @@ function InspectorDashboardContent() {
             `Dominant source (volume): ${dominantSourceByVolume ? `${dominantSourceByVolume.value} (${dominantSourceByVolume.total} events, ${dominantSourceByVolume.errorCount} errors, ${dominantSourceByVolume.errorRatePercent}% error rate)` : 'none'}`,
             `Dominant source (errors): ${dominantSourceByErrors ? `${dominantSourceByErrors.value} (${dominantSourceByErrors.errorCount} errors, ${dominantSourceByErrors.errorRatePercent}% error rate)` : 'none'}`,
             `Dominant source (error-rate): ${dominantSourceByErrorRate ? `${dominantSourceByErrorRate.value} (${dominantSourceByErrorRate.errorRatePercent}% error rate on ${dominantSourceByErrorRate.total} events)` : 'none'}`,
+            `Focused source URL: ${focusedSourceIncidentUrl ?? 'none'}`,
             `Confidence: belowFloor=${telemetryConfidenceStats.belowFloor}, nearFloor=${telemetryConfidenceStats.nearFloor}, high=${telemetryConfidenceStats.highConfidence}, mean=${telemetryMeanConfidencePct ?? 'n/a'}%, meanGap=${telemetryMeanScoreGap ?? 'n/a'}`,
             `Top failing tools: ${topFailingTools}`,
             `Top skip reasons: ${topSkipReasons}`,

@@ -4,6 +4,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.7.301] — 2026-03-16
+
+- feat(web/mcp/search): Normalized copied telemetry summary dominant-source error-rate values to one-decimal precision for cleaner operator comparisons across incidents.
+- feat(web/mcp/inspector): Added matching one-decimal dominant-source error-rate formatting in telemetry summary copy output for Search/Inspector precision parity.
+- test(validation): `WEB_TSC_OK`; focused fallback/billing slice tests passed (`packages/core/src/routers/billingRouter.test.ts`, `apps/web/src/app/dashboard/billing/page.test.tsx`, `apps/web/src/app/dashboard/DashboardHomeClient.test.tsx`, `apps/web/tests/integration/fallback-e2e.test.ts`).
+
 ## [2.7.300] — 2026-03-16
 
 - feat(web/mcp/search): Added `Scope URL` line to telemetry summary copy output so handoff recipients can open the exact active filter state directly.

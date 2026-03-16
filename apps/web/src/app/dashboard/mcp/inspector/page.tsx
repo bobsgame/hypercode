@@ -1316,6 +1316,7 @@ function InspectorDashboardContent() {
         const ambiguousSearchRows = telemetryAmbiguousSearchRows.length > 0
             ? telemetryAmbiguousSearchRows.slice(0, 3).map((row) => `${row.topResultName} vs ${row.secondResultName} (gap ${row.scoreGap})`).join(' | ')
             : 'none';
+        const formatErrorRatePercent = (errorRatePercent: number): string => `${errorRatePercent.toFixed(1)}%`;
         const summary = [
             `MCP Inspector telemetry summary`,
             `Generated at: ${new Date().toISOString()}`,
@@ -1324,9 +1325,9 @@ function InspectorDashboardContent() {
             `Scope URL: ${currentScopeUrl}`,
             `Segment scope: ${telemetryBucketTimeFilter && telemetryStatusFilter !== 'all' ? `${telemetryStatusFilter} within ${formatTelemetryBucketRange(telemetryBucketTimeFilter.start, telemetryBucketTimeFilter.end)}` : 'none'}`,
             `Events: total=${telemetrySummary.total}, success=${telemetrySummary.success}, error=${telemetrySummary.error}, ignored=${telemetrySummary.ignoredResults}`,
-            `Dominant source (volume): ${dominantSourceByVolume ? `${dominantSourceByVolume.value} (${dominantSourceByVolume.total} events, ${dominantSourceByVolume.errorCount} errors, ${dominantSourceByVolume.errorRatePercent}% error rate)` : 'none'}`,
-            `Dominant source (errors): ${dominantSourceByErrors ? `${dominantSourceByErrors.value} (${dominantSourceByErrors.errorCount} errors, ${dominantSourceByErrors.errorRatePercent}% error rate)` : 'none'}`,
-            `Dominant source (error-rate): ${dominantSourceByErrorRate ? `${dominantSourceByErrorRate.value} (${dominantSourceByErrorRate.errorRatePercent}% error rate on ${dominantSourceByErrorRate.total} events)` : 'none'}`,
+            `Dominant source (volume): ${dominantSourceByVolume ? `${dominantSourceByVolume.value} (${dominantSourceByVolume.total} events, ${dominantSourceByVolume.errorCount} errors, ${formatErrorRatePercent(dominantSourceByVolume.errorRatePercent)} error rate)` : 'none'}`,
+            `Dominant source (errors): ${dominantSourceByErrors ? `${dominantSourceByErrors.value} (${dominantSourceByErrors.errorCount} errors, ${formatErrorRatePercent(dominantSourceByErrors.errorRatePercent)} error rate)` : 'none'}`,
+            `Dominant source (error-rate): ${dominantSourceByErrorRate ? `${dominantSourceByErrorRate.value} (${formatErrorRatePercent(dominantSourceByErrorRate.errorRatePercent)} error rate on ${dominantSourceByErrorRate.total} events)` : 'none'}`,
             `Focused source URL: ${focusedSourceIncidentUrl ?? 'none'}`,
             `Confidence: belowFloor=${telemetryConfidenceStats.belowFloor}, nearFloor=${telemetryConfidenceStats.nearFloor}, high=${telemetryConfidenceStats.highConfidence}, mean=${telemetryMeanConfidencePct ?? 'n/a'}%, meanGap=${telemetryMeanScoreGap ?? 'n/a'}`,
             `Top failing tools: ${topFailingTools}`,

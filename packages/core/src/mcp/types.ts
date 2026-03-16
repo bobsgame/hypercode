@@ -69,4 +69,11 @@ export interface MCPAggregatorOptions {
     restartDelayMs?: number;
     now?: () => number;
     maxTrafficEvents?: number;
+    /**
+     * When true, listAggregatedTools() will only return tools from already-connected
+     * servers rather than eagerly spawning all configured server processes. Tool
+     * execution (executeTool) still connects on-demand regardless of this flag.
+     * This prevents all MCP binaries from launching at tool-listing time in lazy mode.
+     */
+    lazyMode?: boolean;
 }

@@ -33,6 +33,9 @@ export class MCPAggregator {
     private readonly now: () => number;
     private readonly serverStates: Map<string, MCPServerState> = new Map();
     private readonly trafficInspector: MCPTrafficInspector;
+    // When true, listAggregatedTools() skips unconnected servers to avoid eager
+    // binary spawning. Set via setLazyMode() once the lifecycle mode is known.
+    private lazyMode: boolean = false;
     private initializationState: {
         inProgress: boolean;
         initialized: boolean;
@@ -59,6 +62,20 @@ export class MCPAggregator {
         this.restartDelayMs = normalizedOptions.restartDelayMs ?? 5_000;
         this.now = normalizedOptions.now ?? (() => Date.now());
         this.trafficInspector = new MCPTrafficInspector(normalizedOptions.maxTrafficEvents ?? 200);
+        this.lazyMode = Boolean(normalizedOptions.lazyMode);
+    }
+
+    /**
+     * Update the lazy mode flag at runtime. When true, listAggregatedTools() will
+     * skip servers that are not already connected, preventing eager process spawning
+     * during tool listing. executeTool() always connects on demand regardless.
+     */
+    public setLazyMode(lazyMode: boolean): void {
+        this.lazyMode = lazyMode;
+    }
+
+    public getLazyMode(): boolean {
+        return this.lazyMode;
     }
 
     public async initialize(): Promise<void> {
@@ -221,6 +238,14 @@ export class MCPAggregator {
         const allTools: MCPAggregatedTool[] = [];
 
         for (const [serverName] of this.getEnabledServerEntries()) {
+            // In lazy mode, skip servers that are not already connected. Spawning every
+            // configured binary just to enumerate available tools defeats deferred startup.
+            // Callers such as the MCP router prefer the database-cached tool inventory;
+            // this path is only hit as a last resort where the cache is empty.
+            if (this.lazyMode && !this.clients.has(serverName)) {
+                continue;
+            }
+
             const client = await this.ensureConnectedClient(serverName);
             const tools = await this.listToolsForServer(serverName, client);
             const namespaced = tools.map((tool) => this.namespaceTool(serverName, tool));

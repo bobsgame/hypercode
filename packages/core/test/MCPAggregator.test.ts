@@ -110,4 +110,48 @@ describe('MCPAggregator', () => {
         await expect(aggregator.executeTool('unknown_tool', {}))
             .rejects.toThrow("Tool 'unknown_tool' not found in any connected MCP server.");
     });
+
+    it('does not spawn server processes when listing tools in lazy mode', async () => {
+        // In lazy session mode the aggregator must not eagerly connect to unstarted
+        // servers during listAggregatedTools(). Binaries should only be spawned when
+        // executeTool() is actually called for that server.
+        const lazyAggregator = new MCPAggregator({
+            configPath,
+            lazyMode: true,
+        });
+        await lazyAggregator.initialize();
+
+        const tools = await lazyAggregator.listAggregatedTools();
+
+        // No server is pre-connected, so lazy mode must return an empty list and
+        // must NOT have triggered any client.connect() calls.
+        expect(mockConnect).not.toHaveBeenCalled();
+        expect(tools).toHaveLength(0);
+    });
+
+    it('getLazyMode reflects the value passed in options', () => {
+        const lazyAggregator = new MCPAggregator({ configPath, lazyMode: true });
+        expect(lazyAggregator.getLazyMode()).toBe(true);
+
+        const eagerAggregator = new MCPAggregator({ configPath, lazyMode: false });
+        expect(eagerAggregator.getLazyMode()).toBe(false);
+    });
+
+    it('setLazyMode toggles lazy mode at runtime', async () => {
+        // Start in eager mode so that listAggregatedTools() can connect normally.
+        mockListTools.mockResolvedValue([{ name: 'my_tool', description: 'A tool' }]);
+        await aggregator.initialize();
+
+        expect(aggregator.getLazyMode()).toBe(false);
+
+        // Switch to lazy mode and verify no new connections are made for unconnected servers.
+        aggregator.setLazyMode(true);
+        expect(aggregator.getLazyMode()).toBe(true);
+        vi.clearAllMocks();
+
+        const tools = await aggregator.listAggregatedTools();
+        expect(mockConnect).not.toHaveBeenCalled();
+        // test-server is not connected (no prior connect in this branch), so lazy mode returns nothing.
+        expect(tools).toHaveLength(0);
+    });
 });

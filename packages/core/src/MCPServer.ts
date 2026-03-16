@@ -516,7 +516,11 @@ export class MCPServer {
         this.supervisor = new Supervisor(this);
         this.lspService = new LSPService(process.cwd());
 
-        this.mcpAggregator = new MCPAggregator();
+        // Pass lazy mode to the aggregator at construction so that listAggregatedTools()
+        // never eagerly spawns server binaries in deferred-startup configurations.
+        this.mcpAggregator = new MCPAggregator({
+            lazyMode: mcpServerPool.getLifecycleModes().lazySessionMode,
+        });
         this.submoduleManager = new SubmoduleManager(process.cwd());
         this.submoduleService = new SubmoduleService(process.cwd(), this.mcpAggregator);
         this.eventBus = new EventBus();
@@ -3140,6 +3144,9 @@ export class MCPServer {
                     source: inventory.source,
                 });
                 const { lazySessionMode } = mcpServerPool.getLifecycleModes();
+                // Keep aggregator in sync with the resolved lifecycle mode so that
+                // any restarts or hot-reload paths also respect the latest setting.
+                this.mcpAggregator.setLazyMode(lazySessionMode);
                 if (lazySessionMode) {
                     mcpServerDebugLog('[MCPServer] Lazy MCP session mode enabled; skipping eager advertised-server warmup.');
                 } else {

@@ -4,6 +4,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.7.248] — 2026-03-16
+
+- changed(core/mcp): `packages/core/src/mcp/MCPAggregator.ts` is now **lazy-mode aware** — `listAggregatedTools()` skips unconnected servers when `lazyMode` is enabled, ensuring no server binary is spawned during tool-listing. Only `executeTool()` triggers on-demand connection. This completes the deferred-startup story end-to-end.
+- changed(core/mcp): `packages/core/src/mcp/types.ts` adds `lazyMode?: boolean` to `MCPAggregatorOptions` for constructor injection.
+- changed(core/mcp): `MCPAggregator` exposes `setLazyMode(bool)` and `getLazyMode()` for runtime updates and observability.
+- changed(core/MCPServer): `MCPServer.ts` constructs `MCPAggregator` with `lazyMode` derived directly from `mcpServerPool.getLifecycleModes().lazySessionMode`, and re-synchronises the flag at the async init checkpoint so hot-reload/restart paths stay consistent.
+- test(core/mcp): `packages/core/test/MCPAggregator.test.ts` adds 4 new test cases covering lazy tool listing (no connect), `getLazyMode`, `setLazyMode` runtime toggle, and regression test for eager mode unchanged; total 8/8 pass.
+- test(validation): `vitest MCPAggregator.test.ts` 8/8 passed · `CORE_TSC_OK`.
+
 ## [2.7.247] — 2026-03-16
 
 - changed(web/dashboard): `apps/web/src/app/dashboard/mcp/system/system-status-helpers.ts` now renders **deferred lazy mode** resident-runtime posture so startup/system cards no longer imply resident preconnect requirements when lazy MCP mode is enabled.

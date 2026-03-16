@@ -4,6 +4,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.7.242] — 2026-03-15
+
+- changed(web/mcp-inspector): mirrored **telemetry tool drilldown** parity from `/dashboard/mcp/search` (v2.7.241) into `/dashboard/mcp/inspector` — `telemetryErrorToolRows` computed facet aggregates top-6 failing tools from `scopedTelemetryEvents`, rendered as **Top failing tools (current scope)** panel with one-click focus (tool + error status filter); existing tool filter chip and URL/localStorage persistence were already present.
+- test(validation): revalidated web TypeScript gate after inspector facet additions (`WEB_TSC_OK`).
+
 ## [2.7.241] — 2026-03-15
 
 - changed(web/mcp-search): `apps/web/src/app/dashboard/mcp/search/page.tsx` now supports telemetry **tool drilldown** (`telemetryTool`) with URL/local-storage persistence, active-filter chips, and reset handling so operator handoff can target a specific failing tool.

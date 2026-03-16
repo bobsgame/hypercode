@@ -544,6 +544,20 @@ function InspectorDashboardContent() {
             .slice(0, 5);
     })();
 
+    // Top-failing-tool aggregation — scoped to current filter scope so operators can
+    // one-click drilldown from incident overview to exact failing tool context.
+    const telemetryErrorToolRows = Array.from(scopedTelemetryEvents.reduce((accumulator, event) => {
+        if (event.status !== 'error' || !event.toolName) {
+            return accumulator;
+        }
+
+        accumulator.set(event.toolName, (accumulator.get(event.toolName) ?? 0) + 1);
+        return accumulator;
+    }, new Map<string, number>()).entries())
+        .map(([toolName, count]) => ({ toolName, count }))
+        .sort((left, right) => right.count - left.count || left.toolName.localeCompare(right.toolName))
+        .slice(0, 6);
+
     const telemetryFiltersAtDefault = telemetryTypeFilter === 'all'
         && telemetryStatusFilter === 'all'
         && telemetryWindowFilter === '15m'
@@ -1627,6 +1641,31 @@ function InspectorDashboardContent() {
                                 ) : null}
                             </div>
                         )}
+
+                        {telemetryErrorToolRows.length > 0 ? (
+                            <div className="space-y-2 rounded-lg border border-zinc-800 bg-zinc-950/50 p-3">
+                                <div className="text-[10px] uppercase tracking-wider text-zinc-500">Top failing tools (current scope)</div>
+                                <div className="space-y-1">
+                                    {telemetryErrorToolRows.map((row) => (
+                                        <div key={`inspector-error-tool-${row.toolName}`} className="flex items-center justify-between gap-2 rounded border border-zinc-800/70 bg-zinc-900/60 px-2 py-1 text-[10px]">
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setTelemetryToolFilter(row.toolName);
+                                                    setTelemetryStatusFilter('error');
+                                                }}
+                                                className="truncate text-left text-zinc-300 hover:text-white"
+                                                title={`Focus telemetry on ${row.toolName}`}
+                                                aria-label={`Focus telemetry on failing tool ${row.toolName}`}
+                                            >
+                                                {row.toolName}
+                                            </button>
+                                            <span className="rounded border border-red-500/30 bg-red-500/10 px-1.5 py-0.5 text-red-200">{row.count}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        ) : null}
 
                         <div className="relative flex items-center">
                             <Search className="absolute left-2.5 h-3.5 w-3.5 text-zinc-500 pointer-events-none" />

@@ -4,6 +4,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.7.310] — 2026-03-17
+
+- feat(core/services): Implemented MetricsService singleton pattern with static `getInstance()` and `dispose()` methods for proper lifecycle management and test isolation, aligning with AuditService pattern.
+- test(validation): Startup orchestration tests verified passing (13/13 in startupStatus.test.ts); SessionToolWorkingSet tests confirmed passing (14/14); core package build validated with tsc.
+
 ## [2.7.309] — 2026-03-17
 
 - feat(core/services): Implemented AuditService singleton pattern with static `getInstance()` and `dispose()` methods for proper lifecycle management and test isolation.

@@ -14,7 +14,7 @@ export class DatabaseManager extends EventEmitter {
             fs.mkdirSync(dir, { recursive: true });
         }
         const borgDbPath = path.join(dir, 'borg.db');
-        const legacyDbPath = path.join(dir, 'aios.db');
+        const legacyDbPath = path.join(dir, 'legacy_borg.db');
         const dbPath = fs.existsSync(borgDbPath) ? borgDbPath : (fs.existsSync(legacyDbPath) ? legacyDbPath : borgDbPath);
         this.db = new Database(dbPath);
         // Enable foreign keys

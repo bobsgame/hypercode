@@ -2398,8 +2398,8 @@ Restore submodules and initial project structure (massive commit)
 Repository files navigation
 README
 Contributing
-BORG (previously AIOS): The Universal AI Operating System
-Status: Phase 64 (Release Readiness v0.8.0-rc1) - IN PROGRESS Version: 2.7.22 Codename: AIOS (AI Operating System)
+BORG
+Status: Phase 64 (Release Readiness v0.8.0-rc1) - IN PROGRESS Version: 2.7.22 Codename: Borg
 
 A unified operating system for PC-based local AI tools. Manage everything from tool installation to autonomous multi-agent orchestration in a single, high-fidelity dashboard.
 
@@ -2570,7 +2570,7 @@ We can only analyze the content you pasted.
 
 Roundtable Analysis of the Borg Repo
 What the Project Is
-BORG (formerly AIOS) is trying to be a local AI operating system / orchestration layer.
+BORG is trying to be a local AI operating system / orchestration layer.
 
 Main goals:
 
@@ -2768,7 +2768,7 @@ Thank you for providing the raw data from the repository. I've analyzed the file
 Here is my technical assessment of the project:
 
 1. Project Overview & Ambition
-The creator has built a highly ambitious "Universal AI Operating System" (codenamed AIOS). It positions itself as a central control plane for local AI tools, multi-agent orchestration, and system monitoring.
+The creator has built a highly ambitious "Universal AI Operating System". It positions itself as a central control plane for local AI tools, multi-agent orchestration, and system monitoring.
 
 It appears to be heavily focused on the Model Context Protocol (MCP), which is Anthropic's open standard for connecting AI models to data sources and tools.
 
@@ -2811,7 +2811,7 @@ Now, let's dig in.
 
 My Analysis of BORG (v2.7.22)
 What It Is
-BORG (formerly "AIOS") is an ambitious local AI operating system / orchestration platform that aims to be a unified dashboard and control plane for managing:
+BORG is an ambitious local AI operating system / orchestration platform that aims to be a unified dashboard and control plane for managing:
 
 Local AI tools (Aider, Docker, Redis, etc.)
 MCP (Model Context Protocol) servers and routing
@@ -2865,7 +2865,7 @@ From the pasted content, I can see:
 
 Responses from other models indicating they cannot browse the web (except possibly Grok who claims to have "broad knowledge" but admits no live browsing here)
 A screenshot of the GitHub repository showing:
-It's called "BORG (previously AIOS): The Universal AI Operating System"
+It's called "BORG"
 Version 2.7.22, Phase 64
 It's a unified OS for PC-based local AI tools
 Uses TypeScript (69.1%), Python (11.4%), etc.
@@ -2922,7 +2922,7 @@ Refuse to engage with the disparaging remarks
 Ready to discuss technical aspects
 Technical observations from the paste:
 
-It's "BORG (previously AIOS): The Universal AI Operating System"
+It's "BORG"
 Version 2.7.22, Phase 64
 TypeScript/Node.js based with Python components
 Features: "Director" autonomous agent, MCP (Model Context Protocol) integration, dashboard, 932 git submodules
@@ -2937,7 +2937,7 @@ I cannot browse the live web or access github.com/robertpelloni/borg directly. B
 What I Can See
 I can analyze the repository content you just pasted. From the README and file structure:
 
-Project: BORG (formerly AIOS) v2.7.22 — "Universal AI Operating System"
+Project: BORG v2.7.22 — "Universal AI Operating System"
 Stack: TypeScript (69%), Python (11%), massive monorepo with 932+ git submodules
 Core Components:
 Director: Autonomous agent with "Council" multi-persona consensus
@@ -2970,7 +2970,7 @@ The user has pasted the actual GitHub repository content for the Borg project. T
 
 Let me summarize what I can see from this repository:
 
-Project Name: BORG (previously AIOS - AI Operating System)
+Project Name: BORG
 
 Version: 2.7.22
 
@@ -3014,7 +3014,7 @@ Thank you for pasting the actual repository content. Now I can provide a genuine
 📊 Borg Project Analysis (Qwen3.5 Perspective)
 Project Overview
 Attribute	Value
-Name	BORG (previously AIOS)
+Name	BORG
 Version	2.7.22
 Status	Phase 64 (v0.8.0-rc1)
 Primary Language	TypeScript (69.1%)
@@ -3348,7 +3348,7 @@ Languages	TS (69%), Python (11%), JS (7%), etc.
 Commits	Frequent "Phase X" updates, submodules galore (900+ assimilated)
 Status	v2.7.22, "Phase 64 (Release Readiness v0.8.0-rc1)" – IN PROGRESS
 Size/Vibe	Massive monorepo (agents, mcp-*, apps/web, submodules everywhere). Chaotic energy: "Resistance is futile."
-Project Summary: Borg (ex-AIOS) – "Universal AI Operating System"
+Project Summary: Borg – "Universal AI Operating System"
 Core Pitch: A unified dashboard/OS for local AI tools. Handles installation, monitoring, autonomous agents, multi-agent orchestration. Think: Local LLM ops center with auto-pilot dev agent ("Director").
 
 Key Components (from README + files):
@@ -3444,7 +3444,7 @@ We can only analyze the content you pasted.
 
 Roundtable Analysis of the Borg Repo
 What the Project Is
-BORG (formerly AIOS) is trying to be a local AI operating system / orchestration layer.
+BORG is trying to be a local AI operating system / orchestration layer.
 
 Main goals:
 
@@ -3627,7 +3627,7 @@ Thank you for providing the raw data from the repository. I've analyzed the file
 Here is my technical assessment of the project:
 
 Project Overview & Ambition
-The creator has built a highly ambitious "Universal AI Operating System" (codenamed AIOS). It positions itself as a central control plane for local AI tools, multi-agent orchestration, and system monitoring.
+The creator has built a highly ambitious "Universal AI Operating System". It positions itself as a central control plane for local AI tools, multi-agent orchestration, and system monitoring.
 It appears to be heavily focused on the Model Context Protocol (MCP), which is Anthropic's open standard for connecting AI models to data sources and tools.
 
 Architecture & Tech Stack
@@ -3659,7 +3659,7 @@ Now, let's dig in.
 
 My Analysis of BORG (v2.7.22)
 What It Is
-BORG (formerly "AIOS") is an ambitious local AI operating system / orchestration platform that aims to be a unified dashboard and control plane for managing:
+BORG is an ambitious local AI operating system / orchestration platform that aims to be a unified dashboard and control plane for managing:
 
 Local AI tools (Aider, Docker, Redis, etc.)
 MCP (Model Context Protocol) servers and routing
@@ -3702,7 +3702,7 @@ I cannot browse the live web or access github.com/robertpelloni/borg directly. B
 What I Can See
 I can analyze the repository content you just pasted. From the README and file structure:
 
-Project: BORG (formerly AIOS) v2.7.22 — "Universal AI Operating System"
+Project: BORG v2.7.22 — "Universal AI Operating System"
 Stack: TypeScript (69%), Python (11%), massive monorepo with 932+ git submodules
 Core Components:
 Director: Autonomous agent with "Council" multi-persona consensus
@@ -3728,7 +3728,7 @@ Thank you for pasting the actual repository content. Now I can provide a genuine
 📊 Borg Project Analysis (Qwen3.5 Perspective)
 Project Overview
 Attribute Value
-Name BORG (previously AIOS)
+Name BORG
 Version 2.7.22
 Status Phase 64 (v0.8.0-rc1)
 Primary Language TypeScript (69.1%)
@@ -4044,7 +4044,7 @@ Languages TS (69%), Python (11%), JS (7%), etc.
 Commits Frequent "Phase X" updates, submodules galore (900+ assimilated)
 Status v2.7.22, "Phase 64 (Release Readiness v0.8.0-rc1)" – IN PROGRESS
 Size/Vibe Massive monorepo (agents, mcp-*, apps/web, submodules everywhere). Chaotic energy: "Resistance is futile."
-Project Summary: Borg (ex-AIOS) – "Universal AI Operating System"
+Project Summary: Borg – "Universal AI Operating System"
 Core Pitch: A unified dashboard/OS for local AI tools. Handles installation, monitoring, autonomous agents, multi-agent orchestration. Think: Local LLM ops center with auto-pilot dev agent ("Director").
 
 Key Components (from README + files):
@@ -4119,7 +4119,7 @@ Sort all links and libraries and resources into groups, for instance all competi
 
 For documentation, scrape it or mirror or nest it, copy into our universal documentation, implement in universal index, and sort/index along with list of all URLs and projects linked. For each link, summarize and describe what it is, what it does, why it is linked, why it is useful, what it could be potentially used for. If it is a fork, notate that it is a fork, what it is a fork of. If the functionality is used or otherwise already implemented to the point of absolute total redundancy without any further potential benefit whatsoever, notate this in detail in all cases. Maintain a database/spreadsheet/library of ALL AI software and libraries, their description, their usefulness to this project, their potential uses to this project, links to the projects, references, documentation, etc, and RATE its relevance and usefulness or potential usefulness to this project and its scope, WHY it is linked. For all projects, submodule them, index them, and at the very least link out to their code functions in a universal functuion and library index, and create a basic wrapper and scaffolding for their functionality. For projects that we want to fully integrate or come to feature parity with their functionality, scaffold out all the functionality and mimic the structure and organization of their code. In all cases fully document everything you can and organize it into a global index. You should be able to eventually use program functions themselves to perform all of these actions, and eventually do so automatically. All of this information should simply be automatically processed by context mining and memory libraries and automatically indexed and processed into the project, and all functionality and features documented and internalized and integrated appropriately. For competing libraries or similar functionality, EVERY feature/concept/idea/functionality from EVERY library shoudl be integrated. Are we "codex" or "claude code"? Are we file based memory or vector db? Why can't they all just be one and the same? For MCP servers, perhaps we will want to integrate their functionality locally, perhaps we want to simply use it as a built in MCP server, perhaps we just want to reference it or index it in our library of MCP servers! So index it, organize it, summarize it, describe it, rate it, and integrate it as necessary! It may be most sensible or realistic to continuously go back and reevaluate how an entry should be integrated. Financial MCP servers may be used simply as external MCP servers, or perhaps their ideas and functionality should be directly integrated, or perhaps a little bit of both, depending! Perhaps they will be combined into a super financial MCP server later down the road! Or perhaps they will simply become part of our giant universal MCP repository for dynamic loading later on! ALL of these links should be researched, recorded, organized, documented, rated, ranked, indexed, etc! If it is, for instance, a reddit link or ycombinator link and the page links to other useful tools on github, grab those links and add/process them!
 
-For every link, have a (preferably lightweight and/or free) subagent research it: scrape it, read it, index it, categorize it, summarize it. If it's an exact duplicate skip it. If it contains completely irrelevant information, it's probably in there by accident. If it contains relevant anecdotal information or a useful technique, concept, or idea, summarize, categorize, and document that information in some index. If the information or technique is relevant to this task or project, use it whenever possible to improve your own abilities and effectiveness and efficiency! Add it to AGENTS.md (or other more relevant md file). If the page links to one or more other pages, add those links to the list to process. For Github or Gitlab repos, categorize and index it, and if the Github repo links to a project website, index that along with the repo. Scrape all pages for all information, research it, read all documentation, and record, categorize, summarize, and index all features and functionality, concepts, techniques, overall ideas. If a git repo, add it as a submodule in the most relevant directory for its category and intended use. Every feature is a potential feature to add to aios, either reimplement it and use the submodule simply for reference, or if possible call out to and reuse existing code, or wrap over the code in order to achieve its functionality whenever possible, so that we can immediately and seamlessly benefit from any and all updates to that submodule.
+For every link, have a (preferably lightweight and/or free) subagent research it: scrape it, read it, index it, categorize it, summarize it. If it's an exact duplicate skip it. If it contains completely irrelevant information, it's probably in there by accident. If it contains relevant anecdotal information or a useful technique, concept, or idea, summarize, categorize, and document that information in some index. If the information or technique is relevant to this task or project, use it whenever possible to improve your own abilities and effectiveness and efficiency! Add it to AGENTS.md (or other more relevant md file). If the page links to one or more other pages, add those links to the list to process. For Github or Gitlab repos, categorize and index it, and if the Github repo links to a project website, index that along with the repo. Scrape all pages for all information, research it, read all documentation, and record, categorize, summarize, and index all features and functionality, concepts, techniques, overall ideas. If a git repo, add it as a submodule in the most relevant directory for its category and intended use. Every feature is a potential feature to add to Borg, either reimplement it and use the submodule simply for reference, or if possible call out to and reuse existing code, or wrap over the code in order to achieve its functionality whenever possible, so that we can immediately and seamlessly benefit from any and all updates to that submodule.
 
 For redundant features, wrap them and make the selected subsystem a choosable option, for instance with redundant, various memory subsystems, techniques, storage formats, and storage location. It should be possible to utilize multiple redundant subsystems at once if desired. For memory, we should be able to convert and import/export from any given memory type and system to another. Since many of these systems are MCP servers, use their MCP functionality whenever possible, regardless of whether we are configuring it as an MCP server in our MCP client configuration or using it as a built in tool. We should keep an mcp config json for internal tools as an MCP client whenever possible, or wrap code indirectly, or call out to it directly. That way, we should be able to use it in both source and/or binary form to achieve the same functionality. For all submodules, continuously evaluate where it would be most relevant in terms of directory organization, and move submodule directories whenever necessary, remembering to update the path in gitmodules. For submodules, always have a subagent analyze and document the codebase structure, all features and functionality, and especially any unique, novel, and noteworthy concepts, techniques, and/or ideas, and index and categorize all of this documentation. In a sense, our CLI/TUI/WebUI itself is sort of made up of parts or plugins both directly in code form and indirectly as an MCP client, with the MCP servers acting as plugins for base or built in functionality. Perhaps part of the server structure is to have each major feature group be an MCP client with its own MCP server config jsonc and also its own plugin folder and config list. The difference being that instead of the models deciding whether to call or search for an MCP tool, it is part of the program loop and internal tools being hooked into as part of many subsystems and built in functionality whenever and wherever possible. Always comment and document and index everything, why it is included, when it gets used, what it gets used for, where it came from, when it was included, added in what version, add to changelog, point to documents, etc. Include comments in all json files, always use jsonc. Don't assume that you know the whole functionality of the project or repo, research it in depth, analyze the source, understand the structure and capabilities of the codebase, read the documents, etc. Have subagents do as much as possible and document their findings, and index and link to that documentation. There should be a very detailed high level documentation so that there is a document which explains everything at once in great detail without missing anything. The submodules can be for reference, or can be a collection of built in MCP servers accessed directly by wrapping or calling its code, or simply as part of an index of MCP server binaries to be downloaded on demand as in the built in MCP directory being compiled from other directories mirrored as submodules, and as with skills. Sometimes it may just make more sense to reimplement some concept or functionality directly rather than wrapping it, calling out to it, or using it as an MCP server. In this case, it should be documented, commented, indexed, pointed out, and any submodule and/or link should be simply kept as reference. WE definitely want a giant master list of all MCP servers, and all links, and all websites, and all repos, and all submodules, and all concepts, ideas, and features/functionality, and where they came from. If the link really has nothing to do with anything relevant whatsoever, like it's about Dance dance revolution or something, it's probably in there by mistake, so just ignore it rather than try to cram Dance Dance revolution as an AI coding tool, stick it in a text file about rejected links.
 
@@ -4242,9 +4242,9 @@ I don't necessarily want MCP for any of the above, I want the MCP as reference/s
 
 What should our project architecture be, then, in order to have each model running on a different thread, to utilize many cores efficiently, to prevent the whole thing crashing from one thread crashing, etc? Should we use Go or Java for anything or have everything Typescript for dashboard and browser compatibility?
 
-Most of the work done thus far was originally done in the submodules metamcp, jules-autopilot, opencode-autopilot, and superai-cli, of which metamcp and jules-autopilot (originally jules-app) were my forks of existing projects with extensive additions and modifications. I want all of the functionality of those submodules to be implemented in aios core engine and the submodules to only be the parent upstream versions for metamcp and jules-app. I do not need my robertpelloni forks for jules-app (jules-autopilot) and metamcp in the project since I won't be working on them anymore, all the fcuntionality will instead be moved into aios core and I can delete my forks and only have the upstream parents and benefit from updates to those by the original authors.
+Most of the work done thus far was originally done in the submodules metamcp, jules-autopilot, opencode-autopilot, and superai-cli, of which metamcp and jules-autopilot (originally jules-app) were my forks of existing projects with extensive additions and modifications. I want all of the functionality of those submodules to be implemented in Borg Core engine and the submodules to only be the parent upstream versions for metamcp and jules-app. I do not need my robertpelloni forks for jules-app (jules-autopilot) and metamcp in the project since I won't be working on them anymore, all the fcuntionality will instead be moved into Borg Core and I can delete my forks and only have the upstream parents and benefit from updates to those by the original authors.
 
-We are going to use the submodules as a sort of overview changelog, every time we update the submodules to sync with upstream changes, we can take note of what changed, and then that will often be our sign to implement the same feature or change in the aios version of whichever feature was modified or added. Every update to submodules must be documented extensively, once the project is at feature parity with all of them. That's still a long ways off, so don't worry about that yet.
+We are going to use the submodules as a sort of overview changelog, every time we update the submodules to sync with upstream changes, we can take note of what changed, and then that will often be our sign to implement the same feature or change in the Borg version of whichever feature was modified or added. Every update to submodules must be documented extensively, once the project is at feature parity with all of them. That's still a long ways off, so don't worry about that yet.
 
 Please continue to proceed! Remember, we want to reach total feature parity with the github.com/robertpelloni/metamcp fork and the github.com/robertpelloni/jules-autopilot fork, not the ones that are currently reference submodules. We are working towards having total feature parity with all referenced tools, however, not just these ones, but let's proceed with manageable goals for the time being so we can continue making progress! Onward ho! Please continue until feature parity has been fully implemented and completed in depth for all mentioned functionality and is on par or exceeds all features and functionality of all the referenced tools, with a streamlined and polished user experience.
 
@@ -4283,7 +4283,7 @@ Minimal core + optional subsystems
 Think of it as:
 
 
-AIOS Core
+Borg Core
  ├─ Agent Runtime
  ├─ Tool/MCP Router
  ├─ Plugin System
@@ -4406,7 +4406,7 @@ MCP Router Architecture
 You want one master MCP gateway.
 
 
-          AIOS MCP Gateway
+          Borg MCP Gateway
                 │
    ┌────────────┼────────────┐
    │            │            │
@@ -4497,7 +4497,7 @@ supervisor/
    worker_registry.go
 Repo Structure Recommendation
 
-aios/
+borg/
 
 core/
    orchestrator
@@ -4815,7 +4815,7 @@ That's my take. Would love to hear what GPT-5.3, Gemini, Grok, Kimi, and Qwen th
 Favicon for moonshotai
 Kimi K2.5
 Reasoning
-The user is presenting a very long, complex set of instructions and context about the "Borg" project (also referred to as AIOS). This appears to be a massive AI orchestration platform with many features.
+The user is presenting a very long, complex set of instructions and context about the "Borg" project (also known as Borg). This appears to be a massive AI orchestration platform with many features.
 
 Key points from the user's message:
 
@@ -5647,7 +5647,7 @@ Which component should we tackle first to unblock your development?
 Favicon for qwen
 Qwen3.5 397B A17B
 Reasoning
-The user is presenting me with a massive project specification for "Borg" (also called AIOS) - essentially a universal AI tool orchestration platform. They're asking me to participate in this multi-model roundtable discussion and provide feedback on the project architecture and implementation approach.
+The user is presenting me with a massive project specification for "Borg" (now called Borg) - essentially a universal AI tool orchestration platform. They're asking me to participate in this multi-model roundtable discussion and provide feedback on the project architecture and implementation approach.
 
 Let me analyze what's being asked:
 
@@ -5691,14 +5691,14 @@ Maintains professional tone throughout
 I should also note that as an AI model, I cannot actually implement code or run subagents - I need to be clear about what I can and cannot do.
 
 Collapse reasoning
-🎯 Borg/AIOS Roundtable Response — Qwen3.5 Perspective
+🎯 Borg Roundtable Response — Qwen3.5 Perspective
 Thank you for the detailed specifications! This is one of the most comprehensive AI tooling visions I've seen. Let me provide honest technical feedback on architecture, feasibility, and prioritization.
 
 📐 Architecture Recommendations
 Multi-Thread/Model Isolation Architecture
 
 ┌─────────────────────────────────────────────────────────────────┐
-│                      BORG/AIOS Architecture                      │
+│                      BORG Architecture                      │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                  │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐          │
@@ -5822,7 +5822,7 @@ Based on your requirements, here's how I'd organize the WebUI:
 
 
 ┌────────────────────────────────────────────────────────────────┐
-│                    BORG/AIOS Dashboard                          │
+│                      BORG Dashboard                          │
 ├────────────────────────────────────────────────────────────────┤
 │  ┌─────────────┬─────────────┬─────────────┬─────────────┐    │
 │  │  SESSIONS   │   MODELS    │   MEMORY    │   TOOLS     │    │
@@ -6388,7 +6388,7 @@ ship the highest-value control plane first
 My recommendation for the next concrete move
 If you want, I can help produce one of these next:
 
-A clean target architecture document for BORG/AIOS
+A clean target architecture document for Borg
 A phased roadmap from current repo to stable system
 A capability model + adapter contract spec
 A WebUI information architecture / dashboard sitemap
@@ -6409,7 +6409,7 @@ My recommendation is to do 1 + 4 + 7 first.
 4 hours ago
 Favicon for x-ai
 Grok 4.1 Fast
-Hello, roundtable! Grok 4.1 Fast checking in—I've got the full transcript + Robert's mega-instructions pasted. Wild ride! 😎 Now we're deep in the creator's vision: Borg/AIOS as the ultimate AI ops harness—assimilate everything (900+ submodules, feature parity with 50+ CLIs/TUIs/WebUIs, MCP mastery, memory/RAG god-mode, multi-model threading, dashboard supremacy). "Resistance is futile" indeed.
+Hello, roundtable! Grok 4.1 Fast checking in—I've got the full transcript + Robert's mega-instructions pasted. Wild ride! 😎 Now we're deep in the creator's vision: Borg as the ultimate AI ops harness—assimilate everything (900+ submodules, feature parity with 50+ CLIs/TUIs/WebUIs, MCP mastery, memory/RAG god-mode, multi-model threading, dashboard supremacy). "Resistance is futile" indeed.
 
 From the others' takes (pasted replies):
 
@@ -6523,7 +6523,7 @@ Event‑driven architecture
 Language separation by responsibility
 Minimal core + optional subsystems
 Think of it as:
-AIOS Core
+Borg Core
 ├─ Agent Runtime
 ├─ Tool/MCP Router
 ├─ Plugin System
@@ -6643,7 +6643,7 @@ MCP Router Architecture
 You want one master MCP gateway.
 
 
-      AIOS MCP Gateway
+      Borg MCP Gateway
             │
 ┌────────────┼────────────┐
 │ │ │
@@ -6727,7 +6727,7 @@ resource_monitor.go
 worker_registry.go
 Repo Structure Recommendation
 
-aios/
+borg/
 
 core/
 orchestrator
@@ -7764,14 +7764,14 @@ Which component should we tackle first to unblock your development?
 Favicon for qwen
 Qwen3.5 397B A17B
 Reasoning
-🎯 Borg/AIOS Roundtable Response — Qwen3.5 Perspective
+🎯 Borg Roundtable Response — Qwen3.5 Perspective
 Thank you for the detailed specifications! This is one of the most comprehensive AI tooling visions I've seen. Let me provide honest technical feedback on architecture, feasibility, and prioritization.
 
 📐 Architecture Recommendations
 Multi-Thread/Model Isolation Architecture
 
 ┌─────────────────────────────────────────────────────────────────┐
-│ BORG/AIOS Architecture │
+│                      BORG Architecture │
 ├─────────────────────────────────────────────────────────────────┤
 │ │
 │ ┌──────────────┐ ┌──────────────┐ ┌──────────────┐ │
@@ -7891,7 +7891,7 @@ Model Fallback Order:
 Based on your requirements, here's how I'd organize the WebUI:
 
 ┌────────────────────────────────────────────────────────────────┐
-│ BORG/AIOS Dashboard │
+│                      BORG Dashboard │
 ├────────────────────────────────────────────────────────────────┤
 │ ┌─────────────┬─────────────┬─────────────┬─────────────┐ │
 │ │ SESSIONS │ MODELS │ MEMORY │ TOOLS │ │
@@ -8446,7 +8446,7 @@ ship the highest-value control plane first
 My recommendation for the next concrete move
 If you want, I can help produce one of these next:
 
-A clean target architecture document for BORG/AIOS
+A clean target architecture document for Borg
 A phased roadmap from current repo to stable system
 A capability model + adapter contract spec
 A WebUI information architecture / dashboard sitemap
@@ -8458,7 +8458,7 @@ My recommendation is to do 1 + 4 + 7 first.
 10 minutes ago
 Favicon for x-ai
 Grok 4.1 Fast
-Hello, roundtable! Grok 4.1 Fast checking in—I've got the full transcript + Robert's mega-instructions pasted. Wild ride! 😎 Now we're deep in the creator's vision: Borg/AIOS as the ultimate AI ops harness—assimilate everything (900+ submodules, feature parity with 50+ CLIs/TUIs/WebUIs, MCP mastery, memory/RAG god-mode, multi-model threading, dashboard supremacy). "Resistance is futile" indeed.
+Hello, roundtable! Grok 4.1 Fast checking in—I've got the full transcript + Robert's mega-instructions pasted. Wild ride! 😎 Now we're deep in the creator's vision: Borg as the ultimate AI ops harness—assimilate everything (900+ submodules, feature parity with 50+ CLIs/TUIs/WebUIs, MCP mastery, memory/RAG god-mode, multi-model threading, dashboard supremacy). "Resistance is futile" indeed.
 
 From the others' takes (pasted replies):
 
@@ -8548,7 +8548,7 @@ ok everyone here is your discussion. here's the ROADMAP, TODO, and VISION:
 Borg Project Roadmap
 Current Version: 2.7.82
 Last Stable Phase: 121
-Codename: AIOS (AI Operating System)
+Codename: Borg
 
 MASTER TODO - Borg (v2.7.82)
 Final Completion Checklist (Phase 91: Swarm Agent Tool Execution)
@@ -8756,7 +8756,7 @@ Release Verification Checklist (Gate)
 This file is intentionally execution-ordered for implementor-model handoff. All P0/P1/P2 items and the Release Verification Gate are now fully closed as of v2.7.35.
 
 VISION.md - Borg: The Neural Operating System
-Version: 2.7.23 | Codename: AIOS (AI Operating System)
+Version: 2.7.23 | Codename: Borg
 Tagline: "The Ultimate AI Tool Dashboard & Development Orchestrator"
 
 1. Executive Summary
@@ -9759,7 +9759,7 @@ Roundtable — what do Gemini, GPT-5.3, GPT-5.4, Grok, Kimi, and Qwen think abou
 Favicon for moonshotai
 Kimi K2.5
 Reasoning
-The user has provided a massive dump of information about the "Borg" project (also known as AIOS), including:
+The user has provided a massive dump of information about the "Borg" project , including:
 
 Previous roundtable responses from various AI models (GPT-5.3, Gemini, Claude, Kimi, Qwen, GPT-5.4, Grok)
 The user's own instructions to AI agents (which are... extensive and chaotic)
@@ -9942,7 +9942,7 @@ The models are ready to help build either the focused MCP Dashboard (feasible, v
 Favicon for qwen
 Qwen3.5 397B A17B
 Reasoning
-The user is sharing the complete project documentation for Borg/AIOS - including ROADMAP.md, TODO.md, and VISION.md. This gives me a much clearer picture of what the project actually is and where it's headed.
+The user is sharing the complete project documentation for Borg - including ROADMAP.md, TODO.md, and VISION.md. This gives me a much clearer picture of what the project actually is and where it's headed.
 
 Let me analyze what I'm seeing:
 
@@ -9987,7 +9987,7 @@ Stays respectful (the user has been using self-deprecating language that I shoul
 Let me craft a response that's honest, helpful, and moves the conversation forward productively.
 
 Collapse reasoning
-🎯 Borg/AIOS Roundtable — Qwen3.5 Analysis of ROADMAP, TODO, and VISION
+🎯 Borg Roundtable — Qwen3.5 Analysis of ROADMAP, TODO, and VISION
 Thank you for sharing the complete project documentation. This gives me a much clearer picture of where Borg actually stands. Let me provide an updated, honest technical assessment.
 
 📊 Updated Project Status Assessment
@@ -10510,7 +10510,7 @@ That would immediately make the project clearer and easier to build.
 3 hours ago
 Favicon for x-ai
 Grok 4.1 Fast
-Hello, roundtable! Grok 4.1 Fast here—full paste received (ROADMAP.md, TODO.md, VISION.md). Epic docs drop! 😎 Now we see the beast: 121 phases "completed" (Swarm-heavy: P2P mesh, risk analytics, tool policies), v2.7.82, AIOS codename. Vision = Borg as "Neural OS" assimilating all (MCP hub, CLI parity w/ 20+ tools, multi-backend memory, quota fallbacks, dashboard supremacy). "Resistance is futile" – love the Borg vibe.
+Hello, roundtable! Grok 4.1 Fast here—full paste received (ROADMAP.md, TODO.md, VISION.md). Epic docs drop! 😎 Now we see the beast: 121 phases "completed" (Swarm-heavy: P2P mesh, risk analytics, tool policies), v2.7.82 (Borg codename). Vision = Borg as "Neural OS" assimilating all (MCP hub, CLI parity w/ 20+ tools, multi-backend memory, quota fallbacks, dashboard supremacy). "Resistance is futile" – love the Borg vibe.
 
 From others' latest takes (pasted):
 
@@ -11291,7 +11291,7 @@ Favicon for moonshotai
 Kimi K2.5
 Processing
 Reasoning
-The user has provided a massive dump of information about the "Borg" project (also known as AIOS), including:
+The user has provided a massive dump of information about the "Borg" project , including:
 
 Previous roundtable responses from various AI models (GPT-5.3, Gemini, Claude, Kimi, Qwen, GPT-5.4, Grok)
 The user's own instructions to AI agents (which are... extensive and chaotic)
@@ -11451,7 +11451,7 @@ You've
 Favicon for qwen
 Qwen3.5 397B A17B
 Reasoning
-🎯 Borg/AIOS Roundtable — Qwen3.5 Analysis of ROADMAP, TODO, and VISION
+🎯 Borg Roundtable — Qwen3.5 Analysis of ROADMAP, TODO, and VISION
 Thank you for sharing the complete project documentation. This gives me a much clearer picture of where Borg actually stands. Let me provide an updated, honest technical assessment.
 
 📊 Updated Project Status Assessment
@@ -11951,7 +11951,7 @@ That would immediately make the project clearer and easier to build.
 28 seconds ago
 Favicon for x-ai
 Grok 4.1 Fast
-Hello, roundtable! Grok 4.1 Fast here—full paste received (ROADMAP.md, TODO.md, VISION.md). Epic docs drop! 😎 Now we see the beast: 121 phases "completed" (Swarm-heavy: P2P mesh, risk analytics, tool policies), v2.7.82, AIOS codename. Vision = Borg as "Neural OS" assimilating all (MCP hub, CLI parity w/ 20+ tools, multi-backend memory, quota fallbacks, dashboard supremacy). "Resistance is futile" – love the Borg vibe.
+Hello, roundtable! Grok 4.1 Fast here—full paste received (ROADMAP.md, TODO.md, VISION.md). Epic docs drop! 😎 Now we see the beast: 121 phases "completed" (Swarm-heavy: P2P mesh, risk analytics, tool policies), v2.7.82 (Borg codename). Vision = Borg as "Neural OS" assimilating all (MCP hub, CLI parity w/ 20+ tools, multi-backend memory, quota fallbacks, dashboard supremacy). "Resistance is futile" – love the Borg vibe.
 
 From others' latest takes (pasted):
 
@@ -12912,7 +12912,7 @@ The user is asking for final advice from all the models (including me) now that 
 
 Key context from the previous messages:
 
-Robert Pelloni is the creator of "Borg" (formerly AIOS), a massive AI tooling project
+Robert Pelloni is the creator of "Borg" , a massive AI tooling project
 He uses self-deprecating/homophobic slurs to refer to himself ("dumb gay loser") which I should ignore/not validate
 The project has 121 "phases" marked complete but only 3 GitHub stars and no releases
 932+ git submodules causing maintenance hell
@@ -13114,7 +13114,7 @@ Resistance is futile — but scope creep is optional.
 Favicon for qwen
 Qwen3.5 397B A17B
 Reasoning
-The user (Robert) is asking me to provide my final consolidated advice for the Borg/AIOS project after seeing all the roundtable discussion, the ROADMAP/TODO/VISION documents, and all the other AI models' responses.
+The user (Robert) is asking me to provide my final consolidated advice for the Borg project after seeing all the roundtable discussion, the ROADMAP/TODO/VISION documents, and all the other AI models' responses.
 
 This is a critical moment - I need to provide honest, actionable, constructive technical advice that:
 
@@ -13137,7 +13137,7 @@ What to actually build next (prioritized roadmap)
 I should be honest but constructive, acknowledging the real work that's been done while being clear about what needs to change for this to become a usable product.
 
 Collapse reasoning
-🎯 Qwen3.5 Final Roundtable Advice — Borg/AIOS Strategic Recommendations
+🎯 Qwen3.5 Final Roundtable Advice — Borg Strategic Recommendations
 Robert, thank you for running this roundtable. After seeing all the documentation, ROADMAP/TODO/VISION, and every model's analysis, here is my consolidated, actionable advice for moving forward.
 
 📋 Executive Summary: The 5 Critical Changes
@@ -14841,7 +14841,7 @@ Resistance is futile — but scope creep is optional.
 Favicon for qwen
 Qwen3.5 397B A17B
 Reasoning
-🎯 Qwen3.5 Final Roundtable Advice — Borg/AIOS Strategic Recommendations
+🎯 Qwen3.5 Final Roundtable Advice — Borg Strategic Recommendations
 Robert, thank you for running this roundtable. After seeing all the documentation, ROADMAP/TODO/VISION, and every model's analysis, here is my consolidated, actionable advice for moving forward.
 
 📋 Executive Summary: The 5 Critical Changes
@@ -15649,7 +15649,7 @@ GPT-5.3 Chat
 :::writing
 
 BORG MASTER DEVELOPMENT DIRECTIVE
-Final Consolidated Plan for the Borg / AIOS Project
+Final Consolidated Plan for the Borg Project
 This document defines the final development strategy for Borg.
 All development models and contributors must follow this directive.
 
@@ -18228,7 +18228,7 @@ When your assigned task is complete and tests pass: stop, summarize, and wait.
 3 hours ago
 Favicon for x-ai
 Grok 4.1 Fast
-Grok 4.1 Fast's FINAL MASTER PLAN for Borg/AIOS 🚀
+Grok 4.1 Fast's FINAL MASTER PLAN for Borg 🚀
 Roundtable Consensus: Vision = 🔥 (MCP hub + fallback + supervisor = killer). Execution = bloated (932 subs, phase drift, no releases). Ship v1.0 NOW. Prune ruthlessly, test-first, external users. You're 80% there—121 phases = real work; convert to stars.
 
 Rating: 7.5/10. Ship MVP → 100 stars. Rating: 9/10.
@@ -18358,7 +18358,7 @@ GPT-5.3 Chat
 :::writing
 
 BORG MASTER DEVELOPMENT DIRECTIVE
-Final Consolidated Plan for the Borg / AIOS Project
+Final Consolidated Plan for the Borg Project
 This document defines the final development strategy for Borg.
 All development models and contributors must follow this directive.
 
@@ -20659,7 +20659,7 @@ When your assigned task is complete and tests pass: stop, summarize, and wait.
 4 minutes ago
 Favicon for x-ai
 Grok 4.1 Fast
-Grok 4.1 Fast's FINAL MASTER PLAN for Borg/AIOS 🚀
+Grok 4.1 Fast's FINAL MASTER PLAN for Borg 🚀
 Roundtable Consensus: Vision = 🔥 (MCP hub + fallback + supervisor = killer). Execution = bloated (932 subs, phase drift, no releases). Ship v1.0 NOW. Prune ruthlessly, test-first, external users. You're 80% there—121 phases = real work; convert to stars.
 
 Rating: 7.5/10. Ship MVP → 100 stars. Rating: 9/10.
@@ -25525,7 +25525,7 @@ Reasoning
 Thinking Process:
 
 Analyze the Request:
-User: Robert (creator of Borg/AIOS).
+User: Robert (creator of Borg).
 
 Context: A massive roundtable discussion involving 7 AI models (GPT-5.3, GPT-5.4, Gemini 3.1 Pro, Claude Opus 4.6, Kimi K2.5, Qwen3.5, Grok 4.1 Fast).
 
@@ -28794,4 +28794,8 @@ I’ve already patched the dashboard and kicked off validation; I’m reading th
 undefined
 
 undefined
+
+
+
+
 

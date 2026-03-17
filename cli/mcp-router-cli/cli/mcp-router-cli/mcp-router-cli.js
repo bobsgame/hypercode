@@ -16,7 +16,7 @@ import { McpSessionService } from '../../packages/core/src/services/McpSessionSe
 // ============================================
 const program = new Command();
 program
-    .name('aios-mcp-router')
+    .name('borg-mcp-router')
     .description('Ultimate MCP Router - Manage MCP servers, configurations, and sessions')
     .version('1.0.0')
     .option('--data-dir <path>', 'Data directory path', './data')
@@ -211,9 +211,9 @@ program
 program
     .command('export-configs <format>')
     .description('Export configurations')
-    .option('--format <type>', 'Export format (aios, claude, openai, google)', 'aios')
+    .option('--format <type>', 'Export format (borg, claude, openai, google)', 'borg')
     .action(async (options, command) => {
-    const format = command.args[0] || program.opts().format || 'aios';
+    const format = command.args[0] || program.opts().format || 'borg';
     console.log(`📤 Exporting to ${format} format...`);
     try {
         const content = await configService.exportConfigs(format);
@@ -371,11 +371,11 @@ program.parseAsync().then(async () => {
     console.log('    shutdown-sessions - Shutdown all sessions');
     console.log('');
     console.log('Examples:');
-    console.log('  aios-mcp-router discover          - Discover all servers');
-    console.log('  aios-mcp-router search "file"    - Search for file servers');
-    console.log('  aios-mcp-router install fs-server   - Install filesystem server');
-    console.log('  aios-mcp-router init-sessions       - Auto-start all servers');
-    console.log('  aios-mcp-router session-stats       - Get session statistics');
+    console.log('  borg-mcp-router discover          - Discover all servers');
+    console.log('  borg-mcp-router search "file"    - Search for file servers');
+    console.log('  borg-mcp-router install fs-server   - Install filesystem server');
+    console.log('  borg-mcp-router init-sessions       - Auto-start all servers');
+    console.log('  borg-mcp-router session-stats       - Get session statistics');
 }).catch(err => {
     console.error('❌ Error:', err.message);
     process.exit(1);

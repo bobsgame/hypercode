@@ -39,7 +39,7 @@ function readCanonicalVersion(): string {
 
 function normalizeExportFormat(format: string): string {
     const normalized = format.trim().toLowerCase();
-    if (normalized === 'borg') return 'aios'; // compatibility alias inside ConfigurationService
+    if (normalized === 'borg') return 'legacy'; // compatibility alias inside ConfigurationService
     return normalized;
 }
 
@@ -444,7 +444,7 @@ program.parseAsync().then(async () => {
     console.log('  borg-mcp-router session-stats       - Get session statistics');
     console.log('');
     console.log('Legacy compatibility:');
-    console.log('  export-configs aios               - still supported as legacy alias');
+    console.log('  export-configs legacy               - still supported as legacy alias');
 }).catch(err => {
     console.error('❌ Error:', err.message);
     process.exit(1);

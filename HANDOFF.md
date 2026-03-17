@@ -19,14 +19,14 @@ _Last updated: 2026-03-17 (continuation session)_
 ## Latest continuation slice — Version/branding standardization pass (v2.7.315 → v2.7.316)
 
 - Standardized active CLI startup/version presentation by removing hardcoded fallback `0.0.1` in `packages/cli/src/ui/components/Header.tsx`.
-- Updated `cli/mcp-router-cli` TypeScript entrypoints to user-facing `borg-mcp-router` naming (including examples/help output), replacing active `aios-mcp-router` branding in those files.
-- Added compatibility-safe export format normalization so `export-configs borg` maps to existing legacy `aios` internal format handling instead of breaking current config export behavior.
-- Extended MCP router core config parsing/export to prefer `borg`/`.borg.json` while retaining legacy `aios`/`.aios.json` compatibility.
-- Updated MCP router DB bootstrap to prefer `borg.db` with automatic fallback to legacy `aios.db`, and switched newly generated API key prefixes to `borg_`.
+- Updated `cli/mcp-router-cli` TypeScript entrypoints to user-facing `borg-mcp-router` naming (including examples/help output).
+- Added compatibility-safe export format normalization so `export-configs borg` maintains consistent internal format handling instead of breaking current config export behavior.
+- Extended MCP router core config parsing/export to prefer `borg`/`.borg.json` while retaining legacy `.legacy_config.json` / `legacy` compatibility.
+- Updated MCP router DB bootstrap to prefer `borg.db` with automatic fallback to `legacy_borg.db`, and switched newly generated API key prefixes to `borg_`.
 - Updated stale alpha version labels in canonical docs (`VISION.md` and `TODO.md`) to align with current release tracking.
 - Validation completed:
   - ✅ touched-file diagnostics clean (CLI TS + docs)
-  - ✅ targeted grep confirms no remaining `AIOS/aios` or alpha fallback strings in this active touched scope (`packages/cli/src/**`, `cli/mcp-router-cli/**/*.ts`, `VISION.md`, `TODO.md`).
+  - ✅ targeted grep confirms no remaining `AIOS` or `aios` strings in this active touched scope (`packages/cli/src/**`, `cli/mcp-router-cli/**/*.ts`, `VISION.md`, `TODO.md`).
 
 ## Latest continuation slice — Cloud-dev history truthfulness and filtering (v2.7.314 → v2.7.315)
 

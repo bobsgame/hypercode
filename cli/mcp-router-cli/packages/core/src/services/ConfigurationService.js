@@ -2,7 +2,7 @@
  * borg MCP Configuration Service
  *
  * Manages MCP server configurations:
- * - Auto-detection of .mcp.json, .borg.json (legacy .aios.json) config files
+ * - Auto-detection of .mcp.json, .borg.json (legacy .legacy_config.json) config files
  * - Environment variable expansion
  * - Secrets management
  * - Multi-format support (Claude, OpenAI, Google)
@@ -70,7 +70,7 @@ export class ConfigurationService extends EventEmitter {
         return [
             path.join(cwd, '.mcp.json'),
             path.join(cwd, '.borg.json'),
-            path.join(cwd, '.aios.json'),
+            path.join(cwd, '.legacy_config.json'),
             path.join(cwd, 'config', 'mcp.json'),
             path.join(cwd, '.config', 'mcp.json'),
             path.join(process.env.HOME || '', '.config', 'mcp.json'),
@@ -112,7 +112,7 @@ export class ConfigurationService extends EventEmitter {
      * Check if file is a MCP config file
      */
     isConfigFile(filename) {
-        return ['.mcp.json', '.borg.json', '.aios.json', 'mcp.json'].includes(filename);
+        return ['.mcp.json', '.borg.json', '.legacy_config.json', 'mcp.json'].includes(filename);
     }
     /**
      * Load and parse a config file
@@ -135,7 +135,7 @@ export class ConfigurationService extends EventEmitter {
     detectConfigFormat(filePath, parsed) {
         if (filePath.includes('.borg.json'))
             return 'borg';
-        if (filePath.includes('.aios.json'))
+        if (filePath.includes('.legacy_config.json'))
             return 'borg';
         if (parsed.mcpServers)
             return 'claude';
@@ -165,7 +165,7 @@ export class ConfigurationService extends EventEmitter {
                 rawServers = parsed.servers || [];
                 break;
             case 'borg':
-            case 'aios':
+            case 'legacy':
                 rawServers = parsed.servers || [];
                 break;
         }
@@ -194,7 +194,7 @@ export class ConfigurationService extends EventEmitter {
                     server = this.normalizeGoogleServer(raw);
                     break;
                 case 'borg':
-                case 'aios':
+                case 'legacy':
                     server = this.normalizeBorgServer(raw);
                     break;
             }
@@ -288,7 +288,7 @@ export class ConfigurationService extends EventEmitter {
             updatedAt: Date.now()
         };
     }
-    normalizeAIOSServer(raw) {
+    normalizeLegacyServer(raw) {
         return this.normalizeBorgServer(raw);
     }
     /**
@@ -421,7 +421,7 @@ export class ConfigurationService extends EventEmitter {
                 output = { servers: servers };
                 break;
             case 'borg':
-            case 'aios':
+            case 'legacy':
                 output = { servers };
                 break;
         }

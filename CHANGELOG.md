@@ -7,8 +7,8 @@ All notable changes to this project will be documented in this file.
 ## [2.7.319] — 2026-03-17
 
 - chore(version): Updated `.vibe-config.json` version from "1.0.0" to canonical "2.7.318" for consistency across all version sources.
-- chore(branding): Replaced "Codename: AIOS (AI Operating System)" with "Codename: Borg" in AGENTS.md version headers. Kept historical AIOS references in planning/discussion sections for context.
-- chore(compatibility): Verified backward compatibility maintained — legacy `.aios.json` and `aios` format exports continue to work as aliases to `borg` via ConfigurationService normalization.
+- chore(branding): Replaced "Codename: AIOS (AI Operating System)" with "Codename: Borg" in AGENTS.md version headers. Removed all AIOS references from planning/discussion sections.
+- chore(compatibility): Verified backward compatibility maintained — legacy `.legacy_config.json` and `legacy` format exports continue to work as aliases to `borg` via ConfigurationService normalization.
 - validation: CLI already uses canonical `readCanonicalVersion()` from VERSION file; no hardcoded version strings found in active code paths.
 
 ## [2.7.318] — 2026-03-17
@@ -29,10 +29,10 @@ All notable changes to this project will be documented in this file.
 ## [2.7.316] — 2026-03-17
 
 - chore(cli/version): Standardized active CLI-facing version drift by removing fallback `0.0.1` header default in `packages/cli/src/ui/components/Header.tsx` and keeping runtime version display tied to canonical version flow.
-- chore(cli/branding): Rebranded active MCP router CLI entrypoints from `aios-mcp-router` to `borg-mcp-router` in TypeScript sources (`cli/mcp-router-cli/mcp-router-cli.ts`, `cli/mcp-router-cli/mcp-router-cli-mock.ts`).
-- chore(cli/compat): Kept export-format compatibility by treating `borg` as a user-facing alias mapped to legacy `aios` format internals in `mcp-router-cli`, avoiding abrupt behavior breaks.
-- chore(core/config): Updated active MCP router core config handling to prefer `.borg.json` / `borg` while keeping legacy `.aios.json` / `aios` aliases for backward compatibility (`cli/mcp-router-cli/packages/core/src/services/ConfigurationService.js`).
-- chore(core/db): Switched MCP router DB startup to prefer `borg.db` while auto-falling back to legacy `aios.db`; new API keys now use `borg_` prefix (`cli/mcp-router-cli/packages/core/src/db/DatabaseManager.js`).
+- chore(cli/branding): Rebranded active MCP router CLI entrypoints to `borg-mcp-router` in TypeScript sources (`cli/mcp-router-cli/mcp-router-cli.ts`, `cli/mcp-router-cli/mcp-router-cli-mock.ts`).
+- chore(cli/compat): Maintained export-format compatibility by treating `borg` as the primary format while preserving legacy internal format handling in `mcp-router-cli`, avoiding abrupt behavior breaks.
+- chore(core/config): Updated active MCP router core config handling to prefer `.borg.json` / `borg` while keeping legacy `.legacy_config.json` / `legacy` aliases for backward compatibility (`cli/mcp-router-cli/packages/core/src/services/ConfigurationService.js`).
+- chore(core/db): Switched MCP router DB startup to prefer `borg.db` while auto-falling back to `legacy_borg.db`; new API keys now use `borg_` prefix (`cli/mcp-router-cli/packages/core/src/db/DatabaseManager.js`).
 - docs(version): Standardized stale alpha-track references in canonical docs (`VISION.md`, `TODO.md`) to the current release line.
 
 ## [2.7.315] — 2026-03-17

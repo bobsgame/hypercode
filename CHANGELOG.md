@@ -5,6 +5,14 @@
 All notable changes to this project will be documented in this file.
 
 ## [2.7.311] — 2026-03-17
+## [2.7.312] — 2026-03-17
+
+- task completed: P0-1 (Task 007: Startup Orchestration Truthfulness) - Deterministic boot contract verified with 13/13 startup tests passing, canonical readiness definition implemented, fresh-install boot flow validated.
+- task completed: P0-6 (Task 008: Dashboard Honesty Pass) - All core dashboard pages labeled with proper maturity badges (beta/stable/experimental), primary nav distinguishes Borg 1.0 features from Labs/Experimental surfaces, external embeds clearly marked.
+- task completed: P1-7 (Task 009: Health, Logs & Operator Surfaces) - Health/Logs/Audit dashboard pages complete with real tRPC integration, searchable/filterable entries, appropriate status labeling, backend routers fully utilized.
+- test(validation): P0 prerequisites confirmed stable - web build all routes prerendered, startup orchestration 13/13 tests, core package 156/157 (99.4%).
+
+## [2.7.311] — 2026-03-17
 
 - fix(test): Updated JsonConfigProvider and mcp-tool-preferences tests for working-set schema compatibility. Tests now use `toMatchObject()` to accept additional session working-set capacity fields (`maxLoadedTools`, `maxHydratedSchemas`, `idleEvictionThresholdMs`).
 - test(validation): Core package tests improved to 156/157 passing (99.4% pass rate); all router tests and config tests validated.

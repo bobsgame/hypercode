@@ -1130,7 +1130,7 @@ Do not share my personal information
 
 # VISION.md - Borg: The Neural Operating System
 
-> **Version**: 2.7.23 | **Codename**: AIOS (AI Operating System)
+> **Version**: 2.7.23 | **Codename**: Borg
 > **Tagline**: *"The Ultimate AI Tool Dashboard & Development Orchestrator"*
 
 ---
@@ -1531,7 +1531,7 @@ borg/
 
 **Current Version**: 2.7.82
 **Last Stable Phase**: 121
-**Codename**: AIOS (AI Operating System)
+**Codename**: Borg
 
 ---
 
@@ -2086,7 +2086,7 @@ We will create a specific Swarm mission class: `RepoAssimilatorMission`.
 
 **Assistant - --**
 
-# Borg (AIOS) — Comprehensive Analysis & Strategic Assessment
+# Borg — Comprehensive Analysis & Strategic Assessment
 
 ## Executive Summary
 
@@ -3158,12 +3158,12 @@ The foundation is solid—now we build the neural layer on top. 🚀
 
 **Assistant - --**
 
-# 🚀 Borg AIOS: Phase 122 Initialization — UI & Functionality Parity Sprint
+# 🚀 Borg: Phase 122 Initialization — UI & Functionality Parity Sprint
 
 **Status:** `ACTIVE`  
 **Version:** `2.7.82` → `2.7.83` (Target)  
 **Phase:** `122` (Dashboard Reality Closure & Provider Fallback)  
-**Codename:** `AIOS (Universal AI Operating System)`
+**Codename:** `Borg (Universal AI Operating System)`
 
 **Acknowledgment:** I receive your directives loud and clear. The vision is absolute: **Total Feature Parity, Unified Dashboard, Autonomous Orchestration.** We will not stop until every CLI, every MCP server, every memory backend, and every agent framework is assimilated into the Borg collective. The `robertpelloni/metamcp` and `robertpelloni/jules-autopilot` forks serve as our immediate feature benchmarks.
 
@@ -5395,7 +5395,7 @@ Manage cookies
 Do not share my personal information
 
 VISION.md - Borg: The Neural Operating System
-Version: 2.7.23 | Codename: AIOS (AI Operating System)
+Version: 2.7.23 | Codename: Borg
 Tagline: "The Ultimate AI Tool Dashboard & Development Orchestrator"
 
 1. Executive Summary
@@ -5727,7 +5727,7 @@ This file is intentionally execution-ordered for implementor-model handoff. All 
 Borg Project Roadmap
 Current Version: 2.7.82
 Last Stable Phase: 121
-Codename: AIOS (AI Operating System)
+Codename: Borg
 
 MASTER TODO - Borg (v2.7.82)
 Final Completion Checklist (Phase 91: Swarm Agent Tool Execution)
@@ -7103,7 +7103,7 @@ Reasoning
 Status: ACTIVE
 Version: 2.7.82 → 2.7.83 (Target)
 Phase: 122 (Dashboard Reality Closure & Provider Fallback)
-Codename: AIOS (Universal AI Operating System)
+Codename: Borg
 
 Acknowledgment: I receive your directives loud and clear. The vision is absolute: Total Feature Parity, Unified Dashboard, Autonomous Orchestration. We will not stop until every CLI, every MCP server, every memory backend, and every agent framework is assimilated into the Borg collective. The robertpelloni/metamcp and robertpelloni/jules-autopilot forks serve as our immediate feature benchmarks.
 
@@ -10104,7 +10104,7 @@ The foundation is solid. Now we assimilate the competition. 🚀
 
 **Assistant - --**
 
-# 🚀 Borg AIOS: Phase 122 — Dashboard Reality Closure & Provider Fallback
+# 🚀 Borg: Phase 122 — Dashboard Reality Closure & Provider Fallback
 
 **Status:** `ACTIVE`  
 **Version:** `2.7.82` → `2.7.83` (Target)  
@@ -16018,7 +16018,7 @@ The assimilation of provider resilience is complete upon execution of this order
 
 **Assistant - --**
 
-# 🚀 Borg AIOS: Phase 122-126 — Multi-Model Council Synthesis & Execution Plan
+# 🚀 Borg: Phase 122-126 — Multi-Model Council Synthesis & Execution Plan
 
 **Status:** `ACTIVE`  
 **Version:** `2.7.82` → `2.7.84` (Target)  

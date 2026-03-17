@@ -177,11 +177,12 @@ export async function buildStartupStatusSnapshot(input: StartupStatusInput) {
         ?? aggregatorStatus?.configuredServerCount
         ?? persistedServerCount,
     );
-    // On a fresh install with zero configured servers, config sync is trivially satisfied —
-    // there is nothing to sync, and blocking on lastCompletedAt would stall the boot indefinitely.
+    // On a fresh install with zero configured servers, config sync is trivially satisfied.
+    // Even if stale status flags linger (for example after interrupted startup attempts),
+    // there is nothing to synchronize yet, so this check must never hold readiness hostage.
     const zeroServersConfigured = configuredServerCount === 0 && persistedServerCount === 0;
     const configSyncReady = zeroServersConfigured
-        ? (!configSyncStatus?.inProgress && !configSyncStatus?.lastError)
+        ? true
         : Boolean(configSyncStatus?.lastCompletedAt) && !configSyncStatus?.inProgress && !configSyncStatus?.lastError;
     const sessionRestoreReady = Boolean(restoreStatus?.lastRestoreAt);
     const knownServerCount = Math.max(liveServerCount, persistedServerCount, configuredServerCount);

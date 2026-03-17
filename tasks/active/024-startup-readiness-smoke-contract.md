@@ -20,7 +20,7 @@ Borg exposes a startup/readiness contract, but release confidence requires repea
 ## Acceptance Criteria
 - [x] Clean root smoke run completes with truthful ready summary
 - [x] `startupStatus` and dashboard startup cards are semantically consistent
-- [ ] No false-ready or permanent-pending states for zero-server/fresh-install scenarios
+- [x] No false-ready or permanent-pending states for zero-server/fresh-install scenarios
 - [x] Focused startup/readiness tests pass
 - [x] `CHANGELOG.md` updated if behavior changes
 
@@ -47,4 +47,13 @@ Borg exposes a startup/readiness contract, but release confidence requires repea
 	- `pnpm exec vitest run packages/core/src/routers/startupStatus.test.ts apps/web/src/app/dashboard/dashboard-home-view.test.tsx apps/web/src/app/dashboard/DashboardHomeClient.test.tsx`
 - Result:
 	- **3/3 test files passing**
-	- **52/52 tests passing**
+	- **53/53 tests passing**
+
+## Zero-server permanent-pending regression coverage (2026-03-17)
+
+- Hardened startup readiness contract in `packages/core/src/routers/startupStatus.ts`:
+	- zero-server/fresh-install (`configured=0`, `persisted=0`) now treats config sync as non-blocking by definition.
+	- avoids stale `configSync.inProgress` / `configSync.lastError` status from causing indefinite pending on empty installs.
+- Added focused regression in `packages/core/src/routers/startupStatus.test.ts`:
+	- `zero-server initialized boot does not get stuck pending on stale config-sync flags`
+	- verifies no `mcp_config_sync_pending` blocker in zero-server initialized state even with stale status flags.

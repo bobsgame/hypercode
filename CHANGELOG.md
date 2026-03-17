@@ -4,6 +4,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.7.329] — 2026-03-17
+
+- fix(startup): Prevented zero-server/fresh-install startup from getting stuck in permanent pending due to stale config-sync flags. `buildStartupStatusSnapshot` now treats config sync as non-blocking when configured/persisted server counts are both zero.
+- test(startup): Added regression coverage in `packages/core/src/routers/startupStatus.test.ts` for stale zero-server config-sync status (`inProgress`/`lastError`) to ensure readiness still resolves when aggregator initialization is complete.
+- validation(startup): Re-ran focused readiness suites:
+  - `packages/core/src/routers/startupStatus.test.ts`
+  - `apps/web/src/app/dashboard/dashboard-home-view.test.tsx`
+  - `apps/web/src/app/dashboard/DashboardHomeClient.test.tsx`
+  - result: **53/53 passing**
+- docs(tasks): Updated `tasks/active/024-startup-readiness-smoke-contract.md` and checked the remaining zero-server/fresh-install acceptance criterion.
+- chore(version): Bumped canonical version to `2.7.329` (`VERSION`, `VERSION.md`).
+
 ## [2.7.328] — 2026-03-18
 
 - validation(startup): Ran focused startup/readiness suites and confirmed alignment between startup contract and dashboard readiness surfaces:

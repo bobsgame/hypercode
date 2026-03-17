@@ -24,7 +24,7 @@ This handoff reflects a documentation-overhaul sync to current repository realit
 
 ## Operational truth (now)
 
-- Core release line: `2.7.328` (`VERSION`)
+- Core release line: `2.7.329` (`VERSION`)
 - Borg 1.0 focus remains:
   1. MCP router
   2. provider fallback/routing
@@ -91,6 +91,25 @@ This handoff reflects a documentation-overhaul sync to current repository realit
 - Synced version/changelog for this validation slice:
   - `VERSION` / `VERSION.md` -> `2.7.328`
   - `CHANGELOG.md` -> `2.7.328`
+
+## Latest continuation slice (2.7.329)
+
+- Closed the remaining startup-readiness acceptance gap for zero-server/fresh-install behavior by hardening:
+  - `packages/core/src/routers/startupStatus.ts`
+  - zero-server installs now treat config sync as non-blocking by definition, preventing stale sync flags from causing indefinite pending.
+- Added focused regression coverage in:
+  - `packages/core/src/routers/startupStatus.test.ts`
+  - test: `zero-server initialized boot does not get stuck pending on stale config-sync flags`
+- Revalidated startup/dashboard readiness suites:
+  - `packages/core/src/routers/startupStatus.test.ts`
+  - `apps/web/src/app/dashboard/dashboard-home-view.test.tsx`
+  - `apps/web/src/app/dashboard/DashboardHomeClient.test.tsx`
+  - result: **53/53 passing**
+- Updated active task brief and checked the final criterion:
+  - `tasks/active/024-startup-readiness-smoke-contract.md`
+- Synced version/changelog for this slice:
+  - `VERSION` / `VERSION.md` -> `2.7.329`
+  - `CHANGELOG.md` -> `2.7.329`
 
 ## Next recommended steps
 

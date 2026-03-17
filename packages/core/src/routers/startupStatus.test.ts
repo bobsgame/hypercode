@@ -995,4 +995,77 @@ describe('buildStartupStatusSnapshot', () => {
                 ]),
             );
         });
+
+        it('zero-server initialized boot does not get stuck pending on stale config-sync flags', async () => {
+            const snapshot = await buildStartupStatusSnapshot({
+                mcpServer: {
+                    memoryManager: {},
+                    isMemoryInitialized: true,
+                    getBridgeStatus: () => ({
+                        ready: true,
+                        clientCount: 0,
+                        clients: [],
+                        supportedCapabilities: [],
+                        supportedHookPhases: [],
+                    }),
+                },
+                aggregator: {
+                    getInitializationStatus: () => ({
+                        inProgress: false,
+                        initialized: true,
+                        connectedClientCount: 0,
+                        configuredServerCount: 0,
+                    }),
+                },
+                agentMemory: {},
+                browserService: {},
+                browserStatus: { active: false, pageCount: 0, pageIds: [] },
+                sessionSupervisor: {
+                    getRestoreStatus: () => ({
+                        lastRestoreAt: Date.now(),
+                        restoredSessionCount: 0,
+                        autoResumeCount: 0,
+                    }),
+                },
+                sessionCount: 0,
+                // Simulate stale status from a prior interrupted run.
+                mcpConfigService: {
+                    getStatus: () => ({
+                        inProgress: true,
+                        lastCompletedAt: undefined,
+                        lastSuccessAt: undefined,
+                        lastError: 'stale startup state',
+                        lastServerCount: 0,
+                        lastToolCount: 0,
+                    }),
+                },
+                liveServerCount: 0,
+                persistedServerCount: 0,
+                persistedToolCount: 0,
+                persistedAlwaysOnServerCount: 0,
+                persistedAlwaysOnToolCount: 0,
+                executionEnvironment: {
+                    ready: true,
+                    preferredShellId: 'pwsh',
+                    preferredShellLabel: 'PowerShell 7',
+                    shellCount: 1,
+                    verifiedShellCount: 1,
+                    toolCount: 2,
+                    verifiedToolCount: 2,
+                    harnessCount: 1,
+                    verifiedHarnessCount: 1,
+                    supportsPowerShell: true,
+                    supportsPosixShell: false,
+                    notes: [],
+                },
+            });
+
+            expect(snapshot.ready).toBe(true);
+            expect(snapshot.checks.configSync.ready).toBe(true);
+            expect(snapshot.blockingReasons).not.toEqual(
+                expect.arrayContaining([
+                    expect.objectContaining({ code: 'mcp_config_sync_pending' }),
+                ]),
+            );
+        });
 });

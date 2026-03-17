@@ -4,6 +4,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.7.314] — 2026-03-17
+
+- feat(web/policies): Added an explicit `experimental` status banner to `/dashboard/mcp/policies` so editable policy definitions no longer read like enforced runtime governance.
+- docs(core/stubs): Clarified the pass-through intent of `policy.service.stub.ts` and the JSON fallback behavior of `toon.serializer.stub.ts` so placeholder plumbing is visibly documented instead of silently pretending to be complete.
+- test(validation): `pnpm -C apps/web exec tsc --noEmit --pretty false` completed successfully after the policies-page update.
+
 ## [2.7.313] — 2026-03-17
 
 - feat(web/tests): Upgraded `/dashboard/tests` from passive watcher status into an operator control surface with per-result rerun buttons, bulk rerun for failing tests, and client-side file/output/status filtering backed by `trpc.tests.run`.

@@ -6,6 +6,7 @@ import { Button } from "@borg/ui";
 import { Loader2, Plus, Shield, Trash2, Edit2 } from "lucide-react";
 import { trpc } from '@/utils/trpc';
 import { toast } from 'sonner';
+import { PageStatusBanner } from '@/components/PageStatusBanner';
 import { normalizePolicies } from './policies-page-normalizers';
 
 export default function PoliciesDashboard() {
@@ -15,6 +16,11 @@ export default function PoliciesDashboard() {
 
     return (
         <div className="p-8 space-y-8">
+            <PageStatusBanner
+                status="experimental"
+                message="Policy editing is live, but runtime allow/deny enforcement is still preview-only in this build."
+                note="Use this surface to stage and review policy intent; treat enforcement outcomes as advisory until the evaluator graduates from pass-through mode."
+            />
             <div className="flex justify-between items-center">
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight text-white">Access Policies</h1>

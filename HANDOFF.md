@@ -2,6 +2,15 @@
 
 _Last updated: 2026-03-17 (continuation session)_
 
+## Latest continuation slice — Policy/TOON placeholder truthfulness (v2.7.313 → v2.7.314)
+
+- Added a top-level `PageStatusBanner` to `/dashboard/mcp/policies` marking the surface as `experimental` and explicitly stating that runtime enforcement remains preview-only.
+- Expanded compatibility comments in `packages/core/src/services/stubs/policy.service.stub.ts` so future implementors can see why the evaluator is intentionally pass-through today.
+- Expanded compatibility comments in `packages/core/src/services/stubs/toon.serializer.stub.ts` to make it clear that Borg currently returns plain JSON, not a production TOON serialization format.
+- Validation completed:
+  - ✅ `pnpm -C apps/web exec tsc --noEmit --pretty false`
+  - ✅ touched-file diagnostics clean via editor checks
+
 ## Latest continuation slice — Tests dashboard operator controls (v2.7.312 → v2.7.313)
 
 - Upgraded `/dashboard/tests` to expose the existing `trpc.tests.run` capability instead of only showing watcher state.

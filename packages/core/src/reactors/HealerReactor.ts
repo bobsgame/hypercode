@@ -12,6 +12,15 @@ function shouldIgnoreExpectedStartupError(errorLog: string): boolean {
         'error fetching saved scripts',
         'error fetching mcp servers from config',
         'sqliteerror: no such table: config',
+        // Billing/quota errors — all downstream LLM providers are unavailable;
+        // the healer cannot generate a fix without a working LLM. Retrying would just
+        // exhaust the fallback chain repeatedly and spam the logs.
+        'insufficient balance',
+        'credit balance is too low',
+        'quota exceeded',
+        'you exceeded your current quota',
+        'failed to capture tool observation',
+        'failed to infer data type',
     ];
 
     return ignoredFragments.some((fragment) => normalized.includes(fragment));
@@ -33,7 +42,11 @@ export class HealerReactor {
     private healerService: HealerService;
     private isHealing: boolean = false;
     private lastErrorTime: number = 0;
-    private readonly COOLDOWN_MS = 10000; // 10s cooldown to prevent loops
+    private consecutiveFailures: number = 0;
+    private readonly BASE_COOLDOWN_MS = 10000; // 10s base cooldown to prevent loops
+    // After repeated healer failures (e.g., all LLM providers dead), back off exponentially
+    // up to 5 minutes to avoid continuous log spam.
+    private readonly MAX_COOLDOWN_MS = 300000;
 
     constructor(eventBus: EventBus, healerService: HealerService) {
         this.eventBus = eventBus;
@@ -53,9 +66,14 @@ export class HealerReactor {
             return;
         }
 
-        // Prevent reaction loops (e.g., if the healer itself causes an error)
+        // Prevent reaction loops (e.g., if the healer itself causes an error).
+        // Cooldown grows with consecutive failures to back off when all LLM providers are dead.
+        const cooldown = Math.min(
+            this.BASE_COOLDOWN_MS * Math.pow(2, this.consecutiveFailures),
+            this.MAX_COOLDOWN_MS
+        );
         const now = Date.now();
-        if (this.isHealing || (now - this.lastErrorTime < this.COOLDOWN_MS)) {
+        if (this.isHealing || (now - this.lastErrorTime < cooldown)) {
             console.log("[HealerReactor] ⏳ Healing in progress or cooldown. Skipping error.");
             return;
         }
@@ -73,12 +91,15 @@ export class HealerReactor {
             if (report.success) {
                 console.log(`[HealerReactor] ✅ Pathogen neutralized. Fix applied to ${report.file}`);
                 this.eventBus.emitEvent('system:healed', 'HealerReactor', { file: report.file, fix: report.fix });
+                this.consecutiveFailures = 0; // reset backoff on success
             } else {
                 console.log(`[HealerReactor] ⚠️ Integration failed. Could not auto-heal.`);
+                this.consecutiveFailures++;
             }
 
         } catch (error) {
             console.error("[HealerReactor] ❌ Immune System Failure:", error);
+            this.consecutiveFailures++;
         } finally {
             this.isHealing = false;
         }

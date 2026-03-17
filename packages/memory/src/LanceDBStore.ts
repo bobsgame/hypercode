@@ -4,6 +4,29 @@ import path from 'path';
 import fs from 'fs';
 import { IVectorStore } from './IVectorStore.js';
 
+/**
+ * LanceDB uses Apache Arrow for schema inference. Arrow cannot infer the element type
+ * of an empty array (`[]`) or deeply-nested objects, causing runtime errors like:
+ *   "Failed to infer data type for field structuredObservation.filesRead at row 0."
+ * This helper serializes any array or object values to JSON strings so that every
+ * top-level field in the row has a scalar type Arrow can handle, eliminating the error.
+ * The serialized strings remain searchable as text and are preserved for later parsing.
+ */
+function sanitizeMetadataForArrow(metadata: Record<string, unknown>): Record<string, unknown> {
+    const result: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(metadata)) {
+        if (value === null || value === undefined) {
+            result[key] = null;
+        } else if (Array.isArray(value) || (typeof value === 'object')) {
+            // Serialize arrays and objects to JSON strings to avoid Arrow inference failures
+            result[key] = JSON.stringify(value);
+        } else {
+            result[key] = value;
+        }
+    }
+    return result;
+}
+
 export class LanceDBStore implements IVectorStore {
     private dbPath: string;
     private db: any; // Type as any for now to avoid strict typing issues with lancedb
@@ -36,10 +59,14 @@ export class LanceDBStore implements IVectorStore {
         if (!this.db) await this.initialize();
 
         const embedding = await this.createEmbeddings(content);
+        // LanceDB uses Apache Arrow for schema inference, which cannot infer the type of empty
+        // arrays or nested objects. Sanitize metadata by serializing any non-scalar values
+        // (arrays, objects) to JSON strings so Arrow only sees primitives at the top level.
+        const sanitizedMeta = sanitizeMetadataForArrow(metadata);
         const data = [{
             vector: embedding,
             text: content,
-            ...metadata,
+            ...sanitizedMeta,
             timestamp: Date.now()
         }];
 
@@ -48,8 +75,7 @@ export class LanceDBStore implements IVectorStore {
             table = await this.db.openTable('memories');
             await table.add(data);
         } catch (e) {
-            // Table doesn't exist, create it
-            // Schema is inferred from data
+            // Table doesn't exist, create it; schema is inferred from data.
             table = await this.db.createTable('memories', data);
         }
     }

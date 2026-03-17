@@ -4,6 +4,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.7.330] — 2026-03-17
+
+- fix(memory): `LanceDBStore.addMemory` now sanitizes metadata via `sanitizeMetadataForArrow()` before writing to LanceDB. Arrays and nested objects are serialized to JSON strings so Apache Arrow schema inference never encounters an empty-array field (e.g. `structuredObservation.filesRead: []`) and can no longer throw `"Failed to infer data type"` at table creation.
+- fix(healer): `HealerReactor` now ignores errors that are known-unrecoverable without a working LLM (billing failures, quota exceeded, LanceDB schema errors). Adds exponential backoff on consecutive heal failures — cooldown doubles per failure up to 5 minutes — preventing runaway retry storms when all providers are offline.
+
 ## [2.7.329] — 2026-03-17
 
 - fix(startup): Prevented zero-server/fresh-install startup from getting stuck in permanent pending due to stale config-sync flags. `buildStartupStatusSnapshot` now treats config sync as non-blocking when configured/persisted server counts are both zero.

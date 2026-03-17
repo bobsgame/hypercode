@@ -1,6 +1,6 @@
 {
   "name": "@borg/browser-extension-pkg",
-  "version": "0.0.1",
+  "version": "2.7.333",
   "description": "Borg Browser Extension for Hub Connectivity",
   "scripts": {
     "build": "vite build",

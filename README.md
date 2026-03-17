@@ -4,20 +4,38 @@
 
 Borg is being stabilized toward a focused `1.0` release around four core capabilities:
 
-- **MCP Master Router** — aggregate multiple MCP servers behind one endpoint
-- **Model Fallback & Provider Routing** — switch providers/models when quotas or rate limits hit
-- **Session Supervisor** — manage long-running external coding sessions
-- **Web Dashboard** — one place to see system health, sessions, servers, and providers
 
 ## Current status
 
 This repository is in an active cleanup and stabilization phase.
 
-- Root `pnpm install` was verified successfully on Windows in this repo state.
-- `docker compose up -d --build` was verified successfully on Windows with Docker Desktop running.
-- Dockerized dashboard access was verified at `http://localhost:3001`.
-- Root `pnpm run dev` now uses Borg's readiness launcher and may place the dashboard on a fallback web port if `3000` is already occupied; the core bridge remains on `http://127.0.0.1:3001`.
-- The web app root redirects from `/` to `/dashboard`.
+
+**[Early release — actively developed. Feedback and PRs welcome.]**
+
+---
+
+## The problem
+
+Running multiple AI tools locally is messy:
+
+- Each tool maintains its own MCP server config — five tools, five separate lists to keep in sync
+- When OpenAI rate-limits your session mid-task, everything stops
+- Long-running agent sessions (Claude Code, OpenCode, Jules, etc.) have no central oversight
+- There's no single place to see what's running, what's broken, or what it's costing
+
+Borg is the layer that sits between your AI tools and their infrastructure.
+
+## What it does
+
+| Feature | Description |
+|---|---|
+| **MCP Master Router** | Aggregate any number of MCP servers behind one endpoint. Every tool that speaks MCP connects here instead of maintaining separate configs. |
+| **Provider Fallback** | Define a priority chain — OpenAI → Claude → Gemini → local Ollama. When a quota runs out or a rate-limit hits, the next provider takes over automatically. |
+| **Session Supervisor** | Attach to external coding agent sessions (Claude Code, OpenCode, Jules). Monitor status, send broadcast messages, detect failures. |
+| **Web Dashboard** | One URL for everything — system health, MCP server status, active sessions, provider billing, config. |
+| **Browser Extension** | Chrome/Firefox side-panel that surfaces Borg context inside any AI web app. |
+
+---
 
 ## Quick start
 
@@ -25,141 +43,121 @@ This repository is in an active cleanup and stabilization phase.
 
 - Node.js 20+
 - `pnpm` 10+
-- Docker Desktop or another working Docker engine if you want the containerized stack
+- Docker Desktop (optional — only needed for the containerized stack)
 
-### 1) Clone and install
+### Option A — Docker Compose (recommended for first run)
+
+```bash
+git clone https://github.com/robertpelloni/borg.git
+cd borg
+docker compose up --build
+```
+
+Once running:
+
+- Dashboard: `http://localhost:3001/dashboard`
+- Core API: `http://localhost:3000`
+- MCP router: `http://localhost:3001/dashboard/mcp`
+
+> The first build takes several minutes — it compiles the monorepo and the Next.js dashboard inside Docker.
+
+**Windows note:** If you see `open //./pipe/dockerDesktopLinuxEngine: The system cannot find the file specified`, Docker Desktop isn't running yet. Start it and retry.
+
+### Option B — Local development
 
 ```bash
 git clone https://github.com/robertpelloni/borg.git
 cd borg
 pnpm install
-```
-
-### 2) Start with Docker Compose
-
-```bash
-docker compose up --build
-```
-
-Expected URLs once the stack is up:
-
-- Dashboard: `http://localhost:3001`
-- Core API: `http://localhost:3000`
-
-Notes:
-
-- Opening `http://localhost:3001/` redirects to `http://localhost:3001/dashboard`.
-- The MCP operator surface lives at `http://localhost:3001/dashboard/mcp`.
-- The first image build can take several minutes because it builds the core packages and the Next.js dashboard inside Docker.
-
-### 3) Start local development
-
-```bash
 pnpm run dev
 ```
 
-What the launcher does:
+The launcher starts the core bridge, waits for the readiness contract, builds browser-extension artifacts if missing, and prints the active dashboard URL. Usually `http://127.0.0.1:3000/dashboard` — falls back to `3010`, `3020`, etc. if `3000` is occupied.
 
-- starts or reuses the Borg core bridge on `http://127.0.0.1:3001`
-- waits for the authoritative `startupStatus` contract before reporting success
-- builds missing official browser-extension artifacts when needed
-- opens the dashboard after the web surface is actually ready
-
-The dashboard usually starts on `http://127.0.0.1:3000/dashboard`, but it may move to a fallback port if `3000` is already taken. To confirm the active URLs after startup, run:
+Verify all services are up:
 
 ```bash
 node scripts/verify_dev_readiness.mjs
 ```
 
-Useful local probes:
+---
 
-- Core bridge / HTTP probe: `http://127.0.0.1:3001`
-- Startup status: `http://127.0.0.1:3001/api/trpc/startupStatus?input=%7B%7D`
-- MCP status: `http://127.0.0.1:3001/api/trpc/mcp.getStatus?input=%7B%7D`
-
-### Windows note
-
-If Docker reports an error like:
-
-- `open //./pipe/dockerDesktopLinuxEngine: The system cannot find the file specified`
-
-that usually means Docker Desktop is not running yet. Start Docker Desktop, wait for the engine to come up, then rerun:
+## Configuration
 
 ```bash
-docker compose up --build
+cp apps/web/.env.example apps/web/.env.local
+cp packages/core/.env.example packages/core/.env
 ```
 
-## What Borg is
+Fill in at least one provider key. Borg degrades gracefully when providers are missing — it skips them in the fallback chain.
 
-Borg is an **orchestrator**, not a clone of every AI tool.
+```env
+OPENROUTER_API_KEY=...   # recommended — access to all major providers via one key
+ANTHROPIC_API_KEY=...    # optional
+OPENAI_API_KEY=...       # optional
+GOOGLE_API_KEY=...       # optional
+```
 
-It is intended to:
+MCP server config lives in `mcp.json` at the repo root — standard MCP client config format. Point any MCP-compatible client at this file.
 
-- route MCP tools cleanly and safely
-- supervise external agent and CLI sessions
-- manage provider and model selection with fallback
-- expose system state through a practical dashboard
+---
 
-## Borg 1.0 focus
+## Dashboard routes
 
-The repository still contains legacy and experimental surfaces, but the current product focus is intentionally narrow:
+| Path | Purpose |
+|---|---|
+| `/dashboard` | Mission Control — live system health |
+| `/dashboard/mcp` | MCP router — servers, tools, namespaces, routing config |
+| `/dashboard/sessions` | Session supervisor — agent sessions, logs, broadcast |
+| `/dashboard/billing` | Provider status, quota, fallback chain config |
+| `/dashboard/config` | Platform settings |
 
-- **MCP Master Router**
-- **Model Fallback & Provider Routing**
-- **Session Supervisor**
-- **Web Dashboard**
-
-If a change does not make those workflows more reliable, more testable, or easier for a new user to run in five minutes, it is probably not a Borg 1.0 priority.
+---
 
 ## Repository layout
 
 ```text
 borg/
-├── apps/web/              # Dashboard
-├── apps/borg-extension/   # Official browser extension (Chrome/Edge + Firefox builds)
-├── apps/extension/        # Legacy/compat browser extension surface
-├── packages/core/         # MCP routing, orchestration, services
+├── apps/web/              # Next.js dashboard (tRPC + React)
+├── apps/borg-extension/   # Browser extension (Chrome/Edge + Firefox)
+├── packages/core/         # MCP routing, orchestration, provider services
 ├── packages/cli/          # CLI entrypoint
+├── packages/ui/           # Shared component library
 ├── packages/types/        # Shared types/schemas
+├── packages/memory/       # Vector memory (LanceDB) integration
 ├── tasks/                 # Active, backlog, completed task briefs
-├── docs/                  # Architecture docs plus archived planning material
+├── docs/                  # Architecture docs and planning material
 └── docker-compose.yml     # Containerized local stack
 ```
 
-## Canonical docs
+---
 
-These are the root-level documents contributors should trust first:
+## Debug logging
 
-- `AGENTS.md` — active repo operating directive
-- `ARCHITECTURE.md` — high-level system design
-- `ROADMAP.md` — current 1.0 / 1.5 / 2.0 milestones
-- `CHANGELOG.md` — notable repo changes
-- `tasks/active/` — current implementation work
+```bash
+# Verbose MCP server startup diagnostics
+BORG_MCP_SERVER_DEBUG=1 pnpm run dev
 
-Archive and compatibility material still exists for reference, but it is **not** the source of truth. Treat anything under `docs/archive/` as archive-only.
-
-## Development notes
-
-- Current stabilization work is focused on install, startup, and the core control-plane workflows.
-- If you are contributing, prefer `tasks/active/` over older phase-based or parity-based planning artifacts.
-- The dashboard landing page is `/dashboard`; use `/dashboard/mcp` when you specifically want the MCP router view.
-
-### Optional startup debug logging
-
-Normal `pnpm run dev` startup is intentionally quiet. If you want verbose Borg core boot/import logging while diagnosing startup issues, enable either of these environment flags before launching dev:
-
-- `BORG_MCP_SERVER_DEBUG=1`
-- `DEBUG=borg:mcp-server`
-
-Windows PowerShell examples:
-
-```powershell
+# PowerShell
 $env:BORG_MCP_SERVER_DEBUG='1'; pnpm run dev
 ```
 
-```powershell
-$env:DEBUG='borg:mcp-server'; pnpm run dev
-```
+---
+
+## Docs
+
+- [`ARCHITECTURE.md`](ARCHITECTURE.md) — high-level system design
+- [`ROADMAP.md`](ROADMAP.md) — current 1.0 / 1.5 / 2.0 milestones
+- [`CHANGELOG.md`](CHANGELOG.md) — release history
+- [`CONTRIBUTING.md`](CONTRIBUTING.md) — how to contribute
+
+---
+
+## Contributing
+
+Open an issue or PR. Keep changes focused on the four core workflows (MCP routing, provider fallback, session supervision, dashboard). See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
+
+---
 
 ## License
 

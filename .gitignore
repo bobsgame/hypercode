@@ -79,3 +79,10 @@ packages/core/.tsc-output.txt
 **/__pycache__/
 **/playwright-report/
 **/test-results/
+
+# Copilot/AI session history and local dev chat logs (personal data, not for public repo)
+chat.json
+chat2.json
+docs/sessions/chat.json
+docs/sessions/*.json
+audit-*.jsonl

@@ -5,6 +5,16 @@
 All notable changes to this project will be documented in this file.
 
 ## [2.7.330] — 2026-03-17
+## [2.7.331] — 2026-03-17
+
+- chore(release-prep): rewrite README for public HN/Reddit release — clear problem/solution framing,
+  feature table, Docker + local quick-start, config guide, dashboard route table, updated layout
+- security(git): untrack `chat.json`, `docs/sessions/chat.json`, `audit-2026-03-12.jsonl` (Copilot
+  session logs / personal data); extend `.gitignore` to cover `docs/sessions/*.json` and `audit-*.jsonl`
+- chore(env): add root-level `.env.example` consolidating all provider keys for new contributors
+- chore(version): bump to `2.7.331`
+
+## [2.7.330] — 2026-03-17
 
 - fix(memory): `LanceDBStore.addMemory` now sanitizes metadata via `sanitizeMetadataForArrow()` before writing to LanceDB. Arrays and nested objects are serialized to JSON strings so Apache Arrow schema inference never encounters an empty-array field (e.g. `structuredObservation.filesRead: []`) and can no longer throw `"Failed to infer data type"` at table creation.
 - fix(healer): `HealerReactor` now ignores errors that are known-unrecoverable without a working LLM (billing failures, quota exceeded, LanceDB schema errors). Adds exponential backoff on consecutive heal failures — cooldown doubles per failure up to 5 minutes — preventing runaway retry storms when all providers are offline.

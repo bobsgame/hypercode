@@ -743,6 +743,37 @@ onMessage('mcp:get-tools', async ({ data }) => {
   }
 });
 
+onMessage('mcp:save-context', async ({ data }) => {
+  const { content, name, source, sourceUrl, sourceTitle, profileId } = data;
+  logger.debug(`Saving context to memory: ${name} (${sourceUrl})`);
+  
+  const activeProfileId = profileId || 'default-sse';
+  const client = mcpManager.getClient(activeProfileId);
+  
+  try {
+    const memoryPayload = {
+      text: content,
+      title: name || sourceTitle,
+      project: 'borg-browser-memory',
+      metadata: {
+        source,
+        url: sourceUrl,
+        capturedAt: new Date().toISOString(),
+      }
+    };
+
+    if (client) {
+      await client.callTool('save_memory', memoryPayload);
+    } else {
+      await callToolWithBackwardsCompatibility(getServerUrl(), 'save_memory', memoryPayload, undefined, connectionType);
+    }
+    return { success: true };
+  } catch (error) {
+    logger.error('[Background] Failed to save memory:', error);
+    return { success: false, error: error instanceof Error ? error.message : String(error) };
+  }
+});
+
 onMessage('mcp:force-reconnect', async ({ data }) => {
   const { profileId, uri, transportType } = data;
   const activeProfileId = profileId || 'default-sse';

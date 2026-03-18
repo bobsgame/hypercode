@@ -684,6 +684,63 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     sendResponse({ success: true });
     return false; // Sync response
   }
+  // MCP Browser Action (MCP-to-web)
+  else if (message.type === 'mcp:execute-browser-action') {
+    const { method, params } = message.payload;
+    logger.debug(`[Content] Received browser action request: ${method}`, params);
+
+    const adapterStore = useAdapterStore.getState();
+    const currentAdapterReg = adapterStore.getActiveAdapter();
+    const adapter = currentAdapterReg?.instance;
+
+    if (!adapter) {
+      sendResponse({ success: false, error: 'No active adapter found for this site' });
+      return false;
+    }
+
+    try {
+      let result: any;
+      
+      switch (method) {
+        case 'read_page':
+        case 'browser_scrape':
+          result = {
+            url: window.location.href,
+            title: document.title,
+            content: document.body.innerText
+          };
+          break;
+        case 'browser_insert_text':
+          result = await adapter.insertText(params.text, { selector: params.selector });
+          break;
+        case 'browser_submit_form':
+          result = await adapter.submitForm(params.selector);
+          break;
+        case 'browser_capture_screenshot':
+          result = await adapter.captureScreenshot();
+          break;
+        case 'browser_select_element':
+          result = await adapter.selectElement(params.selector);
+          break;
+        case 'browser_navigate':
+          window.location.href = params.url;
+          result = { success: true, url: params.url };
+          break;
+        case 'browser_execute_script':
+          // eslint-disable-next-line no-eval
+          result = eval(params.script);
+          break;
+        default:
+          result = { success: false, error: `Unknown browser action: ${method}` };
+      }
+      
+      sendResponse(result);
+    } catch (error) {
+      logger.error(`[Content] Failed to execute browser action ${method}:`, error);
+      sendResponse({ success: false, error: error instanceof Error ? error.message : String(error) });
+    }
+    return true; // Async response
+  }
 
   // Always return true if you want to use sendResponse asynchronously
   return true;

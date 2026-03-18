@@ -20,6 +20,10 @@ export async function initializeAllServices(): Promise<void> {
     const { AutomationService } = await import('./automation.service');
     AutomationService.getInstance();
 
+    // Initialize memory capture service
+    const { memoryCaptureService } = await import('./memory-capture.service');
+    memoryCaptureService.setEnabled(true);
+
     logger.debug('[Services] All services initialized successfully');
   } catch (error) {
     logger.error('[Services] Error initializing services:', error);

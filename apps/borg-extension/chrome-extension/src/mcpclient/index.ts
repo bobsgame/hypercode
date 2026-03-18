@@ -233,6 +233,55 @@ export async function runWithBackwardsCompatibility(
 
   await client.connect({ uri, type });
 
+  // Setup reverse command listener for browser control (MCP-to-web)
+  if (type === 'websocket') {
+    const transport = (client as any).transport;
+    if (transport && typeof transport.on === 'function') {
+      transport.on('message', async (message: any) => {
+        // Detect non-standard JSON-RPC calls from Borg Core (e.g. read_page, browser_*)
+        if (message.jsonrpc === '2.0' && message.method && message.id && !message.result && !message.error) {
+          const { method, params, id } = message;
+          
+          if (method === 'read_page' || method === 'browser_scrape' || method.startsWith('browser_')) {
+            logger.debug(`[Global Client] Received browser command: ${method}`, { id, params });
+            
+            // Forward to active tab via webext-bridge
+            try {
+              const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+              if (tab?.id) {
+                const result = await sendMessage('mcp:execute-browser-action', {
+                  method,
+                  params,
+                  requestId: id
+                }, { context: 'content-script', tabId: tab.id });
+                
+                // Send result back over WebSocket
+                await transport.send({
+                  jsonrpc: '2.0',
+                  id,
+                  result: result
+                });
+              } else {
+                await transport.send({
+                  jsonrpc: '2.0',
+                  id,
+                  error: { code: -32000, message: 'No active tab found' }
+                });
+              }
+            } catch (err) {
+              logger.error(`[Global Client] Failed to execute browser command: ${method}`, err);
+              await transport.send({
+                jsonrpc: '2.0',
+                id,
+                error: { code: -32603, message: err instanceof Error ? err.message : String(err) }
+              });
+            }
+          }
+        }
+      });
+    }
+  }
+
   const response = await client.getPrimitives();
   logger.debug(
     `Connected, found ${response.tools.length} tools, ${response.resources.length} resources, ${response.prompts.length} prompts`,

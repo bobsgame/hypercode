@@ -1554,6 +1554,35 @@ export class MCPServer {
                     });
                 }
             }
+            else if (["browser_insert_text", "browser_submit_form", "browser_capture_screenshot", "browser_select_element", "browser_navigate", "browser_execute_script"].includes(name)) {
+                if (!this.wssInstance || this.wssInstance.clients.size === 0) {
+                    result = { content: [{ type: "text", text: "Error: No Browser Extension connected." }] };
+                } else {
+                    result = await new Promise((resolve) => {
+                        const requestId = `req_${Date.now()}_${Math.random()}`;
+                        const timeout = setTimeout(() => {
+                            this.pendingRequests.delete(requestId);
+                            resolve({ content: [{ type: "text", text: "Error: Browser operation timed out." }] });
+                        }, 15000);
+
+                        this.pendingRequests.set(requestId, (data: any) => {
+                            clearTimeout(timeout);
+                            resolve({ content: [{ type: "text", text: typeof data === 'string' ? data : JSON.stringify(data, null, 2) }] });
+                        });
+
+                        this.wssInstance.clients.forEach((client: any) => {
+                            if (client.readyState === 1) {
+                                client.send(JSON.stringify({
+                                    jsonrpc: "2.0",
+                                    method: name,
+                                    params: args,
+                                    id: requestId
+                                }));
+                            }
+                        });
+                    });
+                }
+            }
             else if (name === "use_agent") {
                 const agentName = args.name as string;
                 const prompt = args.prompt as string;

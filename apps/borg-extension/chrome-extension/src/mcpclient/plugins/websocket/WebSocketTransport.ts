@@ -109,11 +109,13 @@ export class WebSocketTransport implements Transport {
               return;
             }
 
-            // Don't handle custom ping/pong - let MCP protocol handle it
-            // The server logs show it's forwarding our ping messages to the child process
-            // which suggests the server expects standard MCP messages only
-
+            // Emit to local listeners first
             this.emit('message', data);
+
+            // If it's a non-standard message (not a standard MCP response),
+            // we might want to handle it separately or allow other listeners to handle it.
+            // Standard MCP messages usually have 'result' or 'error' for responses,
+            // or 'method' for requests/notifications.
 
             // Call Transport interface callback - this is critical for MCP client
             if (this.onmessage) {

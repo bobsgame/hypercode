@@ -562,6 +562,16 @@ export class MCPServer {
         this.healerReactor = new HealerReactor(this.eventBus, this.healerService);
         this.healerReactor.start();
 
+        // Neural Pulse Bridge: Broadcast all system events to connected dashboard clients
+        this.eventBus.on('system_event', (event) => {
+            if (this.wssInstance) {
+                this.broadcastWebSocketMessage({
+                    type: 'NEURAL_PULSE',
+                    payload: event
+                });
+            }
+        });
+
         // Phase 51: Core Infrastructure Services
         this.lspService = new LSPService(process.cwd());
         this.planService = new PlanService({ rootPath: process.cwd() });
@@ -2091,6 +2101,29 @@ export class MCPServer {
                 const suggestions = this.suggestionService.getPendingSuggestions();
                 result = { content: [{ type: "text", text: JSON.stringify(suggestions, null, 2) }] };
             }
+            else if (name === "process_note") {
+                const content = args.content as string;
+                const title = args.title as string;
+                const memory = await this.agentMemoryService.add(content, 'long_term', 'project', { 
+                    source: 'process_note', 
+                    title 
+                });
+                result = { content: [{ type: "text", text: `Memory saved with ID: ${memory.id}` }] };
+            }
+            else if (name === "export_chat") {
+                const format = (args.format as string) || 'markdown';
+                const exportPath = (args.path as string) || `./chat_export_${Date.now()}.${format === 'json' ? 'json' : 'md'}`;
+                const history = this.terminalService.getHistory(); // Heuristic: use terminal history if available
+                const content = format === 'json' ? JSON.stringify(history, null, 2) : history.map(h => `### ${h.role}\n${h.content}`).join('\n\n');
+                await fs.promises.writeFile(exportPath, content);
+                result = { content: [{ type: "text", text: `Chat exported to ${exportPath}` }] };
+            }
+            else if (name === "auto_heal") {
+                const error = args.error as string;
+                const context = args.context as string;
+                const success = await this.healerService.heal(error, context);
+                result = { content: [{ type: "text", text: success ? "Healer successfully fixed the error." : "Healer could not fix this error autonomously." }] };
+            }
             /*
             // Phase 60: The Mesh
             else if (name === "swarm_broadcast") {
@@ -3039,6 +3072,18 @@ export class MCPServer {
                         title: { type: "string", description: "Optional title for the note" }
                     },
                     required: ["content"]
+                }
+            },
+            {
+                name: "auto_heal",
+                description: "Hands off a technical error or failing test to the Borg Healer. The system will autonomously diagnose the error, generate a fix, and apply it to the source code.",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        error: { type: "string", description: "The error message or stack trace to heal" },
+                        context: { type: "string", description: "Optional additional context about what was happening when the error occurred" }
+                    },
+                    required: ["error"]
                 }
             },
             /*

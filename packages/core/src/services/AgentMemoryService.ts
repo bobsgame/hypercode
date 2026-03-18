@@ -419,6 +419,39 @@ export class AgentMemoryService {
         }
 
         this.loadFromDisk();
+
+        // Auto-Pickup: If this is a fresh session (no session memories), 
+        // try to automatically load the most recent handoff.
+        const sessionMemories = Array.from(this.memories.values()).filter(m => m.type === 'session');
+        if (sessionMemories.length === 0) {
+            this.autoPickupLatestHandoff().catch(e => 
+                console.error("[AgentMemoryService] Auto-pickup failed:", e)
+            );
+        }
+
+        this.startAutoHandoff();
+    }
+
+    private async autoPickupLatestHandoff() {
+        try {
+            const handoffDir = path.join(this.options.persistDir, '..', 'handoffs');
+            if (!fs.existsSync(handoffDir)) return;
+
+            const files = fs.readdirSync(handoffDir)
+                .filter(f => f.startsWith('handoff_'))
+                .sort((a, b) => b.localeCompare(a));
+
+            if (files.length > 0) {
+                const latestFile = files[0];
+                const content = fs.readFileSync(path.join(handoffDir, latestFile), 'utf-8');
+                const res = await this.pickupSession(content);
+                if (res.success) {
+                    console.log(`[AgentMemoryService] 🔄 Auto-picked up latest handoff: ${latestFile} (${res.count} items)`);
+                }
+            }
+        } catch (e) {
+            // Silent fail for auto-pickup
+        }
     }
 
     /**

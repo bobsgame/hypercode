@@ -3,7 +3,6 @@ packages:
   - '!apps/borg-extension'
   - '!apps/vscode'
   - 'packages/*'
-  - 'packages/MCP-SuperAssistant/packages/*'
   - 'external/MetaMCP/packages/*'
   - 'external/MetaMCP/apps/*'
   - '!archive/**'

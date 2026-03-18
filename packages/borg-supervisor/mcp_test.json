@@ -11,7 +11,7 @@
         "borg-supervisor": {
             "command": "node",
             "args": [
-                "C:\\Users\\hyper\\workspace\\aios\\packages\\borg-supervisor\\dist\\index.js"
+                "C:\\Users\\hyper\\workspace\\borg\\packages\\borg-supervisor\\dist\\index.js"
             ],
             "env": {
                 "NODE_ENV": "production"

@@ -3015,6 +3015,29 @@ export class MCPServer {
                     }
                 }
             },
+            {
+                name: "export_chat",
+                description: "Exports the current session chat history to a formatted file (Markdown or JSON).",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        format: { type: "string", enum: ["markdown", "json"], description: "Export format (default markdown)" },
+                        path: { type: "string", description: "Optional relative path to save the export (default current dir)" }
+                    }
+                }
+            },
+            {
+                name: "process_note",
+                description: "Processes a raw text note or snippet, extracting facts and concepts into long-term memory.",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        content: { type: "string", description: "The raw text of the note" },
+                        title: { type: "string", description: "Optional title for the note" }
+                    },
+                    required: ["content"]
+                }
+            },
             /*
             // Phase 60: The Mesh tools
             {

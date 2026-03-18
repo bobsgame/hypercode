@@ -15,4 +15,4 @@ echo "Building..."
 pnpm run build
 
 echo "Starting Hub..."
-pnpm start:all
+pnpm start

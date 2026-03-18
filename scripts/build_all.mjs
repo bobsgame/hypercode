@@ -91,8 +91,6 @@ function runWorkspaceBuild() {
       "run",
       "build",
       "--filter=!mcp-superassistant",
-      "--filter=!backend",
-      "--filter=!frontend",
       "--filter=!@repo/*",
     ],
     {

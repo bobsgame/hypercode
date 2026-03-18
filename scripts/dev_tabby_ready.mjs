@@ -410,8 +410,6 @@ function spawnTurboDev() {
     '--filter=!mcp-superassistant',
     '--filter=!@extension/hmr',
     '--filter=!@borg/cli',
-    '--filter=!backend',
-    '--filter=!frontend',
     '--filter=!@repo/*',
   ];
   const args = process.platform === 'win32'

@@ -1291,9 +1291,10 @@ export class AgentMemoryService {
                     console.log(`[AgentMemoryService] 🤖 Autonomous Compaction triggered (${sessionMemories.length} session items). Archiving old context...`);
                     // We call handoffSession internally to ensure a snapshot is safe, 
                     // then we could prune. For now, we'll emit a system event so the UI knows.
-                    this.memoryManager.pruner.prune(Array.from(this.memories.values()).map(m => ({ role: 'user', content: m.content })), { 
-                        maxTokens: HEURISTIC_TOKEN_THRESHOLD 
-                    });
+                    this.memoryManager.pruneContext(
+                        Array.from(this.memories.values()).map(m => ({ role: 'user', content: m.content })),
+                        { maxTokens: HEURISTIC_TOKEN_THRESHOLD }
+                    );
                 }
             } catch (e) {
                 console.error("[AgentMemoryService] Auto-handoff failed:", e);

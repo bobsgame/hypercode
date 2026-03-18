@@ -282,6 +282,7 @@ export class MCPServer {
     public terminalSensor: TerminalSensor;
     public autoTestReactor: AutoTestReactor;
     public healerReactor: HealerReactor;
+    public memoryHarvestReactor: MemoryHarvestReactor;
     public submoduleService: SubmoduleService;
 
     // Phase 51: Core Infrastructure
@@ -529,6 +530,7 @@ export class MCPServer {
         // SearchService is needed for DeepResearchService types
         const searchService = new SearchService();
         this.memoryManager = new MemoryManager(process.cwd());
+        this.agentMemoryService = new AgentMemoryService({ persistDir: path.join(process.cwd(), '.borg', 'agent_memory') }, this.memoryManager);
         this.deepResearchService = new DeepResearchService(this, this.llmService, searchService, this.memoryManager); // Initialize FIRST
         this.skillAssimilationService = new SkillAssimilationService(
             this.skillRegistry,
@@ -582,8 +584,7 @@ export class MCPServer {
         this.codeModeService = new CodeModeService({ timeout: 30000, allowAsync: true });
         this.workflowEngine = new WorkflowEngine({ persistDir: path.join(process.cwd(), '.borg', 'workflows') });
         this.lspTools = new LSPTools(process.cwd());
-        // MemoryManager initialized early
-        this.agentMemoryService = new AgentMemoryService({ persistDir: path.join(process.cwd(), '.borg', 'agent_memory') }, this.memoryManager);
+        // MemoryManager + AgentMemoryService initialized early
         this.sessionImportService = new SessionImportService(this.llmService, this.agentMemoryService, process.cwd());
 
         // Phase 5 & 6 Init
@@ -2117,8 +2118,10 @@ export class MCPServer {
             else if (name === "export_chat") {
                 const format = (args.format as string) || 'markdown';
                 const exportPath = (args.path as string) || `./chat_export_${Date.now()}.${format === 'json' ? 'json' : 'md'}`;
-                const history = this.terminalService.getHistory(); // Heuristic: use terminal history if available
-                const content = format === 'json' ? JSON.stringify(history, null, 2) : history.map(h => `### ${h.role}\n${h.content}`).join('\n\n');
+                const history = await this.shellService.getSystemHistory(200);
+                const content = format === 'json'
+                    ? JSON.stringify(history, null, 2)
+                    : history.map((line) => `- ${line}`).join('\n');
                 await fs.promises.writeFile(exportPath, content);
                 result = { content: [{ type: "text", text: `Chat exported to ${exportPath}` }] };
             }

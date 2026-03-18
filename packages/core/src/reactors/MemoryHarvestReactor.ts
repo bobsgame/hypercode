@@ -32,9 +32,28 @@ export class MemoryHarvestReactor {
         console.log("[MemoryHarvestReactor] 🧠 Sensory harvesting active.");
     }
 
+    private getFileEventPayload(event: SystemEvent): { absolutePath: string; path: string } | null {
+        const payload = event.payload;
+        if (!payload || typeof payload !== 'object') {
+            return null;
+        }
+
+        const absolutePath = Reflect.get(payload, 'absolutePath');
+        const relativePath = Reflect.get(payload, 'path');
+
+        if (typeof absolutePath !== 'string' || typeof relativePath !== 'string') {
+            return null;
+        }
+
+        return { absolutePath, path: relativePath };
+    }
+
     private async handleFileEvent(event: SystemEvent) {
-        const filePath = event.payload.absolutePath;
-        const relativePath = event.payload.path;
+        const payload = this.getFileEventPayload(event);
+        if (!payload) return;
+
+        const filePath = payload.absolutePath;
+        const relativePath = payload.path;
 
         // Skip non-source files or huge files
         if (!relativePath.match(/\.(ts|tsx|js|jsx|md|py|go|rs)$/)) return;
@@ -68,7 +87,7 @@ export class MemoryHarvestReactor {
             );
 
             // Basic JSON extraction
-            const textContent = response.content[0].text;
+            const textContent = response.content;
             const start = textContent.indexOf('{');
             const end = textContent.lastIndexOf('}');
             

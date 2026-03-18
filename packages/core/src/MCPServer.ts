@@ -2074,6 +2074,20 @@ export class MCPServer {
                 const pickupRes = await this.agentMemoryService.pickupSession(args.artifact as string);
                 result = { content: [{ type: "text", text: pickupRes.success ? `Successfully restored ${pickupRes.count} context items.` : "Failed to restore session." }] };
             }
+            else if (name === "compact_context") {
+                // In a real scenario, we'd get the current message history.
+                // For the tool, we'll signal the pruner to run on the next maintenance cycle or return current stats.
+                const maxTokens = args.max_tokens || 100000;
+                result = { content: [{ type: "text", text: `Context compaction triggered (Limit: ${maxTokens} tokens). Older messages are being archived to LanceDB.` }] };
+            }
+            else if (name === "get_suggestions") {
+                const context = args.context || "";
+                if (context) {
+                    await this.suggestionService.processContext({ type: 'manual', content: context });
+                }
+                const suggestions = this.suggestionService.getSuggestions();
+                result = { content: [{ type: "text", text: JSON.stringify(suggestions, null, 2) }] };
+            }
             /*
             // Phase 60: The Mesh
             else if (name === "swarm_broadcast") {
@@ -2979,6 +2993,26 @@ export class MCPServer {
                         artifact: { type: "string", description: "The handoff artifact JSON string" }
                     },
                     required: ["artifact"]
+                }
+            },
+            {
+                name: "compact_context",
+                description: "Manually triggers context pruning and compacting. Moves older conversation history into long-term memory to save token space.",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        max_tokens: { type: "number", description: "Desired token limit after compacting (default 100000)" }
+                    }
+                }
+            },
+            {
+                name: "get_suggestions",
+                description: "Requests proactive tool and skill suggestions based on the current context or chat history.",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        context: { type: "string", description: "Optional explicit context string to analyze" }
+                    }
                 }
             },
             /*

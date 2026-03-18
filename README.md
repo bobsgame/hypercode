@@ -40,6 +40,43 @@ The `Director` and `HealerService` provide a safety net for autonomous operation
 
 ---
 
+## 📖 How to Use Borg
+
+### 1. Connect your AI Agent
+Borg acts as a standard MCP server that routes to all other servers. Connect your preferred AI (Claude Desktop, VS Code, etc.) to the Borg entry point:
+
+**Standard Stdio Connection:**
+```json
+{
+  "mcpServers": {
+    "borg": {
+      "command": "node",
+      "args": ["/path/to/borg/packages/core/dist/index.js"]
+    }
+  }
+}
+```
+
+### 2. The "One-Shot" Workflow (Recommended)
+Instead of asking the model to find a tool, give it the objective directly. Borg will handle the discovery and execution in one turn.
+
+*   **Agent Call**: `auto_call_tool({ objective: "Search my emails for the invoice from last Tuesday and save it to the project folder", context: "Tuesday was March 10th" })`
+*   **Borg Action**: Automatically finds the `gmail` and `filesystem` tools, maps the arguments, and executes.
+
+### 3. The Discovery Workflow
+If you want to manually manage your active tools:
+1.  **Search**: `search_tools({ query: "how do I interact with jira?" })`
+2.  **Load**: `load_tool({ name: "jira__create_issue" })`
+3.  **Execute**: Use the newly hydrated tool normally.
+
+### 4. Mission Control Dashboard
+Open `http://localhost:3001/dashboard` to:
+- **Toggle Functions**: Instantly enable/disable any sidebar feature or MCP integration.
+- **Monitor Swarms**: See live logs and memory graphs of all active agent sessions.
+- **Manage Quotas**: View LLM provider spend and health in one place.
+
+---
+
 ## 🏗️ Core Architecture
 
 1. **Discovery**: `search_tools(query)` -> Semantic ranked matches.

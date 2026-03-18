@@ -160,9 +160,10 @@ export class SuggestionService {
 
             const response = await this.llmService.generateText(
                 'openai',
-                'gpt-4o',
+                'gpt-4o-mini',
                 'You are a predictive intelligence agent.',
-                prompt
+                prompt,
+                { routingStrategy: 'cheapest' }
             );
             const textContent = extractLlmText(response);
             const jsonStart = textContent.indexOf('{');

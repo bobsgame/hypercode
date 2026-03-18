@@ -7,6 +7,7 @@ export interface ModelSelectionRequest {
     taskComplexity?: 'low' | 'medium' | 'high';
     taskType?: 'worker' | 'supervisor'; // explicit role override
     routingTaskType?: 'coding' | 'planning' | 'research' | 'general' | 'worker' | 'supervisor'; // New: Task-specific routing
+    routingStrategy?: 'cheapest' | 'best' | 'round-robin';
     exclude?: string[];
 }
 
@@ -179,6 +180,13 @@ export class ModelSelector {
             : (req.taskType === 'supervisor' || req.taskComplexity === 'high'
                 ? DEFAULT_CHAINS.supervisor
                 : DEFAULT_CHAINS.worker);
+
+        // Strategy: Cheapest (Prioritize local models)
+        if (req.routingStrategy === 'cheapest') {
+            const local = chain.filter(c => c.provider === 'lmstudio' || c.provider === 'ollama');
+            const cloud = chain.filter(c => c.provider !== 'lmstudio' && c.provider !== 'ollama');
+            chain = [...local, ...cloud];
+        }
 
         if (req.provider) {
             const preferred = chain.filter(candidate => candidate.provider === req.provider);

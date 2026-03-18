@@ -1227,6 +1227,33 @@ export class AgentMemoryService {
      * Schedule auto-save
      */
     private saveTimeout: NodeJS.Timeout | null = null;
+    private handoffInterval: NodeJS.Timeout | null = null;
+
+    private startAutoHandoff() {
+        // Every 5 minutes, save a background handoff artifact
+        this.handoffInterval = setInterval(async () => {
+            try {
+                const artifact = await this.handoffSession({ notes: 'Automatic background handoff' });
+                const handoffDir = path.join(this.options.persistDir, '..', 'handoffs');
+                if (!fs.existsSync(handoffDir)) fs.mkdirSync(handoffDir, { recursive: true });
+                
+                const filename = `handoff_${Date.now()}.json`;
+                fs.writeFileSync(path.join(handoffDir, filename), artifact);
+                
+                // Keep only last 10 automatic handoffs
+                const files = fs.readdirSync(handoffDir)
+                    .filter(f => f.startsWith('handoff_'))
+                    .sort((a, b) => b.localeCompare(a));
+                
+                if (files.length > 10) {
+                    files.slice(10).forEach(f => fs.unlinkSync(path.join(handoffDir, f)));
+                }
+            } catch (e) {
+                console.error("[AgentMemoryService] Auto-handoff failed:", e);
+            }
+        }, 5 * 60 * 1000);
+    }
+
     private scheduleSave(): void {
         if (this.saveTimeout) return;
         this.saveTimeout = setTimeout(() => {

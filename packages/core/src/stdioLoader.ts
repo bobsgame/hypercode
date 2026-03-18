@@ -170,7 +170,8 @@ export function buildCachedLoaderCatalog(config: BorgMcpJsonConfig): CachedLoade
     ];
 
     // Safety limit for LLMs (e.g. Gemini has a 512 function declaration limit)
-    const MAX_TOOLS = 500;
+    // We use 450 to leave room for native tools and CLI-specific tools.
+    const MAX_TOOLS = 450;
     const tools = allTools.slice(0, MAX_TOOLS);
 
     return {

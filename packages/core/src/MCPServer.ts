@@ -3134,7 +3134,8 @@ export class MCPServer {
         ];
 
         // Safety limit for LLMs (e.g. Gemini has a 512 function declaration limit)
-        const MAX_TOOLS = 500;
+        // We use 450 to leave room for native tools and CLI-specific tools.
+        const MAX_TOOLS = 450;
         return allVisibleTools.slice(0, MAX_TOOLS);
     }
 

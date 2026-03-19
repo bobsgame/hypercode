@@ -40,7 +40,7 @@
         "expectedFields": ["version", "buildDate", "commit"],
         "lastCaptured": null,
         "capturedVersion": null,
-        "driftThreshold": "minor"  // Alert on version bump >= x.Y.0
+        "driftThreshold": "minor"
       },
       "releaseSource": {
         "url": "https://github.com/github/cli",

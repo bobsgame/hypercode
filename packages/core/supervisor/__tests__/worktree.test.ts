@@ -4,7 +4,7 @@ import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { SessionSupervisor } from '../../src/supervisor/SessionSupervisor.ts';
-import { FakeWorktreeManager } from './test-helpers.ts';
+import { createFakeDetectEnvironment, FakeWorktreeManager } from './test-helpers.ts';
 
 const tempDirs: string[] = [];
 
@@ -28,6 +28,7 @@ describe('session supervisor worktree isolation', () => {
             rootDir,
             worktreeManager,
             autoResumeOnStart: false,
+            detectExecutionEnvironment: createFakeDetectEnvironment(),
         });
 
         const first = await supervisor.createSession({

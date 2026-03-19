@@ -2,7 +2,7 @@
 import { EventBus, SystemEvent } from '../services/EventBus.js';
 import { HealerService } from '../services/HealerService.js';
 
-function shouldIgnoreExpectedStartupError(errorLog: string): boolean {
+export function shouldIgnoreExpectedStartupError(errorLog: string): boolean {
     const normalized = errorLog.toLowerCase();
 
     const ignoredFragments = [
@@ -23,6 +23,13 @@ function shouldIgnoreExpectedStartupError(errorLog: string): boolean {
         'rate limit',
         'retry in ',
         'fetch failed',
+        'cannot find module',
+        'is not recognized as an internal or external command',
+        'does not provide any executables',
+        'econnrefused',
+        'no connection could be made because the target machine actively refused it',
+        'could not connect to a chroma server',
+        'not available on path',
         'failed to capture tool observation',
         'failed to infer data type',
     ];

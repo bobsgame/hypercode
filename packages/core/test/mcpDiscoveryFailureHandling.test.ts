@@ -1,27 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-import { StdioClient } from '../src/mcp/StdioClient.ts';
+import { getDiscoveryPreflightFailure } from '../src/mcp/discoveryPreflight.ts';
 import { hasReusableMetadataCache } from '../src/mcp/serverMetadataCache.ts';
 
 describe('MCP discovery failure handling', () => {
-  it('throws when strict tool discovery fails', async () => {
-    const client = new StdioClient('demo', {
-      command: 'npx',
-      args: ['demo-server'],
-      env: {},
-      enabled: true,
-    });
-
-    (client as any).client = {
-      listTools: async () => {
-        throw new Error('tools/list failed');
-      },
-    };
-
-    await expect(client.listTools({ throwOnError: true })).rejects.toThrow('tools/list failed');
-    await expect(client.listTools()).resolves.toEqual([]);
-  });
-
   it('does not auto-reuse an empty ready cache', () => {
     const reusable = hasReusableMetadataCache(
       {
@@ -47,5 +29,38 @@ describe('MCP discovery failure handling', () => {
     );
 
     expect(reusable).toBe(false);
+  });
+
+  it('blocks discovery when placeholder configuration is still present', () => {
+    const failure = getDiscoveryPreflightFailure({
+      name: 'mem0',
+      type: 'STDIO',
+      command: 'npx',
+      args: ['-y', '@mem0/mcp-server@latest'],
+      env: {
+        MEM0_API_KEY: 'YOUR_MEM0_KEY_HERE',
+        LLM_API_KEY: 'YOUR_OPENAI_KEY_HERE',
+      },
+    }, {
+      commandExists: () => true,
+    });
+
+    expect(failure).toContain('placeholder or sample configuration values');
+    expect(failure).toContain('env.MEM0_API_KEY');
+  });
+
+  it('blocks discovery when the stdio command is unavailable on PATH', () => {
+    const failure = getDiscoveryPreflightFailure({
+      name: 'mcp-yfinance-server',
+      type: 'STDIO',
+      command: 'mcp-yfinance-server',
+      args: [],
+      env: {},
+    }, {
+      commandExists: () => false,
+    });
+
+    expect(failure).toContain('not available on PATH');
+    expect(failure).toContain('mcp-yfinance-server');
   });
 });

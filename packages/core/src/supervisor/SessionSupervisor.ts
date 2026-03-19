@@ -408,7 +408,20 @@ export class SessionSupervisor {
     }
 
     private async shouldUseWorktree(workingDirectory: string, requestedIsolation: boolean): Promise<boolean> {
-        return !!(requestedIsolation && this.worktreeManager);
+        if (!requestedIsolation || !this.worktreeManager) {
+            return false;
+        }
+
+        // Only allocate a worktree when another active session already occupies
+        // the same working directory. The first session claims the directory directly;
+        // subsequent parallel sessions get isolated worktrees to avoid clobbering.
+        const resolvedDir = path.resolve(workingDirectory);
+        const conflict = [...this.sessions.values()].some(
+            (session) =>
+                ACTIVE_SESSION_STATUSES.has(session.status) &&
+                path.resolve(session.workingDirectory) === resolvedDir,
+        );
+        return conflict;
     }
 
     private async createWorktree(sessionId: string): Promise<string> {

@@ -4,7 +4,7 @@ import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { SessionSupervisor } from '../../src/supervisor/SessionSupervisor.ts';
-import { createSpawnStub, FakeProcess } from './test-helpers.ts';
+import { createFakeDetectEnvironment, createSpawnStub, FakeProcess } from './test-helpers.ts';
 
 const tempDirs: string[] = [];
 
@@ -32,6 +32,7 @@ describe('session supervisor persistence', () => {
             persistencePath,
             spawnProcess: spawn,
             autoResumeOnStart: false,
+            detectExecutionEnvironment: createFakeDetectEnvironment(),
         });
 
         const session = await firstSupervisor.createSession({

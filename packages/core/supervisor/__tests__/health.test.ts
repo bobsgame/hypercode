@@ -4,7 +4,7 @@ import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { SessionSupervisor } from '../../src/supervisor/SessionSupervisor.ts';
-import { createSpawnStub, FakeProcess, ManualScheduler } from './test-helpers.ts';
+import { createFakeDetectEnvironment, createSpawnStub, FakeProcess, ManualScheduler } from './test-helpers.ts';
 
 const tempDirs: string[] = [];
 
@@ -32,6 +32,7 @@ describe('session supervisor health', () => {
             scheduler,
             autoResumeOnStart: false,
             maxRestartAttempts: 0,
+            detectExecutionEnvironment: createFakeDetectEnvironment(),
         });
 
         const session = await supervisor.createSession({

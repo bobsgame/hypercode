@@ -1,7 +1,33 @@
 import { EventEmitter } from 'node:events';
 import { PassThrough } from 'node:stream';
 
+import type { LocalExecutionEnvironment } from '../../src/services/execution-environment.js';
 import type { SchedulerLike, SupervisedProcessHandle, WorktreeManagerLike } from '../../src/supervisor/types.ts';
+
+/** Returns a zero-cost fake LocalExecutionEnvironment so tests do not invoke real shell/binary probing. */
+export function createFakeDetectEnvironment(): () => Promise<LocalExecutionEnvironment> {
+    const env: LocalExecutionEnvironment = {
+        os: process.platform,
+        summary: {
+            ready: true,
+            preferredShellId: 'pwsh',
+            preferredShellLabel: 'PowerShell 7',
+            shellCount: 1,
+            verifiedShellCount: 1,
+            toolCount: 1,
+            verifiedToolCount: 1,
+            harnessCount: 0,
+            verifiedHarnessCount: 0,
+            supportsPowerShell: true,
+            supportsPosixShell: false,
+            notes: [],
+        },
+        shells: [],
+        tools: [],
+        harnesses: [],
+    };
+    return () => Promise.resolve(env);
+}
 
 export class FakeProcess extends EventEmitter implements SupervisedProcessHandle {
     public readonly stdout = new PassThrough();

@@ -30,6 +30,7 @@ import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js"
 import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { StdioClient } from "../../mcp/StdioClient.js";
+import { getDiscoveryPreflightFailure } from "../../mcp/discoveryPreflight.js";
 import {
     BorgMcpServerDiscoveryMetadata,
     BorgMcpJsonConfig,
@@ -693,6 +694,20 @@ export class McpServersRepository {
 
     private async discoverServerTools(server: DatabaseMcpServer): Promise<DiscoveryResult> {
         const DISCOVERY_TIMEOUT_MS = 30_000;
+        const preflightFailure = getDiscoveryPreflightFailure(server);
+
+        if (preflightFailure) {
+            return {
+                metadata: buildFailureDiscoveryMetadata(
+                    server,
+                    'pending',
+                    new Date().toISOString(),
+                    preflightFailure,
+                ),
+                tools: [],
+                decision: 'binary-fresh',
+            };
+        }
 
         // Validate that the server has enough config to attempt discovery
         if (server.type === 'STDIO' || !server.type) {

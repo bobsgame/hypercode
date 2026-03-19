@@ -273,6 +273,12 @@
       "docs/BUILTIN_TOOLS_EVIDENCE_LOCK.md",
       "docs/EVIDENCE_LOCK_STATUS_2026_03_19.md"
     ],
+    "roundtable": [
+      "docs/PROJECT_ROUNDTABLE_BRIEF.md",
+      "docs/PROJECT_ROUNDTABLE_DEBATE_PROMPT.md",
+      "docs/PROJECT_ROUNDTABLE_EXECUTIVE_PROMPT.md",
+      "docs/PROJECT_ROUNDTABLE_SCORECARD_TEMPLATE.md"
+    ],
     "evidence_lock_suite": [
       "docs/fixtures/TOOL_CONTRACTS.md",
       "docs/fixtures/VERSION_PINS.jsonc",

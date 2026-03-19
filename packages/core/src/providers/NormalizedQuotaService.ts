@@ -60,10 +60,13 @@ export class NormalizedQuotaService extends QuotaService {
     public refreshAuthStates(env: NodeJS.ProcessEnv = process.env) {
         for (const authState of this.registry.getAuthStates(env)) {
             const existing = this.snapshots.get(authState.provider);
+            // Preserve 'revoked' authTruth if it was set by a live API failure.
+            const authTruth = existing?.authTruth === 'revoked' ? 'revoked' : authState.authTruth;
             const limit = this.configState.providerLimits?.[authState.provider] ?? existing?.limit ?? null;
             const used = existing?.used ?? 0;
             this.snapshots.set(authState.provider, {
                 ...authState,
+                authTruth,
                 used,
                 limit,
                 remaining: typeof limit === 'number' ? Math.max(limit - used, 0) : null,
@@ -73,6 +76,8 @@ export class NormalizedQuotaService extends QuotaService {
                 availability: authState.authenticated ? (existing?.availability ?? 'available') : 'missing_auth',
                 lastError: existing?.lastError,
                 retryAfter: existing?.retryAfter ?? null,
+                quotaConfidence: existing?.quotaConfidence ?? 'estimated',
+                quotaRefreshedAt: existing?.quotaRefreshedAt ?? null,
             });
         }
     }
@@ -185,15 +190,23 @@ export class NormalizedQuotaService extends QuotaService {
     }
 
     public async refreshProviderBalances() {
+        const fetchedAt = new Date().toISOString();
         const liveSnapshots = await this.balanceService.fetchSnapshots();
         for (const snapshot of liveSnapshots) {
             const existing = this.snapshots.get(snapshot.provider);
+            // Snapshots from the balance service are real-time; unconnected stubs
+            // (missing auth) retain 'unknown' confidence since there's no data.
+            const isConnected = snapshot.configured && snapshot.authenticated;
             this.snapshots.set(snapshot.provider, {
                 ...existing,
                 ...snapshot,
                 windows: snapshot.windows ?? existing?.windows,
                 source: snapshot.source ?? existing?.source ?? 'balance',
                 connectionId: snapshot.connectionId ?? existing?.connectionId ?? null,
+                quotaConfidence: isConnected
+                    ? (snapshot.quotaConfidence ?? 'real-time')
+                    : 'unknown',
+                quotaRefreshedAt: isConnected ? fetchedAt : null,
             });
         }
     }
@@ -244,11 +257,39 @@ export class NormalizedQuotaService extends QuotaService {
             return;
         }
 
+        const wasRevoked = snapshot.authTruth === 'revoked';
         this.snapshots.set(provider, {
             ...snapshot,
-            availability: snapshot.authenticated ? 'available' : 'missing_auth',
+            // When recovering from a live revocation, restore the authentication
+            // and availability flags. For other health-clears (rate limits, cooldowns)
+            // preserve the existing `authenticated` flag and derive availability from it.
+            authenticated: wasRevoked ? true : snapshot.authenticated,
+            availability: (wasRevoked || snapshot.authenticated) ? 'available' : 'missing_auth',
+            authTruth: wasRevoked ? 'authenticated' : snapshot.authTruth,
             retryAfter: null,
             lastError: undefined,
+        });
+    }
+
+    /**
+     * Marks a provider's credential as revoked due to a live HTTP 401/403 response.
+     * The provider is removed from the routing pool (`missing_auth`) until
+     * `markProviderHealthy` is called (e.g., after a successful key rotation test).
+     */
+    public markAuthRevoked(provider: string, message = 'Provider credential rejected (401/403). Key may be revoked or expired.') {
+        const snapshot = this.snapshots.get(provider);
+        if (!snapshot) {
+            return;
+        }
+
+        this.snapshots.set(provider, {
+            ...snapshot,
+            authTruth: 'revoked',
+            authenticated: false,
+            configured: snapshot.configured,
+            availability: 'missing_auth',
+            lastError: message,
+            retryAfter: null,
         });
     }
 

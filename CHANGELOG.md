@@ -4,8 +4,42 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.9.2] — 2026-03-20
+## [0.9.3] — 2026-03-21
 
+### Task 028 — Provider Routing Auth/Quota Truthfulness
+- feat(core/providers): Added `ProviderAuthTruth` type (`'not_configured' | 'authenticated' | 'expired' | 'revoked'`) and `QuotaDataConfidence` type (`'real-time' | 'cached' | 'estimated' | 'unknown'`) to `packages/core/src/providers/types.ts`
+- feat(core/providers): `ProviderRegistry.resolveAuthState()` now computes and returns `authTruth`:
+  - `'none'` auth method → always `'authenticated'`
+  - API key / PAT providers: `'authenticated'` when key present, `'not_configured'` otherwise
+  - OAuth providers: detects expired tokens via `*_TOKEN_EXPIRES_AT` env vars → `'expired'` if past, else `'authenticated'`
+  - `'revoked'` can only be set externally via `markAuthRevoked()` after a live 401/403
+- feat(core/providers): `NormalizedQuotaService` extended with:
+  - `markAuthRevoked(provider, message)` — sets `authTruth: 'revoked'`, removes provider from routing pool
+  - `markProviderHealthy()` — fixed to also restore `authenticated: true` and `availability: 'available'` when recovering from a `'revoked'` state (credential rotation recovery)
+  - `refreshAuthStates()` — preserves `'revoked'` authTruth across env rescans; propagates `quotaConfidence` and `quotaRefreshedAt`
+  - `refreshProviderBalances()` — sets `quotaConfidence: 'real-time'` + `quotaRefreshedAt` for connected providers
+- feat(core/providers): `CoreModelSelector.reportFailure()` — 401/403 status codes now route to `markAuthRevoked()` instead of `markRateLimited()`
+- feat(core/providers): `ProviderBalanceService` factory functions (`createSnapshot`, `createMissingSnapshot`, `createErrorSnapshot`) now include `authTruth`, `quotaConfidence`, and `quotaRefreshedAt` fields
+- feat(core/routers): `billingRouter.getProviderQuotas` exposes `authTruth`, `quotaConfidence`, `quotaRefreshedAt` in both the live-snapshot path and the fallback env-only path
+- feat(core/lib): `QuotaInfoRuntime` in `trpc-core.ts` extended with `authTruth?`, `quotaConfidence?`, `quotaRefreshedAt?`
+- feat(web/billing): `billing-page-normalizers.ts` fully rewritten — adds `BillingAuthTruth` and `BillingQuotaConfidence` exported types; `normalizeBillingQuotaRows` now returns `authTruth`, `quotaConfidence`, `quotaRefreshedAt` with safe fallbacks
+- feat(web/billing): Provider Capabilities & Limits table in `billing/page.tsx` updated:
+  - Auth Status column: shows `REVOKED` (red) or `EXPIRED` (amber) badge when `authTruth` indicates credential failure
+  - Quota Used column: shows `LIVE` (emerald), `CACHED` (blue), `EST` (zinc), or `?` (dim) confidence badge
+- test(core/providers): New `providerStateTransitions.test.ts` (17 tests) covering:
+  - `not_configured` when no API key in env
+  - `authenticated` when key present
+  - `expired` when OAuth token has past `EXPIRES_AT` env var
+  - `authenticated` when OAuth token has future expiry
+  - `revoked` after `markAuthRevoked()`, preserved across `refreshAuthStates()`
+  - Two-step recovery: `markProviderHealthy()` + `refreshAuthStates()` → `isProviderReady()` returns `true`
+  - `quotaConfidence: 'real-time'` for mocked balance service returning live data
+  - `quotaConfidence: 'estimated'` for providers not in balance catalog
+  - 401/403 failures → `markAuthRevoked()`; 429 → `markRateLimited()` (not revocation)
+- test(web/billing): `billing-page-normalizers.test.ts` updated with 2 new tests for `authTruth` and `quotaConfidence` normalization (6 / 6 tests green)
+- TypeScript: All changes type-safe; both `packages/core` and `apps/web` pass `tsc --noEmit`; 42 tests pass (30 core + 12 web)
+
+## [0.9.2] — 2026-03-20
 ### Task 027 — Session Supervisor Attach and Interaction (In Progress)
 - feat(core/supervisor): Enhanced `SessionAttachInfo` type with nuanced attach readiness signals:
   - Added `attachReadiness` field: `'ready'` (green), `'pending'` (yellow), `'unavailable'` (red)

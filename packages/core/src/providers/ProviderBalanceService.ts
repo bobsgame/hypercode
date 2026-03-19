@@ -193,6 +193,7 @@ function createSnapshot(
         authMethod: connection.authMethod,
         configured: true,
         authenticated: true,
+        authTruth: 'authenticated',
         detail,
         used: summary.used,
         limit: summary.limit,
@@ -204,6 +205,8 @@ function createSnapshot(
         windows,
         source: 'balance',
         connectionId: connection.id,
+        quotaConfidence: 'real-time',
+        quotaRefreshedAt: new Date().toISOString(),
     };
 }
 
@@ -214,6 +217,7 @@ function createMissingSnapshot(spec: ProviderBalanceSpec): ProviderQuotaSnapshot
         authMethod: spec.defaultAuthMethod,
         configured: false,
         authenticated: false,
+        authTruth: 'not_configured',
         detail: `No ${spec.provider} balance connection configured.`,
         used: 0,
         limit: null,
@@ -225,6 +229,8 @@ function createMissingSnapshot(spec: ProviderBalanceSpec): ProviderQuotaSnapshot
         source: 'balance',
         connectionId: null,
         windows: [],
+        quotaConfidence: 'unknown',
+        quotaRefreshedAt: null,
     };
 }
 
@@ -236,6 +242,7 @@ function createErrorSnapshot(spec: ProviderBalanceSpec, connection: ProviderBala
         authMethod: connection.authMethod,
         configured: true,
         authenticated: true,
+        authTruth: 'authenticated',
         detail: 'Balance lookup failed.',
         used: 0,
         limit: null,
@@ -248,6 +255,8 @@ function createErrorSnapshot(spec: ProviderBalanceSpec, connection: ProviderBala
         source: 'balance',
         connectionId: connection.id,
         windows: [],
+        quotaConfidence: 'unknown',
+        quotaRefreshedAt: null,
     };
 }
 

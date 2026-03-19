@@ -323,6 +323,13 @@ export class CoreModelSelector extends ModelSelector {
         const message = this.getFailureMessage(cause);
         const status = this.getFailureStatus(cause);
 
+        // Auth revocation — credential is present but rejected by the provider.
+        // Mark the provider as revoked and remove it from routing until the key is rotated.
+        if (status === 401 || status === 403) {
+            this.quotaTracker.markAuthRevoked(provider, message || `Provider rejected credential (HTTP ${status}).`);
+            return;
+        }
+
         if (status === 429 || message.includes('rate limit')) {
             this.quotaTracker.markRateLimited(provider, cooldownUntil, undefined, message || 'Provider rate limited.');
             return;

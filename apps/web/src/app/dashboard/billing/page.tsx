@@ -30,6 +30,7 @@ import {
     normalizeFallbackChain,
     normalizeTaskRoutingRules,
 } from './billing-page-normalizers';
+import type { BillingAuthTruth, BillingQuotaConfidence } from './billing-page-normalizers';
 
 const FALLBACK_TASK_OPTIONS: BillingTaskRoutingRuleSummary['taskType'][] = ['general', 'coding', 'planning', 'research', 'worker', 'supervisor'];
 
@@ -674,6 +675,12 @@ export default function ProviderAuthBillingMatrix() {
                                                     ) : (
                                                         <Badge variant="outline" className="bg-zinc-800 text-zinc-500 border-zinc-700 text-[10px]">MISSING AUTH</Badge>
                                                     )}
+                                                    {(q.authTruth as BillingAuthTruth) === 'revoked' && (
+                                                        <Badge variant="outline" className="bg-red-500/10 text-red-400 border-red-500/20 text-[10px]">REVOKED</Badge>
+                                                    )}
+                                                    {(q.authTruth as BillingAuthTruth) === 'expired' && (
+                                                        <Badge variant="outline" className="bg-amber-500/10 text-amber-300 border-amber-500/20 text-[10px]">EXPIRED</Badge>
+                                                    )}
                                                     <span className="text-[10px] uppercase tracking-wide text-zinc-500">{(q.authMethod ?? 'none').replace(/_/g, ' ')}</span>
                                                 </div>
                                             </td>
@@ -686,16 +693,25 @@ export default function ProviderAuthBillingMatrix() {
                                                 </span>
                                             </td>
                                             <td className="px-6 py-4 text-right font-mono">
-                                                {q.limit ? (
-                                                    <div className="flex flex-col items-end gap-1">
-                                                        <span className={q.used >= q.limit ? 'text-red-400' : 'text-zinc-300'}>
-                                                            ${q.used.toFixed(2)} / ${q.limit.toFixed(2)}
-                                                        </span>
-                                                        <div className="w-24 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
-                                                            <div className={`h-full ${q.used >= q.limit ? 'bg-red-500' : 'bg-emerald-500'}`} style={{ width: `${Math.min(100, (q.used / q.limit) * 100)}%` }} />
-                                                        </div>
-                                                    </div>
-                                                ) : <span className="text-zinc-500">Unlimited</span>}
+                                                <div className="flex flex-col items-end gap-1">
+                                                    {q.limit ? (
+                                                        <>
+                                                            <span className={q.used >= q.limit ? 'text-red-400' : 'text-zinc-300'}>
+                                                                ${q.used.toFixed(2)} / ${q.limit.toFixed(2)}
+                                                            </span>
+                                                            <div className="w-24 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+                                                                <div className={`h-full ${q.used >= q.limit ? 'bg-red-500' : 'bg-emerald-500'}`} style={{ width: `${Math.min(100, (q.used / q.limit) * 100)}%` }} />
+                                                            </div>
+                                                        </>
+                                                    ) : <span className="text-zinc-500">Unlimited</span>}
+                                                    {((): React.ReactNode => {
+                                                        const conf = q.quotaConfidence as BillingQuotaConfidence | undefined;
+                                                        if (conf === 'real-time') return <Badge variant="outline" className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20 text-[10px]">LIVE</Badge>;
+                                                        if (conf === 'cached') return <Badge variant="outline" className="bg-blue-500/10 text-blue-400 border-blue-500/20 text-[10px]">CACHED</Badge>;
+                                                        if (conf === 'estimated') return <Badge variant="outline" className="bg-zinc-700 text-zinc-400 border-zinc-600 text-[10px]">EST</Badge>;
+                                                        return <Badge variant="outline" className="bg-zinc-800 text-zinc-600 border-zinc-700 text-[10px]">?</Badge>;
+                                                    })()}
+                                                </div>
                                             </td>
                                             <td className="px-6 py-4 text-right font-mono text-zinc-400 text-xs">
                                                 {q.rateLimitRpm ? `${q.rateLimitRpm} RPM` : '-'}

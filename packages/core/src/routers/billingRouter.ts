@@ -8,6 +8,8 @@ interface ProviderQuotaRuntime {
     configured: boolean;
     authenticated: boolean;
     authMethod: string;
+    /** @see ProviderAuthTruth */
+    authTruth?: string;
     tier: string;
     limit: number | null;
     used: number;
@@ -27,6 +29,10 @@ interface ProviderQuotaRuntime {
     }>;
     source?: string;
     connectionId?: string | null;
+    /** @see QuotaDataConfidence */
+    quotaConfidence?: string;
+    /** ISO-8601 timestamp of last real-time fetch from provider, or null. */
+    quotaRefreshedAt?: string | null;
 }
 
 interface BillingSelectorRuntime {
@@ -122,6 +128,7 @@ export const billingRouter = t.router({
                 configured: provider.configured,
                 authenticated: provider.authenticated,
                 authMethod: provider.authMethod,
+                authTruth: provider.authTruth ?? null,
                 tier: provider.tier,
                 limit: provider.limit,
                 used: provider.used,
@@ -133,6 +140,8 @@ export const billingRouter = t.router({
                 windows: provider.windows ?? [],
                 source: provider.source ?? null,
                 connectionId: provider.connectionId ?? null,
+                quotaConfidence: provider.quotaConfidence ?? 'estimated',
+                quotaRefreshedAt: provider.quotaRefreshedAt ?? null,
             }));
         }
 
@@ -149,21 +158,25 @@ export const billingRouter = t.router({
         ];
 
         return providers.map(p => {
+            const hasKey = !!process.env[`${p.id.toUpperCase()}_API_KEY`];
             const quotaInfo = quota.getQuota?.(p.id);
             return {
                 provider: p.id,
                 name: p.name,
-                configured: !!process.env[`${p.id.toUpperCase()}_API_KEY`],
-                authenticated: !!process.env[`${p.id.toUpperCase()}_API_KEY`],
-                authMethod: !!process.env[`${p.id.toUpperCase()}_API_KEY`] ? 'api_key' : 'none',
+                configured: hasKey,
+                authenticated: hasKey,
+                authMethod: hasKey ? 'api_key' : 'none',
+                authTruth: quotaInfo?.authTruth ?? (hasKey ? 'authenticated' : 'not_configured'),
                 tier: quotaInfo?.tier ?? 'unknown',
                 limit: quotaInfo?.limit ?? null,
                 used: quotaInfo?.used ?? 0,
                 remaining: quotaInfo?.remaining ?? null,
                 resetDate: quotaInfo?.resetDate ?? null,
                 rateLimitRpm: quotaInfo?.rateLimitRpm ?? null,
-                availability: !!process.env[`${p.id.toUpperCase()}_API_KEY`] ? 'available' : 'missing_config',
+                availability: hasKey ? 'available' : 'missing_config',
                 lastError: null,
+                quotaConfidence: quotaInfo?.quotaConfidence ?? 'estimated',
+                quotaRefreshedAt: quotaInfo?.quotaRefreshedAt ?? null,
             };
         });
     }),

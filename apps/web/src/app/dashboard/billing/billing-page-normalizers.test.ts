@@ -8,6 +8,8 @@ import {
   normalizeBillingQuotaRows,
   normalizeFallbackChain,
   normalizeTaskRoutingRules,
+  type BillingAuthTruth,
+  type BillingQuotaConfidence,
 } from './billing-page-normalizers';
 
 describe('billing page normalizers', () => {
@@ -104,12 +106,15 @@ describe('billing page normalizers', () => {
         configured: true,
         authenticated: false,
         authMethod: 'none',
+        authTruth: 'not_configured' as BillingAuthTruth,
         tier: 'standard',
         limit: 0,
         used: 0,
         rateLimitRpm: null,
         availability: 'unknown',
         lastError: null,
+        quotaConfidence: 'estimated' as BillingQuotaConfidence,
+        quotaRefreshedAt: null,
       },
     ]);
 
@@ -135,5 +140,45 @@ describe('billing page normalizers', () => {
         recommended: false,
       },
     ]);
+  });
+
+  it('normalizes authTruth from payload with fallback to credential presence', () => {
+    const [authenticatedRow] = normalizeBillingQuotaRows([
+      { provider: 'openai', authenticated: true, configured: true, authTruth: 'authenticated' },
+    ]);
+    const [revokedRow] = normalizeBillingQuotaRows([
+      { provider: 'anthropic', authenticated: false, configured: true, authTruth: 'revoked' },
+    ]);
+    const [expiredRow] = normalizeBillingQuotaRows([
+      { provider: 'gemini', authenticated: false, configured: true, authTruth: 'expired' },
+    ]);
+    const [unknownTruthRow] = normalizeBillingQuotaRows([
+      { provider: 'deepseek', authenticated: true, configured: true, authTruth: 'not_a_valid_truth' },
+    ]);
+
+    expect(authenticatedRow?.authTruth).toBe<BillingAuthTruth>('authenticated');
+    expect(revokedRow?.authTruth).toBe<BillingAuthTruth>('revoked');
+    expect(expiredRow?.authTruth).toBe<BillingAuthTruth>('expired');
+    // Falls back to 'authenticated' because authenticated=true
+    expect(unknownTruthRow?.authTruth).toBe<BillingAuthTruth>('authenticated');
+  });
+
+  it('normalizes quotaConfidence and quotaRefreshedAt from payload', () => {
+    const [liveRow] = normalizeBillingQuotaRows([
+      { provider: 'openai', authenticated: true, configured: true, quotaConfidence: 'real-time', quotaRefreshedAt: '2025-01-01T00:00:00.000Z' },
+    ]);
+    const [cachedRow] = normalizeBillingQuotaRows([
+      { provider: 'anthropic', authenticated: true, configured: true, quotaConfidence: 'cached', quotaRefreshedAt: '' },
+    ]);
+    const [invalidConfRow] = normalizeBillingQuotaRows([
+      { provider: 'gemini', authenticated: false, configured: false, quotaConfidence: 'not_valid' },
+    ]);
+
+    expect(liveRow?.quotaConfidence).toBe<BillingQuotaConfidence>('real-time');
+    expect(liveRow?.quotaRefreshedAt).toBe('2025-01-01T00:00:00.000Z');
+    expect(cachedRow?.quotaConfidence).toBe<BillingQuotaConfidence>('cached');
+    expect(cachedRow?.quotaRefreshedAt).toBeNull();
+    // Falls back to 'estimated' for unknown confidence values
+    expect(invalidConfRow?.quotaConfidence).toBe<BillingQuotaConfidence>('estimated');
   });
 });

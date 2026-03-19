@@ -349,6 +349,12 @@ export type QuotaInfoRuntime = {
     remaining?: number | null;
     resetDate?: string | null;
     rateLimitRpm?: number | null;
+    /** @see ProviderAuthTruth */
+    authTruth?: string;
+    /** @see QuotaDataConfidence */
+    quotaConfidence?: string;
+    /** ISO-8601 timestamp of last real-time fetch from provider, or null. */
+    quotaRefreshedAt?: string | null;
 };
 
 export type QuotaServiceRuntime = {

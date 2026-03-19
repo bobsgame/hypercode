@@ -53,6 +53,32 @@ function toRoutingStrategy(value: unknown, fallback: BillingRoutingStrategy = 'b
         : fallback;
 }
 
+// ---------------------------------------------------------------------------
+// Auth truth + quota confidence narrows
+// ---------------------------------------------------------------------------
+
+export type BillingAuthTruth = 'not_configured' | 'authenticated' | 'expired' | 'revoked';
+export type BillingQuotaConfidence = 'real-time' | 'cached' | 'estimated' | 'unknown';
+
+const AUTH_TRUTHS: Set<BillingAuthTruth> = new Set(['not_configured', 'authenticated', 'expired', 'revoked']);
+const QUOTA_CONFIDENCES: Set<BillingQuotaConfidence> = new Set(['real-time', 'cached', 'estimated', 'unknown']);
+
+function toAuthTruth(value: unknown, fallback: BillingAuthTruth = 'not_configured'): BillingAuthTruth {
+    return typeof value === 'string' && AUTH_TRUTHS.has(value as BillingAuthTruth)
+        ? (value as BillingAuthTruth)
+        : fallback;
+}
+
+function toQuotaConfidence(value: unknown, fallback: BillingQuotaConfidence = 'estimated'): BillingQuotaConfidence {
+    return typeof value === 'string' && QUOTA_CONFIDENCES.has(value as BillingQuotaConfidence)
+        ? (value as BillingQuotaConfidence)
+        : fallback;
+}
+
+// ---------------------------------------------------------------------------
+// Usage summary
+// ---------------------------------------------------------------------------
+
 export interface BillingUsageBreakdownRow {
     provider: string;
     requests: number;
@@ -92,6 +118,10 @@ export function getBillingUsageSummary(status: unknown): BillingUsageSummary {
     };
 }
 
+// ---------------------------------------------------------------------------
+// Fallback chain
+// ---------------------------------------------------------------------------
+
 export interface BillingFallbackLink {
     priority: number;
     provider: string;
@@ -111,21 +141,25 @@ export function normalizeFallbackChain(fallback: unknown): BillingFallbackLink[]
     const chain = Array.isArray(fallbackRecord?.chain) ? fallbackRecord.chain : [];
 
     return chain.reduce<BillingFallbackLink[]>((acc, entry, index) => {
-            const row = asRecord(entry);
-            if (!row) {
-                return acc;
-            }
-
-            acc.push({
-                priority: Math.max(1, Math.floor(toNumber(row.priority, index + 1))),
-                provider: toStringValue(row.provider, `provider-${index + 1}`),
-                model: toStringValue(row.model) || undefined,
-                reason: toStringValue(row.reason, 'ranked fallback'),
-            });
-
+        const row = asRecord(entry);
+        if (!row) {
             return acc;
-        }, []);
+        }
+
+        acc.push({
+            priority: Math.max(1, Math.floor(toNumber(row.priority, index + 1))),
+            provider: toStringValue(row.provider, `provider-${index + 1}`),
+            model: toStringValue(row.model) || undefined,
+            reason: toStringValue(row.reason, 'ranked fallback'),
+        });
+
+        return acc;
+    }, []);
 }
+
+// ---------------------------------------------------------------------------
+// Task routing
+// ---------------------------------------------------------------------------
 
 export function getDefaultRoutingStrategy(taskRouting: unknown): BillingRoutingStrategy {
     return toRoutingStrategy(asRecord(taskRouting)?.defaultStrategy, 'best');
@@ -136,37 +170,43 @@ export function normalizeTaskRoutingRules(taskRouting: unknown): BillingTaskRout
     const rules = Array.isArray(routingRecord?.rules) ? routingRecord.rules : [];
 
     return rules.reduce<BillingTaskRoutingRuleSummary[]>((acc, entry) => {
-            const row = asRecord(entry);
-            if (!row) {
-                return acc;
-            }
-
-            const fallbackPreview = Array.isArray(row.fallbackPreview)
-                ? row.fallbackPreview.reduce<Array<{ provider: string; model?: string; reason?: string }>>((previewAcc, candidate, index) => {
-                        const candidateRecord = asRecord(candidate);
-                        if (!candidateRecord) {
-                            return previewAcc;
-                        }
-
-                        previewAcc.push({
-                            provider: toStringValue(candidateRecord.provider, `provider-${index + 1}`),
-                            model: toStringValue(candidateRecord.model) || undefined,
-                            reason: toStringValue(candidateRecord.reason) || undefined,
-                        });
-
-                        return previewAcc;
-                    }, [])
-                : [];
-
-            acc.push({
-                taskType: toTaskType(row.taskType, 'general'),
-                strategy: toRoutingStrategy(row.strategy, 'best'),
-                fallbackPreview,
-            });
-
+        const row = asRecord(entry);
+        if (!row) {
             return acc;
-        }, []);
+        }
+
+        const fallbackPreview = Array.isArray(row.fallbackPreview)
+            ? row.fallbackPreview.reduce<Array<{ provider: string; model?: string; reason?: string }>>(
+                (previewAcc, candidate, index) => {
+                    const candidateRecord = asRecord(candidate);
+                    if (!candidateRecord) {
+                        return previewAcc;
+                    }
+
+                    previewAcc.push({
+                        provider: toStringValue(candidateRecord.provider, `provider-${index + 1}`),
+                        model: toStringValue(candidateRecord.model) || undefined,
+                        reason: toStringValue(candidateRecord.reason) || undefined,
+                    });
+
+                    return previewAcc;
+                }, [],
+            )
+            : [];
+
+        acc.push({
+            taskType: toTaskType(row.taskType, 'general'),
+            strategy: toRoutingStrategy(row.strategy, 'best'),
+            fallbackPreview,
+        });
+
+        return acc;
+    }, []);
 }
+
+// ---------------------------------------------------------------------------
+// Quota table rows
+// ---------------------------------------------------------------------------
 
 export interface BillingQuotaTableRow {
     provider: string;
@@ -174,12 +214,18 @@ export interface BillingQuotaTableRow {
     configured: boolean;
     authenticated: boolean;
     authMethod: string;
+    /** Nuanced credential state. */
+    authTruth: BillingAuthTruth;
     tier: string;
     limit: number | null;
     used: number;
     rateLimitRpm: number | null;
     availability: string;
     lastError: string | null;
+    /** Freshness level of the quota values. */
+    quotaConfidence: BillingQuotaConfidence;
+    /** ISO-8601 timestamp of last real-time provider fetch, or null. */
+    quotaRefreshedAt: string | null;
 }
 
 export function normalizeBillingQuotaRows(quotas: unknown): BillingQuotaTableRow[] {
@@ -194,23 +240,33 @@ export function normalizeBillingQuotaRows(quotas: unknown): BillingQuotaTableRow
                 return null;
             }
 
-            const provider = toStringValue(row.provider, `provider-${index + 1}`);
+            const providerKey = toStringValue(row.provider, `provider-${index + 1}`);
+            const isAuthenticated = toBoolean(row.authenticated, false);
+            const authTruthFallback: BillingAuthTruth = isAuthenticated ? 'authenticated' : 'not_configured';
+
             return {
-                provider,
-                name: toStringValue(row.name, provider),
+                provider: providerKey,
+                name: toStringValue(row.name, providerKey),
                 configured: toBoolean(row.configured, false),
-                authenticated: toBoolean(row.authenticated, false),
+                authenticated: isAuthenticated,
                 authMethod: toStringValue(row.authMethod, 'none'),
+                authTruth: toAuthTruth(row.authTruth, authTruthFallback),
                 tier: toStringValue(row.tier, 'standard'),
                 limit: row.limit === null ? null : toNumber(row.limit, 0),
                 used: toNumber(row.used, 0),
                 rateLimitRpm: row.rateLimitRpm === null ? null : toNumber(row.rateLimitRpm, 0),
                 availability: toStringValue(row.availability, 'unknown'),
                 lastError: toStringValue(row.lastError) || null,
+                quotaConfidence: toQuotaConfidence(row.quotaConfidence),
+                quotaRefreshedAt: toStringValue(row.quotaRefreshedAt) || null,
             } satisfies BillingQuotaTableRow;
         })
         .filter((entry): entry is BillingQuotaTableRow => Boolean(entry));
 }
+
+// ---------------------------------------------------------------------------
+// Pricing models
+// ---------------------------------------------------------------------------
 
 export interface BillingPricingModelRow {
     id: string;

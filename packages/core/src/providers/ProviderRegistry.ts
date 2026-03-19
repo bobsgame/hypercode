@@ -1,6 +1,7 @@
 import {
     type FallbackCandidateSnapshot,
     type ProviderAuthState,
+    type ProviderAuthTruth,
     type ProviderDefinition,
     type ProviderModelDefinition,
     type ProviderTaskType,
@@ -271,6 +272,7 @@ export class ProviderRegistry {
 
         const configured = this.hasAuthCredential(provider, env);
         const authenticated = provider.authMethod === 'none' ? true : configured;
+        const authTruth = this.computeAuthTruth(provider, env);
 
         return {
             provider: provider.id,
@@ -279,6 +281,7 @@ export class ProviderRegistry {
             configured,
             authenticated,
             detail: this.getAuthDetail(provider, configured),
+            authTruth,
         };
     }
 
@@ -347,5 +350,41 @@ export class ProviderRegistry {
 
         const expectedKey = provider.envKeys?.[0] ?? provider.oauthEnvKeys?.[0] ?? provider.patEnvKeys?.[0] ?? 'credential';
         return `Missing ${expectedKey}.`;
+    }
+
+    /**
+     * Computes the nuanced `ProviderAuthTruth` from environment credentials.
+     *
+     * - `none` providers are always `'authenticated'` (local, no key needed).
+     * - For OAuth providers we additionally check `*_TOKEN_EXPIRES_AT` env vars to
+     *   detect a configured-but-expired token without making a live API call.
+     * - `'revoked'` cannot be determined from env alone; it is set externally via
+     *   `NormalizedQuotaService.markAuthRevoked()` when a live 401/403 is observed.
+     */
+    private computeAuthTruth(provider: ProviderDefinition, env: NodeJS.ProcessEnv): ProviderAuthTruth {
+        if (provider.authMethod === 'none') {
+            return 'authenticated';
+        }
+
+        const hasCredential = this.hasAuthCredential(provider, env);
+        if (!hasCredential) {
+            return 'not_configured';
+        }
+
+        // For OAuth providers, detect expired tokens via *_TOKEN_EXPIRES_AT env vars.
+        if (provider.authMethod === 'oauth') {
+            const expiryKeys = (provider.oauthEnvKeys ?? []).map((key) => `${key}_EXPIRES_AT`);
+            for (const expiryKey of expiryKeys) {
+                const expiryValue = env[expiryKey];
+                if (typeof expiryValue === 'string' && expiryValue.trim().length > 0) {
+                    const expiryMs = Date.parse(expiryValue);
+                    if (!Number.isNaN(expiryMs) && expiryMs < Date.now()) {
+                        return 'expired';
+                    }
+                }
+            }
+        }
+
+        return 'authenticated';
     }
 }

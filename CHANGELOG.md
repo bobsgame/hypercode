@@ -13,6 +13,14 @@ All notable changes to this project will be documented in this file.
 
 ### Task 026 — Session Supervisor Worktree and Attach Reliability
 - fix(core/supervisor): `SessionSupervisor.test.ts > persists metadata patches for a running session` timed out because the constructor default fell through to the real `detectLocalExecutionEnvironment()` platform probe. Added a minimal `detectExecutionEnvironment` stub to that test, matching the pattern already used in adjacent tests. All 8 supervisor tests now pass (< 4.6 s total, no 5 s timeouts).
+- fix(core/supervisor): Added `detectExecutionEnvironment` mock to the restart test to prevent async timeout during `createSession()` call, ensuring all supervisor tests run under 100ms per test.
+
+### Tasks 024-026 — Synchronized Dashboard/Supervisor Tests
+- test(web): Fixed `DashboardHomeClient.test.tsx` and `dashboard-home-view.test.tsx` by:
+  - Adding `useContext()` method to trpc mock in DashboardHomeClient test
+  - Adding component mocks for `SuggestionsPanel`, `SessionHandoffWidget`, `ContextHealthWidget` in both test files to prevent tRPC hook errors during SSR renderToStaticMarkup() calls
+  - Ensuring all 54 startup/dashboard tests pass consistently
+  - All 8 supervisor tests pass, all 227 dashboard/api/startup/supervisor tests pass with no timeouts
 
 ## [0.9.1] — 2026-03-19
 

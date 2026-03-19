@@ -40,6 +40,12 @@ import {
   sanitizeMissionControlToggleState,
 } from './mission-control-function-toggles';
 import { SIDEBAR_SECTIONS } from '../../components/mcp/nav-config';
+import { vi } from 'vitest';
+
+// Mock tRPC-dependent components
+vi.mock('../../components/SuggestionsPanel', () => ({ default: () => null }));
+vi.mock('../../components/SessionHandoffWidget', () => ({ SessionHandoffWidget: () => null }));
+vi.mock('../../components/ContextHealthWidget', () => ({ ContextHealthWidget: () => null }));
 
 describe('dashboard home helpers', () => {
   it('builds and sanitizes main dashboard function toggle state from the shared route catalog', () => {

@@ -9,6 +9,21 @@ vi.mock('../../utils/trpc', () => {
 
   return {
     trpc: {
+      useContext: () => ({
+        startupStatus: { invalidate },
+        mcp: {
+          getStatus: { invalidate },
+          listServers: { invalidate },
+          traffic: { invalidate },
+        },
+        billing: {
+          getProviderQuotas: { invalidate },
+          getFallbackChain: { invalidate },
+        },
+        session: {
+          list: { invalidate },
+        },
+      }),
       useUtils: () => ({
         startupStatus: { invalidate },
         mcp: {
@@ -200,6 +215,11 @@ vi.mock('../../utils/trpc', () => {
     },
   };
 });
+
+// Mock tRPC-dependent components to prevent hook errors during SSR
+vi.mock('../../components/SuggestionsPanel', () => ({ default: () => null }));
+vi.mock('../../components/SessionHandoffWidget', () => ({ SessionHandoffWidget: () => null }));
+vi.mock('../../components/ContextHealthWidget', () => ({ ContextHealthWidget: () => null }));
 
 import { DashboardHomeClient, sortSessions } from './DashboardHomeClient';
 

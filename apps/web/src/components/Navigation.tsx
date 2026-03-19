@@ -129,7 +129,7 @@ export function Navigation() {
                 </Sheet>
             </div>
 
-            <div className="hidden md:block text-xs text-zinc-400">
+            <div className="hidden md:block text-xs text-zinc-400" suppressHydrationWarning>
                 v{versionLabel}
             </div>
         </nav>

@@ -2278,7 +2278,7 @@ export class MCPServer {
             if ((name === "read_file" || name === "view_file") && result) {
                 const contentText = this.getFirstTextContent(result);
                 if (contentText) {
-                    const filePath = args.path || args.AbsolutePath;
+                    const filePath = args.file_path || args.path || args.AbsolutePath;
                     this.suggestionService.processContext({
                         type: 'file_read',
                         path: filePath,

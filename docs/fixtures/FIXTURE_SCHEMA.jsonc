@@ -3,9 +3,9 @@
 // Used by CI to ensure fixture compliance with documented contracts
 
 {
-  "$schema": "http://json-schema.org/draft-7/schema#",
   "title": "Built-In Tool Response Fixtures",
   "description": "Schemas for golden tool response fixtures across competitor platforms",
+  "schemaVersion": "1.0",
 
   "definitions": {
     // ===== COMMON RESPONSE PATTERNS =====

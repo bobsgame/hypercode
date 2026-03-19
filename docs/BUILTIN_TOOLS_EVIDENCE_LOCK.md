@@ -48,7 +48,9 @@ A platform is only marked **Locked** when all fields are complete and reviewed.
 - Secondary sources (in-repo):
   - `archive/OmniRoute/docs/FEATURES.md` (CLI tools + CLI agents listings)
   - `archive/OmniRoute/docs/CODEBASE_DOCUMENTATION.md` (GitHub/Copilot executor notes)
-- Version pin: research snapshot in repo
+- Snapshot pin evidence (in-repo):
+  - `archive/docs/archive/SUBMODULES.md` → `copilot-cli` pinned at `v0.0.401-0`
+  - `archive/docs/submodules/agents_repos-agent-sessions.md` (supports Copilot session path: `~/.copilot/session-state`)
 - Captured commands:
   - `suggest`
   - `explain`
@@ -66,6 +68,10 @@ A platform is only marked **Locked** when all fields are complete and reviewed.
   - `archive/OmniRoute/docs/FEATURES.md`
   - `archive/OmniRoute/docs/CODEBASE_DOCUMENTATION.md`
   - `archive/docs/CLIENT_CONFIGS.md`
+- Snapshot pin evidence (in-repo):
+  - `archive/docs/archive/SUBMODULES.md` → `gemini-cli` pinned at `MK_TAG_TEST-3216-gc5d0fc2c3`
+  - `archive/docs/submodules/agents_repos-agent-sessions.md` (session path: `~/.gemini/tmp`)
+  - `archive/docs/submodules/auth-gemini.md` (OAuth flow and config surface for Opencode bridge)
 - Captured capability classes:
   - search grounding
   - file operations
@@ -84,9 +90,14 @@ A platform is only marked **Locked** when all fields are complete and reviewed.
 - Primary source (in-repo):
   - `archive/OmniRoute/docs/FEATURES.md`
   - `archive/OmniRoute/docs/CODEBASE_DOCUMENTATION.md`
+- Secondary sources (in-repo):
+  - `archive/docs/submodules/agents_repos-agent-sessions.md` (Codex session paths and lifecycle behavior)
+  - `archive/docs/submodules/auth-openai-codex.md` (Codex OAuth bridge details)
+  - `archive/docs/submodules/auth-openai-codex-config.md` (Codex model preset inventory)
 - Captured evidence:
   - Listed as first-class CLI tool + built-in CLI agent in OmniRoute docs
   - Codex executor behavior documented (instruction injection, thinking controls)
+  - Opencode bridge doc states use of OpenAI official OAuth method used by Codex CLI
 - Missing for full lock:
   - official upstream Codex CLI tool manifest + version pin
   - exact built-in command/function signatures
@@ -97,6 +108,9 @@ A platform is only marked **Locked** when all fields are complete and reviewed.
 - Primary source (in-repo):
   - `archive/OmniRoute/docs/FEATURES.md`
   - `archive/docs/CLIENT_CONFIGS.md`
+- Snapshot pin evidence (in-repo):
+  - `archive/docs/archive/SUBMODULES.md` → `claude-code` pinned at `v2.1.29`
+  - `archive/docs/submodules/agents_repos-agent-sessions.md` (session path: `~/.claude/sessions`)
 - Captured evidence:
   - Listed as first-class CLI tool in dashboard feature inventory
   - Config locations documented for Windows/macOS/Linux
@@ -155,6 +169,9 @@ A platform is only marked **Locked** when all fields are complete and reviewed.
 - Primary source (in-repo):
   - `archive/OmniRoute/docs/FEATURES.md`
   - `archive/OmniRoute/docs/CODEBASE_DOCUMENTATION.md`
+- Secondary sources (in-repo):
+  - `archive/docs/submodules/config_repos-Setup_Ultimate_OpenCode.md` (integration workflow and plugin references)
+  - `archive/docs/archive/SUBMODULES.md` (`opencode-antigravity-auth` snapshot listing)
 - Captured evidence:
   - Listed as supported CLI/provider surface in feature docs
   - Dedicated Antigravity executor behavior documented

@@ -21,12 +21,14 @@ A platform is only marked **Locked** when all fields are complete and reviewed.
 
 ## Related Resources (Phase 1: Foundation)
 
-- **[VERSION_PINS.jsonc](./fixtures/VERSION_PINS.jsonc)** — Central registry for version pins across all L2+ platforms. Used in CI validation.
+- **[BORG_MASTER_INDEX.jsonc](../BORG_MASTER_INDEX.jsonc)** — Master project index with full evidence lock state tracking, phase status, and artifact inventory.
+- **[EVIDENCE_LOCK_STATUS_2026_03_19.md](./EVIDENCE_LOCK_STATUS_2026_03_19.md)** — Comprehensive status snapshot with metrics and next steps.
+- **[VERSION_PINS.jsonc](./fixtures/VERSION_PINS.jsonc)** — Central registry for version pins across all L2 platforms. Used in CI validation.
 - **[TOOL_CONTRACTS.md](./fixtures/TOOL_CONTRACTS.md)** — Golden fixture template capturing tool signatures, permission patterns, and hook semantics.
 - **[L3_PROMOTION_STRATEGY.md](./fixtures/L3_PROMOTION_STRATEGY.md)** — Systematic path from L2 → L3 for each platform (version capture + response fixtures + CI validation).
-- **[CI Workflow: validate-evidence-lock.yml](./.github/workflows/validate-evidence-lock.yml)** — Automated validation gate for lock integrity and version drift.
+- **[CI Workflow: validate-evidence-lock.yml](../.github/workflows/validate-evidence-lock.yml)** — Automated validation gate for lock integrity and version drift.
 
-**Phase 1 Status (2026-03-19):** Infrastructure created for version pinning and fixture automation. Next: Execute Phase 2 (golden fixture population) on first platform release.
+**Phase 1 Status (2026-03-19):** Infrastructure created for version pinning and fixture automation. All L2 platforms ready for version capture and L3 promotion. Next: Execute Phase 2 (golden fixture population) on first platform release.
 
 ---
 

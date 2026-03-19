@@ -237,6 +237,10 @@ jobs:
           print("✅ All L2 platforms have golden fixtures")
           EOF
 
+      - name: "Run fixture validation harness"
+        run: |
+          node docs/fixtures/verify-fixtures.mjs
+
   version-drift-check:
     name: "⚠️  Check for Version Drift"
     runs-on: ubuntu-latest

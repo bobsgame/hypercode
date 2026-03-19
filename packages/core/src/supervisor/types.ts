@@ -4,6 +4,8 @@ import type { SessionExecutionPolicy, SessionExecutionProfile } from '../service
 export type SessionLogStream = 'stdout' | 'stderr' | 'system';
 export type SupervisedSessionStatus = 'created' | 'starting' | 'running' | 'stopping' | 'stopped' | 'restarting' | 'error';
 export type SupervisedSessionHealthStatus = 'healthy' | 'degraded' | 'unresponsive' | 'crashed';
+export type AttachReadiness = 'ready' | 'pending' | 'unavailable';
+export type AttachReadinessReason = 'running-with-pid' | 'starting' | 'restarting' | 'stopping' | 'stopped' | 'created' | 'no-pid' | 'error';
 
 export interface MinimalReadableLike {
     on(event: 'data', listener: (chunk: Buffer | string) => void): unknown;
@@ -69,7 +71,15 @@ export interface SessionAttachInfo {
     args: string[];
     cwd: string;
     status: SupervisedSessionStatus;
+    /**
+     * @deprecated Use attachReadiness and attachReadinessReason instead for nuanced client display.
+     * Kept for backward compatibility. True iff status===running AND pid is defined.
+     */
     attachable: boolean;
+    /** Categorized attach readiness: ready (green), pending (yellow), unavailable (red) */
+    attachReadiness: AttachReadiness;
+    /** Specific reason for current readiness level; helps explain why attach is/isn't available */
+    attachReadinessReason: AttachReadinessReason;
 }
 
 export interface SupervisedSessionHealth {

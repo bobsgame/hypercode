@@ -302,6 +302,43 @@ export class SessionSupervisor {
     public getAttachInfo(id: string): SessionAttachInfo {
         const session = this.requireSession(id);
         const runtime = this.requireRuntime(id);
+        
+        const hasPid = typeof runtime.process?.pid === 'number';
+        
+        // Determine attach readiness based on status and process availability
+        let attachReadiness: 'ready' | 'pending' | 'unavailable';
+        let attachReadinessReason: 'running-with-pid' | 'starting' | 'restarting' | 'stopping' | 'stopped' | 'created' | 'no-pid' | 'error';
+        
+        if (session.status === 'running' && hasPid) {
+            attachReadiness = 'ready';
+            attachReadinessReason = 'running-with-pid';
+        } else if (session.status === 'starting') {
+            attachReadiness = 'pending';
+            attachReadinessReason = 'starting';
+        } else if (session.status === 'restarting') {
+            attachReadiness = 'pending';
+            attachReadinessReason = 'restarting';
+        } else if (session.status === 'stopping') {
+            attachReadiness = 'pending';
+            attachReadinessReason = 'stopping';
+        } else if (session.status === 'running' && !hasPid) {
+            attachReadiness = 'unavailable';
+            attachReadinessReason = 'no-pid';
+        } else if (session.status === 'stopped') {
+            attachReadiness = 'unavailable';
+            attachReadinessReason = 'stopped';
+        } else if (session.status === 'created') {
+            attachReadiness = 'unavailable';
+            attachReadinessReason = 'created';
+        } else if (session.status === 'error') {
+            attachReadiness = 'unavailable';
+            attachReadinessReason = 'error';
+        } else {
+            // Defensive fallback
+            attachReadiness = 'unavailable';
+            attachReadinessReason = 'error';
+        }
+        
         return {
             id: session.id,
             pid: runtime.process?.pid,
@@ -309,7 +346,9 @@ export class SessionSupervisor {
             args: [...session.args],
             cwd: session.workingDirectory,
             status: session.status,
-            attachable: session.status === 'running' && typeof runtime.process?.pid === 'number',
+            attachable: session.status === 'running' && hasPid,
+            attachReadiness,
+            attachReadinessReason,
         };
     }
 

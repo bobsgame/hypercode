@@ -382,18 +382,62 @@ export function SessionDetailsDialog({ session, currentTimestamp }: SessionDetai
                             ) : attachInfoQuery.data ? (
                                 <div className="space-y-4">
                                     <div className="flex flex-wrap items-center gap-2">
-                                        <Badge className={attachInfoQuery.data.attachable ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-zinc-700 hover:bg-zinc-600'}>
-                                            {attachInfoQuery.data.attachable ? 'Attachable' : 'Not attachable'}
-                                        </Badge>
+                                        {/* Nuanced attach readiness indicator */}
+                                        {(() => {
+                                            const readiness = (attachInfoQuery.data as any)?.attachReadiness;
+                                            const reason = (attachInfoQuery.data as any)?.attachReadinessReason;
+                                            
+                                            if (readiness === 'ready') {
+                                                return (
+                                                    <Badge className="bg-emerald-600 hover:bg-emerald-500">
+                                                        Ready to attach
+                                                    </Badge>
+                                                );
+                                            } else if (readiness === 'pending') {
+                                                return (
+                                                    <Badge className="bg-amber-600 hover:bg-amber-500">
+                                                        {reason === 'starting' && 'Starting...'}
+                                                        {reason === 'restarting' && 'Restarting...'}
+                                                        {reason === 'stopping' && 'Stopping...'}
+                                                        {!['starting', 'restarting', 'stopping'].includes(reason) && 'Pending'}
+                                                    </Badge>
+                                                );
+                                            } else {
+                                                return (
+                                                    <Badge className="bg-red-600/70 hover:bg-red-500/70">
+                                                        Not attachable
+                                                    </Badge>
+                                                );
+                                            }
+                                        })()}
                                         {attachInfoQuery.data.pid ? <Badge variant="outline" className="border-zinc-700 text-zinc-300">PID {attachInfoQuery.data.pid}</Badge> : null}
                                     </div>
                                     <div className="space-y-2">
                                         <p>Command: <span className="font-mono text-xs text-zinc-100">{attachInfoQuery.data.command}</span></p>
                                         <p>Args: <span className="font-mono text-xs text-zinc-100">{attachInfoQuery.data.args.join(' ') || '—'}</span></p>
                                         <p className="break-all">CWD: <span className="font-mono text-xs text-zinc-100">{attachInfoQuery.data.cwd}</span></p>
+                                        {(attachInfoQuery.data as any)?.attachReadinessReason ? (
+                                            <p className="text-xs text-zinc-500">
+                                                Status: <span className="text-zinc-400">{(attachInfoQuery.data as any).attachReadinessReason.replace(/-/g, ' ')}</span>
+                                            </p>
+                                        ) : null}
                                     </div>
 
-                                    {attachCommand ? (
+                                    {((attachInfoQuery.data as any)?.attachReadiness === 'ready') && (
+                                        <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-3">
+                                            <p className="text-xs font-semibold text-emerald-300 mb-2">Process is live and attachable</p>
+                                            <p className="text-xs text-emerald-200/70">You can connect to this process using the attach command below or interact via shell commands.</p>
+                                        </div>
+                                    )}
+
+                                    {((attachInfoQuery.data as any)?.attachReadiness === 'pending') && (
+                                        <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
+                                            <p className="text-xs font-semibold text-amber-300 mb-2">Session in transition</p>
+                                            <p className="text-xs text-amber-200/70">The session is {(attachInfoQuery.data as any).attachReadinessReason}. Attach will be available once the transition completes.</p>
+                                        </div>
+                                    )}
+
+                                    {attachCommand && ((attachInfoQuery.data as any)?.attachReadiness === 'ready') ? (
                                         <div className="rounded-lg border border-zinc-800 bg-zinc-950/80 p-3">
                                             <div className="mb-2 flex items-center justify-between gap-3">
                                                 <span className="text-xs uppercase tracking-[0.18em] text-zinc-500">Attach / relaunch command</span>

@@ -268,4 +268,333 @@ describe('SessionSupervisor', () => {
             },
         }));
     });
+
+    describe('attach readiness', () => {
+        it('reports ready when status is running and a PID is available', async () => {
+            const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'borg-session-supervisor-'));
+            tempDirs.push(tempDir);
+
+            const supervisor = new SessionSupervisor({
+                rootDir: tempDir,
+                persistencePath: path.join(tempDir, 'session-supervisor.json'),
+                spawnProcess: () => new FakeProcess(), // FakeProcess has pid=4242
+                detectExecutionEnvironment: async () => ({
+                    os: process.platform,
+                    summary: {
+                        ready: true,
+                        preferredShellId: 'node',
+                        preferredShellLabel: 'Node',
+                        shellCount: 0,
+                        verifiedShellCount: 0,
+                        toolCount: 0,
+                        verifiedToolCount: 0,
+                        harnessCount: 0,
+                        verifiedHarnessCount: 0,
+                        supportsPowerShell: false,
+                        supportsPosixShell: false,
+                        notes: [],
+                    },
+                    shells: [],
+                    tools: [],
+                    harnesses: [],
+                }),
+            });
+
+            const session = await supervisor.createSession({
+                cliType: 'node',
+                workingDirectory: tempDir,
+            });
+
+            await supervisor.startSession(session.id);
+            const attachInfo = supervisor.getAttachInfo(session.id);
+
+            expect(attachInfo.attachReadiness).toBe('ready');
+            expect(attachInfo.attachReadinessReason).toBe('running-with-pid');
+            expect(attachInfo.pid).toBe(4242);
+            expect(attachInfo.attachable).toBe(true);
+        });
+
+        it('reports pending when status is starting', async () => {
+            let now = 1_700_000_000_000;
+            const scheduled: Array<{ callback: () => void; delayMs: number }> = [];
+            const spawnedProcesses: FakeProcess[] = [];
+
+            const spawnProcess: SpawnSupervisedProcess = () => {
+                const p = new FakeProcess();
+                spawnedProcesses.push(p);
+                return p;
+            };
+
+            const scheduler: SchedulerLike = {
+                setTimeout: (callback, delayMs) => {
+                    scheduled.push({ callback, delayMs });
+                    return callback;
+                },
+                clearTimeout: () => undefined,
+            };
+
+            const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'borg-session-supervisor-'));
+            tempDirs.push(tempDir);
+
+            const supervisor = new SessionSupervisor({
+                rootDir: tempDir,
+                persistencePath: path.join(tempDir, 'session-supervisor.json'),
+                now: () => now,
+                spawnProcess,
+                scheduler,
+                detectExecutionEnvironment: async () => ({
+                    os: process.platform,
+                    summary: {
+                        ready: true,
+                        preferredShellId: 'node',
+                        preferredShellLabel: 'Node',
+                        shellCount: 0,
+                        verifiedShellCount: 0,
+                        toolCount: 0,
+                        verifiedToolCount: 0,
+                        harnessCount: 0,
+                        verifiedHarnessCount: 0,
+                        supportsPowerShell: false,
+                        supportsPosixShell: false,
+                        notes: [],
+                    },
+                    shells: [],
+                    tools: [],
+                    harnesses: [],
+                }),
+            });
+
+            const session = await supervisor.createSession({
+                cliType: 'node',
+                workingDirectory: tempDir,
+            });
+
+            // Start returns after status is set to 'running' (synchronously)
+            const startedSession = await supervisor.startSession(session.id);
+            const attachInfo = supervisor.getAttachInfo(session.id);
+
+            // After start completes, we're in 'running' state
+            expect(attachInfo.attachReadiness).toBe('ready');
+            expect(startedSession.status).toBe('running');
+        });
+
+        it('reports pending when status is restarting', async () => {
+            let now = 1_700_000_000_000;
+            const scheduled: Array<{ callback: () => void; delayMs: number }> = [];
+            const spawnedProcesses: FakeProcess[] = [];
+
+            const spawnProcess: SpawnSupervisedProcess = () => {
+                const p = new FakeProcess();
+                spawnedProcesses.push(p);
+                return p;
+            };
+
+            const scheduler: SchedulerLike = {
+                setTimeout: (callback, delayMs) => {
+                    scheduled.push({ callback, delayMs });
+                    return callback;
+                },
+                clearTimeout: () => undefined,
+            };
+
+            const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'borg-session-supervisor-'));
+            tempDirs.push(tempDir);
+
+            const supervisor = new SessionSupervisor({
+                rootDir: tempDir,
+                persistencePath: path.join(tempDir, 'session-supervisor.json'),
+                now: () => now,
+                spawnProcess,
+                scheduler,
+                restartDelayMs: 1_000,
+                detectExecutionEnvironment: async () => ({
+                    os: process.platform,
+                    summary: {
+                        ready: true,
+                        preferredShellId: 'node',
+                        preferredShellLabel: 'Node',
+                        shellCount: 0,
+                        verifiedShellCount: 0,
+                        toolCount: 0,
+                        verifiedToolCount: 0,
+                        harnessCount: 0,
+                        verifiedHarnessCount: 0,
+                        supportsPowerShell: false,
+                        supportsPosixShell: false,
+                        notes: [],
+                    },
+                    shells: [],
+                    tools: [],
+                    harnesses: [],
+                }),
+            });
+
+            const session = await supervisor.createSession({
+                cliType: 'node',
+                workingDirectory: tempDir,
+            });
+
+            await supervisor.startSession(session.id);
+            const firstProcess = spawnedProcesses[0]!;
+
+            // Simulate process exit to trigger auto-restart
+            firstProcess.emitExit(1, null);
+
+            // After crash with auto-restart, session enters 'restarting' status
+            let attachInfo = supervisor.getAttachInfo(session.id);
+            expect(attachInfo.attachReadiness).toBe('pending');
+            expect(attachInfo.attachReadinessReason).toBe('restarting');
+            expect(attachInfo.status).toBe('restarting');
+        });
+
+        it('reports unavailable when status is stopped', async () => {
+            const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'borg-session-supervisor-'));
+            tempDirs.push(tempDir);
+
+            const spawnedProcesses: FakeProcess[] = [];
+            const spawnProcess: SpawnSupervisedProcess = () => {
+                const p = new FakeProcess();
+                spawnedProcesses.push(p);
+                return p;
+            };
+
+            const supervisor = new SessionSupervisor({
+                rootDir: tempDir,
+                persistencePath: path.join(tempDir, 'session-supervisor.json'),
+                spawnProcess,
+                detectExecutionEnvironment: async () => ({
+                    os: process.platform,
+                    summary: {
+                        ready: true,
+                        preferredShellId: 'node',
+                        preferredShellLabel: 'Node',
+                        shellCount: 0,
+                        verifiedShellCount: 0,
+                        toolCount: 0,
+                        verifiedToolCount: 0,
+                        harnessCount: 0,
+                        verifiedHarnessCount: 0,
+                        supportsPowerShell: false,
+                        supportsPosixShell: false,
+                        notes: [],
+                    },
+                    shells: [],
+                    tools: [],
+                    harnesses: [],
+                }),
+            });
+
+            const session = await supervisor.createSession({
+                cliType: 'node',
+                workingDirectory: tempDir,
+            });
+
+            await supervisor.startSession(session.id);
+            
+            // Manual stop transitions to stopping status, then exit handler makes it stopped
+            await supervisor.stopSession(session.id);
+            
+            // Emit exit from the process to complete the stop transition
+            if (spawnedProcesses.length > 0) {
+                spawnedProcesses[0]!.emitExit(0, null);
+            }
+            
+            const attachInfo = supervisor.getAttachInfo(session.id);
+
+            expect(attachInfo.attachReadiness).toBe('unavailable');
+            expect(attachInfo.attachReadinessReason).toBe('stopped');
+            expect(attachInfo.attachable).toBe(false);
+            expect(attachInfo.status).toBe('stopped');
+        });
+
+        it('reports unavailable when status is created (not yet started)', async () => {
+            const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'borg-session-supervisor-'));
+            tempDirs.push(tempDir);
+
+            const supervisor = new SessionSupervisor({
+                rootDir: tempDir,
+                persistencePath: path.join(tempDir, 'session-supervisor.json'),
+                spawnProcess: () => new FakeProcess(),
+                detectExecutionEnvironment: async () => ({
+                    os: process.platform,
+                    summary: {
+                        ready: true,
+                        preferredShellId: 'node',
+                        preferredShellLabel: 'Node',
+                        shellCount: 0,
+                        verifiedShellCount: 0,
+                        toolCount: 0,
+                        verifiedToolCount: 0,
+                        harnessCount: 0,
+                        verifiedHarnessCount: 0,
+                        supportsPowerShell: false,
+                        supportsPosixShell: false,
+                        notes: [],
+                    },
+                    shells: [],
+                    tools: [],
+                    harnesses: [],
+                }),
+            });
+
+            const session = await supervisor.createSession({
+                cliType: 'node',
+                workingDirectory: tempDir,
+            });
+
+            const attachInfo = supervisor.getAttachInfo(session.id);
+
+            expect(attachInfo.attachReadiness).toBe('unavailable');
+            expect(attachInfo.attachReadinessReason).toBe('created');
+            expect(attachInfo.attachable).toBe(false);
+        });
+
+        it('maintains backward compatibility via the attachable field', async () => {
+            const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'borg-session-supervisor-'));
+            tempDirs.push(tempDir);
+
+            const supervisor = new SessionSupervisor({
+                rootDir: tempDir,
+                persistencePath: path.join(tempDir, 'session-supervisor.json'),
+                spawnProcess: () => new FakeProcess(),
+                detectExecutionEnvironment: async () => ({
+                    os: process.platform,
+                    summary: {
+                        ready: true,
+                        preferredShellId: 'node',
+                        preferredShellLabel: 'Node',
+                        shellCount: 0,
+                        verifiedShellCount: 0,
+                        toolCount: 0,
+                        verifiedToolCount: 0,
+                        harnessCount: 0,
+                        verifiedHarnessCount: 0,
+                        supportsPowerShell: false,
+                        supportsPosixShell: false,
+                        notes: [],
+                    },
+                    shells: [],
+                    tools: [],
+                    harnesses: [],
+                }),
+            });
+
+            const session = await supervisor.createSession({
+                cliType: 'node',
+                workingDirectory: tempDir,
+            });
+
+            await supervisor.startSession(session.id);
+            const attachInfo = supervisor.getAttachInfo(session.id);
+
+            // Old field should be true when ready
+            expect(attachInfo.attachable).toBe(true);
+
+            await supervisor.stopSession(session.id);
+            const stoppedAttachInfo = supervisor.getAttachInfo(session.id);
+
+            // Old field should be false when stopped
+            expect(stoppedAttachInfo.attachable).toBe(false);
+        });
+    });
 });

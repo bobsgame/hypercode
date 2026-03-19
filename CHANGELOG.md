@@ -6,6 +6,30 @@ All notable changes to this project will be documented in this file.
 
 ## [0.9.2] — 2026-03-20
 
+### Task 027 — Session Supervisor Attach and Interaction (In Progress)
+- feat(core/supervisor): Enhanced `SessionAttachInfo` type with nuanced attach readiness signals:
+  - Added `attachReadiness` field: `'ready'` (green), `'pending'` (yellow), `'unavailable'` (red)
+  - Added `attachReadinessReason` field: distinguishes `'running-with-pid'`, `'starting'`, `'restarting'`, `'stopping'`, `'stopped'`, `'created'`, `'no-pid'`, `'error'`
+  - Kept backward-compatible `attachable` boolean field for display clients
+- fix(core/supervisor): `SessionSupervisor.getAttachInfo()` now computes attach readiness based on session status + process availability:
+  - **Ready**: status is `running` AND process has valid PID
+  - **Pending**: status is `starting`, `restarting`, or `stopping` — session in transition, attach will be available soon
+  - **Unavailable**: status is `stopped`, `created`, `error`, or `running` without PID
+- test(core/supervisor): Added 6 new attach readiness tests:
+  - `'reports ready when status is running and a PID is available'`
+  - `'reports pending when status is starting'`
+  - `'reports pending when status is restarting'`
+  - `'reports unavailable when status is stopped'`
+  - `'reports unavailable when status is created (not yet started)'`
+  - `'maintains backward compatibility via the attachable field'`
+  - All tests pass; no regressions in existing 3 supervisor tests (9/9 total)
+- ui(web/dashboard): Enhanced session details attach tab to show nuanced readiness:
+  - Attach badge now displays `'Ready to attach'` (emerald/green), `'Starting...' / 'Restarting...' / 'Stopping...'` (amber/yellow), or `'Not attachable'` (red) based on `attachReadiness`
+  - Added contextual info boxes explaining each state (e.g., "Process is live and attachable" for ready, "Session in transition" for pending)
+  - Attach command is conditionally shown only when readiness is `'ready'`
+  - `attachReadinessReason` is displayed as a human-readable status line
+- TypeScript: All changes type-safe; both `packages/core` and `apps/web` pass `tsc --noEmit`
+
 ### Task 025 — MCP Dashboard Runtime Smoke and Import Robustness
 - test(root): Created root-level `vitest.config.ts` with `@/` → `apps/web/src/` path alias so web integration tests resolve Next.js-style imports without separate tsconfig tricks.
 - test(web): Fixed `apps/web/tests/integration/mcp-to-dashboard.test.ts` — added `vi.mock` stubs for `SuggestionsPanel`, `SessionHandoffWidget`, and `ContextHealthWidget` to prevent tRPC hook crashes during `renderToStaticMarkup` in a Node test environment. Both integration tests now pass.

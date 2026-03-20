@@ -3,6 +3,30 @@
 ## Borg Changelog
 
 All notable changes to this project will be documented in this file.
+## [0.9.12] — 2026-03-20
+
+### Task 039 — Registry UX: Operator-Readable Blockers + Docker Recipe Support
+
+- fix(claude-mem/logger): Resolved unresolved merge conflict in `packages/claude-mem/src/utils/logger.ts`.
+  - Merged upstream/main `Component` type additions (`CHROMA_MCP`, `CHROMA_SYNC`, `FOLDER_INDEX`, `CLAUDE_MD`, `QUEUE`) with HEAD.
+  - `packages/claude-mem` now builds cleanly without being excluded from the workspace build.
+
+- feat(web/registry): Added human-readable failure class explanations to the server detail page (`apps/web/src/app/dashboard/registry/[uuid]/page.tsx`).
+  - New `FAILURE_CLASS_INFO` map covers all failure classes produced by `published-catalog-validator.ts`:
+    `no_recipe`, `stdio_unsafe`, `no_url_in_recipe`, `timeout`, `network_unreachable`, `connection_error`, `protocol_error`, `auth_required`, `unexpected_error`, and dynamic `http_<status>` codes.
+  - Each entry includes a short label and an operator-actionable hint shown inline in the validation history list.
+  - Added a "Known Blocker" banner that appears prominently below the server header whenever the latest run has a non-passing failure class.
+  - Combined tags and categories into a single unified badge row in the header.
+
+- feat(core/ingestor): Added Docker recipe generation to `buildBaselineRecipe` in `published-catalog-ingestor.ts`.
+  - `install_method === "docker"` now generates a `docker run --rm -i <image>` STDIO recipe with a 28% confidence baseline.
+  - Image name is derived from the GitHub repo path (e.g., `owner/repo`) or the display name.
+  - `GitHubTopicAdapter.inferInstallMethod()` now detects `docker`, `dockerfile`, and `container` repo topics and returns `"docker"` ahead of language-based inference.
+
+- test verification:
+  - `pnpm -C apps/web exec tsc --noEmit --pretty false` ✅
+  - `pnpm -C packages/core exec tsc --noEmit --pretty false` ✅
+
 ## [0.9.11] — 2026-03-20
 
 ### Task 038 — MCP Search UI Partial Preference Patching

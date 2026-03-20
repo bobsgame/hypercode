@@ -94,6 +94,63 @@ const OUTCOME_COLOR: Record<string, string> = {
     pending: "text-blue-400",
 };
 
+/**
+ * Human-readable descriptions for validation failure_class values produced by
+ * published-catalog-validator.ts.  Each entry includes a short label and an
+ * operator-actionable hint so the UI can surface "what does this mean and what can
+ * I do about it?" rather than just showing the raw machine code.
+ */
+const FAILURE_CLASS_INFO: Record<
+    string,
+    { label: string; hint: string; severity: "error" | "warning" | "info" }
+> = {
+    no_recipe: {
+        label: "No install recipe",
+        hint: "The Configurator has not generated a recipe for this server yet. Try running validation to trigger recipe generation, or wait for the next catalog sync.",
+        severity: "warning",
+    },
+    stdio_unsafe: {
+        label: "STDIO — sandbox required",
+        hint: "This server uses STDIO transport. Live validation requires Docker sandbox isolation which is not yet enabled. The server can still be installed manually if you trust the source.",
+        severity: "info",
+    },
+    no_url_in_recipe: {
+        label: "Missing server URL",
+        hint: "The active recipe has no URL. This is common for SSE/HTTP servers whose endpoint is listed only in documentation. Check the repository for the correct endpoint and update the recipe.",
+        severity: "warning",
+    },
+    timeout: {
+        label: "Connection timed out",
+        hint: "The server did not respond within 10 seconds. It may be offline, overloaded, or rate-limiting. Try again later or check the server status page.",
+        severity: "error",
+    },
+    network_unreachable: {
+        label: "Network unreachable",
+        hint: "DNS lookup or TCP connection failed — the server's host may be down or the URL is incorrect. Verify the repository for the current endpoint.",
+        severity: "error",
+    },
+    connection_error: {
+        label: "Connection error",
+        hint: "A network-level error occurred when contacting the server. Check your internet connection and try again.",
+        severity: "error",
+    },
+    protocol_error: {
+        label: "MCP protocol error",
+        hint: "The server responded but the MCP handshake (tools/list) failed. It may require authentication, run a different MCP version, or have a bug.",
+        severity: "error",
+    },
+    auth_required: {
+        label: "Authentication required",
+        hint: "The server requires credentials (API key, OAuth token, etc.). Add the required secrets via the Install dialog and try again.",
+        severity: "warning",
+    },
+    unexpected_error: {
+        label: "Unexpected validation error",
+        hint: "An unhandled error occurred during validation. This is likely a bug in the validator. Check the findings_summary for details.",
+        severity: "error",
+    },
+};
+
 function outcomeIcon(outcome: string) {
     if (outcome === "passed") return <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />;
     if (outcome === "failed" || outcome === "error") return <AlertCircle className="w-3.5 h-3.5 text-red-400" />;
@@ -303,11 +360,16 @@ export default function ServerDetailPage() {
                     </span>
                 </div>
 
-                {/* Tags */}
-                {server.tags && server.tags.length > 0 && (
+                {/* Tags + Categories */}
+                {((server.tags && server.tags.length > 0) || (server.categories && server.categories.length > 0)) && (
                     <div className="flex flex-wrap gap-1.5 mt-3">
-                        {server.tags.map((tag: string) => (
-                            <span key={tag} className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs bg-zinc-800/80 text-zinc-500 border border-zinc-800">
+                        {(server.categories ?? []).map((cat: string) => (
+                            <span key={`cat-${cat}`} className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-indigo-950/50 text-indigo-400 border border-indigo-900/50">
+                                {cat}
+                            </span>
+                        ))}
+                        {(server.tags ?? []).map((tag: string) => (
+                            <span key={`tag-${tag}`} className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs bg-zinc-800/80 text-zinc-500 border border-zinc-800">
                                 <Tag className="w-2.5 h-2.5" />
                                 {tag}
                             </span>
@@ -315,6 +377,38 @@ export default function ServerDetailPage() {
                     </div>
                 )}
             </div>
+
+            {/* Known Blocker banner — shown when the latest run has a failure class */}
+            {latestRun?.failure_class && latestRun.outcome !== "passed" && (() => {
+                const info = FAILURE_CLASS_INFO[latestRun.failure_class] ?? {
+                    label: latestRun.failure_class,
+                    hint: "See validation history for details.",
+                    severity: "error" as const,
+                };
+                const bannerColor =
+                    info.severity === "error"
+                        ? "bg-red-950/30 border-red-900/40"
+                        : info.severity === "warning"
+                        ? "bg-amber-950/30 border-amber-900/40"
+                        : "bg-zinc-900/50 border-zinc-800";
+                const labelColor =
+                    info.severity === "error" ? "text-red-400" :
+                    info.severity === "warning" ? "text-amber-400" :
+                    "text-zinc-400";
+                const Icon =
+                    info.severity === "error" ? AlertCircle :
+                    info.severity === "warning" ? AlertCircle :
+                    Clock;
+                return (
+                    <div className={`flex gap-3 p-4 rounded-xl border ${bannerColor}`}>
+                        <Icon className={`w-4 h-4 mt-0.5 shrink-0 ${labelColor}`} />
+                        <div>
+                            <p className={`text-sm font-medium ${labelColor}`}>Known blocker: {info.label}</p>
+                            <p className="text-xs text-zinc-400 mt-0.5 leading-relaxed">{info.hint}</p>
+                        </div>
+                    </div>
+                );
+            })()}
 
             {/* Two-column layout for recipe + history */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -385,7 +479,15 @@ export default function ServerDetailPage() {
                         <p className="text-sm text-zinc-600 italic">No validation runs yet.</p>
                     ) : (
                         <ul className="space-y-2">
-                            {runs.map((run: ValidationRun) => (
+                            {runs.map((run: ValidationRun) => {
+                                const failureInfo = run.failure_class
+                                    ? (FAILURE_CLASS_INFO[run.failure_class] ?? {
+                                        label: run.failure_class,
+                                        hint: "See findings summary for details.",
+                                        severity: "error" as const,
+                                    })
+                                    : null;
+                                return (
                                 <li key={run.uuid} className="text-xs border border-zinc-800 rounded-lg px-3 py-2 bg-zinc-900/30">
                                     <div className="flex items-center justify-between gap-2">
                                         <div className="flex items-center gap-1.5">
@@ -399,12 +501,26 @@ export default function ServerDetailPage() {
                                         </div>
                                         <span className="text-zinc-600 text-xs shrink-0">{formatDate(run.started_at)}</span>
                                     </div>
-                                    {run.failure_class && (
-                                        <p className="mt-1 text-red-500/80 font-mono">{run.failure_class}</p>
+                                    {failureInfo && (
+                                        <div className={`mt-1.5 rounded px-2 py-1 ${
+                                            failureInfo.severity === "error"
+                                                ? "bg-red-950/40 border border-red-900/40"
+                                                : failureInfo.severity === "warning"
+                                                ? "bg-amber-950/30 border border-amber-900/30"
+                                                : "bg-zinc-900/50 border border-zinc-800"
+                                        }`}>
+                                            <p className={`font-medium text-xs ${
+                                                failureInfo.severity === "error" ? "text-red-400" :
+                                                failureInfo.severity === "warning" ? "text-amber-400" :
+                                                "text-zinc-400"
+                                            }`}>{failureInfo.label}</p>
+                                            <p className="text-zinc-500 mt-0.5 leading-relaxed">{failureInfo.hint}</p>
+                                        </div>
                                     )}
                                     <p className="mt-0.5 text-zinc-600">{run.run_mode} · by {run.performed_by}</p>
                                 </li>
-                            ))}
+                                );
+                            })}
                         </ul>
                     )}
                 </Section>

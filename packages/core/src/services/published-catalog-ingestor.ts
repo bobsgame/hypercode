@@ -129,6 +129,26 @@ export function buildBaselineRecipe(
         };
     }
 
+    // Docker-based servers: generate a `docker run` STDIO recipe.
+    // We derive the image name from the canonical_id (e.g. github/<owner>/<repo>)
+    // or fall back to the display name, lowercased.  The operator will need to
+    // review the exact image tag and port/volume flags before install.
+    if (server.install_method === "docker") {
+        const imageGuess = repoPath
+            ? repoPath.toLowerCase()
+            : server.display_name.toLowerCase().replace(/\s+/g, "-");
+        return {
+            template: {
+                type: "stdio",
+                command: "docker",
+                args: ["run", "--rm", "-i", imageGuess],
+                env: {},
+            },
+            confidence: 28,
+            explanation: `Baseline Configurator recipe (Docker): docker run --rm -i ${imageGuess} — operator review required to confirm image tag and port/volume flags.`,
+        };
+    }
+
     if (server.transport === "sse" || server.transport === "streamable_http") {
         return {
             template: {
@@ -723,6 +743,8 @@ export class GitHubTopicAdapter implements CatalogSourceAdapter {
 
     private inferInstallMethod(topics: string[], language: string): string {
         const lang = language.toLowerCase();
+        // Docker-first: repos that tag themselves as containerized
+        if (topics.includes("docker") || topics.includes("dockerfile") || topics.includes("container")) return "docker";
         if (lang === "python" || topics.includes("python")) return "pip";
         if (lang === "go") return "go-install";
         if (lang === "rust" || topics.includes("rust")) return "cargo";

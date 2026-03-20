@@ -7,6 +7,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import { buildBaselineRecipe } from './published-catalog-ingestor.js';
 
 /**
  * Test transport normalization across different inputs.
@@ -221,6 +222,48 @@ describe('CatalogIngestor — Install Method Inference', () => {
         expect(inferInstallMethod(null)).toBe('npm');
         expect(inferInstallMethod(undefined)).toBe('npm');
         expect(inferInstallMethod('')).toBe('npm');
+    });
+});
+
+describe('CatalogIngestor — Baseline Recipe Generation', () => {
+    it('creates version-pinned npm npx recipe when package version is known', () => {
+        const recipe = buildBaselineRecipe(
+            {
+                canonical_id: 'npm/@modelcontextprotocol/server-filesystem',
+                display_name: 'Filesystem Server',
+                transport: 'stdio',
+                install_method: 'npm',
+                repository_url: 'https://github.com/modelcontextprotocol/servers',
+            },
+            '1.2.3',
+        );
+
+        expect(recipe.template).toMatchObject({
+            type: 'stdio',
+            command: 'npx',
+            args: ['-y', '@modelcontextprotocol/server-filesystem@1.2.3'],
+        });
+        expect(recipe.confidence).toBeGreaterThanOrEqual(40);
+        expect(recipe.explanation.toLowerCase()).toContain('version-pinned');
+    });
+
+    it('creates placeholder URL recipe for http transports to force operator review', () => {
+        const recipe = buildBaselineRecipe(
+            {
+                canonical_id: 'github/acme/http-server',
+                display_name: 'HTTP Server',
+                transport: 'streamable_http',
+                install_method: 'unknown',
+                repository_url: 'https://github.com/acme/http-server',
+            },
+            null,
+        );
+
+        expect(recipe.template).toMatchObject({
+            type: 'streamable_http',
+            url: 'https://example.com/mcp',
+        });
+        expect(recipe.confidence).toBeLessThan(30);
     });
 });
 

@@ -29,6 +29,131 @@
 
 import { publishedCatalogRepository } from "../db/repositories/published-catalog.repo.js";
 
+function parseNpmPackageName(canonicalId: string): string | null {
+    if (!canonicalId.startsWith("npm/")) return null;
+    const pkg = canonicalId.slice(4).trim();
+    return pkg.length > 0 ? pkg : null;
+}
+
+function readNpmVersionFromSources(sources: Array<{ source_name: string; raw_payload: unknown }>): string | null {
+    for (const source of sources) {
+        if (source.source_name !== "npm") continue;
+        const payload = source.raw_payload;
+        if (payload && typeof payload === "object" && !Array.isArray(payload)) {
+            const version = (payload as Record<string, unknown>).version;
+            if (typeof version === "string" && version.trim().length > 0) {
+                return version.trim();
+            }
+        }
+    }
+    return null;
+}
+
+function normalizeRepoPath(repositoryUrl?: string | null): string | null {
+    if (!repositoryUrl) return null;
+    const m = repositoryUrl.match(/github\.com\/([^/]+)\/([^/#?]+)/i);
+    if (!m) return null;
+    return `${m[1]}/${m[2].replace(/\.git$/i, "")}`;
+}
+
+export function buildBaselineRecipe(
+    server: {
+        canonical_id: string;
+        display_name: string;
+        transport: string;
+        install_method: string;
+        repository_url?: string | null;
+    },
+    npmVersion: string | null,
+): {
+    template: Record<string, unknown>;
+    confidence: number;
+    explanation: string;
+} {
+    const packageName = parseNpmPackageName(server.canonical_id);
+    const repoPath = normalizeRepoPath(server.repository_url ?? null);
+
+    if (server.install_method === "npm" && packageName) {
+        const pinnedSpec = npmVersion ? `${packageName}@${npmVersion}` : packageName;
+        return {
+            template: {
+                type: "stdio",
+                command: "npx",
+                args: ["-y", pinnedSpec],
+                env: {},
+            },
+            confidence: npmVersion ? 45 : 38,
+            explanation: npmVersion
+                ? `Baseline Configurator recipe (version-pinned): npx -y ${pinnedSpec}`
+                : `Baseline Configurator recipe: npx -y ${pinnedSpec}`,
+        };
+    }
+
+    if (server.install_method === "go-install" && repoPath) {
+        return {
+            template: {
+                type: "stdio",
+                command: "go",
+                args: ["install", `${repoPath}@latest`],
+                env: {},
+            },
+            confidence: 35,
+            explanation: `Baseline Configurator recipe: go install ${repoPath}@latest`,
+        };
+    }
+
+    if (server.install_method === "cargo" && repoPath) {
+        const crate = repoPath.split("/")[1] ?? repoPath;
+        return {
+            template: {
+                type: "stdio",
+                command: "cargo",
+                args: ["install", crate],
+                env: {},
+            },
+            confidence: 34,
+            explanation: `Baseline Configurator recipe: cargo install ${crate}`,
+        };
+    }
+
+    if (server.install_method === "pip" && packageName) {
+        return {
+            template: {
+                type: "stdio",
+                command: "uvx",
+                args: [packageName],
+                env: {},
+            },
+            confidence: 32,
+            explanation: `Baseline Configurator recipe: uvx ${packageName}`,
+        };
+    }
+
+    if (server.transport === "sse" || server.transport === "streamable_http") {
+        return {
+            template: {
+                type: server.transport,
+                url: "https://example.com/mcp",
+                headers: {},
+            },
+            confidence: 22,
+            explanation:
+                "Baseline Configurator recipe created with placeholder URL. Operator review required before validation/install.",
+        };
+    }
+
+    return {
+        template: {
+            type: "stdio",
+            command: "npx",
+            args: ["-y", server.display_name.toLowerCase().replace(/\s+/g, "-")],
+            env: {},
+        },
+        confidence: 20,
+        explanation: "Baseline Configurator fallback recipe generated from catalog metadata.",
+    };
+}
+
 export type IngestResult = {
     source: string;
     /** How many records were fetched from the source */
@@ -674,6 +799,41 @@ export async function ingestPublishedCatalog(
         }
     } catch (err) {
         console.warn("[CatalogIngestor] Normalization pass failed:", err);
+    }
+
+    // --- Configurator baseline recipe pass ---
+    // Ensure each ingested server has at least one active baseline recipe so operators
+    // can install from metadata immediately and improve the recipe over time.
+    try {
+        const servers = await publishedCatalogRepository.listServers({ limit: 400 });
+        let created = 0;
+
+        for (const server of servers) {
+            const active = await publishedCatalogRepository.getActiveRecipe(server.uuid);
+            if (active) continue;
+
+            const sources = await publishedCatalogRepository.findSourcesByServerUuid(server.uuid);
+            const npmVersion = readNpmVersionFromSources(sources as Array<{ source_name: string; raw_payload: unknown }>);
+            const baseline = buildBaselineRecipe(server, npmVersion);
+
+            await publishedCatalogRepository.createRecipe({
+                server_uuid: server.uuid,
+                template: baseline.template,
+                required_secrets: [],
+                required_env: {},
+                confidence: baseline.confidence,
+                explanation: baseline.explanation,
+                generated_by: "Configurator",
+            });
+
+            created++;
+        }
+
+        if (created > 0) {
+            console.info(`[CatalogIngestor] Baseline recipe pass: created ${created} active recipes`);
+        }
+    } catch (err) {
+        console.warn("[CatalogIngestor] Baseline recipe pass failed:", err);
     }
 
     const finishedAt = new Date().toISOString();

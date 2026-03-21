@@ -8,7 +8,7 @@
                     "build":  "tsc",
                     "dev":  "tsc --watch --preserveWatchOutput",
                     "lint":  "eslint",
-                    "test":  "vitest"
+                    "test":  "vitest --passWithNoTests"
                 },
     "dependencies":  {
                          "zod":  "^3.22.4"

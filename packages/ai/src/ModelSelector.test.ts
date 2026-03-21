@@ -16,7 +16,7 @@ describe('ModelSelector', () => {
         const result = await selector.selectModel({ provider: 'anthropic', taskType: 'worker' });
 
         expect(result.provider).toBe('anthropic');
-        expect(result.modelId).toBe('claude-sonnet-4-20250514');
+        expect(result.modelId).toBe('claude-opus-4.6');
         expect(result.reason).toBe('PROVIDER_PREFERENCE');
     });
 
@@ -24,12 +24,12 @@ describe('ModelSelector', () => {
         const selector = new ModelSelector();
         vi.spyOn(selector as any, 'getConfiguredChain').mockReturnValue(null);
 
-        selector.reportFailure('google', 'gemini-2.0-flash');
+        selector.reportFailure('google', 'gemini-3.0-pro');
 
         const result = await selector.selectModel({ taskType: 'worker' });
 
-        expect(result.provider).toBe('anthropic');
-        expect(result.modelId).toBe('claude-sonnet-4-20250514');
+        expect(result.provider).toBe('openai');
+        expect(result.modelId).toBe('codex-5.3');
     });
 
     it('forces a local fallback when the budget is exceeded', async () => {

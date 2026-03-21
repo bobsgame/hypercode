@@ -17,6 +17,7 @@ It is designed to be the central nervous system for all PC-based local AI tools,
 
 ### 2. The Universal MCP Intelligence Layer (Client & Server)
 *   **Ultimate MCP Client & Aggregator:** Combines many MCP servers into one "master" server. Handles dynamic progressive tool discovery, tool semantic search, tool RAG, context inspection, keep-alive, and heartbeats.
+*   **Universal Integrated MCP Directory:** A single operator-facing directory that unifies installed MCP servers, published MCP catalog entries, BobbyBookmarks link backlog items, and all future feature-group assets into one searchable and actionable inventory.
 *   **MCP Operations:** Automatic installation, dynamic grouping (namespaces for servers and tools), enabling/disabling individual tools, traffic inspection, and logging.
 *   **Advanced Routing & Proxying:** Translates between remote/local types, stdio/remote, SSE/streaming-HTTP. Implements tool renaming, context syntax minimization, tool call chaining, deferred binary startup (lazy loading), and code mode.
 *   **Verification:** Cryptographic attestation and evidence locking for all tool outputs to ensure infrastructure truthfulness.
@@ -28,6 +29,7 @@ It is designed to be the central nervous system for all PC-based local AI tools,
 *   **Intelligent Model Routing:** Automatic fallback and selection of alternative models when quotas are extinguished or budgets are met (e.g., switch across all providers of Gemini 3 Pro, then Codex 5.3, then Opus 4.6).
 
 ### 4. Omniscient Memory & RAG Ecosystem
+*   **Canonical Link Backlog:** Borg uses `github.com/robertpelloni/bobbybookmarks` as the canonical backlog datasource for links, bookmark imports, research status, deduplication, and clustering metadata.
 *   **Pluggable Memory Subsystems:** Support for diverse short-term, medium-term, and long-term memory architectures (vector databases, file-based, NotebookLM-style integration).
 *   **Context Operations:** Automatic context harvesting, pruning, compacting, reranking, rewriting, and semantic chunking.
 *   **Seamless Integration:** Tight hooks into Google Docs, Gmail, Google Drive, local file systems, and IDE/browser extensions to automatically ingest and categorize information during active sessions.

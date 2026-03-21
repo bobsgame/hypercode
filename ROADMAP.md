@@ -13,10 +13,13 @@ Evolve Borg into the **Ultimate Universal AI Dashboard**, bringing full feature 
 - **Phase J2:** Universal IDE & Browser Extensions (intercepting web chats, automatic context harvesting).
 - **Phase K:** Intelligent Model Routing & Quota Fallbacks.
 - **Phase K1:** Smarter provider fallback and quota-aware routing UX.
+- **Phase I1:** BobbyBookmarks-powered link backlog ingestion, deduplication, and research sync.
+- **Phase M1:** Universal integrated MCP directory spanning installed MCP servers, published catalog sources, link backlog sources, and future feature groups.
 
 ---
 
 ## Phase I — Omniscient Memory & RAG Ecosystem
+- [ ] Make `github.com/robertpelloni/bobbybookmarks` the canonical link backlog datasource for Borg, with sync into local backlog storage plus research/clustering metadata.
 - [ ] Pluggable Memory Subsystems (support for vector DBs, file-based, NotebookLM-style).
 - [ ] Automatic context harvesting, pruning, compacting, reranking, and semantic chunking.
 - [ ] Seamless integrations with Google Docs, Gmail, Google Drive, and local file systems.
@@ -42,6 +45,7 @@ Evolve Borg into the **Ultimate Universal AI Dashboard**, bringing full feature 
 - [ ] Transfer tasks to cloud dev environments and broadcast messages across instances.
 
 ## Phase M — Advanced MCP Aggregation & Proxying
+- [ ] Build a universal integrated MCP directory that becomes the shared operator-facing catalog surface for installed servers, published MCP entries, BobbyBookmarks backlog links, and every planned future feature group.
 - [ ] Fast, lightweight MCP server startup (load last-known-good config without blocking).
 - [ ] MCP Traffic Inspection, Code Mode, TOON format implementation.
 - [ ] Tool renaming, context syntax minimization, tool call chaining, deferred binary startup (lazy load).

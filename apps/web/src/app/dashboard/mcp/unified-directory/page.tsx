@@ -277,12 +277,22 @@ function UnifiedRow({ item }: { item: UnifiedItem }) {
                                 Open catalog entry
                             </Link>
                         ) : (
-                            <Link
-                                href={`/dashboard/links?search=${encodeURIComponent(item.subtitle ?? item.title)}&source=unified-directory${item.status ? `&research_status=${encodeURIComponent(item.status)}` : ""}${item.is_duplicate ? "&show_duplicates=true" : ""}`}
-                                className="inline-flex items-center text-xs text-cyan-300 hover:text-cyan-200 hover:underline"
-                            >
-                                Open in link backlog
-                            </Link>
+                            <>
+                                <Link
+                                    href={`/dashboard/links?search=${encodeURIComponent(item.subtitle ?? item.title)}&source=unified-directory${item.status ? `&research_status=${encodeURIComponent(item.status)}` : ""}${item.is_duplicate ? "&show_duplicates=true" : ""}`}
+                                    className="inline-flex items-center text-xs text-cyan-300 hover:text-cyan-200 hover:underline"
+                                >
+                                    Open in link backlog
+                                </Link>
+                                {item.is_duplicate && item.duplicate_of ? (
+                                    <Link
+                                        href={`/dashboard/links?search=${encodeURIComponent(item.duplicate_of)}&source=unified-directory&show_duplicates=true`}
+                                        className="inline-flex items-center text-xs text-amber-300 hover:text-amber-200 hover:underline"
+                                    >
+                                        Open canonical target
+                                    </Link>
+                                ) : null}
+                            </>
                         )}
                     </div>
                     {item.tags.length > 0 ? (

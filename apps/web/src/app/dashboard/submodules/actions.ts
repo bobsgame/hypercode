@@ -20,6 +20,150 @@ export interface LinkCategory {
     links: string[];
 }
 
+export interface WorkspaceInventoryEntry {
+    name: string;
+    path: string;
+    kind: 'app' | 'package' | 'submodule' | 'directory' | 'document' | 'script' | 'config';
+    summary: string;
+    packageName?: string;
+    version?: string;
+}
+
+export interface WorkspaceInventorySection {
+    id: string;
+    title: string;
+    description: string;
+    entries: WorkspaceInventoryEntry[];
+}
+
+const SECTION_DESCRIPTIONS: Record<string, string> = {
+    apps: 'Operator-facing applications and external integration surfaces.',
+    packages: 'Shared runtime libraries, services, engines, and reusable UI packages.',
+    submodules: 'Reference repos and mirrored upstream code tracked alongside Borg.',
+    docs: 'Long-lived architecture, deployment, planning, and research documents.',
+    scripts: 'Repo automation, build orchestration, maintenance, and tooling entrypoints.',
+};
+
+const ENTRY_SUMMARIES: Record<string, string> = {
+    'apps/web': 'Next.js operator dashboard and web control plane.',
+    'apps/borg-extension': 'Browser extension workspace for Chromium and Firefox bridge builds.',
+    'packages/core': 'Core backend runtime, council orchestration, MCP server, and tRPC APIs.',
+    'packages/cli': 'CLI harness and operator command entrypoint.',
+    'packages/ui': 'Shared React UI primitives and dashboard components.',
+    'packages/ai': 'Provider abstractions, model services, and routing helpers.',
+    'packages/memory': 'Memory storage and retrieval subsystem building blocks.',
+    'packages/search': 'Search and indexing utilities.',
+    'packages/agents': 'Agent orchestration and multi-actor runtime helpers.',
+    'scripts': 'Build, validation, and operator automation scripts.',
+    'docs': 'Vision, roadmap, deployment, and reference research.',
+    'submodules': 'Upstream/reference repositories mirrored for comparison and future parity work.',
+    'AGENTS.md': 'Top-level agent operating guidance for the repo.',
+    'VISION.md': 'Authoritative long-range product direction and control-plane goals.',
+    'ROADMAP.md': 'Major phases and medium/long-range implementation sequencing.',
+    'TODO.md': 'Short-horizon implementation queue and polish backlog.',
+    'CHANGELOG.md': 'Release-level historical log of notable changes.',
+    'DEPLOY.md': 'Deployment and startup instructions.',
+    'MEMORY.md': 'Persistent project observations and preferences.',
+    'README.md': 'Primary project overview and onboarding entrypoint.',
+};
+
+async function readPackageMetadata(basePath: string): Promise<{ packageName?: string; version?: string; description?: string }> {
+    try {
+        const pkgPath = path.join(basePath, 'package.json');
+        const pkgContent = await fs.readFile(pkgPath, 'utf-8');
+        const pkg = JSON.parse(pkgContent) as { name?: string; version?: string; description?: string };
+        return {
+            packageName: typeof pkg.name === 'string' ? pkg.name : undefined,
+            version: typeof pkg.version === 'string' ? pkg.version : undefined,
+            description: typeof pkg.description === 'string' ? pkg.description : undefined,
+        };
+    } catch {
+        return {};
+    }
+}
+
+async function readWorkspaceEntries(root: string, relativeDir: string, kind: WorkspaceInventoryEntry['kind']): Promise<WorkspaceInventoryEntry[]> {
+    const fullDir = path.join(root, relativeDir);
+
+    try {
+        const dirEntries = await fs.readdir(fullDir, { withFileTypes: true });
+        const visibleEntries = dirEntries
+            .filter((entry) => !entry.name.startsWith('.'))
+            .filter((entry) => ['document', 'script', 'config'].includes(kind) || entry.isDirectory())
+            .sort((a, b) => a.name.localeCompare(b.name));
+
+        return await Promise.all(visibleEntries.map(async (entry) => {
+            const relPath = path.join(relativeDir, entry.name).replace(/\\/g, '/');
+            const metadata = entry.isDirectory()
+                ? await readPackageMetadata(path.join(fullDir, entry.name))
+                : {};
+
+            return {
+                name: entry.name,
+                path: relPath,
+                kind,
+                summary: ENTRY_SUMMARIES[relPath] || metadata.description || `${entry.name} under ${relativeDir}.`,
+                packageName: metadata.packageName,
+                version: metadata.version,
+            };
+        }));
+    } catch {
+        return [];
+    }
+}
+
+export async function fetchWorkspaceInventoryAction(): Promise<WorkspaceInventorySection[]> {
+    const root = getMonorepoRoot();
+    const rootDocs = ['README.md', 'VISION.md', 'ROADMAP.md', 'TODO.md', 'CHANGELOG.md', 'DEPLOY.md', 'MEMORY.md', 'AGENTS.md'];
+    const rootEntries = await fs.readdir(root, { withFileTypes: true }).catch(() => []);
+    const rootEntryNames = new Set(rootEntries.map((entry) => entry.name));
+    const rootDocEntries = rootDocs.map((fileName) => {
+        if (!rootEntryNames.has(fileName)) {
+            return null;
+        }
+
+        return {
+            name: fileName,
+            path: fileName,
+            kind: fileName.endsWith('.md') ? 'document' as const : 'config' as const,
+            summary: ENTRY_SUMMARIES[fileName] || `${fileName} at repository root.`,
+        };
+    });
+
+    return [
+        {
+            id: 'apps',
+            title: 'Applications',
+            description: SECTION_DESCRIPTIONS.apps,
+            entries: await readWorkspaceEntries(root, 'apps', 'app'),
+        },
+        {
+            id: 'packages',
+            title: 'Packages',
+            description: SECTION_DESCRIPTIONS.packages,
+            entries: await readWorkspaceEntries(root, 'packages', 'package'),
+        },
+        {
+            id: 'submodules',
+            title: 'Reference repositories',
+            description: SECTION_DESCRIPTIONS.submodules,
+            entries: await readWorkspaceEntries(root, 'submodules', 'submodule'),
+        },
+        {
+            id: 'scripts',
+            title: 'Automation scripts',
+            description: SECTION_DESCRIPTIONS.scripts,
+            entries: await readWorkspaceEntries(root, 'scripts', 'script'),
+        },
+        {
+            id: 'docs',
+            title: 'Root docs & control files',
+            description: SECTION_DESCRIPTIONS.docs,
+            entries: rootDocEntries.filter((entry) => entry !== null) as WorkspaceInventoryEntry[],
+        },
+    ].filter((section) => section.entries.length > 0);
+}
+
 export async function fetchUserLinksAction(): Promise<LinkCategory[]> {
     const root = getMonorepoRoot();
     const linksPath = path.join(root, 'docs', 'USER_LINKS_ARCHIVE.md');

@@ -10,8 +10,8 @@ This short block is the source of truth for current execution.
 Evolve Borg into the **Ultimate Universal AI Dashboard**, bringing full feature parity with existing CLI harnesses (OpenCode, Claude Code, Aider, etc.) into a cohesive WebUI/CLI control plane with omniscient memory and intelligent fallback routing.
 
 ### Next up
-- **Phase I:** Omniscient Memory & Subsystem Integration (RAG parity, NotebookLM features).
-- **Phase J:** Universal IDE & Browser Extensions (intercepting web chats, automatic context harvesting).
+- **Phase J1:** Operator startup flow completion (`borg start --dashboard`, dashboard auto-open, MCP client registration UX).
+- **Phase J2:** Universal IDE & Browser Extensions (intercepting web chats, automatic context harvesting).
 - **Phase K:** Intelligent Model Routing & Quota Fallbacks.
 
 ---
@@ -23,10 +23,11 @@ Evolve Borg into the **Ultimate Universal AI Dashboard**, bringing full feature 
 - [ ] Export/Import and autodetect of sessions and memories across environments.
 
 ## Phase J — Universal Integrations (Browser & IDE)
-- [ ] **Browser Extensions** (Chrome/Firefox): Connect core memory/MCP to web chat interfaces (ChatGPT, Claude, Gemini).
+- [~] **Browser Extensions** (Chrome/Firefox): install surfaces, artifact detection, and bridge readiness are present; client registration and deeper runtime parity remain.
 - [ ] Browser controls: scrape web pages, intercept debug logs, read history.
-- [ ] **IDE Plugins** (VSCode, Cursor, Windsurf, JetBrains): Connect to Borg core to access memories, skills, configurations.
+- [~] **IDE Plugins** (VSCode, Cursor, Windsurf, JetBrains): VS Code packaging/install scaffolding exists; deeper core integration remains.
 - [ ] Provide new hook events to the IDE and automatically save sessions.
+- [ ] Add a non-destructive Borg MCP registration workflow and dashboard auto-launch startup path.
 
 ## Phase K — Intelligent Model Routing & Quota Fallbacks
 - [ ] Smart provider and model selection based on quota usage and budgets.

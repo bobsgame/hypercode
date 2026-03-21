@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   normalizeSubmodules,
   normalizeUserLinks,
+  normalizeWorkspaceInventory,
   summarizeSubmoduleCounts,
 } from './submodules/submodules-page-normalizers';
 
@@ -67,6 +68,65 @@ describe('submodules page normalizers', () => {
       { name: 'Docs', links: ['https://a.dev'] },
       { name: 'Category 2', links: [] },
       { name: 'Category 3', links: [] },
+    ]);
+  });
+
+  it('normalizes workspace inventory sections safely', () => {
+    const sections = normalizeWorkspaceInventory([
+      {
+        id: ' apps ',
+        title: ' Applications ',
+        description: ' Operator surfaces ',
+        entries: [
+          {
+            name: ' web ',
+            path: ' apps/web ',
+            kind: 'app',
+            summary: ' Dashboard ',
+            packageName: ' @borg/web ',
+            version: ' 0.10.0 ',
+          },
+          {
+            name: '',
+            path: null,
+            kind: 'mystery',
+            summary: '',
+          },
+        ],
+      },
+      null,
+    ] as any);
+
+    expect(sections).toEqual([
+      {
+        id: 'apps',
+        title: 'Applications',
+        description: 'Operator surfaces',
+        entries: [
+          {
+            name: 'web',
+            path: 'apps/web',
+            kind: 'app',
+            summary: 'Dashboard',
+            packageName: '@borg/web',
+            version: '0.10.0',
+          },
+          {
+            name: 'Entry 2',
+            path: 'unknown/path-2',
+            kind: 'directory',
+            summary: 'No summary available.',
+            packageName: undefined,
+            version: undefined,
+          },
+        ],
+      },
+      {
+        id: 'section-2',
+        title: 'Section 2',
+        description: 'No description available.',
+        entries: [],
+      },
     ]);
   });
 

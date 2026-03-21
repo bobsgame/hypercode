@@ -2,29 +2,34 @@
 
 import { Card, CardHeader, CardTitle, CardContent, CardDescription, Tabs, TabsContent, TabsList, TabsTrigger } from "@borg/ui";
 import { useEffect, useState } from "react";
-import { fetchSubmodulesAction, healSubmodulesAction, fetchUserLinksAction } from "./actions";
+import { fetchSubmodulesAction, healSubmodulesAction, fetchUserLinksAction, fetchWorkspaceInventoryAction } from "./actions";
 import { Button } from "@borg/ui";
-import { Loader2, RefreshCw, GitCommit, Calendar, ExternalLink, Copy, Check } from "lucide-react";
+import { Loader2, RefreshCw, GitCommit, Calendar, ExternalLink, Copy, Check, FolderTree, Package2, ScrollText } from "lucide-react";
 import {
     normalizeSubmodules,
     normalizeUserLinks,
+    normalizeWorkspaceInventory,
     summarizeSubmoduleCounts,
     type NormalizedLinkCategory,
     type NormalizedSubmoduleInfo,
+    type NormalizedWorkspaceInventorySection,
 } from './submodules-page-normalizers';
 
 export default function SubmodulesPage() {
     const [submodules, setSubmodules] = useState<NormalizedSubmoduleInfo[]>([]);
     const [userLinks, setUserLinks] = useState<NormalizedLinkCategory[]>([]);
+    const [workspaceInventory, setWorkspaceInventory] = useState<NormalizedWorkspaceInventorySection[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         Promise.all([
             fetchSubmodulesAction(),
-            fetchUserLinksAction()
-        ]).then(([subs, links]) => {
+            fetchUserLinksAction(),
+            fetchWorkspaceInventoryAction(),
+        ]).then(([subs, links, inventory]) => {
             setSubmodules(normalizeSubmodules(subs));
             setUserLinks(normalizeUserLinks(links));
+            setWorkspaceInventory(normalizeWorkspaceInventory(inventory));
             setLoading(false);
         });
     }, []);
@@ -160,58 +165,79 @@ export default function SubmodulesPage() {
                 </TabsContent>
 
                 <TabsContent value="structure">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Borg Project Structure</CardTitle>
-                            <CardDescription>
-                                Architectural overview of the monorepo.
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            <div className="text-sm text-muted-foreground space-y-1 font-mono">
-                                <StructureItem icon="📂" name="apps/" description="Application Entry Points">
-                                    <StructureItem icon="📦" name="web" description="Next.js Dashboard (Mission Control, 31+ pages)" />
-                                    <StructureItem icon="📦" name="extension" description="Browser Agent (Chrome/Edge Bridge)" />
-                                    <StructureItem icon="📦" name="vscode" description="VS Code Extension (Observer)" />
-                                </StructureItem>
+                    <div className="space-y-4">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Borg Project Structure</CardTitle>
+                                <CardDescription>
+                                    Live workspace inventory for apps, packages, docs, scripts, and reference repos.
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent className="grid gap-4 md:grid-cols-3">
+                                <StatusCard title="Sections" value={workspaceInventory.length} color="text-cyan-500" />
+                                <StatusCard title="Tracked entries" value={workspaceInventory.reduce((sum, section) => sum + section.entries.length, 0)} color="text-violet-500" />
+                                <StatusCard title="Documented resources" value={userLinks.length} color="text-amber-500" />
+                            </CardContent>
+                        </Card>
 
-                                <StructureItem icon="📂" name="packages/" description="Shared Logic">
-                                    <StructureItem icon="📦" name="core" description="Backend: Express + tRPC + WebSocket + MCP Server" />
-                                    <StructureItem icon="📦" name="ai" description="LLMService, ModelSelector, provider management" />
-                                    <StructureItem icon="📦" name="agents" description="Director, Council, Supervisor, orchestration" />
-                                    <StructureItem icon="📦" name="tools" description="File, terminal, browser, chain executor tools" />
-                                    <StructureItem icon="📦" name="memory" description="VectorStore, MemoryManager, graph memory" />
-                                    <StructureItem icon="📦" name="search" description="SearchService (semantic, ripgrep, AST)" />
-                                    <StructureItem icon="📦" name="ui" description="Shared React components (Tailwind)" />
-                                    <StructureItem icon="📦" name="cli" description="Commander.js CLI with 11 command groups" />
-                                </StructureItem>
-
-                                <StructureItem icon="📂" name="references/" description="Submodule reference implementations (200+)" />
-                                <StructureItem icon="📂" name="docs/" description="Project documentation & architecture records" />
-                            </div>
-                        </CardContent>
-                    </Card>
+                        {workspaceInventory.map((section) => (
+                            <Card key={section.id}>
+                                <CardHeader>
+                                    <div className="flex items-center gap-2">
+                                        <SectionIcon sectionId={section.id} />
+                                        <CardTitle>{section.title}</CardTitle>
+                                    </div>
+                                    <CardDescription>{section.description}</CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                                        {section.entries.map((entry) => (
+                                            <div key={entry.path} className="rounded-lg border bg-muted/20 p-4 space-y-3">
+                                                <div className="flex items-start justify-between gap-3">
+                                                    <div>
+                                                        <div className="font-medium">{entry.name}</div>
+                                                        <div className="text-xs text-muted-foreground font-mono mt-1">{entry.path}</div>
+                                                    </div>
+                                                    <span className="rounded-full border px-2 py-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+                                                        {entry.kind}
+                                                    </span>
+                                                </div>
+                                                <p className="text-sm text-muted-foreground">{entry.summary}</p>
+                                                <div className="flex flex-wrap gap-2">
+                                                    {entry.packageName && (
+                                                        <span className="rounded-full border border-blue-500/20 bg-blue-500/10 px-2 py-1 text-[11px] text-blue-300 font-mono">
+                                                            {entry.packageName}
+                                                        </span>
+                                                    )}
+                                                    {entry.version && (
+                                                        <span className="rounded-full border border-zinc-700 bg-zinc-900 px-2 py-1 text-[11px] text-zinc-300 font-mono">
+                                                            v{entry.version}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        ))}
+                    </div>
                 </TabsContent>
             </Tabs>
         </div>
     );
 }
 
-function StructureItem({ icon, name, description, children }: { icon: string, name: string, description: string, children?: React.ReactNode }) {
-    return (
-        <div className="ml-2">
-            <div className="flex items-center gap-2 py-1">
-                <span className="text-blue-500">{icon}</span>
-                <span className="font-semibold text-foreground">{name}</span>
-                <span className="text-xs text-muted-foreground">({description})</span>
-            </div>
-            {children && (
-                <div className="pl-6 border-l ml-2 border-zinc-200 dark:border-zinc-800">
-                    {children}
-                </div>
-            )}
-        </div>
-    )
+function SectionIcon({ sectionId }: { sectionId: string }) {
+    if (sectionId === 'apps') {
+        return <FolderTree className="h-4 w-4 text-cyan-400" />;
+    }
+
+    if (sectionId === 'packages') {
+        return <Package2 className="h-4 w-4 text-violet-400" />;
+    }
+
+    return <ScrollText className="h-4 w-4 text-amber-400" />;
 }
 
 function ResourceLink({ url }: { url: string }) {

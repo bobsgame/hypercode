@@ -75,6 +75,100 @@ function runPnpm(commandArgs, options = {}) {
   });
 }
 
+function getProcessList() {
+  if (process.platform === "win32") {
+    const result = spawnSync(
+      "powershell.exe",
+      [
+        "-NoProfile",
+        "-Command",
+        "Get-CimInstance Win32_Process | Select-Object ProcessId, Name, CommandLine | ConvertTo-Json -Compress",
+      ],
+      {
+        cwd: repoRoot,
+        encoding: "utf-8",
+        stdio: "pipe",
+        shell: false,
+        env: process.env,
+      },
+    );
+
+    if (result.error || (result.status ?? 1) !== 0 || !result.stdout.trim()) {
+      return [];
+    }
+
+    try {
+      const parsed = JSON.parse(result.stdout);
+      const rows = Array.isArray(parsed) ? parsed : [parsed];
+      return rows.map((row) => ({
+        pid: Number(row.ProcessId),
+        name: String(row.Name ?? ""),
+        commandLine: String(row.CommandLine ?? ""),
+      }));
+    } catch {
+      return [];
+    }
+  }
+
+  const result = spawnSync("ps", ["-ax", "-o", "pid=,command="], {
+    cwd: repoRoot,
+    encoding: "utf-8",
+    stdio: "pipe",
+    shell: false,
+    env: process.env,
+  });
+
+  if (result.error || (result.status ?? 1) !== 0 || !result.stdout.trim()) {
+    return [];
+  }
+
+  return result.stdout
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const match = line.match(/^(\d+)\s+(.*)$/);
+      if (!match) {
+        return null;
+      }
+
+      return {
+        pid: Number(match[1]),
+        name: "",
+        commandLine: match[2],
+      };
+    })
+    .filter(Boolean);
+}
+
+function hasActiveNextBuild(appDir) {
+  const appDirLower = appDir.toLowerCase();
+  const appPathFragment = appDirLower.replace(/\\/g, "/");
+
+  return getProcessList().some((proc) => {
+    const command = proc.commandLine.toLowerCase().replace(/\\/g, "/");
+    return command.includes("next build")
+      && (command.includes(appPathFragment) || command.includes("apps/web"));
+  });
+}
+
+function clearStaleNextBuildLock(appRelativeDir) {
+  const appDir = path.join(repoRoot, ...appRelativeDir.split("/"));
+  const lockPath = path.join(appDir, ".next", "lock");
+
+  if (!existsSync(lockPath)) {
+    return;
+  }
+
+  if (hasActiveNextBuild(appDir)) {
+    printStep(`Detected an active Next.js build for ${appRelativeDir}; leaving ${path.relative(repoRoot, lockPath)} in place.`);
+    return;
+  }
+
+  rmSync(lockPath, { force: true });
+  printStep(`Removed stale Next.js lock at ${path.relative(repoRoot, lockPath)}.`);
+}
+
 function copyDirectory(sourceDir, targetDir) {
   rmSync(targetDir, { recursive: true, force: true });
   mkdirSync(path.dirname(targetDir), { recursive: true });
@@ -114,6 +208,7 @@ function directoryHasMergeMarkers(rootDir) {
 
 function runWorkspaceBuild() {
   printStep("Running Turbo workspace build (includes VS Code and browser-extension package workspaces)...");
+  clearStaleNextBuildLock("apps/web");
 
   const turboArgs = [
     "exec",

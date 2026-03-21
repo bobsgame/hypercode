@@ -16,6 +16,22 @@ export interface NormalizedLinkCategory {
   links: string[];
 }
 
+export interface NormalizedWorkspaceInventoryEntry {
+  name: string;
+  path: string;
+  kind: 'app' | 'package' | 'submodule' | 'directory' | 'document' | 'script' | 'config';
+  summary: string;
+  packageName?: string;
+  version?: string;
+}
+
+export interface NormalizedWorkspaceInventorySection {
+  id: string;
+  title: string;
+  description: string;
+  entries: NormalizedWorkspaceInventoryEntry[];
+}
+
 export interface SubmoduleSummaryCounts {
   clean: number;
   dirty: number;
@@ -52,6 +68,21 @@ const normalizeStatus = (value: unknown): NormalizedSubmoduleStatus => {
   }
 };
 
+const normalizeInventoryKind = (value: unknown): NormalizedWorkspaceInventoryEntry['kind'] => {
+  switch (value) {
+    case 'app':
+    case 'package':
+    case 'submodule':
+    case 'directory':
+    case 'document':
+    case 'script':
+    case 'config':
+      return value;
+    default:
+      return 'directory';
+  }
+};
+
 export const normalizeSubmodules = (payload: unknown): NormalizedSubmoduleInfo[] => {
   if (!Array.isArray(payload)) return [];
 
@@ -66,6 +97,34 @@ export const normalizeSubmodules = (payload: unknown): NormalizedSubmoduleInfo[]
       lastCommitMessage: asOptionalTrimmedString(sub.lastCommitMessage),
       version: asOptionalTrimmedString(sub.version),
       pkgName: asOptionalTrimmedString(sub.pkgName),
+    };
+  });
+};
+
+export const normalizeWorkspaceInventory = (payload: unknown): NormalizedWorkspaceInventorySection[] => {
+  if (!Array.isArray(payload)) return [];
+
+  return payload.map((row, index) => {
+    const section = asRecord(row);
+    const entries = Array.isArray(section.entries)
+      ? section.entries.map((entry, entryIndex) => {
+          const item = asRecord(entry);
+          return {
+            name: asTrimmedString(item.name, `Entry ${entryIndex + 1}`),
+            path: asTrimmedString(item.path, `unknown/path-${entryIndex + 1}`),
+            kind: normalizeInventoryKind(item.kind),
+            summary: asTrimmedString(item.summary, 'No summary available.'),
+            packageName: asOptionalTrimmedString(item.packageName),
+            version: asOptionalTrimmedString(item.version),
+          };
+        })
+      : [];
+
+    return {
+      id: asTrimmedString(section.id, `section-${index + 1}`),
+      title: asTrimmedString(section.title, `Section ${index + 1}`),
+      description: asTrimmedString(section.description, 'No description available.'),
+      entries,
     };
   });
 };

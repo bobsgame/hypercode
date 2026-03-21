@@ -3,9 +3,11 @@
 _Short-term tasks, bug fixes, and feature implementations. For long-term goals, see ROADMAP.md._
 
 ## UI & Dashboard (apps/web)
-- [ ] Implement Dashboard page/panel listing all submodules, versions, build numbers, dates, and their exact locations in the directory structure.
-- [ ] Add explicit explanations of the project directory structure layout directly in the UI.
-- [ ] Polish the Roundtable/Council UI: Hook up all "Placeholder" sections (Session Grid, History Table) to actual live state.
+- [x] Implement Dashboard page/panel listing submodules, versions, dates, and exact repository locations.
+- [x] Add explicit explanations of the project directory structure layout directly in the UI with a live workspace inventory.
+- [x] Polish the Roundtable/Council UI enough to render live sessions, history, and Smart Pilot compatibility against the migrated council API.
+- [ ] Wire a non-destructive "Add Borg as MCP server" action into the Integration Hub for detected MCP client targets.
+- [ ] Add a `borg start --dashboard` / auto-launch dashboard flow so startup matches the intended operator experience.
 - [ ] Ensure all features are thoroughly documented within the UI (tooltips, labels, descriptions).
 - [ ] Implement "Code Mode" escape hatch interface in the dashboard.
 - [ ] Create detailed usage/billing subpanels tracking credit balances per provider.
@@ -30,6 +32,7 @@ _Short-term tasks, bug fixes, and feature implementations. For long-term goals, 
 
 ## Automation & Scripts
 - [ ] Create automated script to check versions of all submodules, update them, and generate the UI data feed for the submodule dashboard.
+- [x] Harden workspace build startup by clearing stale Next.js web build locks when no active `next build` process exists.
 - [ ] Standardize and document the 7-step merge protocol for handling upstream forks.
 
 ## Documentation

@@ -125,6 +125,12 @@ export default function UnifiedDirectoryPage() {
         return `${stats.combined_total.toLocaleString()} total entries · ${stats.catalog.total.toLocaleString()} catalog · ${stats.backlog.total.toLocaleString()} backlog`;
     }, [stats]);
 
+    useEffect(() => {
+        if (page > 0 && page >= totalPages) {
+            setPage(totalPages - 1);
+        }
+    }, [page, totalPages]);
+
     return (
         <div className="p-6 max-w-7xl mx-auto space-y-6">
             <div className="flex items-center justify-between gap-4 flex-wrap">

@@ -4,6 +4,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.10.22] — 2026-03-21
+
+### Unified Directory Pagination Clamp
+
+- feat(web/unified-directory): Added page-boundary clamping in `apps/web/src/app/dashboard/mcp/unified-directory/page.tsx`.
+  - When active filters reduce result count and current page becomes out-of-range, the UI now auto-adjusts to the last valid page.
+  - Prevents stale empty-page states caused by pagination pointing beyond filtered totals.
+
+- verification:
+  - `pnpm -C apps/web exec tsc --noEmit --pretty false` ✅
+  - `pnpm -C packages/core exec tsc --noEmit --pretty false` ✅
+
 ## [0.10.21] — 2026-03-21
 
 ### Unified Directory Source-Aware URL Hydration Normalization

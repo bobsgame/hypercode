@@ -38,6 +38,8 @@
 > Capture guide: [`docs/screenshots/README.md`](docs/screenshots/README.md)
 >
 > Refresh status + validate in one step: `pnpm run visuals:refresh`
+>
+> Enforce all screenshots before release: `pnpm run visuals:refresh:strict`
 
 | Capture | Target path | Status |
 |---|---|---|

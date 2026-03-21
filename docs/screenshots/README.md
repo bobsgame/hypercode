@@ -53,3 +53,7 @@ Automatically update the screenshot status column in root `README.md`:
 Run sync + validation together:
 
 `pnpm run visuals:refresh`
+
+For release-level enforcement (fails if any required screenshot is missing):
+
+`pnpm run visuals:refresh:strict`

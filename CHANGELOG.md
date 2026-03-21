@@ -4,6 +4,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.10.4] — 2026-03-21
+
+### Unified Directory URL Filter Hydration
+
+- feat(web/unified-directory): Added URL-driven filter hydration to `apps/web/src/app/dashboard/mcp/unified-directory/page.tsx`.
+  - Reads `search`, `source`, and `show_duplicates` query params using `useSearchParams`.
+  - Hydrates local UI state from URL and resets pagination when deep-linked filters are present.
+  - Displays a contextual note when the page is prefiltered from URL parameters.
+
+- verification:
+  - `pnpm -C apps/web exec tsc --noEmit --pretty false` ✅
+  - `pnpm -C packages/core exec tsc --noEmit --pretty false` ✅
+
 ## [0.10.3] — 2026-03-21
 
 ### Unified Directory Navigation UX Improvements

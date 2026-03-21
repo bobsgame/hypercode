@@ -197,6 +197,14 @@ export const MCP_TESTING_NAV: NavItem[] = [
         description: "Catalog view of available tools with metadata and filtering support.",
         variant: "ghost",
     },
+    {
+        title: "Unified Directory",
+        href: "/dashboard/mcp/unified-directory",
+        icon: Database,
+        description: "Merged view of published MCP catalog entries and BobbyBookmarks backlog items.",
+        variant: "ghost",
+        badge: "beta",
+    },
 ];
 
 export const META_MCP_NAV: NavItem[] = [

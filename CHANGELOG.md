@@ -4,6 +4,30 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.10.1] — 2026-03-21
+
+### Unified Directory (first integrated slice)
+
+- feat(core/trpc): Added `unifiedDirectory` tRPC router in `packages/core/src/routers/unifiedDirectoryRouter.ts` and registered it in `packages/core/src/trpc.ts`.
+  - `list` procedure merges published catalog servers and backlog links into one discriminated union feed.
+  - Supports `limit`, `offset`, `search`, `source` (`all` | `catalog` | `backlog`), and `show_duplicates` (backlog).
+  - Returns source totals (`catalog`, `backlog`) plus combined total.
+  - Sorts merged entries by most recent update/create timestamp.
+
+- feat(web/mcp): Added new dashboard page `apps/web/src/app/dashboard/mcp/unified-directory/page.tsx`.
+  - Added source-filtered merged table with status/source badges.
+  - Added summary cards for combined totals, catalog quality snapshot, and backlog activity.
+  - Added search + duplicate-toggle UX for backlog-heavy workflows.
+
+- feat(nav): Added `Unified Directory` nav item under `MCP_TESTING_NAV` in `apps/web/src/components/mcp/nav-config.ts` (`/dashboard/mcp/unified-directory`).
+
+- fix(validation): Verified no active broken Vitest reporter usage in live scripts/tasks; targeted CLI start test task runs successfully.
+
+- verification:
+  - `pnpm -C packages/core exec tsc --noEmit --pretty false` ✅
+  - `pnpm -C packages/core build` ✅
+  - `pnpm -C apps/web exec tsc --noEmit --pretty false` ✅
+
 ## [0.10.0] — 2026-03-20
 
 ### Massive Vision & Documentation Overhaul

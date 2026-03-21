@@ -63,22 +63,27 @@ export default function UnifiedDirectoryPage() {
         ? (queryResearchStatusRaw as (typeof RESEARCH_FILTERS)[number])
         : "";
     const queryBacklogFiltersEnabled = querySource !== "catalog";
+    const hydratedQueryResearchStatus = queryBacklogFiltersEnabled ? queryResearchStatus : "";
+    const hydratedQueryShowDuplicates = queryBacklogFiltersEnabled ? queryShowDuplicates : false;
+    const hydratedQueryDuplicatesOnly = queryBacklogFiltersEnabled ? queryDuplicatesOnly : false;
     const hasEffectiveQueryPrefilters = Boolean(
         querySearch
             || querySource !== "all"
-            || (queryBacklogFiltersEnabled && (queryResearchStatus || queryShowDuplicates || queryDuplicatesOnly)),
+            || hydratedQueryResearchStatus
+            || hydratedQueryShowDuplicates
+            || hydratedQueryDuplicatesOnly,
     );
 
     useEffect(() => {
         if (querySearch !== search) setSearch(querySearch);
         if (querySource !== source) setSource(querySource);
-        if (queryResearchStatus !== researchStatus) setResearchStatus(queryResearchStatus);
-        if (queryShowDuplicates !== showDuplicates) setShowDuplicates(queryShowDuplicates);
-        if (queryDuplicatesOnly !== duplicatesOnly) setDuplicatesOnly(queryDuplicatesOnly);
+        if (hydratedQueryResearchStatus !== researchStatus) setResearchStatus(hydratedQueryResearchStatus);
+        if (hydratedQueryShowDuplicates !== showDuplicates) setShowDuplicates(hydratedQueryShowDuplicates);
+        if (hydratedQueryDuplicatesOnly !== duplicatesOnly) setDuplicatesOnly(hydratedQueryDuplicatesOnly);
         if (hasEffectiveQueryPrefilters) setPage(0);
         // Hydrate from URL params without overriding user changes unless params change.
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [querySearch, querySource, queryResearchStatus, queryShowDuplicates, queryDuplicatesOnly, hasEffectiveQueryPrefilters]);
+    }, [querySearch, querySource, hydratedQueryResearchStatus, hydratedQueryShowDuplicates, hydratedQueryDuplicatesOnly, hasEffectiveQueryPrefilters]);
 
     const { data: stats } = trpc.unifiedDirectory.stats.useQuery();
     const backlogFiltersEnabled = source !== "catalog";

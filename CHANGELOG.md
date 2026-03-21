@@ -4,6 +4,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.10.21] — 2026-03-21
+
+### Unified Directory Source-Aware URL Hydration Normalization
+
+- feat(web/unified-directory): Updated URL hydration in `apps/web/src/app/dashboard/mcp/unified-directory/page.tsx` to normalize backlog-only query params when source scope excludes backlog (`source=catalog`).
+  - Hydration now coerces backlog-only URL state to defaults in catalog-only mode:
+    - `research_status` -> `""`
+    - `show_duplicates` -> `false`
+    - `duplicates_only` -> `false`
+  - Prevents hidden backlog filter state from persisting due to deep-link params that are out-of-scope for the selected source.
+
+- verification:
+  - `pnpm -C apps/web exec tsc --noEmit --pretty false` ✅
+  - `pnpm -C packages/core exec tsc --noEmit --pretty false` ✅
+
 ## [0.10.20] — 2026-03-21
 
 ### Unified Directory Source Switch Filter Cleanup

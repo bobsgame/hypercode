@@ -4,6 +4,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.10.26] — 2026-03-21
+
+### useSearchParams Suspense Guard Precision Upgrade
+
+- test(web/app-router): Hardened `apps/web/src/app/use-search-params-suspense-guard.test.ts` to verify Suspense is present on the **default export path** for page files that use `useSearchParams()`.
+  - Uses TypeScript AST parsing to resolve default export declarations (including `export default Identifier` patterns).
+  - Prevents false positives where `<Suspense>` exists in file but not on the rendered page export path.
+
+- verification:
+  - `pnpm exec vitest run apps/web/src/app/use-search-params-suspense-guard.test.ts` ✅
+  - `pnpm -C apps/web exec tsc --noEmit --pretty false` ✅
+  - `pnpm -C apps/web build` ✅
+
 ## [0.10.25] — 2026-03-21
 
 ### useSearchParams Suspense Regression Guard

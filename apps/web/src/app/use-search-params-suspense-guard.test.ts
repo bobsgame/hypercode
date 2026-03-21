@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import ts from "typescript";
 import { describe, expect, it } from "vitest";
 
 const APP_DIR = path.resolve(__dirname);
@@ -28,6 +29,48 @@ function normalize(p: string): string {
     return p.replace(/\\/g, "/");
 }
 
+function getDefaultExportSnippet(source: string): string | null {
+    const sourceFile = ts.createSourceFile("page.tsx", source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+
+    const resolveIdentifierDeclaration = (name: string): ts.Node | null => {
+        for (const statement of sourceFile.statements) {
+            if (ts.isFunctionDeclaration(statement) && statement.name?.text === name) {
+                return statement;
+            }
+            if (ts.isVariableStatement(statement)) {
+                for (const declaration of statement.declarationList.declarations) {
+                    if (ts.isIdentifier(declaration.name) && declaration.name.text === name) {
+                        return declaration;
+                    }
+                }
+            }
+        }
+        return null;
+    };
+
+    for (const statement of sourceFile.statements) {
+        if (
+            ts.isFunctionDeclaration(statement)
+            && statement.modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.DefaultKeyword)
+        ) {
+            return source.slice(statement.getStart(sourceFile), statement.end);
+        }
+
+        if (ts.isExportAssignment(statement)) {
+            if (ts.isIdentifier(statement.expression)) {
+                const declaration = resolveIdentifierDeclaration(statement.expression.text);
+                if (declaration) {
+                    return source.slice(declaration.getStart(sourceFile), declaration.end);
+                }
+            }
+
+            return source.slice(statement.getStart(sourceFile), statement.end);
+        }
+    }
+
+    return null;
+}
+
 describe("App Router useSearchParams safety", () => {
     it("wraps page-level useSearchParams usage in a Suspense boundary", () => {
         const pageFiles = walk(APP_DIR)
@@ -44,16 +87,19 @@ describe("App Router useSearchParams safety", () => {
 
             const hasSuspenseImport = /import\s+[^;]*\bSuspense\b[^;]*from\s+["']react["']/.test(source)
                 || /import\s+\*\s+as\s+React\s+from\s+["']react["']/.test(source);
-            const hasSuspenseUsage = /<Suspense\b/.test(source);
+            const defaultExportSnippet = getDefaultExportSnippet(source);
+            const hasSuspenseOnDefaultExportPath = defaultExportSnippet
+                ? /<(?:React\.)?Suspense\b/.test(defaultExportSnippet)
+                : false;
 
-            if (!hasSuspenseImport || !hasSuspenseUsage) {
+            if (!hasSuspenseImport || !hasSuspenseOnDefaultExportPath) {
                 offenders.push(file);
             }
         }
 
         expect(
             offenders,
-            `Pages using useSearchParams without Suspense import/usage: ${JSON.stringify(offenders, null, 2)}`,
+            `Pages using useSearchParams without Suspense on default export path: ${JSON.stringify(offenders, null, 2)}`,
         ).toEqual([]);
     });
 });

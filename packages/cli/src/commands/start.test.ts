@@ -193,6 +193,19 @@ describe('acquireSingleInstanceLock', () => {
         })).rejects.toThrow('Borg is already running');
     });
 
+    it('fails clearly when the requested port is already occupied by another process', async () => {
+        const dataDir = createTempDir();
+
+        await expect(acquireSingleInstanceLock({
+            dataDir,
+            requestedPort: 4000,
+            explicitPort: false,
+            host: '127.0.0.1',
+        }, {
+            isPortFree: async () => false,
+        })).rejects.toThrow('Port 4000 is already in use by another process');
+    });
+
     it('releases the lock when startup crashes with an uncaught exception', async () => {
         const dataDir = createTempDir();
         const handle = await acquireSingleInstanceLock({

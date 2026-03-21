@@ -180,6 +180,18 @@ export async function acquireSingleInstanceLock(
         }
       };
 
+      const selectedPortIsFree = selectedPort > 0
+        ? await checkPortFree(selectedPort)
+        : true;
+
+      if (!selectedPortIsFree) {
+        releaseSync();
+        throw new Error(
+          `Port ${selectedPort} is already in use by another process. `
+          + `Stop that process or start Borg with --port <free-port>.`,
+        );
+      }
+
       return {
         port: selectedPort,
         lockPath,

@@ -3720,14 +3720,33 @@ ${env.tools.filter((tool) => tool.installed).map((tool) => `- **${tool.name}**: 
             const wss = new WebSocketServer({ server: httpServer });
             this.wssInstance = wss;
 
+            let bridgePortConflictHandled = false;
+            const handleBridgePortConflict = () => {
+                if (bridgePortConflictHandled) {
+                    return;
+                }
+
+                bridgePortConflictHandled = true;
+                console.warn(`[Borg Core] ⚠️ WebSocket bridge port ${PORT} is already in use. Skipping bridge startup while keeping the rest of Borg online.`);
+                this.wssInstance = null;
+            };
+
             httpServer.on('error', (err: any) => {
                 if (err?.code === 'EADDRINUSE') {
-                    console.warn(`[Borg Core] ⚠️ WebSocket bridge port ${PORT} is already in use. Assuming another Borg bridge is already running and skipping duplicate bridge startup.`);
-                    this.wssInstance = null;
+                    handleBridgePortConflict();
                     return;
                 }
 
                 console.error(`[Borg Core] ❌ WebSocket Server Error (Port ${PORT}):`, err.message);
+            });
+
+            wss.on('error', (err: any) => {
+                if (err?.code === 'EADDRINUSE') {
+                    handleBridgePortConflict();
+                    return;
+                }
+
+                console.error(`[Borg Core] ❌ WebSocket bridge runtime error (Port ${PORT}):`, err.message);
             });
 
             const bridgeListening = await new Promise<boolean>((resolve) => {
@@ -3765,6 +3784,14 @@ ${env.tools.filter((tool) => tool.installed).map((tool) => `- **${tool.name}**: 
                 } catch {
                     // ignore cleanup failure for duplicate bridge startup
                 }
+
+                try {
+                    wss.close();
+                } catch {
+                    // ignore cleanup failure for duplicate bridge startup
+                }
+
+                this.wssInstance = null;
             }
 
             // 2.5 Setup WS Message Handling mechanism

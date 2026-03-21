@@ -112,6 +112,15 @@ async function main() {
     fail(`Placeholder regression check failed. ${formatCommandFailure(placeholder)}`);
   }
 
+  printStep("Running visuals verification check...");
+  const visualsVerify = runPnpm("visuals-verify", ["run", "visuals:verify"], {
+    stdio: "inherit",
+  });
+
+  if ((visualsVerify.status ?? 1) !== 0) {
+    fail(`Visuals verification failed. ${formatCommandFailure(visualsVerify)}`);
+  }
+
   printStep("Running core typecheck...");
   const typecheck = runPnpm("core-typecheck", ["-C", "packages/core", "exec", "tsc", "--noEmit"], {
     stdio: "inherit",

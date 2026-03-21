@@ -4,6 +4,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.10.19] — 2026-03-21
+
+### Unified Directory Empty-State Recovery Action
+
+- feat(web/unified-directory): Added an empty-state recovery action in `apps/web/src/app/dashboard/mcp/unified-directory/page.tsx`.
+  - When no results are found and filters are active, users now see `Clear filters and try again` directly in the table empty state.
+  - Reuses shared reset logic so both toolbar and empty-state actions clear URL query params and local filter state consistently.
+
+- verification:
+  - `pnpm -C apps/web exec tsc --noEmit --pretty false` ✅
+  - `pnpm -C packages/core exec tsc --noEmit --pretty false` ✅
+
 ## [0.10.18] — 2026-03-21
 
 ### Unified Directory Disabled Filter Guidance

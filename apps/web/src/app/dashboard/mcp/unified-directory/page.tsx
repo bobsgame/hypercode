@@ -105,6 +105,15 @@ export default function UnifiedDirectoryPage() {
         + Number(backlogFiltersEnabled && researchStatus !== "")
         + Number(backlogFiltersEnabled && (showDuplicates || duplicatesOnly));
     const hasActiveFilters = activeFilterCount > 0;
+    const resetFilters = () => {
+        router.replace(pathname);
+        setSearch("");
+        setSource("all");
+        setResearchStatus("");
+        setShowDuplicates(false);
+        setDuplicatesOnly(false);
+        setPage(0);
+    };
 
     const subtitle = useMemo(() => {
         if (!stats) return "";
@@ -265,7 +274,18 @@ export default function UnifiedDirectoryPage() {
                             ) : items.length === 0 ? (
                                 <tr>
                                     <td colSpan={5} className="px-4 py-12 text-center text-zinc-500">
-                                        No unified directory entries found.
+                                        <div className="space-y-2">
+                                            <div>No unified directory entries found.</div>
+                                            {hasActiveFilters ? (
+                                                <button
+                                                    type="button"
+                                                    onClick={resetFilters}
+                                                    className="inline-flex items-center px-3 py-1.5 rounded border border-zinc-700 text-xs text-zinc-300 hover:text-zinc-100 hover:border-zinc-500"
+                                                >
+                                                    Clear filters and try again
+                                                </button>
+                                            ) : null}
+                                        </div>
                                     </td>
                                 </tr>
                             ) : (

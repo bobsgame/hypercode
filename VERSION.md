@@ -1,6 +1,6 @@
 # Version
 
-0.10.18
+0.10.19
 
 ## Version Sync Checklist
 

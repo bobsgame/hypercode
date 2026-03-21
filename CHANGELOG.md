@@ -4,6 +4,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.10.25] — 2026-03-21
+
+### useSearchParams Suspense Regression Guard
+
+- test(web/app-router): Added `apps/web/src/app/use-search-params-suspense-guard.test.ts` to prevent future Next.js prerender regressions.
+  - Recursively scans `apps/web/src/app/**/page.tsx` files.
+  - Flags pages that use `useSearchParams()` but do not include Suspense import/usage.
+  - Protects against reintroducing `missing-suspense-with-csr-bailout` build failures.
+
+- verification:
+  - `pnpm exec vitest run apps/web/src/app/use-search-params-suspense-guard.test.ts` ✅
+  - `pnpm -C apps/web exec tsc --noEmit --pretty false` ✅
+  - `pnpm -C apps/web build` ✅
+
 ## [0.10.24] — 2026-03-21
 
 ### Next.js CSR Suspense Boundary Hardening

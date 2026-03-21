@@ -6,8 +6,8 @@ This document outlines the plan to assimilate `github.com/robertpelloni/opencode
 ## 🏗️ Target Architecture
 
 ### Package Information
-- **Name**: `@borg/auto-orchestrator`
-- **Location**: `packages/auto-orchestrator`
+- **Name**: Integrated directly into `@borg/core`
+- **Location**: `packages/core/src/orchestrator/council`
 - **Primary Runtime**: Node.js 22 (migrating from Bun)
 - **Framework**: Express/tRPC integration (migrating from Hono)
 
@@ -15,8 +15,10 @@ This document outlines the plan to assimilate `github.com/robertpelloni/opencode
 1. **Council Service**: Orchestrates debates between multiple LLM supervisors.
 2. **Supervisor Adapters**: Pluggable adapters for OpenAI, Anthropic, Gemini, etc. (to be aligned with `@borg/core` providers).
 3. **Consensus Engine**: Implements majority, weighted, and CEO-override voting models.
-4. **Debate History**: Persistence layer for council decisions (using Borg's SQLite/Drizzle).
-5. **Guidance Delivery**: System for injecting council decisions back into agent sessions.
+4. **Universal PTY Harness**: Native orchestration of terminal-based AI tools (Aider, Claude Code, Gemini CLI, etc.).
+5. **Diagram & Swarm Service**: Mermaid-to-Plan parsing and visual architecture generation.
+6. **Self-Evolution Engine**: Automated weight optimization and codebase self-modification.
+7. **Quota & Analytics**: Provider-level rate limiting and supervisor performance tracking.
 
 ## 🔄 Integration Strategy
 
@@ -41,17 +43,17 @@ A new "Council" section will be added to `@borg/web` (`apps/web`):
 
 ### Phase 1: Preparation (Active)
 - [x] Analyze source repository (`opencode-autopilot`).
-- [ ] Define `@borg/auto-orchestrator` package structure.
-- [ ] Update `pnpm-workspace.yaml`.
+- [x] Define package structure (decided to integrate into `@borg/core`).
 
 ### Phase 2: Foundation & Skeleton
-- [ ] Initialize `packages/auto-orchestrator`.
-- [ ] Port shared types to `@borg/types` or a local `shared` module.
-- [ ] Setup build pipeline via Turborepo.
+- [x] Copy source files to `packages/core/src/orchestrator/council`.
+- [x] Port shared types to local `types.ts` within the council directory.
+- [x] Update internal imports to use relative paths instead of `@borg-orchestrator/shared`.
 
-### Phase 3: Core Logic Migration
-- [ ] Port `CouncilService` and `ConsensusEngine`.
+### Phase 3: Core Logic Migration (In Progress)
+- [ ] Refactor `CouncilService` and `ConsensusEngine` to use Borg primitives.
 - [ ] Re-implement Supervisor adapters to use Borg's common provider logic.
+- [ ] Migrate Hono/Bun routes to Express/tRPC.
 - [ ] Integrate with Borg's SQLite database.
 
 ### Phase 4: Interface & Wiring

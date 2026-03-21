@@ -169,7 +169,8 @@ export default function UnifiedDirectoryPage() {
                 <label className="inline-flex items-center gap-2 text-sm text-zinc-300">
                     <input
                         type="checkbox"
-                        checked={showDuplicates}
+                        checked={showDuplicates || duplicatesOnly}
+                        disabled={duplicatesOnly}
                         onChange={(event) => {
                             setShowDuplicates(event.target.checked);
                             setPage(0);
@@ -183,7 +184,11 @@ export default function UnifiedDirectoryPage() {
                         type="checkbox"
                         checked={duplicatesOnly}
                         onChange={(event) => {
-                            setDuplicatesOnly(event.target.checked);
+                            const next = event.target.checked;
+                            setDuplicatesOnly(next);
+                            if (next) {
+                                setShowDuplicates(true);
+                            }
                             setPage(0);
                         }}
                     />

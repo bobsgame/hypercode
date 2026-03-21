@@ -4,6 +4,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.10.10] — 2026-03-21
+
+### Unified Directory Duplicate Toggle Coherence
+
+- feat(web/unified-directory): Updated duplicate filter control behavior in `apps/web/src/app/dashboard/mcp/unified-directory/page.tsx` so UI state matches effective query semantics.
+  - `Show duplicate backlog links` now reflects the effective value (`show_duplicates || duplicates_only`).
+  - When `Only duplicate backlog links` is enabled, the show-duplicates checkbox is locked on (disabled) to avoid contradictory control states.
+  - Enabling duplicates-only now also sets `showDuplicates=true`, preserving intuitive behavior as users toggle filters.
+
+- verification:
+  - `pnpm -C apps/web exec tsc --noEmit --pretty false` ✅
+  - `pnpm -C packages/core exec tsc --noEmit --pretty false` ✅
+
 ## [0.10.9] — 2026-03-21
 
 ### Unified Directory Canonical Target Navigation

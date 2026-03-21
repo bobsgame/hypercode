@@ -168,7 +168,13 @@ export default function UnifiedDirectoryPage() {
                 <select
                     value={source}
                     onChange={(event) => {
-                        setSource(event.target.value as SourceFilter);
+                        const nextSource = event.target.value as SourceFilter;
+                        setSource(nextSource);
+                        if (nextSource === "catalog") {
+                            setResearchStatus("");
+                            setShowDuplicates(false);
+                            setDuplicatesOnly(false);
+                        }
                         setPage(0);
                     }}
                     className="h-9 bg-zinc-900/50 border border-zinc-800 rounded-lg px-3 text-sm text-zinc-300"

@@ -4,6 +4,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.10.20] — 2026-03-21
+
+### Unified Directory Source Switch Filter Cleanup
+
+- feat(web/unified-directory): Updated source filter behavior in `apps/web/src/app/dashboard/mcp/unified-directory/page.tsx` to clear backlog-only state when switching to `Catalog only`.
+  - Selecting `Catalog only` now resets:
+    - `researchStatus`
+    - `showDuplicates`
+    - `duplicatesOnly`
+  - Prevents hidden backlog filter state from unexpectedly reappearing when switching sources later.
+
+- verification:
+  - `pnpm -C apps/web exec tsc --noEmit --pretty false` ✅
+  - `pnpm -C packages/core exec tsc --noEmit --pretty false` ✅
+
 ## [0.10.19] — 2026-03-21
 
 ### Unified Directory Empty-State Recovery Action

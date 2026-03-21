@@ -44,6 +44,18 @@ class WebSocketManager {
     });
   }
 
+  notifySessionStarted(session: Session) {
+    this.notifySessionUpdate(session);
+  }
+
+  notifySessionStopped(sessionId: string) {
+    this.broadcast({
+      type: 'session_update',
+      payload: { id: sessionId, status: 'stopped' },
+      timestamp: Date.now(),
+    });
+  }
+
   notifyCouncilDecision(sessionId: string, decision: CouncilDecision) {
     this.broadcastToSession(sessionId, {
       type: 'council_decision',

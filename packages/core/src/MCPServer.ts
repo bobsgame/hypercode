@@ -273,6 +273,7 @@ export class MCPServer {
     public marketplaceService: MarketplaceService; // Phase 65: Decentralized Marketplace
     public sessionManager: SessionManager; // Phase 57: State Persistence
     public sessionSupervisor: SessionSupervisor;
+    public ptySupervisor: PtySupervisor;
 
     public projectTracker: ProjectTracker; // Phase 59: Autonomous Loop
     public missionService: MissionService; // Phase 80: Swarm Persistence

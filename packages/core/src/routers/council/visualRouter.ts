@@ -9,7 +9,7 @@ export const visualRouter = t.router({
     const tools = cliRegistry.getAvailableTools().map(t => t.name);
     const sessions = sessionManager.getActiveSessions().map(s => ({
       id: s.id,
-      cliType: s.port.toString(), // Simplified for now
+      cliType: sessionManager.getSessionCLIType(s.id) || 'unknown',
     }));
     
     return {

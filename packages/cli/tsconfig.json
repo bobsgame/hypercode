@@ -18,5 +18,12 @@
   "include": [
     "src/**/*",
     "../core/src/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "../core/src/**/*.test.ts",
+    "../core/src/**/*.spec.ts",
+    "../core/src/**/__tests__/**/*"
   ]
 }

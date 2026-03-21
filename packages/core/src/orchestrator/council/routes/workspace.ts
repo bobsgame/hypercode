@@ -16,7 +16,7 @@ app.post('/', async (c) => {
     return c.json({ error: 'name and path are required' }, 400);
   }
 
-  const workspace = workspaceManager.createWorkspace(
+  const workspace = await workspaceManager.createWorkspace(
     body.name,
     body.path,
     body.config,
@@ -26,11 +26,11 @@ app.post('/', async (c) => {
   return c.json(workspace, 201);
 });
 
-app.get('/', (c) => {
+app.get('/', async (c) => {
   const status = c.req.query('status');
   const tag = c.req.query('tag');
 
-  let workspaces = workspaceManager.getAllWorkspaces();
+  let workspaces = await workspaceManager.getAllWorkspaces();
 
   if (status) {
     workspaces = workspaces.filter(w => w.status === status);
@@ -42,17 +42,17 @@ app.get('/', (c) => {
   return c.json(workspaces);
 });
 
-app.get('/active', (c) => {
-  const workspace = workspaceManager.getActiveWorkspace();
+app.get('/active', async (c) => {
+  const workspace = await workspaceManager.getActiveWorkspace();
   if (!workspace) {
     return c.json({ error: 'No active workspace' }, 404);
   }
   return c.json(workspace);
 });
 
-app.post('/active/:id', (c) => {
+app.post('/active/:id', async (c) => {
   const id = c.req.param('id');
-  const success = workspaceManager.setActiveWorkspace(id);
+  const success = await workspaceManager.setActiveWorkspace(id);
 
   if (!success) {
     return c.json({ error: 'Workspace not found or not active' }, 404);
@@ -66,14 +66,14 @@ app.delete('/active', (c) => {
   return c.json({ success: true });
 });
 
-app.get('/debates/active', (c) => {
-  const debates = workspaceManager.getAllActiveDebates();
+app.get('/debates/active', async (c) => {
+  const debates = await workspaceManager.getAllActiveDebates();
   return c.json(debates);
 });
 
-app.get('/:id', (c) => {
+app.get('/:id', async (c) => {
   const id = c.req.param('id');
-  const workspace = workspaceManager.getWorkspace(id);
+  const workspace = await workspaceManager.getWorkspace(id);
 
   if (!workspace) {
     return c.json({ error: 'Workspace not found' }, 404);
@@ -86,7 +86,7 @@ app.patch('/:id', async (c) => {
   const id = c.req.param('id');
   const updates = await c.req.json();
 
-  const workspace = workspaceManager.updateWorkspace(id, updates);
+  const workspace = await workspaceManager.updateWorkspace(id, updates);
 
   if (!workspace) {
     return c.json({ error: 'Workspace not found' }, 404);
@@ -99,7 +99,7 @@ app.patch('/:id/config', async (c) => {
   const id = c.req.param('id');
   const config = await c.req.json<Partial<WorkspaceConfig>>();
 
-  const workspace = workspaceManager.updateWorkspaceConfig(id, config);
+  const workspace = await workspaceManager.updateWorkspaceConfig(id, config);
 
   if (!workspace) {
     return c.json({ error: 'Workspace not found' }, 404);
@@ -108,9 +108,9 @@ app.patch('/:id/config', async (c) => {
   return c.json(workspace);
 });
 
-app.delete('/:id', (c) => {
+app.delete('/:id', async (c) => {
   const id = c.req.param('id');
-  const success = workspaceManager.deleteWorkspace(id);
+  const success = await workspaceManager.deleteWorkspace(id);
 
   if (!success) {
     return c.json({ error: 'Workspace not found' }, 404);
@@ -119,9 +119,9 @@ app.delete('/:id', (c) => {
   return c.json({ success: true });
 });
 
-app.post('/:id/archive', (c) => {
+app.post('/:id/archive', async (c) => {
   const id = c.req.param('id');
-  const workspace = workspaceManager.archiveWorkspace(id);
+  const workspace = await workspaceManager.archiveWorkspace(id);
 
   if (!workspace) {
     return c.json({ error: 'Workspace not found' }, 404);
@@ -130,11 +130,11 @@ app.post('/:id/archive', (c) => {
   return c.json(workspace);
 });
 
-app.get('/:id/stats', (c) => {
+app.get('/:id/stats', async (c) => {
   const id = c.req.param('id');
   const periodDays = parseInt(c.req.query('periodDays') || '30', 10);
 
-  const stats = workspaceManager.getWorkspaceStats(id, periodDays);
+  const stats = await workspaceManager.getWorkspaceStats(id, periodDays);
 
   if (!stats) {
     return c.json({ error: 'Workspace not found' }, 404);
@@ -143,17 +143,17 @@ app.get('/:id/stats', (c) => {
   return c.json(stats);
 });
 
-app.get('/:id/debates', (c) => {
+app.get('/:id/debates', async (c) => {
   const id = c.req.param('id');
   const limit = c.req.query('limit') ? parseInt(c.req.query('limit')!, 10) : undefined;
 
-  const debates = workspaceManager.getWorkspaceDebates(id, limit);
+  const debates = await workspaceManager.getWorkspaceDebates(id, limit);
   return c.json(debates);
 });
 
-app.get('/:id/debates/active', (c) => {
+app.get('/:id/debates/active', async (c) => {
   const id = c.req.param('id');
-  const debates = workspaceManager.getActiveDebates(id);
+  const debates = await workspaceManager.getActiveDebates(id);
   return c.json(debates);
 });
 
@@ -161,7 +161,7 @@ app.post('/:id/debates', async (c) => {
   const id = c.req.param('id');
   const task = await c.req.json();
 
-  const debate = workspaceManager.startDebate(id, task);
+  const debate = await workspaceManager.startDebate(id, task);
 
   if (!debate) {
     return c.json({ error: 'Failed to start debate - workspace not found or concurrent limit reached' }, 400);
@@ -179,7 +179,7 @@ app.post('/:id/debates/:debateId/complete', async (c) => {
     cost?: number;
   }>();
 
-  const debate = workspaceManager.completeDebate(
+  const debate = await workspaceManager.completeDebate(
     id,
     debateId,
     body.decision,
@@ -199,7 +199,7 @@ app.post('/:id/debates/:debateId/fail', async (c) => {
   const debateId = c.req.param('debateId');
   const body = await c.req.json<{ error: string }>();
 
-  const debate = workspaceManager.failDebate(id, debateId, body.error);
+  const debate = await workspaceManager.failDebate(id, debateId, body.error);
 
   if (!debate) {
     return c.json({ error: 'Debate not found' }, 404);
@@ -215,7 +215,7 @@ app.post('/compare', async (c) => {
     return c.json({ error: 'At least 2 workspace IDs required' }, 400);
   }
 
-  const comparison = workspaceManager.compareWorkspaces(body.workspaceIds);
+  const comparison = await workspaceManager.compareWorkspaces(body.workspaceIds);
   return c.json(comparison);
 });
 

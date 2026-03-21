@@ -667,20 +667,20 @@ export function getCouncilService(): CouncilServiceRuntime {
     return getMcpServer().councilService as CouncilServiceRuntime;
 }
 
-export function getSupervisorCouncil() {
+export function getSupervisorCouncil(): Promise<unknown> {
     // This returns the migrated SupervisorCouncil singleton
     return import('../orchestrator/council/services/council.js').then(m => m.council);
 }
 
-export function getCouncilSessionManager() {
+export function getCouncilSessionManager(): Promise<unknown> {
     return import('../orchestrator/council/services/session-manager.js').then(m => m.sessionManager);
 }
 
-export function getCouncilWsManager() {
+export function getCouncilWsManager(): Promise<unknown> {
     return import('../orchestrator/council/services/ws-manager.js').then(m => m.wsManager);
 }
 
-export function getCouncilHierarchy() {
+export function getCouncilHierarchy(): Promise<unknown> {
     return import('../orchestrator/council/services/council-hierarchy.js').then(m => m.councilHierarchy);
 }
 

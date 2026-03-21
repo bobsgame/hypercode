@@ -4,12 +4,12 @@ import type { TaskType } from './types.js';
 
 export const debateHistoryRoutes = new Hono();
 
-debateHistoryRoutes.get('/status', (c) => {
+debateHistoryRoutes.get('/status', async (c) => {
   return c.json({
     success: true,
     data: {
       enabled: debateHistory.isEnabled(),
-      recordCount: debateHistory.getRecordCount(),
+      recordCount: await debateHistory.getRecordCount(),
       storageSize: debateHistory.getStorageSize(),
       config: debateHistory.getConfig(),
     },
@@ -42,14 +42,14 @@ debateHistoryRoutes.post('/toggle', async (c) => {
   });
 });
 
-debateHistoryRoutes.get('/stats', (c) => {
+debateHistoryRoutes.get('/stats', async (c) => {
   return c.json({
     success: true,
-    data: debateHistory.getStats(),
+    data: await debateHistory.getStats(),
   });
 });
 
-debateHistoryRoutes.get('/list', (c) => {
+debateHistoryRoutes.get('/list', async (c) => {
   const query = c.req.query();
   
   const options: DebateQueryOptions = {
@@ -67,20 +67,20 @@ debateHistoryRoutes.get('/list', (c) => {
     sortOrder: query.sortOrder as 'asc' | 'desc' | undefined,
   };
 
-  const records = debateHistory.queryDebates(options);
+  const records = await debateHistory.queryDebates(options);
   return c.json({
     success: true,
     data: records,
     meta: {
       count: records.length,
-      totalRecords: debateHistory.getRecordCount(),
+      totalRecords: await debateHistory.getRecordCount(),
     },
   });
 });
 
-debateHistoryRoutes.get('/debates/:id', (c) => {
+debateHistoryRoutes.get('/debates/:id', async (c) => {
   const id = c.req.param('id');
-  const record = debateHistory.getDebate(id);
+  const record = await debateHistory.getDebate(id);
   
   if (!record) {
     return c.json({ success: false, error: 'Debate not found' }, 404);
@@ -92,9 +92,9 @@ debateHistoryRoutes.get('/debates/:id', (c) => {
   });
 });
 
-debateHistoryRoutes.delete('/debates/:id', (c) => {
+debateHistoryRoutes.delete('/debates/:id', async (c) => {
   const id = c.req.param('id');
-  const deleted = debateHistory.deleteRecord(id);
+  const deleted = await debateHistory.deleteRecord(id);
   
   if (!deleted) {
     return c.json({ success: false, error: 'Debate not found' }, 404);
@@ -106,16 +106,16 @@ debateHistoryRoutes.delete('/debates/:id', (c) => {
   });
 });
 
-debateHistoryRoutes.get('/supervisor/:name', (c) => {
+debateHistoryRoutes.get('/supervisor/:name', async (c) => {
   const name = c.req.param('name');
-  const history = debateHistory.getSupervisorVoteHistory(name);
+  const history = await debateHistory.getSupervisorVoteHistory(name);
   return c.json({
     success: true,
     data: history,
   });
 });
 
-debateHistoryRoutes.get('/export/json', (c) => {
+debateHistoryRoutes.get('/export/json', async (c) => {
   const query = c.req.query();
   
   const options: DebateQueryOptions = {
@@ -124,14 +124,14 @@ debateHistoryRoutes.get('/export/json', (c) => {
     limit: query.limit ? parseInt(query.limit, 10) : undefined,
   };
 
-  const json = debateHistory.exportToJson(options);
+  const json = await debateHistory.exportToJson(options);
   
   c.header('Content-Type', 'application/json');
   c.header('Content-Disposition', 'attachment; filename="debate-history.json"');
   return c.body(json);
 });
 
-debateHistoryRoutes.get('/export/csv', (c) => {
+debateHistoryRoutes.get('/export/csv', async (c) => {
   const query = c.req.query();
   
   const options: DebateQueryOptions = {
@@ -140,28 +140,28 @@ debateHistoryRoutes.get('/export/csv', (c) => {
     limit: query.limit ? parseInt(query.limit, 10) : undefined,
   };
 
-  const csv = debateHistory.exportToCsv(options);
+  const csv = await debateHistory.exportToCsv(options);
   
   c.header('Content-Type', 'text/csv');
   c.header('Content-Disposition', 'attachment; filename="debate-history.csv"');
   return c.body(csv);
 });
 
-debateHistoryRoutes.delete('/clear', (c) => {
-  const count = debateHistory.clearAll();
+debateHistoryRoutes.delete('/clear', async (c) => {
+  const count = await debateHistory.clearAll();
   return c.json({
     success: true,
     data: { cleared: count },
   });
 });
 
-debateHistoryRoutes.post('/initialize', (c) => {
+debateHistoryRoutes.post('/initialize', async (c) => {
   debateHistory.initialize();
   return c.json({
     success: true,
     data: {
       initialized: true,
-      recordCount: debateHistory.getRecordCount(),
+      recordCount: await debateHistory.getRecordCount(),
     },
   });
 });

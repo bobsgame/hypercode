@@ -1,6 +1,8 @@
 import { z } from 'zod';
 import { t, publicProcedure, adminProcedure } from '../../lib/trpc-core.js';
-import { getSupervisorCouncil, getCouncilWsManager, getCouncilHierarchy } from '../../lib/trpc-core.js';
+import { council } from '../../orchestrator/council/services/council.js';
+import { wsManager } from '../../orchestrator/council/services/ws-manager.js';
+import { councilHierarchy } from '../../orchestrator/council/services/council-hierarchy.js';
 import { createSupervisor, createSupervisors, createMockSupervisor } from '../../orchestrator/council/supervisors/index.js';
 
 const supervisorConfigSchema = z.object({
@@ -35,20 +37,19 @@ const developmentTaskSchema = z.object({
 
 export const councilRouter = t.router({
   status: publicProcedure.query(async () => {
-    const instance = await getSupervisorCouncil();
-    const available = await instance.getAvailableSupervisors();
-    const hierarchy = (await getCouncilHierarchy()).getAllSpecializedCouncils().map(s => ({
+    const available = await council.getAvailableSupervisors();
+    const hierarchy = councilHierarchy.getAllSpecializedCouncils().map((s) => ({
       id: s.id,
       name: s.name,
       specialties: s.specialties,
       supervisorCount: s.council.getSupervisors().length
     }));
     
-    const config = instance.getConfig();
+    const config = council.getConfig();
     
     return {
       enabled: config.enabled ?? true,
-      supervisorCount: instance.getSupervisors().length,
+      supervisorCount: council.getSupervisors().length,
       availableCount: available.length,
       config,
       hierarchy,
@@ -56,35 +57,31 @@ export const councilRouter = t.router({
   }),
 
   updateConfig: adminProcedure.input(configSchema).mutation(async ({ input }) => {
-    const instance = await getSupervisorCouncil();
+    if (input.consensusMode) council.setConsensusMode(input.consensusMode);
+    if (input.leadSupervisor) council.setLeadSupervisor(input.leadSupervisor);
+    if (input.fallbackSupervisors) council.setFallbackChain(input.fallbackSupervisors);
+    if (input.debateRounds) council.setDebateRounds(input.debateRounds);
+    if (input.consensusThreshold) council.setConsensusThreshold(input.consensusThreshold);
     
-    if (input.consensusMode) instance.setConsensusMode(input.consensusMode);
-    if (input.leadSupervisor) instance.setLeadSupervisor(input.leadSupervisor);
-    if (input.fallbackSupervisors) instance.setFallbackChain(input.fallbackSupervisors);
-    if (input.debateRounds) instance.setDebateRounds(input.debateRounds);
-    if (input.consensusThreshold) instance.setConsensusThreshold(input.consensusThreshold);
-    
-    const ws = await getCouncilWsManager();
-    ws.broadcast({
+    wsManager.broadcast({
       type: 'log',
       payload: { level: 'info', message: `Council config updated`, timestamp: Date.now() },
       timestamp: Date.now(),
     });
     
-    return instance.getConfig();
+    return council.getConfig();
   }),
 
   addSupervisors: adminProcedure.input(z.object({
     supervisors: z.array(supervisorConfigSchema)
   })).mutation(async ({ input }) => {
-    const instance = await getSupervisorCouncil();
     const added: string[] = [];
     const failed: string[] = [];
 
     for (const supervisorConfig of input.supervisors) {
       try {
         const supervisor = createSupervisor(supervisorConfig as any);
-        instance.addSupervisor(supervisor);
+        council.addSupervisor(supervisor);
         added.push(supervisorConfig.name);
       } catch (error) {
         const msg = error instanceof Error ? error.message : 'Unknown error';
@@ -92,8 +89,7 @@ export const councilRouter = t.router({
       }
     }
 
-    const ws = await getCouncilWsManager();
-    ws.broadcast({
+    wsManager.broadcast({
       type: 'log',
       payload: { level: 'info', message: `Added ${added.length} supervisors: ${added.join(', ')}`, timestamp: Date.now() },
       timestamp: Date.now(),
@@ -103,11 +99,9 @@ export const councilRouter = t.router({
   }),
 
   clearSupervisors: adminProcedure.mutation(async () => {
-    const instance = await getSupervisorCouncil();
-    instance.clearSupervisors();
+    council.clearSupervisors();
     
-    const ws = await getCouncilWsManager();
-    ws.broadcast({
+    wsManager.broadcast({
       type: 'log',
       payload: { level: 'info', message: 'All supervisors removed', timestamp: Date.now() },
       timestamp: Date.now(),
@@ -117,19 +111,16 @@ export const councilRouter = t.router({
   }),
 
   debate: adminProcedure.input(developmentTaskSchema).mutation(async ({ input }) => {
-    const instance = await getSupervisorCouncil();
-    const ws = await getCouncilWsManager();
-    
-    ws.broadcast({
+    wsManager.broadcast({
       type: 'log',
       payload: { level: 'info', message: `Debate started: ${input.description}`, timestamp: Date.now(), source: 'council' },
       timestamp: Date.now(),
     });
     
     try {
-      const decision = await instance.debate(input);
+      const decision = await council.debate(input);
       
-      ws.broadcast({
+      wsManager.broadcast({
         type: 'council_decision',
         payload: decision,
         timestamp: Date.now(),
@@ -138,23 +129,17 @@ export const councilRouter = t.router({
       return decision;
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';
-      ws.notifyError(`Debate failed: ${message}`);
+      wsManager.notifyError(`Debate failed: ${message}`);
       throw new Error(`Debate failed: ${message}`);
     }
   }),
 
   toggle: adminProcedure.mutation(async () => {
-    const instance = await getSupervisorCouncil();
-    const config = instance.getConfig();
+    const config = council.getConfig();
     const newEnabled = !config.enabled;
-    // Note: Need to add setEnabled to SupervisorCouncil if not present, 
-    // or just update via config. For now, assuming direct config access or adding a method.
-    // In migrated code, it was a local variable in the route.
-    // I'll assume we add a setEnabled method to the instance for parity.
-    (instance as any).config.enabled = newEnabled; 
+    config.enabled = newEnabled;
     
-    const ws = await getCouncilWsManager();
-    ws.broadcast({
+    wsManager.broadcast({
       type: 'log',
       payload: { level: 'info', message: `Council ${newEnabled ? 'enabled' : 'disabled'}`, timestamp: Date.now() },
       timestamp: Date.now(),
@@ -164,12 +149,10 @@ export const councilRouter = t.router({
   }),
 
   addMock: adminProcedure.mutation(async () => {
-    const instance = await getSupervisorCouncil();
     const mockName = `MockSupervisor-${Date.now()}`;
-    instance.addSupervisor(createMockSupervisor(mockName));
+    council.addSupervisor(createMockSupervisor(mockName));
     
-    const ws = await getCouncilWsManager();
-    ws.broadcast({
+    wsManager.broadcast({
       type: 'log',
       payload: { level: 'info', message: `Mock supervisor added: ${mockName}`, timestamp: Date.now() },
       timestamp: Date.now(),

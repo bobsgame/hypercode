@@ -13,33 +13,32 @@ function normalizeTranscripts(value: unknown): TranscriptEntry[] {
         return [];
     }
 
-    const transcripts = (value as { transcripts?: unknown }).transcripts;
-    if (!Array.isArray(transcripts)) {
+    const logs = (value as { logs?: unknown }).logs;
+    if (!Array.isArray(logs)) {
         return [];
     }
 
-    return transcripts
-        .filter((item): item is { speaker: string; text: string } => {
+    return logs
+        .filter((item): item is { source?: string; message: string } => {
             return (
                 typeof item === 'object' &&
                 item !== null &&
-                typeof (item as { speaker?: unknown }).speaker === 'string' &&
-                typeof (item as { text?: unknown }).text === 'string'
+                typeof (item as { message?: unknown }).message === 'string'
             );
         })
-        .map((item) => ({ speaker: item.speaker, text: item.text }));
+        .map((item) => ({ speaker: item.source ?? 'system', text: item.message }));
 }
 
 export const CouncilWidget: React.FC = () => {
     const [topic, setTopic] = useState('');
     const [isDebating, setIsDebating] = useState(false);
 
-    const { data: latestSession, refetch } = trpc.council.getLatestSession.useQuery(undefined, {
+    const { data: sessions, refetch } = trpc.council.sessions.list.useQuery(undefined, {
         enabled: true,
         refetchInterval: isDebating ? 1000 : 5000
     });
 
-    const runSessionMutation = trpc.council.runSession.useMutation({
+    const runSessionMutation = trpc.council.sessions.start.useMutation({
         onSuccess: () => {
             setIsDebating(false);
             refetch();
@@ -52,8 +51,19 @@ export const CouncilWidget: React.FC = () => {
     const handleStartDebate = () => {
         if (!topic) return;
         setIsDebating(true);
-        runSessionMutation.mutate({ proposal: topic });
+        runSessionMutation.mutate({
+            task: {
+                id: `council-${Date.now()}`,
+                description: topic,
+                context: topic,
+                files: [],
+            },
+            tags: ['council-widget'],
+        });
     };
+
+    const latestSession = [...(sessions ?? [])]
+        .sort((a, b) => (b.startedAt ?? 0) - (a.startedAt ?? 0))[0];
 
     const transcriptEntries = normalizeTranscripts(latestSession);
 

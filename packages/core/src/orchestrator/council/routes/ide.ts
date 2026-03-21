@@ -1,5 +1,4 @@
 import { Hono } from 'hono';
-import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
 import { smartPilot } from '../services/smart-pilot.js';
 import { sessionManager } from '../services/session-manager.js';
@@ -29,8 +28,8 @@ ideRoutes.get('/status', (c) => {
   });
 });
 
-ideRoutes.post('/task', zValidator('json', taskSchema), async (c) => {
-  const { description, fileContext, sessionId } = c.req.valid('json');
+ideRoutes.post('/task', async (c) => {
+  const { description, fileContext, sessionId } = taskSchema.parse(await c.req.json());
 
   // Find or create session
   let session = sessionId ? sessionManager.getSession(sessionId) : sessionManager.getActiveSessions()[0];

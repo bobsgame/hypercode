@@ -1,5 +1,4 @@
 import { Hono } from 'hono';
-import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
 import { diagramService } from '../services/diagram-service.js';
 import { smartPilot } from '../services/smart-pilot.js';
@@ -33,12 +32,13 @@ app.get('/system', apiRateLimit(), (c) => {
   return c.json({ success: true, mermaid });
 });
 
-app.post('/plan-from-mermaid', zValidator('json', z.object({
-  mermaid: z.string().min(10)
-})), async (c) => {
-  const { mermaid } = c.req.valid('json');
+app.post('/plan-from-mermaid', async (c) => {
+  const { mermaid } = mermaidSchema.parse(await c.req.json());
   const plan = diagramService.parseMermaidToPlan(mermaid);
   return c.json({ success: true, plan });
 });
 
 export default app;
+const mermaidSchema = z.object({
+  mermaid: z.string().min(10)
+});

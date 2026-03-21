@@ -1,5 +1,4 @@
 import { Hono } from 'hono';
-import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
 import { systemManager } from '../services/system-manager.js';
 import { selfEvolution } from '../services/self-evolution.js';
@@ -16,10 +15,8 @@ app.get('/version', async (c) => {
   return c.json({ success: true, data: version });
 });
 
-app.post('/evolve', zValidator('json', z.object({
-  description: z.string().min(10)
-})), async (c) => {
-  const { description } = c.req.valid('json');
+app.post('/evolve', async (c) => {
+  const { description } = evolveSchema.parse(await c.req.json());
   const sessionId = await selfEvolution.evolveSystem(description);
   return c.json({ success: true, sessionId, message: 'Self-evolution task initiated' });
 });
@@ -30,3 +27,6 @@ app.post('/optimize-weights', async (c) => {
 });
 
 export default app;
+const evolveSchema = z.object({
+  description: z.string().min(10)
+});

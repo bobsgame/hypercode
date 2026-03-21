@@ -24,12 +24,12 @@ import { Button } from "@borg/ui";
 import { Card, CardContent, CardHeader, CardTitle } from "@borg/ui";
 import { trpc } from '@/utils/trpc';
 
-import { SessionGrid } from './SessionGrid';
-import { DebateHistoryTable } from './DebateHistoryTable';
-import { CouncilMemberGrid } from './CouncilMemberGrid';
-import { QuotaConfigPanel } from './QuotaConfigPanel';
-import { SmartPilotPanel } from './SmartPilotPanel';
-import { VisualArchitecture } from './VisualArchitecture';
+import { SessionGrid } from '@/components/council/SessionGrid';
+import { DebateHistoryTable } from '@/components/council/DebateHistoryTable';
+import { CouncilMemberGrid } from '@/components/council/CouncilMemberGrid';
+import { QuotaConfigPanel } from '@/components/council/QuotaConfigPanel';
+import { SmartPilotPanel } from '@/components/council/SmartPilotPanel';
+import { VisualArchitecture } from '@/components/council/VisualArchitecture';
 
 export function RoundtableDashboard() {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -83,6 +83,43 @@ export function RoundtableDashboard() {
   const stopAll = trpc.council.sessions.bulkStop.useMutation({
     onSuccess: () => sessions.refetch()
   });
+
+  const sessionItems = (sessions.data ?? []).map((session, index) => ({
+    id: session.id ?? `session-${index}`,
+    status: session.status ?? 'stopped',
+    cliType: undefined,
+    startedAt: session.startedAt,
+    tags: session.tags ?? [],
+  }));
+
+  const smartPilotConfig = {
+    enabled: smartPilotStatus.data?.config?.enabled ?? false,
+    autoApproveThreshold: smartPilotStatus.data?.config?.autoApproveThreshold ?? 0.7,
+    requireUnanimous: smartPilotStatus.data?.config?.requireUnanimous ?? false,
+    maxAutoApprovals: smartPilotStatus.data?.config?.maxAutoApprovals ?? 5,
+  };
+
+  const activePlanItems = (smartPilotStatus.data?.activePlans ?? []).map((plan, index) => ({
+    sessionId: plan.sessionId ?? `plan-${index}`,
+    plan: plan.plan ?? {},
+  }));
+
+  const historyRecords = (history.data?.records ?? []).map((record, index) => ({
+    id: record.id ?? `record-${index}`,
+    timestamp: record.timestamp ?? Date.now(),
+    task: {
+      description: record.task?.description ?? 'Council decision',
+    },
+    decision: {
+      approved: record.decision?.approved ?? false,
+      consensus: record.decision?.consensus ?? 0,
+      votes: record.decision?.votes ?? [],
+    },
+    metadata: {
+      participatingSupervisors: record.metadata?.participatingSupervisors ?? [],
+      taskType: record.metadata?.dynamicSelection?.taskType ?? 'general',
+    },
+  }));
 
   return (
     <div className="container mx-auto p-6 space-y-6 max-w-7xl">
@@ -227,7 +264,7 @@ export function RoundtableDashboard() {
               </div>
               
               <SessionGrid 
-                sessions={sessions.data ?? []} 
+                sessions={sessionItems} 
                 onStop={(id) => stopSession.mutate({ id })}
                 onResume={(id) => resumeSession.mutate({ id })}
                 onDelete={(id) => deleteSession.mutate({ id })}
@@ -257,8 +294,8 @@ export function RoundtableDashboard() {
 
             <div className="lg:col-span-4 space-y-6">
               <SmartPilotPanel 
-                config={smartPilotStatus.data?.config ?? { enabled: false, autoApproveThreshold: 0.7, requireUnanimous: false, maxAutoApprovals: 5 }} 
-                activePlans={smartPilotStatus.data?.activePlans ?? []}
+                config={smartPilotConfig} 
+                activePlans={activePlanItems}
                 onToggle={(enabled) => toggleSmartPilot.mutate({ enabled })}
                 onUpdateConfig={(updates) => toggleSmartPilot.mutate(updates)}
               />
@@ -298,7 +335,7 @@ export function RoundtableDashboard() {
               <RefreshCw className="h-3 w-3" /> Refresh Audit
             </Button>
           </div>
-          <DebateHistoryTable records={history.data?.records ?? []} />
+          <DebateHistoryTable records={historyRecords} />
         </TabsContent>
 
         <TabsContent value="supervisors" className="outline-none">

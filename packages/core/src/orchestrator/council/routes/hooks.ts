@@ -1,5 +1,4 @@
 import { Hono } from 'hono';
-import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
 import { autoContinueHooks, type HookPhase, type HookHandler } from '../services/hooks.js';
 import { apiRateLimit } from '../middleware/rate-limit.js';
@@ -22,8 +21,8 @@ hooksRoutes.get('/', apiRateLimit(), (c) => {
   });
 });
 
-hooksRoutes.post('/register', apiRateLimit(), apiKeyAuth, zValidator('json', registerBodySchema), async (c) => {
-  const { phase, webhookUrl, priority } = c.req.valid('json');
+hooksRoutes.post('/register', apiRateLimit(), apiKeyAuth, async (c) => {
+  const { phase, webhookUrl, priority } = registerBodySchema.parse(await c.req.json());
 
   const handler: HookHandler = async (context) => {
     try {

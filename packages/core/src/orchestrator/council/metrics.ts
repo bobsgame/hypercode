@@ -1,5 +1,5 @@
 import type { Context, Next } from 'hono';
-import { metrics } from '../services/metrics.js';
+import { metrics } from './services/metrics.js';
 
 export async function metricsMiddleware(c: Context, next: Next): Promise<Response | void> {
   const start = Date.now();

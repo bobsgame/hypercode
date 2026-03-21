@@ -30,6 +30,17 @@ Thumbs.db
 *.swp
 *.swo
 
+# Local hidden tool state (keep tracked repo config like .github/, .gitignore, .dockerignore, .env.example)
+.claude/
+**/.claude/
+.copilot/
+**/.copilot/
+.git-rewrite/
+**/.git-rewrite/
+.oc/
+**/.oc/
+.vibe-config.json
+
 # Coverage
 coverage/
 .nyc_output/

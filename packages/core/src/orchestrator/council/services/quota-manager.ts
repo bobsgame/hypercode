@@ -170,7 +170,7 @@ const DEFAULT_PROVIDER_LIMITS: Record<string, RateLimitConfig> = {
 /**
  * Global configuration
  */
-interface QuotaManagerConfig {
+export interface QuotaManagerConfig {
   enabled: boolean;
   /** Global daily budget limit in USD */
   dailyBudgetLimit?: number;

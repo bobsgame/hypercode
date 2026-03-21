@@ -95,6 +95,22 @@ export interface DevelopmentTask {
   cliType?: CLIType;
 }
 
+export interface SubTask {
+  id: string;
+  title: string;
+  description: string;
+  dependencies: string[];
+  status: 'pending' | 'in_progress' | 'completed' | 'failed';
+  context?: string;
+  preferredCLI?: CLIType;
+}
+
+export interface TaskPlan {
+  originalTaskId?: string;
+  subtasks: SubTask[];
+  reasoning: string;
+}
+
 export interface CouncilDecision {
   approved: boolean;
   consensus: number;

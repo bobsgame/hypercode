@@ -1,5 +1,4 @@
 import { Hono } from 'hono';
-import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
 import type { CouncilConfig, CouncilDecision, ApiResponse, SupervisorConfig, ConsensusMode, TaskType, SpecializedCouncilConfig } from './types.js';
 import { SupervisorCouncil } from '../services/council.js';
@@ -86,8 +85,8 @@ council.get('/status', apiRateLimit(), async (c) => {
   });
 });
 
-council.post('/specialized', apiRateLimit(), apiKeyAuth, zValidator('json', specializedCouncilSchema), async (c) => {
-  const body = c.req.valid('json');
+council.post('/specialized', apiRateLimit(), apiKeyAuth, async (c) => {
+  const body = specializedCouncilSchema.parse(await c.req.json());
   
   councilHierarchy.registerSpecializedCouncil({
     ...body.config,
@@ -101,8 +100,8 @@ council.post('/specialized', apiRateLimit(), apiKeyAuth, zValidator('json', spec
   return c.json({ success: true, message: `Specialized council '${body.name}' registered.` });
 });
 
-council.post('/config', apiRateLimit(), apiKeyAuth, zValidator('json', configSchema), async (c) => {
-  const body = c.req.valid('json');
+council.post('/config', apiRateLimit(), apiKeyAuth, async (c) => {
+  const body = configSchema.parse(await c.req.json());
   config = { ...config, ...body };
   
   councilInstance = new SupervisorCouncil(config);
@@ -130,8 +129,8 @@ council.post('/config', apiRateLimit(), apiKeyAuth, zValidator('json', configSch
   return c.json<ApiResponse<CouncilConfig>>({ success: true, data: config });
 });
 
-council.post('/supervisors', apiRateLimit(), apiKeyAuth, zValidator('json', supervisorsBodySchema), async (c) => {
-  const body = c.req.valid('json');
+council.post('/supervisors', apiRateLimit(), apiKeyAuth, async (c) => {
+  const body = supervisorsBodySchema.parse(await c.req.json());
 
   const instance = getOrCreateCouncil();
   const added: string[] = [];
@@ -175,7 +174,7 @@ council.delete('/supervisors', apiRateLimit(), apiKeyAuth, (c) => {
   return c.json<ApiResponse<{ message: string }>>({ success: true, data: { message: 'All supervisors removed' } });
 });
 
-council.post('/debate', debateRateLimit(), apiKeyAuth, zValidator('json', debateRequestSchema.shape.task), async (c) => {
+council.post('/debate', debateRateLimit(), apiKeyAuth, async (c) => {
   if (!config.enabled) {
     const decision: CouncilDecision = {
       approved: true,
@@ -193,7 +192,7 @@ council.post('/debate', debateRateLimit(), apiKeyAuth, zValidator('json', debate
     return c.json<ApiResponse<CouncilDecision>>({ success: true, data: decision });
   }
 
-  const task = c.req.valid('json');
+  const task = debateRequestSchema.shape.task.parse(await c.req.json());
   const instance = getOrCreateCouncil();
   
   wsManager.broadcast({
@@ -271,8 +270,8 @@ council.get('/consensus-modes', apiRateLimit(), (c) => {
   });
 });
 
-council.post('/consensus-mode', apiRateLimit(), apiKeyAuth, zValidator('json', z.object({ mode: z.enum(['simple-majority', 'supermajority', 'unanimous', 'weighted', 'ceo-override', 'ceo-veto', 'hybrid-ceo-majority', 'ranked-choice']) })), (c) => {
-  const { mode } = c.req.valid('json');
+council.post('/consensus-mode', apiRateLimit(), apiKeyAuth, async (c) => {
+  const { mode } = z.object({ mode: z.enum(['simple-majority', 'supermajority', 'unanimous', 'weighted', 'ceo-override', 'ceo-veto', 'hybrid-ceo-majority', 'ranked-choice']) }).parse(await c.req.json());
   config.consensusMode = mode;
   
   const instance = getOrCreateCouncil();
@@ -287,8 +286,8 @@ council.post('/consensus-mode', apiRateLimit(), apiKeyAuth, zValidator('json', z
   return c.json<ApiResponse<{ mode: ConsensusMode }>>({ success: true, data: { mode } });
 });
 
-council.post('/lead-supervisor', apiRateLimit(), apiKeyAuth, zValidator('json', z.object({ name: z.string() })), (c) => {
-  const { name } = c.req.valid('json');
+council.post('/lead-supervisor', apiRateLimit(), apiKeyAuth, async (c) => {
+  const { name } = z.object({ name: z.string() }).parse(await c.req.json());
   config.leadSupervisor = name;
   
   const instance = getOrCreateCouncil();
@@ -303,8 +302,8 @@ council.post('/lead-supervisor', apiRateLimit(), apiKeyAuth, zValidator('json', 
   return c.json<ApiResponse<{ leadSupervisor: string }>>({ success: true, data: { leadSupervisor: name } });
 });
 
-council.post('/fallback-chain', apiRateLimit(), apiKeyAuth, zValidator('json', z.object({ supervisors: z.array(z.string()) })), (c) => {
-  const { supervisors } = c.req.valid('json');
+council.post('/fallback-chain', apiRateLimit(), apiKeyAuth, async (c) => {
+  const { supervisors } = z.object({ supervisors: z.array(z.string()) }).parse(await c.req.json());
   config.fallbackSupervisors = supervisors;
   
   const instance = getOrCreateCouncil();
@@ -319,8 +318,8 @@ council.post('/fallback-chain', apiRateLimit(), apiKeyAuth, zValidator('json', z
   return c.json<ApiResponse<{ fallbackChain: string[] }>>({ success: true, data: { fallbackChain: supervisors } });
 });
 
-council.post('/supervisor-weight', apiRateLimit(), apiKeyAuth, zValidator('json', z.object({ name: z.string(), weight: z.number().min(0).max(2) })), (c) => {
-  const { name, weight } = c.req.valid('json');
+council.post('/supervisor-weight', apiRateLimit(), apiKeyAuth, async (c) => {
+  const { name, weight } = z.object({ name: z.string(), weight: z.number().min(0).max(2) }).parse(await c.req.json());
   
   const instance = getOrCreateCouncil();
   instance.setSupervisorWeight(name, weight);

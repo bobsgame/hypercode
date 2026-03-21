@@ -21,7 +21,7 @@ export const historyRouter = t.router({
   status: publicProcedure.query(async () => {
     return {
       enabled: debateHistory.isEnabled(),
-      recordCount: debateHistory.getRecordCount(),
+      recordCount: await debateHistory.getRecordCount(),
       storageSize: debateHistory.getStorageSize(),
       config: debateHistory.getConfig(),
     };
@@ -46,24 +46,24 @@ export const historyRouter = t.router({
   }),
 
   list: publicProcedure.input(debateQueryOptionsSchema).query(async ({ input }) => {
-    const records = debateHistory.queryDebates(input as any);
+    const records = await debateHistory.queryDebates(input as any);
     return {
       records,
       meta: {
         count: records.length,
-        totalRecords: debateHistory.getRecordCount(),
+        totalRecords: await debateHistory.getRecordCount(),
       },
     };
   }),
 
   get: publicProcedure.input(z.object({ id: z.string() })).query(async ({ input }) => {
-    const record = debateHistory.getDebate(input.id);
+    const record = await debateHistory.getDebate(input.id);
     if (!record) throw new Error('Debate not found');
     return record;
   }),
 
   delete: adminProcedure.input(z.object({ id: z.string() })).mutation(async ({ input }) => {
-    const deleted = debateHistory.deleteRecord(input.id);
+    const deleted = await debateHistory.deleteRecord(input.id);
     if (!deleted) throw new Error('Debate not found');
     return { deleted: true, id: input.id };
   }),
@@ -73,7 +73,7 @@ export const historyRouter = t.router({
   }),
 
   clear: adminProcedure.mutation(async () => {
-    const count = debateHistory.clearAll();
+    const count = await debateHistory.clearAll();
     return { cleared: count };
   }),
 
@@ -81,7 +81,7 @@ export const historyRouter = t.router({
     debateHistory.initialize();
     return {
       initialized: true,
-      recordCount: debateHistory.getRecordCount(),
+      recordCount: await debateHistory.getRecordCount(),
     };
   }),
 });

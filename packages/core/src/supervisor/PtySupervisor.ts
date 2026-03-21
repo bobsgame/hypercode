@@ -45,7 +45,7 @@ class PtyProcessHandle implements SupervisedProcessHandle {
     on(event: 'exit', listener: (code: number | null, signal: NodeJS.Signals | null) => void) {
         if (event === 'exit') {
             return this.ptyProcess.onExit(({ exitCode, signal }) => {
-                listener(exitCode, signal as NodeJS.Signals);
+                listener(exitCode, typeof signal === 'string' ? signal as NodeJS.Signals : null);
             });
         }
         return { dispose: () => {} };

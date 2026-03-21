@@ -1,5 +1,4 @@
 import { Hono } from 'hono';
-import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
 import { collectiveMemory } from '../services/collective-memory.js';
 import { apiRateLimit } from '../middleware/rate-limit.js';
@@ -19,14 +18,8 @@ app.get('/facts', apiRateLimit(), async (c) => {
   return c.json({ success: true, data: facts });
 });
 
-app.post('/facts', apiRateLimit(), zValidator('json', z.object({
-  key: z.string(),
-  value: z.string(),
-  sourceSession: z.string(),
-  confidence: z.number().min(0).max(1),
-  tags: z.array(z.string()).optional(),
-})), async (c) => {
-  const body = c.req.valid('json');
+app.post('/facts', apiRateLimit(), async (c) => {
+  const body = factSchema.parse(await c.req.json());
   const fact = await collectiveMemory.storeFact({
     ...body,
     tags: body.tags || []
@@ -41,3 +34,10 @@ app.get('/recall/:key', apiRateLimit(), async (c) => {
 });
 
 export default app;
+const factSchema = z.object({
+  key: z.string(),
+  value: z.string(),
+  sourceSession: z.string(),
+  confidence: z.number().min(0).max(1),
+  tags: z.array(z.string()).optional(),
+});

@@ -1,5 +1,4 @@
 import { Hono } from 'hono';
-import { zValidator } from '@hono/zod-validator';
 import { smartPilot } from '../services/smart-pilot.js';
 import { apiRateLimit } from '../middleware/rate-limit.js';
 import { apiKeyAuth } from '../middleware/auth.js';
@@ -38,8 +37,8 @@ smartPilotRoutes.post('/toggle', apiRateLimit(), apiKeyAuth, (c) => {
   return c.json({ success: true, enabled: newState });
 });
 
-smartPilotRoutes.post('/config', apiRateLimit(), apiKeyAuth, zValidator('json', smartPilotConfigSchema), (c) => {
-  const body = c.req.valid('json');
+smartPilotRoutes.post('/config', apiRateLimit(), apiKeyAuth, async (c) => {
+  const body = smartPilotConfigSchema.parse(await c.req.json());
   
   if (typeof body.autoApproveThreshold === 'number') {
     smartPilot.setAutoApproveThreshold(body.autoApproveThreshold);

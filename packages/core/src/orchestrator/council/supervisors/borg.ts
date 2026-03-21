@@ -3,17 +3,20 @@ import type { Supervisor, SupervisorConfig, Message } from './types.js';
 
 export class BorgSupervisor implements Supervisor {
   name: string;
+  provider: string;
   config: SupervisorConfig;
 
   constructor(config: SupervisorConfig) {
     this.name = config.name;
+    this.provider = config.provider;
     this.config = config;
   }
 
   async isAvailable(): Promise<boolean> {
     const llm = getLLMService();
     // In Borg, availability is checked via ProviderTruth
-    const quota = llm.modelSelector.getQuotaService().getQuota(this.config.provider);
+    const quotaService = (llm.modelSelector as any)?.getQuotaService?.();
+    const quota = quotaService?.getQuota?.(this.config.provider);
     return !!quota && quota.authTruth === 'VALID';
   }
 

@@ -39,6 +39,7 @@
                          "@borg/types":  "workspace:*",
                          "@hyperswarm/secret-stream":  "^6.9.1",
                          "@lancedb/lancedb":  "^0.23.0",
+                         "@hono/zod-validator":  "^0.7.2",
                          "@modelcontextprotocol/sdk":  "^1.0.0",
                          "@modelcontextprotocol/server-filesystem":  "^2026.1.14",
                          "@modelcontextprotocol/server-github":  "^2025.4.8",

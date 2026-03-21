@@ -13,7 +13,7 @@ interface TaskCheckpoint {
   pendingDebate: boolean;
 }
 
-interface SmartPilotConfig {
+export interface SmartPilotConfig {
   enabled: boolean;
   pollIntervalMs: number;
   autoApproveThreshold: number;
@@ -127,7 +127,7 @@ class SmartPilot {
       const readyTasks = subtasks.filter(t => 
         t.status === 'pending' && 
         !inProgressTasks.has(t.id) &&
-        t.dependencies.every(depId => completedTasks.has(depId))
+        t.dependencies.every((depId: string) => completedTasks.has(depId))
       );
 
       if (readyTasks.length === 0 && inProgressTasks.size === 0) {

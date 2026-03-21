@@ -4,6 +4,7 @@ import ts from "typescript";
 import { describe, expect, it } from "vitest";
 
 const APP_DIR = path.resolve(__dirname);
+const GUARD_TEST_FILE = normalize(__filename);
 
 function walk(dir: string): string[] {
     const entries = fs.readdirSync(dir, { withFileTypes: true });
@@ -72,18 +73,50 @@ function getDefaultExportSnippet(source: string): string | null {
 }
 
 describe("App Router useSearchParams safety", () => {
-    it("wraps page-level useSearchParams usage in a Suspense boundary", () => {
-        const pageFiles = walk(APP_DIR)
+    it("wraps route page default exports in Suspense when route files use useSearchParams", () => {
+        const appSourceFiles = walk(APP_DIR)
             .map(normalize)
-            .filter((file) => file.endsWith("/page.tsx"));
+            .filter((file) => /\.(ts|tsx)$/.test(file));
 
-        const offenders: string[] = [];
+        const findNearestPageFile = (filePath: string): string | null => {
+            let currentDir = path.dirname(filePath);
+            while (normalize(currentDir).startsWith(normalize(APP_DIR))) {
+                const candidate = normalize(path.join(currentDir, "page.tsx"));
+                if (fs.existsSync(candidate)) {
+                    return candidate;
+                }
 
-        for (const file of pageFiles) {
+                const parent = path.dirname(currentDir);
+                if (parent === currentDir) {
+                    break;
+                }
+                currentDir = parent;
+            }
+            return null;
+        };
+
+        const pageFilesToValidate = new Set<string>();
+
+        for (const file of appSourceFiles) {
+            if (file === GUARD_TEST_FILE) {
+                continue;
+            }
+
             const source = fs.readFileSync(file, "utf8");
             if (!source.includes("useSearchParams")) {
                 continue;
             }
+
+            const nearestPage = findNearestPageFile(file);
+            if (nearestPage) {
+                pageFilesToValidate.add(nearestPage);
+            }
+        }
+
+        const offenders: string[] = [];
+
+        for (const file of pageFilesToValidate) {
+            const source = fs.readFileSync(file, "utf8");
 
             const hasSuspenseImport = /import\s+[^;]*\bSuspense\b[^;]*from\s+["']react["']/.test(source)
                 || /import\s+\*\s+as\s+React\s+from\s+["']react["']/.test(source);
@@ -99,7 +132,7 @@ describe("App Router useSearchParams safety", () => {
 
         expect(
             offenders,
-            `Pages using useSearchParams without Suspense on default export path: ${JSON.stringify(offenders, null, 2)}`,
+            `Route pages without Suspense on default export path while route files use useSearchParams: ${JSON.stringify(offenders, null, 2)}`,
         ).toEqual([]);
     });
 });

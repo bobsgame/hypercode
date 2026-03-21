@@ -4,6 +4,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.10.27] — 2026-03-21
+
+### Route-Level useSearchParams Suspense Coverage
+
+- test(web/app-router): Expanded `apps/web/src/app/use-search-params-suspense-guard.test.ts` to guard route-level `useSearchParams()` usage beyond direct `page.tsx` call sites.
+  - Scans all `apps/web/src/app/**/*.{ts,tsx}` route files for `useSearchParams()` usage.
+  - Maps each usage to the nearest route `page.tsx`.
+  - Enforces Suspense presence on the page default-export render path (AST-based), preventing regressions where hook usage moves into child route components.
+
+- verification:
+  - `pnpm exec vitest run apps/web/src/app/use-search-params-suspense-guard.test.ts` ✅
+  - `pnpm -C apps/web exec tsc --noEmit --pretty false` ✅
+  - `pnpm -C apps/web build` ✅
+
 ## [0.10.26] — 2026-03-21
 
 ### useSearchParams Suspense Guard Precision Upgrade

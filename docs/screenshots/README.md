@@ -41,3 +41,9 @@ Run the repository screenshot validator before committing:
 Use strict mode to fail when any required screenshot is missing:
 
 `pnpm run check:screenshots:strict`
+
+## Status sync command
+
+Automatically update the screenshot status column in root `README.md`:
+
+`pnpm run sync:screenshot-status`

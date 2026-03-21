@@ -19,6 +19,7 @@
                     "check:placeholders":  "node scripts/check-placeholder-regressions.mjs",
                     "check:screenshots":  "node scripts/check-screenshots.mjs",
                     "check:screenshots:strict":  "node scripts/check-screenshots.mjs --strict",
+                    "sync:screenshot-status":  "node scripts/sync-screenshot-status.mjs",
                     "check:dev-readiness":  "node scripts/verify_dev_readiness.mjs",
                     "check:release-gate":  "node scripts/check_release_gate.mjs",
                     "check:release-gate:ci":  "node scripts/check_release_gate.mjs --skip-readiness --with-turbo-lint",

@@ -72,6 +72,69 @@ function getDefaultExportSnippet(source: string): string | null {
     return null;
 }
 
+function usesSearchParamsHook(source: string): boolean {
+    const sourceFile = ts.createSourceFile("route.tsx", source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+    const directHookIdentifiers = new Set<string>();
+    const navigationNamespaces = new Set<string>();
+
+    for (const statement of sourceFile.statements) {
+        if (!ts.isImportDeclaration(statement) || statement.moduleSpecifier.getText(sourceFile) !== '"next/navigation"') {
+            continue;
+        }
+
+        const clause = statement.importClause;
+        if (!clause) {
+            continue;
+        }
+
+        if (clause.namedBindings && ts.isNamedImports(clause.namedBindings)) {
+            for (const element of clause.namedBindings.elements) {
+                const importedName = (element.propertyName ?? element.name).text;
+                if (importedName === "useSearchParams") {
+                    directHookIdentifiers.add(element.name.text);
+                }
+            }
+        }
+
+        if (clause.namedBindings && ts.isNamespaceImport(clause.namedBindings)) {
+            navigationNamespaces.add(clause.namedBindings.name.text);
+        }
+    }
+
+    if (directHookIdentifiers.size === 0 && navigationNamespaces.size === 0) {
+        return false;
+    }
+
+    let found = false;
+    const visit = (node: ts.Node) => {
+        if (found) {
+            return;
+        }
+
+        if (ts.isCallExpression(node)) {
+            if (ts.isIdentifier(node.expression) && directHookIdentifiers.has(node.expression.text)) {
+                found = true;
+                return;
+            }
+
+            if (
+                ts.isPropertyAccessExpression(node.expression)
+                && ts.isIdentifier(node.expression.expression)
+                && navigationNamespaces.has(node.expression.expression.text)
+                && node.expression.name.text === "useSearchParams"
+            ) {
+                found = true;
+                return;
+            }
+        }
+
+        ts.forEachChild(node, visit);
+    };
+
+    visit(sourceFile);
+    return found;
+}
+
 describe("App Router useSearchParams safety", () => {
     it("wraps route page default exports in Suspense when route files use useSearchParams", () => {
         const appSourceFiles = walk(APP_DIR)
@@ -103,7 +166,7 @@ describe("App Router useSearchParams safety", () => {
             }
 
             const source = fs.readFileSync(file, "utf8");
-            if (!source.includes("useSearchParams")) {
+            if (!usesSearchParamsHook(source)) {
                 continue;
             }
 

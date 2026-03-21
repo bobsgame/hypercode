@@ -4,6 +4,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.10.28] — 2026-03-21
+
+### useSearchParams Guard AST Hook Detection
+
+- test(web/app-router): Hardened `apps/web/src/app/use-search-params-suspense-guard.test.ts` to detect **actual** `useSearchParams()` hook calls via TypeScript AST instead of source-string matching.
+  - Tracks direct and aliased named imports from `next/navigation`.
+  - Supports namespace-import call sites such as `navigation.useSearchParams()`.
+  - Avoids false positives from comments, strings, or incidental identifier text.
+
+- verification:
+  - `pnpm exec vitest run apps/web/src/app/use-search-params-suspense-guard.test.ts` ✅
+  - `pnpm -C apps/web exec tsc --noEmit --pretty false` ✅
+  - `pnpm -C apps/web build` ✅
+
 ## [0.10.27] — 2026-03-21
 
 ### Route-Level useSearchParams Suspense Coverage

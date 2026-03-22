@@ -1,8 +1,44 @@
 import { z } from 'zod';
 import { t, publicProcedure, adminProcedure } from '../lib/trpc-core.js';
 import { getWorkflowEngine, getWorkflowDefinitions } from '../lib/trpc-core.js';
+import { visualWorkflowsRepo } from '../db/repositories/visual-workflows.repo.js';
 
 export const workflowRouter = t.router({
+    // --- Visual Canvas DB State ---
+    saveCanvas: adminProcedure
+        .input(z.object({
+            id: z.string().optional(),
+            name: z.string(),
+            description: z.string().optional(),
+            nodes: z.array(z.any()),
+            edges: z.array(z.any()),
+        }))
+        .mutation(async ({ input }) => {
+            if (input.id) {
+                await visualWorkflowsRepo.updateWorkflow(input.id, {
+                    name: input.name,
+                    description: input.description,
+                    nodes: input.nodes,
+                    edges: input.edges,
+                });
+                return { id: input.id };
+            } else {
+                const res = await visualWorkflowsRepo.createWorkflow(input);
+                return { id: res.id };
+            }
+        }),
+
+    loadCanvas: adminProcedure
+        .input(z.object({ id: z.string() }))
+        .query(async ({ input }) => {
+            return await visualWorkflowsRepo.getWorkflow(input.id);
+        }),
+
+    listCanvases: adminProcedure
+        .query(async () => {
+            return await visualWorkflowsRepo.listWorkflows();
+        }),
+
     // --- Workflow Definitions ---
 
     list: publicProcedure.query(() => {

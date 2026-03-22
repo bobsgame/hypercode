@@ -679,6 +679,36 @@ export const savedScriptsTable = sqliteTable(
     })
 );
 
+/**
+ * Table: workflows
+ * User-defined interactive canvas pipelines in the dashboard.
+ */
+export const workflowsTable = sqliteTable(
+    "workflows",
+    {
+        id: text("id").primaryKey(),
+        name: text("name").notNull(),
+        description: text("description"),
+        nodes_json: text("nodes_json", { mode: "json" })
+            .$type<any[]>()
+            .notNull()
+            .default(sql`'[]'`),
+        edges_json: text("edges_json", { mode: "json" })
+            .$type<any[]>()
+            .notNull()
+            .default(sql`'[]'`),
+        created_at: integer("created_at", { mode: "timestamp" })
+            .notNull()
+            .default(sql`(strftime('%s', 'now'))`),
+        updated_at: integer("updated_at", { mode: "timestamp" })
+            .notNull()
+            .default(sql`(strftime('%s', 'now'))`),
+        user_id: text("user_id").references(() => usersTable.id, {
+            onDelete: "cascade",
+        }),
+    }
+);
+
 // ============================================================
 // MCP REGISTRY INTELLIGENCE — Published Catalog Tables
 // ============================================================

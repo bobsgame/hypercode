@@ -1,0 +1,239 @@
+'use client';
+
+import React, { useState, useCallback, useRef } from 'react';
+import {
+  ReactFlow,
+  Controls,
+  Background,
+  applyNodeChanges,
+  applyEdgeChanges,
+  addEdge,
+  ReactFlowProvider,
+  useReactFlow,
+  type Node,
+  type Edge,
+  type NodeChange,
+  type EdgeChange,
+  type Connection,
+  MiniMap,
+  Handle,
+  Position
+} from '@xyflow/react';
+import '@xyflow/react/dist/style.css';
+
+// --- Custom Nodes ---
+function AgentNode({ data }: { data: any }) {
+  return (
+    <div className="bg-gray-800 border-2 border-emerald-500 rounded p-3 w-40 text-center shadow-[0_0_15px_rgba(16,185,129,0.3)]">
+      <Handle type="target" position={Position.Top} className="!bg-emerald-500 !w-3 !h-3" />
+      <div className="font-bold text-gray-200 text-sm">{data.label as string}</div>
+      <div className="text-emerald-400 text-xs mt-1 font-mono">SmartPilot</div>
+      <Handle type="source" position={Position.Bottom} className="!bg-emerald-500 !w-3 !h-3" />
+    </div>
+  );
+}
+
+function ToolNode({ data }: { data: any }) {
+  return (
+    <div className="bg-gray-800 border-2 border-orange-500 rounded p-3 w-40 text-center shadow-[0_0_15px_rgba(249,115,22,0.3)]">
+      <Handle type="target" position={Position.Top} className="!bg-orange-500 !w-3 !h-3" />
+      <div className="font-bold text-gray-200 text-sm">{data.label as string}</div>
+      <div className="text-orange-400 text-xs mt-1 font-mono">MCP Tool</div>
+      <Handle type="source" position={Position.Bottom} className="!bg-orange-500 !w-3 !h-3" />
+    </div>
+  );
+}
+
+const nodeTypes = {
+  agent: AgentNode,
+  tool: ToolNode,
+};
+
+// --- Sidebar Component ---
+function Sidebar() {
+  const onDragStart = (event: React.DragEvent, nodeType: string, label: string) => {
+    event.dataTransfer.setData('application/reactflow', nodeType);
+    event.dataTransfer.setData('application/reactflow-label', label);
+    event.dataTransfer.effectAllowed = 'move';
+  };
+
+  return (
+    <aside className="w-56 bg-gray-900 border-r border-gray-700 p-4 flex flex-col gap-4">
+      <h3 className="text-gray-300 font-semibold text-sm">Orchestration Nodes</h3>
+      <p className="text-xs text-gray-500 leading-snug">Drag and drop nodes onto the canvas to construct an autonomous pipeline.</p>
+      
+      <div 
+        className="bg-gray-800 border-2 border-emerald-500/50 hover:border-emerald-500 rounded p-2 text-center text-sm cursor-grab text-gray-200 transition-colors"
+        onDragStart={(event) => onDragStart(event, 'agent', 'New SmartPilot')} 
+        draggable
+      >
+        Agent / Council
+      </div>
+      
+      <div 
+        className="bg-gray-800 border-2 border-orange-500/50 hover:border-orange-500 rounded p-2 text-center text-sm cursor-grab text-gray-200 transition-colors"
+        onDragStart={(event) => onDragStart(event, 'tool', 'New Action')} 
+        draggable
+      >
+        MCP Tool Call
+      </div>
+    </aside>
+  );
+}
+
+// --- Canvas Inner ---
+import { trpc } from '@/utils/trpc';
+
+const initialNodes: Node[] = [
+  { id: '1', type: 'agent', position: { x: 50, y: 50 }, data: { label: 'Director Agent' } },
+  { id: '2', type: 'tool', position: { x: 50, y: 200 }, data: { label: 'Filesystem (FS)' } },
+  { id: '3', type: 'agent', position: { x: 250, y: 350 }, data: { label: 'Verifier Agent' } },
+];
+
+const initialEdges: Edge[] = [
+  { id: 'e1-2', source: '1', target: '2', animated: true },
+  { id: 'e2-3', source: '2', target: '3', animated: true }
+];
+
+function CanvasInner() {
+  const [nodes, setNodes] = useState<Node[]>(initialNodes);
+  const [edges, setEdges] = useState<Edge[]>(initialEdges);
+  const [currentId, setCurrentId] = useState<string | undefined>(undefined);
+  const [name, setName] = useState<string>('My Autonomous Pipeline');
+
+  const { screenToFlowPosition } = useReactFlow();
+  const utils = trpc.useUtils();
+
+  const { data: savedFlows } = trpc.workflow.listCanvases.useQuery();
+  
+  const saveMutation = trpc.workflow.saveCanvas.useMutation({
+    onSuccess: (data) => {
+      setCurrentId(data.id);
+      utils.workflow.listCanvases.invalidate();
+    }
+  });
+
+  const handleSave = () => {
+    saveMutation.mutate({ id: currentId, name, nodes, edges });
+  };
+
+  const handleLoad = (flowId: string) => {
+    if (!flowId) return;
+    const flow = savedFlows?.find(f => f.id === flowId);
+    if (!flow) return;
+    
+    setCurrentId(flow.id);
+    setName(flow.name);
+    setNodes(flow.nodes_json || []);
+    setEdges(flow.edges_json || []);
+  };
+
+  const handleClear = () => {
+    setCurrentId(undefined);
+    setName('New Pipeline ' + Date.now());
+    setNodes([]);
+    setEdges([]);
+  };
+
+  const onNodesChange = useCallback(
+    (changes: NodeChange[]) => setNodes((nds) => applyNodeChanges(changes, nds)),
+    []
+  );
+
+  const onEdgesChange = useCallback(
+    (changes: EdgeChange[]) => setEdges((eds) => applyEdgeChanges(changes, eds)),
+    []
+  );
+
+  const onConnect = useCallback(
+    (params: Connection) => setEdges((eds) => addEdge({ ...params, animated: true }, eds)),
+    []
+  );
+
+  const onDragOver = useCallback((event: React.DragEvent) => {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+  }, []);
+
+  const onDrop = useCallback(
+    (event: React.DragEvent) => {
+      event.preventDefault();
+
+      const type = event.dataTransfer.getData('application/reactflow');
+      const label = event.dataTransfer.getData('application/reactflow-label');
+
+      if (typeof type === 'undefined' || !type) {
+        return;
+      }
+
+      const position = screenToFlowPosition({
+        x: event.clientX,
+        y: event.clientY,
+      });
+
+      const newNode: Node = {
+        id: `node-${Date.now()}`,
+        type,
+        position,
+        data: { label },
+      };
+
+      setNodes((nds) => nds.concat(newNode));
+    },
+    [screenToFlowPosition, setNodes],
+  );
+
+  return (
+    <div className="flex-1 h-full w-full relative bg-gray-950">
+      
+      {/* ── Top Bar Overlay ── */}
+      <div className="absolute top-4 right-4 z-10 flex gap-2 items-center bg-gray-900/80 p-2 rounded-md border border-gray-700 shadow-xl backdrop-blur-md">
+         <input 
+           value={name} 
+           onChange={(e) => setName(e.target.value)} 
+           className="bg-gray-800 text-sm text-emerald-400 font-semibold px-2 py-1 rounded border border-gray-700 w-48"
+         />
+         <select onChange={(e) => handleLoad(e.target.value)} value={currentId || ''} className="bg-gray-800 text-sm text-gray-200 px-2 py-1 rounded border border-gray-700 w-40">
+           <option value="">-- Load Pipeline --</option>
+           {savedFlows?.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+         </select>
+         <button onClick={handleSave} className="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1 rounded text-sm disabled:opacity-50 transition-colors" disabled={saveMutation.isPending}>
+           {saveMutation.isPending ? 'Saving...' : '💾 Save'}
+         </button>
+         <button onClick={handleClear} className="bg-gray-700 hover:bg-red-900 text-gray-300 px-3 py-1 rounded text-sm transition-colors">
+           Clear Canvas
+         </button>
+      </div>
+
+      <ReactFlow
+        nodes={nodes}
+        edges={edges}
+        nodeTypes={nodeTypes}
+        onNodesChange={onNodesChange}
+        onEdgesChange={onEdgesChange}
+        onConnect={onConnect}
+        onInit={() => console.log('flow loaded')}
+        onDrop={onDrop}
+        onDragOver={onDragOver}
+        fitView
+        colorMode="dark"
+      >
+        <Background color="#333" gap={16} />
+        <Controls className="bg-gray-800 border-gray-700 fill-gray-300" />
+        <MiniMap nodeColor="#4B5563" maskColor="#11182788" className="bg-gray-900 border-gray-800" />
+      </ReactFlow>
+    </div>
+  );
+}
+
+// --- Main Export Wrapper ---
+export function WorkflowCanvas() {
+  return (
+    <div className="react-flow-wrapper flex flex-row w-full h-full rounded-md overflow-hidden">
+      <ReactFlowProvider>
+        <Sidebar />
+        <CanvasInner />
+      </ReactFlowProvider>
+    </div>
+  );
+}

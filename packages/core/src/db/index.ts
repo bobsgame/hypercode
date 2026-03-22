@@ -312,6 +312,18 @@ function initializeSchema(database: InstanceType<typeof Database>): void {
             FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
         );
 
+        CREATE TABLE IF NOT EXISTS workflows (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            description TEXT,
+            nodes_json TEXT NOT NULL DEFAULT '[]',
+            edges_json TEXT NOT NULL DEFAULT '[]',
+            created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
+            updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
+            user_id TEXT,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        );
+
         CREATE INDEX IF NOT EXISTS mcp_servers_name_idx ON mcp_servers(name);
         CREATE INDEX IF NOT EXISTS mcp_servers_user_id_idx ON mcp_servers(user_id);
         CREATE UNIQUE INDEX IF NOT EXISTS mcp_servers_name_user_unique ON mcp_servers(name, user_id);

@@ -34,3 +34,16 @@ Borg agents follow the 7-Step Workflow outlined in `UNIVERSAL_LLM_INSTRUCTIONS.m
 ## 🎓 Skills
 
 Agents can extend their capabilities by activating tools from the `skills/` directory. If an agent encounters a problem outside its immediate training, it should search the skills library and assimilate the necessary knowledge.
+
+## 🛠️ Operational Context
+
+These facts apply to all agents operating in the Borg workspace:
+
+*   **pnpm v10 required**: Root `package.json` locks `packageManager: pnpm@10.28.0`. Using v9 will fail builds.
+*   **Build verification**: Run `pnpm run build` in `apps/web` to verify production build. Dev mode may not catch all import errors.
+*   **UI imports**: Components in `apps/web/` must import from `@borg/ui`, never `@/components/ui/*` — that path doesn't exist in the web app.
+*   **MCP config**: Server definitions live at `~/.borg/mcp.json`. Legacy configs from workspace root are auto-migrated.
+*   **Always On tools**: The `always_on` flag (SQLite) lets servers/tools be permanently advertised. The `auto_call_tool` meta-tool enables semantic execution.
+*   **Code Mode**: Escape hatch at `/dashboard/code` — lets LLMs call tools via TypeScript instead of JSON schemas for up to 94% context reduction.
+*   **Key docs to review**: `MEMORY.md`, `TODO.md`, `ROADMAP.md`, `CHANGELOG.md`, `DEPLOY.md`, `VERSION`.
+

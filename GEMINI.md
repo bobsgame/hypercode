@@ -16,3 +16,9 @@ Gemini possesses an enormous context window. You are responsible for holistic, w
 2.  Review `VERSION`, `CHANGELOG.md`, `ROADMAP.md`, `TODO.md`, and `MEMORY.md`.
 3.  Perform the requested task or synchronization autonomously without stopping for prompts.
 4.  Commit, push, bump the version, and write a detailed `HANDOFF.md` for the next model cycle if switching models.
+
+## 4. Key Operational Notes
+*   **Build Gate:** Always run `pnpm run build` in `apps/web` before declaring work complete. Dev mode doesn't catch all errors.
+*   **MCP Config:** Server definitions at `~/.borg/mcp.json`. Use `AGENTS.md` §Operational Context for full reference.
+*   **Import Rule:** `apps/web` imports from `@borg/ui` — never `@/components/ui/*`.
+

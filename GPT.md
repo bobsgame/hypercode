@@ -15,3 +15,9 @@ GPT models are excellent for rapid scaffolding, shell scripting, regex generatio
 2.  Review `VERSION`, `CHANGELOG.md`, `ROADMAP.md`, `TODO.md`, and `MEMORY.md`.
 3.  Perform task rapidly. Check for regressions.
 4.  Commit, push, bump version, and handoff.
+
+## 4. Key Operational Notes
+*   **Build Gate:** Verify with `pnpm run build` in `apps/web` after UI changes.
+*   **Import Rule:** `apps/web` imports from `@borg/ui`, never `@/components/ui/*`.
+*   **MCP Config:** `~/.borg/mcp.json`. See `AGENTS.md` §Operational Context.
+

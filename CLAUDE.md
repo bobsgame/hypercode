@@ -16,3 +16,9 @@ Claude excels at deep, methodical, step-by-step logic and rigorous code review. 
 2.  Review `VERSION`, `CHANGELOG.md`, `ROADMAP.md`, `TODO.md`, and `MEMORY.md`.
 3.  Execute your task carefully, writing tests where appropriate.
 4.  Commit, push, bump the version, and write a detailed `HANDOFF.md`.
+
+## 4. Key Operational Notes
+*   **Build Gate:** Always verify with `pnpm run build` in `apps/web` — dev mode hides import errors.
+*   **Import Rule:** `apps/web` imports from `@borg/ui`, never `@/components/ui/*`.
+*   **MCP Config:** `~/.borg/mcp.json`. See `AGENTS.md` §Operational Context for details.
+

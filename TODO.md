@@ -43,4 +43,4 @@ _Short-term tasks, bug fixes, and feature implementations. For long-term goals, 
 - [x] Create/Update `MEMORY.md` with ongoing observations.
 - [x] Create/Update `DEPLOY.md` with explicit deployment/startup instructions.
 - [x] Update `CHANGELOG.md` for this sprint.
-- [ ] Refine `AGENTS.md`, `GEMINI.md`, `CLAUDE.md`, `GPT.md` to reference the Universal LLM Instructions and the new rigorous documentation protocols.
+- [x] Refine `AGENTS.md`, `GEMINI.md`, `CLAUDE.md`, `GPT.md` to reference the Universal LLM Instructions and the new rigorous documentation protocols.

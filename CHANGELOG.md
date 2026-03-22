@@ -4,6 +4,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.90.1] — 2026-03-22
+
+### Documentation & Vision
+- docs: Generated IDEAS.md containing future architectural pivots and feature ideas.
+- docs: Swept through VISION.md, MEMORY.md, DEPLOY.md, and global agent rules to verify alignment with the Ultimate Universal AI Dashboard objective.
+- chore: Bumped VERSION to 0.90.1.
+
 ## [0.90.0] — 2026-03-21
 
 ### Dashboard & MCP Router

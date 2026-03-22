@@ -274,6 +274,7 @@ export const CORE_DASHBOARD_NAV: NavItem[] = [
     { title: "System", href: "/dashboard/system", icon: Server, description: "Operator console: uptime, subsystem health, boot status.", variant: "ghost", badge: "beta" },
     { title: "Documentation", href: "/docs", icon: BookOpen, variant: "ghost" },
     { title: "Settings", href: "/dashboard/settings", icon: Settings2, variant: "ghost" },
+    { title: "Secrets Vault", href: "/dashboard/settings/secrets", icon: Key, description: "Manage environment variables and API credentials injected into MCP servers.", variant: "ghost" },
     { title: "Link Backlog", href: "/dashboard/links", icon: BookMarked, description: "Canonical BobbyBookmarks-powered backlog and future universal MCP directory feed.", variant: "ghost", badge: "beta" },
 ];
 

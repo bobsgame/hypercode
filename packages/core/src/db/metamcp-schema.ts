@@ -411,6 +411,21 @@ export const configTable = sqliteTable("config", {
         .default(sql`(strftime('%s', 'now'))`),
 });
 
+/**
+ * Table: workspace_secrets
+ * Environment variables and sensitive OAuth tokens/keys.
+ */
+export const workspaceSecretsTable = sqliteTable("workspace_secrets", {
+    key: text("key").primaryKey(),
+    value: text("value").notNull(),
+    created_at: integer("created_at", { mode: "timestamp" })
+        .notNull()
+        .default(sql`(strftime('%s', 'now'))`),
+    updated_at: integer("updated_at", { mode: "timestamp" })
+        .notNull()
+        .default(sql`(strftime('%s', 'now'))`),
+});
+
 // -- OAUTH PROVIDER TABLES --
 
 export const oauthClientsTable = sqliteTable("oauth_clients", {

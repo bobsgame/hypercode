@@ -126,6 +126,26 @@ export class McpServersRepository {
     private readonly inFlightDiscoveries = new Map<string, Promise<DiscoveryResult>>();
     private readonly binaryDiscoveryCooldownMs = parseBinaryDiscoveryCooldownMs(process.env.BORG_MCP_BINARY_DISCOVERY_COOLDOWN_MS);
 
+    private async injectSecrets(servers: DatabaseMcpServer[]): Promise<DatabaseMcpServer[]> {
+        try {
+            const { workspaceSecretsTable } = await import('../mcp-admin-schema.js');
+            const secrets = await db.select().from(workspaceSecretsTable);
+            if (secrets.length === 0) return servers;
+
+            const secretEnv: Record<string, string> = {};
+            for (const secret of secrets) {
+                secretEnv[secret.key] = secret.value;
+            }
+
+            for (const server of servers) {
+                server.env = { ...secretEnv, ...(server.env ?? {}) };
+            }
+        } catch (e) {
+            // Silently ignore if table missing during initial boot migrations
+        }
+        return servers;
+    }
+
     async create(input: McpServerCreateInput, options?: { skipSync?: boolean; skipDiscovery?: boolean; metadataStrategy?: MetadataReloadStrategy }): Promise<DatabaseMcpServer> {
         try {
             const payload: McpServerInsert = {
@@ -168,13 +188,16 @@ export class McpServersRepository {
 
     async findAll(userId?: string): Promise<DatabaseMcpServer[]> {
         try {
+            let servers: DatabaseMcpServer[];
             if (userId) {
-                return await db
+                servers = await db
                     .select()
                     .from(mcpServersTable)
                     .where(eq(mcpServersTable.user_id, userId));
+            } else {
+                servers = await db.select().from(mcpServersTable);
             }
-            return await db.select().from(mcpServersTable);
+            return await this.injectSecrets(servers);
         } catch (error) {
             handleDatabaseError(error, "findAll");
         }
@@ -213,7 +236,9 @@ export class McpServersRepository {
                 .select()
                 .from(mcpServersTable)
                 .where(eq(mcpServersTable.uuid, uuid));
-            return server;
+            if (!server) return undefined;
+            const res = await this.injectSecrets([server]);
+            return res[0];
         } catch (error) {
             handleDatabaseError(error, "findByUuid");
         }
@@ -225,7 +250,9 @@ export class McpServersRepository {
                 .select()
                 .from(mcpServersTable)
                 .where(eq(mcpServersTable.name, name));
-            return server;
+            if (!server) return undefined;
+            const res = await this.injectSecrets([server]);
+            return res[0];
         } catch (error) {
             handleDatabaseError(error, "findByName");
         }

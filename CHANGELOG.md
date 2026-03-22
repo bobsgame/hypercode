@@ -1,8 +1,18 @@
-
-
 ## Borg Changelog
 
 All notable changes to this project will be documented in this file.
+
+## [0.90.3] — 2026-03-22
+### Added
+- **TOON Parser Engine:** Replaced the stub JSON serializer in `core/mcp` with a full Tool-Optimized Output Notation parser that compresses LLM context by stripping redundant braces/quotes into a lightweight pseudo-YAML payload framed by `<toon>` tags.
+- **Traffic Inspector TOON Renderer:** Added `<ToonRenderer />` to the dashboard's MCP Traffic Inspector. Raw JSON tool arguments and results are now automatically detected and syntax-highlighted inside an elegant custom emerald component.
+- **Dependency:** Added `yaml` to `@borg/core` to support lossless parsing and serialization.
+- **Stability:** Hardened yaml ESM imports to use explicit named destructured imports (`parse, stringify`) natively avoiding `default` package resolution mismatch across monorepos.
+
+## [0.90.2] — 2026-03-22
+### Added
+- **Secrets Vault:** Centralized dashboard UI and local SQLite vault for mapping environment variables and API credentials.
+- Automatic backend mapping of secrets inside `McpServersRepository`, overlaying securely into MCP server environment definitions without plaintext leakage.
 
 ## [0.90.1] — 2026-03-22
 

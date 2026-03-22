@@ -513,6 +513,13 @@ function initializeSchema(database: InstanceType<typeof Database>): void {
             updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now'))
         );
 
+        CREATE TABLE IF NOT EXISTS workspace_secrets (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL,
+            created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
+            updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now'))
+        );
+
         CREATE INDEX IF NOT EXISTS idx_council_workspaces_status ON council_workspaces(status);
     `);
 

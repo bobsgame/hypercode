@@ -151,8 +151,13 @@ async function fetchTrpcQuery(webPort, procedureName, input = {}) {
       return { ok: false, url: url.toString(), status: response.status, data: null };
     }
 
-    const payload = await response.json();
-    return { ok: true, url: url.toString(), status: response.status, data: extractTrpcData(payload) };
+    const text = await response.text();
+    try {
+      const payload = JSON.parse(text);
+      return { ok: true, url: url.toString(), status: response.status, data: extractTrpcData(payload) };
+    } catch {
+      return { ok: true, url: url.toString(), status: response.status, data: null, raw: text };
+    }
   } catch (error) {
     return {
       ok: false,
@@ -186,8 +191,13 @@ async function fetchTrpcMutation(webPort, procedureName, input = {}) {
       return { ok: false, url, status: response.status, data: null };
     }
 
-    const payload = await response.json();
-    return { ok: true, url, status: response.status, data: extractTrpcData(payload) };
+    const text = await response.text();
+    try {
+      const payload = JSON.parse(text);
+      return { ok: true, url, status: response.status, data: extractTrpcData(payload) };
+    } catch {
+      return { ok: true, url, status: response.status, data: null, raw: text };
+    }
   } catch (error) {
     return {
       ok: false,

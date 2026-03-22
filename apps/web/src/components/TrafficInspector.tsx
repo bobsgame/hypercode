@@ -325,6 +325,34 @@ export function TrafficInspector() {
     );
 }
 
+function ToonRenderer({ data, previewLength, className }: { data: any, previewLength?: number, className?: string }) {
+    if (!data) return <span>—</span>;
+    
+    // Auto-stringify objects if they aren't strings yet
+    const text = typeof data === 'string' ? data : JSON.stringify(data);
+    
+    // Check if it's TOON formatted
+    if (typeof text !== 'string' || !text.includes('<toon>')) {
+        return <span className={className}>{previewLength ? text.substring(0, previewLength) : text}</span>;
+    }
+    
+    const match = text.match(/<toon>([\s\S]*?)<\/toon>/);
+    if (!match) return <span className={className}>{previewLength ? text.substring(0, previewLength) : text}</span>;
+    
+    const toonContent = match[1].trim();
+    const displayContent = previewLength && toonContent.length > previewLength 
+        ? toonContent.substring(0, previewLength) + '... (truncated)' 
+        : toonContent;
+        
+    return (
+        <div className="mt-1 p-2 bg-emerald-950/20 border border-emerald-900/40 rounded font-mono text-xs text-emerald-400/90 whitespace-pre-wrap overflow-x-auto shadow-inner">
+            <div className="text-emerald-500/40 mb-1 select-none font-bold text-[10px] tracking-widest leading-none">{'<TOON>'}</div>
+            {displayContent}
+            <div className="text-emerald-500/40 mt-1 select-none font-bold text-[10px] tracking-widest leading-none">{'</TOON>'}</div>
+        </div>
+    );
+}
+
 function PacketRow({ packet }: { packet: Packet }) {
     if (packet.type === 'BROWSER_LOG') {
         const level = packet.level ?? 'log';
@@ -349,7 +377,9 @@ function PacketRow({ packet }: { packet: Packet }) {
                         {new Date(packet.timestamp).toLocaleTimeString().split(' ')[0]}
                     </span>
                 </div>
-                <div className="mt-2 pl-6 text-xs text-zinc-300 break-all">{packet.content}</div>
+                <div className="mt-2 pl-6 text-xs text-zinc-300 break-all whitespace-pre-wrap">
+                    <ToonRenderer data={packet.content} />
+                </div>
             </div>
         );
     }
@@ -372,7 +402,7 @@ function PacketRow({ packet }: { packet: Packet }) {
                 </div>
                 {packet.preview && (
                     <div className="mt-1 pl-6 text-xs text-zinc-500 break-all">
-                        Preview: {packet.preview}
+                        Preview: <ToonRenderer data={packet.preview} previewLength={500} />
                     </div>
                 )}
             </div>
@@ -394,7 +424,9 @@ function PacketRow({ packet }: { packet: Packet }) {
                         {new Date(packet.timestamp).toLocaleTimeString().split(' ')[0]}
                     </span>
                 </div>
-                <pre className="mt-2 pl-6 text-xs text-zinc-300 break-all whitespace-pre-wrap">{JSON.stringify(packet.params ?? {}, null, 2)}</pre>
+                <div className="mt-2 pl-6 text-xs text-zinc-300">
+                    <ToonRenderer data={packet.params} previewLength={800} className="break-all whitespace-pre-wrap" />
+                </div>
             </div>
         );
     }
@@ -501,7 +533,7 @@ function PacketRow({ packet }: { packet: Packet }) {
                     </span>
                 </div>
                 <div className="mt-2 pl-6 text-xs text-zinc-300 break-all">
-                    Params: <span className="text-violet-200/80">{packet.content || '—'}</span>
+                    Params: <ToonRenderer data={packet.content} className="text-violet-200/80" />
                     <div className="mt-1 text-zinc-500">Latency: {packet.duration}ms</div>
                 </div>
             </div>
@@ -533,10 +565,10 @@ function PacketRow({ packet }: { packet: Packet }) {
             <div className="mt-2 pl-6">
                 {isStart ? (
                     <div className="text-zinc-400 break-all text-xs">
-                        Args: <span className="text-blue-300/80">{JSON.stringify(packet.args).substring(0, 200)}</span>
+                        Args: <ToonRenderer data={packet.args} previewLength={500} className="text-blue-300/80" />
                         {packet.contextPreview ? (
                             <div className="mt-1 text-cyan-300/90">
-                                {packet.contextPreview}
+                                <ToonRenderer data={packet.contextPreview} />
                                 {(packet.contextMatchedPaths?.length ?? 0) > 0 ? (
                                     <span className="text-zinc-500"> · {packet.contextMatchedPaths?.join(', ')}</span>
                                 ) : null}
@@ -545,7 +577,7 @@ function PacketRow({ packet }: { packet: Packet }) {
                     </div>
                 ) : (
                     <div className="text-zinc-400 break-all text-xs">
-                        Result: <span className="text-zinc-500">{packet.result}</span>
+                        Result: <ToonRenderer data={packet.result} previewLength={1000} className="text-zinc-500" />
                         <div className="mt-1 text-zinc-600">
                             Duration: {packet.duration}ms
                         </div>

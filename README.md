@@ -1,62 +1,193 @@
-# Borg (v0.9.667)
+<div align="center">
 
-> The Unified AI Operations Control Plane.
+<h1>⚠️ MAD SCIENCE ANNOUNCEMENT ⚠️</h1>
 
-<p align="center">
-  <a href="https://github.com/robertpelloni/borg/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/robertpelloni/borg/actions/workflows/ci.yml/badge.svg" /></a>
-  <a href="https://github.com/robertpelloni/borg/actions/workflows/codeql.yml"><img alt="CodeQL" src="https://github.com/robertpelloni/borg/actions/workflows/codeql.yml/badge.svg" /></a>
-  <a href="https://github.com/robertpelloni/borg/releases"><img alt="GitHub Release" src="https://img.shields.io/github/v/release/robertpelloni/borg?display_name=tag" /></a>
-  <a href="https://github.com/robertpelloni/borg/stargazers"><img alt="GitHub stars" src="https://img.shields.io/github/stars/robertpelloni/borg?style=flat" /></a>
-  <a href="https://github.com/robertpelloni/borg/network/members"><img alt="GitHub forks" src="https://img.shields.io/github/forks/robertpelloni/borg?style=flat" /></a>
-  <a href="https://github.com/robertpelloni/borg/issues"><img alt="GitHub issues" src="https://img.shields.io/github/issues/robertpelloni/borg" /></a>
-  <a href="./LICENSE"><img alt="License" src="https://img.shields.io/badge/license-MIT-green" /></a>
+<h1>⚡🧪 BORG IS THE ULTIMATE LLM MECHA-SUIT.</h1>
+<h1>🧠 BORG IS THE THING YOU WANT.</h1>
+<h1>🚀 BORG WILL CHANGE YOUR LIFE FOREVER.</h1>
+<h1>🛠️ BORG DOES ALL THE THINGS YOU WISH IT DID.</h1>
+<h1>🌌 BORG DOES EVERYTHING YOU DIDN'T KNOW YOU WANTED.</h1>
+
+<p><strong>MCP TOOLS SOLVED • PROGRESSIVE DISCLOSURE • MEMORY • CONTEXT HARVESTING • ORCHESTRATION • AUTO-HEALING • ONE-SHOT EXECUTION • AGENT SWARMS • MISSION CONTROL</strong></p>
+<p><strong>BUILD FASTER. SHIP HARDER. FORGET LESS. AUTOMATE MORE.</strong></p>
+<p><em>Mad scientist energy. Production-grade outcomes.</em></p>
+
+<p><strong>⚡ START HERE:</strong> <a href="#-quick-start">Quick Start</a> • <a href="#-key-capabilities">Key Capabilities</a> • <a href="#-how-to-use-borg">How to Use Borg</a></p>
+
+<p><strong>📣 COPY/PASTE LAUNCH LINES</strong></p>
+<p><code>Borg is the control plane your AI stack has been missing.</code></p>
+<p><code>One endpoint. Hundreds of MCP tools. Real memory. Real orchestration.</code></p>
+<p><code>If your agent workflow feels fragmented, Borg is the missing exoskeleton.</code></p>
+
+<p><strong>🎤 30-SECOND PITCH</strong></p>
+<p><code>Borg is a local-first AI operations control plane: one endpoint to route MCP tools, one memory system to persist context, and one orchestration layer to run complex workflows without tool chaos.</code></p>
+
+<p><strong>🛰️ POST-READY VARIANTS</strong></p>
+<p><code>Free and open source: Borg turns scattered AI tools into one coherent operating system for agents.</code></p>
+<p><code>MCP overload is real. Borg fixes it with progressive disclosure, one-shot execution, and durable memory.</code></p>
+<p><code>Your model is smart. Your tool stack should be too. Borg is the mecha-suit.</code></p>
+
+<h1>🤖 Borg</h1>
+
+<p><strong>The Unified AI Operations Control Plane</strong></p>
+<p><em>Connect everything. Orchestrate anything. Remember forever.</em></p>
+
+<!-- CI / Quality -->
+<p>
+  <a href="https://github.com/robertpelloni/borg/actions/workflows/ci.yml">
+    <img alt="CI" src="https://github.com/robertpelloni/borg/actions/workflows/ci.yml/badge.svg?branch=main" />
+  </a>
+  <a href="https://github.com/robertpelloni/borg/actions/workflows/codeql.yml">
+    <img alt="CodeQL" src="https://github.com/robertpelloni/borg/actions/workflows/codeql.yml/badge.svg" />
+  </a>
+  <a href="https://github.com/robertpelloni/borg/actions/workflows/release.yml">
+    <img alt="Release" src="https://github.com/robertpelloni/borg/actions/workflows/release.yml/badge.svg" />
+  </a>
+  <a href="https://github.com/robertpelloni/borg/actions/workflows/benchmark.yml">
+    <img alt="Benchmark" src="https://github.com/robertpelloni/borg/actions/workflows/benchmark.yml/badge.svg" />
+  </a>
 </p>
 
-<p align="center">
-  <a href="https://github.com/robertpelloni/borg/actions"><img alt="Open Actions" src="https://img.shields.io/badge/View-Actions-1f6feb?logo=githubactions&logoColor=white" /></a>
-  <a href="https://github.com/robertpelloni/borg/deployments"><img alt="Open Deployments" src="https://img.shields.io/badge/View-Deployments-0ea5e9?logo=vercel&logoColor=white" /></a>
-  <a href="https://github.com/robertpelloni/borg/releases"><img alt="Open Releases" src="https://img.shields.io/badge/View-Releases-7c3aed?logo=github" /></a>
-  <a href="https://github.com/robertpelloni/borg/pkgs/container/borg"><img alt="Open Container" src="https://img.shields.io/badge/View-Container-2563eb?logo=docker&logoColor=white" /></a>
+<!-- Version / Repo stats -->
+<p>
+  <a href="https://github.com/robertpelloni/borg/releases">
+    <img alt="GitHub Release" src="https://img.shields.io/github/v/release/robertpelloni/borg?display_name=tag&style=flat&color=7c3aed&logo=github" />
+  </a>
+  <a href="https://github.com/robertpelloni/borg/stargazers">
+    <img alt="Stars" src="https://img.shields.io/github/stars/robertpelloni/borg?style=flat&color=f59e0b&logo=github" />
+  </a>
+  <a href="https://github.com/robertpelloni/borg/network/members">
+    <img alt="Forks" src="https://img.shields.io/github/forks/robertpelloni/borg?style=flat&color=0ea5e9&logo=github" />
+  </a>
+  <a href="https://github.com/robertpelloni/borg/issues">
+    <img alt="Issues" src="https://img.shields.io/github/issues/robertpelloni/borg?style=flat&color=ef4444" />
+  </a>
+  <a href="https://github.com/robertpelloni/borg/pulls">
+    <img alt="PRs" src="https://img.shields.io/github/issues-pr/robertpelloni/borg?style=flat&color=22c55e" />
+  </a>
+  <a href="./LICENSE">
+    <img alt="License" src="https://img.shields.io/badge/license-MIT-22c55e?style=flat" />
+  </a>
 </p>
 
-## 📊 GitHub Stats & Activity
-
-<p align="center">
-  <img alt="Borg repo stats" src="https://github-readme-stats.vercel.app/api/pin/?username=robertpelloni&repo=borg&theme=dark&hide_border=true" />
+<!-- Activity -->
+<p>
+  <img alt="Commit activity" src="https://img.shields.io/github/commit-activity/m/robertpelloni/borg?style=flat&label=commits%2Fmonth&color=8b5cf6" />
+  <img alt="Last commit" src="https://img.shields.io/github/last-commit/robertpelloni/borg?style=flat&color=06b6d4" />
+  <img alt="Repo size" src="https://img.shields.io/github/repo-size/robertpelloni/borg?style=flat&color=f97316" />
+  <img alt="Code size" src="https://img.shields.io/github/languages/code-size/robertpelloni/borg?style=flat&color=ec4899" />
 </p>
 
-<p align="center">
-  <img alt="Borg commit activity" src="https://img.shields.io/github/commit-activity/m/robertpelloni/borg" />
-  <img alt="Borg last commit" src="https://img.shields.io/github/last-commit/robertpelloni/borg" />
-  <img alt="Borg open PRs" src="https://img.shields.io/github/issues-pr/robertpelloni/borg" />
+<!-- Tech stack -->
+<p>
+  <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-5.x-3178c6?style=flat&logo=typescript&logoColor=white" />
+  <img alt="Node.js" src="https://img.shields.io/badge/Node.js-20+-339933?style=flat&logo=nodedotjs&logoColor=white" />
+  <img alt="Next.js" src="https://img.shields.io/badge/Next.js-15-000000?style=flat&logo=nextdotjs&logoColor=white" />
+  <img alt="React" src="https://img.shields.io/badge/React-18-61dafb?style=flat&logo=react&logoColor=black" />
+  <img alt="tRPC" src="https://img.shields.io/badge/tRPC-11-398ccb?style=flat&logo=trpc&logoColor=white" />
+  <img alt="Docker" src="https://img.shields.io/badge/Docker-ready-2496ed?style=flat&logo=docker&logoColor=white" />
+  <img alt="pnpm" src="https://img.shields.io/badge/pnpm-10-f69220?style=flat&logo=pnpm&logoColor=white" />
 </p>
+
+<!-- Quick links -->
+<p>
+  <a href="https://github.com/robertpelloni/borg/actions">
+    <img alt="Actions" src="https://img.shields.io/badge/GitHub-Actions-1f6feb?style=for-the-badge&logo=githubactions&logoColor=white" />
+  </a>
+  <a href="https://github.com/robertpelloni/borg/deployments">
+    <img alt="Deployments" src="https://img.shields.io/badge/Deployments-Live-0ea5e9?style=for-the-badge&logo=vercel&logoColor=white" />
+  </a>
+  <a href="https://github.com/robertpelloni/borg/releases">
+    <img alt="Releases" src="https://img.shields.io/badge/Releases-Changelog-7c3aed?style=for-the-badge&logo=github&logoColor=white" />
+  </a>
+  <a href="https://github.com/robertpelloni/borg/pkgs/container/borg">
+    <img alt="Container" src="https://img.shields.io/badge/Container-GHCR-2563eb?style=for-the-badge&logo=docker&logoColor=white" />
+  </a>
+</p>
+
+</div>
+
+---
+
+## 📊 Stats & Activity
+
+<div align="center">
+
+<a href="https://github.com/robertpelloni/borg">
+  <img alt="Repo stats" height="165" src="https://github-readme-stats.vercel.app/api/pin/?username=robertpelloni&repo=borg&theme=tokyonight&hide_border=true&show_icons=true" />
+</a>
+<a href="https://github.com/robertpelloni/borg">
+  <img alt="Top languages" height="165" src="https://github-readme-stats.vercel.app/api/top-langs/?username=robertpelloni&repo=borg&layout=compact&theme=tokyonight&hide_border=true&langs_count=8&hide=css,html" />
+</a>
+
+</div>
+
+<div align="center">
+
+[![Activity Graph](https://github-readme-activity-graph.vercel.app/graph?username=robertpelloni&repo=borg&theme=tokyo-night&hide_border=true&area=true&custom_title=Borg+Contribution+Activity)](https://github.com/robertpelloni/borg/commits/main)
+
+</div>
+
+<div align="center">
+
+[![GitHub Streak](https://streak-stats.demolab.com/?user=robertpelloni&theme=tokyonight&hide_border=true)](https://github.com/robertpelloni/borg)
+
+</div>
+
+---
 
 ## 🖼️ Screenshots
 
-> Drop your latest captures into `docs/screenshots/` and keep this section as your visual changelog.
->
-> Capture guide: [`docs/screenshots/README.md`](docs/screenshots/README.md)
->
-> Refresh status + validate in one step: `pnpm run visuals:refresh`
->
-> Enforce all screenshots before release: `pnpm run visuals:refresh:strict`
->
-> Verify-only (no file writes): `pnpm run visuals:verify`
->
-> Verify-only strict mode: `pnpm run visuals:verify:strict`
->
-> Do all visual maintenance checks: `pnpm run visuals:all` (or `pnpm run visuals:all:strict` for release)
->
-> CI strict gate: `pnpm run check:release-gate:ci:strict-visuals`
+> **Capture guide:** `pnpm run visuals:refresh` — drop real captures into `docs/screenshots/` and they appear here automatically.
 
+<div align="center">
+<table>
+<tr>
+  <td align="center" width="50%">
+    <img src="docs/screenshots/dashboard-home.png" alt="Mission Control Dashboard" width="100%" /><br/>
+    <sub><b>🏠 Mission Control Dashboard</b></sub>
+  </td>
+  <td align="center" width="50%">
+    <img src="docs/screenshots/mcp-registry.png" alt="MCP Registry" width="100%" /><br/>
+    <sub><b>📦 MCP Server Registry</b></sub>
+  </td>
+</tr>
+<tr>
+  <td align="center" width="50%">
+    <img src="docs/screenshots/mcp-search.png" alt="MCP Search" width="100%" /><br/>
+    <sub><b>🔍 Universal MCP Search</b></sub>
+  </td>
+  <td align="center" width="50%">
+    <img src="docs/screenshots/mcp-inspector.png" alt="MCP Inspector" width="100%" /><br/>
+    <sub><b>🔬 MCP Tool Inspector</b></sub>
+  </td>
+</tr>
+<tr>
+  <td align="center" width="50%">
+    <img src="docs/screenshots/billing.png" alt="Billing & Quotas" width="100%" /><br/>
+    <sub><b>💳 Billing & Provider Quotas</b></sub>
+  </td>
+  <td align="center" width="50%">
+    <img src="docs/screenshots/github-actions.png" alt="CI/CD Pipeline" width="100%" /><br/>
+    <sub><b>⚙️ CI/CD Pipeline</b></sub>
+  </td>
+</tr>
+</table>
+</div>
+
+> **To add real screenshots:** start the dev server (`pnpm run dev`), navigate to each page, save captures to `docs/screenshots/`, then run `pnpm run visuals:refresh`.
+
+<!-- screenshot-status-table: managed by scripts/sync-screenshot-status.mjs — do not remove -->
 | Capture | Target path | Status |
 |---|---|---|
-| Dashboard Home | `docs/screenshots/dashboard-home.png` | ⬜ Add |
-| MCP Registry | `docs/screenshots/mcp-registry.png` | ⬜ Add |
-| MCP Search | `docs/screenshots/mcp-search.png` | ⬜ Add |
-| MCP Inspector | `docs/screenshots/mcp-inspector.png` | ⬜ Add |
-| Billing | `docs/screenshots/billing.png` | ⬜ Add |
-| GitHub Actions | `docs/screenshots/github-actions.png` | ⬜ Add |
+| Dashboard Home | `docs/screenshots/dashboard-home.png` | ✅ Added |
+| MCP Registry | `docs/screenshots/mcp-registry.png` | ✅ Added |
+| MCP Search | `docs/screenshots/mcp-search.png` | ✅ Added |
+| MCP Inspector | `docs/screenshots/mcp-inspector.png` | ✅ Added |
+| Billing | `docs/screenshots/billing.png` | ✅ Added |
+| GitHub Actions | `docs/screenshots/github-actions.png` | ✅ Added |
+
+---
 
 Borg is a high-performance local control plane designed to sit between AI agents and their underlying infrastructure. It transforms standard agent interactions into a sophisticated, multi-tiered cognitive workflow with integrated memory, real-time observability, and autonomous "auto-drive" capabilities.
 

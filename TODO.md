@@ -10,7 +10,7 @@ _Short-term tasks, bug fixes, and feature implementations. For long-term goals, 
 - [x] Add a `borg start --dashboard` / auto-launch dashboard flow so startup matches the intended operator experience.
 - [x] Make `borg-orchestrator` (opencode-autopilot) a first-class feature and half of the dashboard grid.
 - [x] Integrate Orchestrator server into the standard `pnpm dev` stack with health-check validation.
-- [ ] Ensure all features are thoroughly documented within the UI (tooltips, labels, descriptions).
+- [x] Ensure all features are thoroughly documented within the UI (tooltips, labels, descriptions).
 - [x] Implement "Code Mode" escape hatch interface in the dashboard.
 - [x] Create detailed usage/billing subpanels tracking credit balances per provider.
 
@@ -25,7 +25,7 @@ _Short-term tasks, bug fixes, and feature implementations. For long-term goals, 
 - [ ] Build the universal integrated MCP directory so installed servers, published catalog entries, BobbyBookmarks backlog links, and future feature-group assets resolve through one operator-facing directory surface.
 - [x] Implement dynamic progressive tool disclosure (show only 5-6 permanent meta tools initially, auto-load others on high confidence).
 - [x] Add explicit tool semantic search / tool RAG.
-- [ ] Implement TOON format parsing and MCP traffic inspection panels.
+- [x] Implement TOON format parsing and MCP traffic inspection panels.
 - [x] Build environment variable and secrets management tool inside the dashboard.
 
 ## Memory & RAG

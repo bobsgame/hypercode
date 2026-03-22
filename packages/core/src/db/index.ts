@@ -561,6 +561,7 @@ if (!fs.existsSync(dbDir)) {
 
 const sqlite = new Database(resolvedDbPath);
 initializeSchema(sqlite);
+export const sqliteInstance = sqlite;
 export const db = drizzle(sqlite, { schema });
 
 // Export the schema for convenience

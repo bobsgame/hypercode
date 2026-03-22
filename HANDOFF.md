@@ -5,12 +5,31 @@
 Repo is clean (local). All typechecks pass.
 
 - Current branch: `main`
-- VERSION: `0.10.28`
+- VERSION: `0.90.0`
 - All CI workflows fixed (pnpm v9 → v10), badges will be green on next push
 
 ## What Landed This Session
 
-### 1. BobbyBookmarks-backed link backlog slice
+### 1. MCP Router LKG Config Support
+- feat(core/mcp): Implemented Last-Known-Good (LKG) configuration persistence in `MCPConfigStore` (`mcp_servers.lkg.json`).
+- feat(core/mcp): Updated `MCPAggregator` to fallback to LKG configuration if the primary is missing or corrupted.
+- feat(core/mcp): Exposed `isLKG` flag via `mcpRouter.getStatus`.
+- feat(web/mcp): Added a prominent warning banner to the MCP Control Plane dashboard when running in LKG mode.
+- test(core/mcp): Added comprehensive test suite for `MCPConfigStore` LKG logic.
+
+### 2. Borg Orchestrator First-Class Dashboard Integration
+- feat(web/dashboard): Created `BorgOrchestratorWidget` combining Council governance, sessions, vetoes, and debate history into a standalone module.
+- refactor(web/dashboard): Redesigned the main dashboard view to feature the Orchestrator panel taking up half the page layout in a split-pane design.
+
+### 3. Detailed Provider Billing & Usage Subpanels
+
+- feat(web/billing): Implemented `ProviderDetailPanel` — a sliding sheet subpanel that drills down into granular quota data for individual providers. Includes tracking for primary consumption vs. limits, multiple usage windows (session, daily, weekly), and real-time technical status (auth method, data confidence, rate limits).
+- feat(web/billing): Updated the main provider capabilities table to be interactive; clicking a row now opens the detail subpanel for that provider.
+- feat(web/billing): Extended `normalizeBillingQuotaRows` to include `windows` and `resetDate` data, enabling rich drilldown views.
+- refactor(ui): Added `indicatorClassName` support to the shared `Progress` component in `@borg/ui`, allowing for semantic progress bar coloring.
+- chore: Bumped `VERSION` to `0.10.29`.
+
+### 2. BobbyBookmarks-backed link backlog slice
 
 The first real Borg-native backlog datasource is now implemented.
 
@@ -106,10 +125,10 @@ pnpm -C apps/web exec tsc --noEmit --pretty false       # exit 0
 
 ## Next Priority Items (from TODO.md)
 
-- Create detailed billing subpanels per provider (credit balances, usage tracking)
-- Improve MCP router startup with last-known-good config loading
-- Dynamic progressive tool disclosure (5-6 meta tools initially)
 - TOON format parsing and MCP traffic inspection panels
-- BobbyBookmarks integration as canonical link backlog datasource (dedupe, research-status, clustering)
+- BobbyBookmarks integration refinement (dedupe, research-status, clustering)
 - Fully wire Council debate to `SmartPilot` trigger for autonomous self-correction
 Create:
+- Dynamic progressive tool disclosure (initially show 5-6 meta tools, then expand on use)
+- Multi-step reasoning trace playback panel in dashboard
+- Evidence Lock persistence layer for cross-session verification

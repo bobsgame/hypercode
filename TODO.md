@@ -8,9 +8,11 @@ _Short-term tasks, bug fixes, and feature implementations. For long-term goals, 
 - [x] Polish the Roundtable/Council UI enough to render live sessions, history, and Smart Pilot compatibility against the migrated council API.
 - [x] Wire a non-destructive "Add Borg as MCP server" action into the Integration Hub for detected MCP client targets.
 - [x] Add a `borg start --dashboard` / auto-launch dashboard flow so startup matches the intended operator experience.
+- [x] Make `borg-orchestrator` (opencode-autopilot) a first-class feature and half of the dashboard grid.
+- [x] Integrate Orchestrator server into the standard `pnpm dev` stack with health-check validation.
 - [ ] Ensure all features are thoroughly documented within the UI (tooltips, labels, descriptions).
 - [ ] Implement "Code Mode" escape hatch interface in the dashboard.
-- [ ] Create detailed usage/billing subpanels tracking credit balances per provider.
+- [x] Create detailed usage/billing subpanels tracking credit balances per provider.
 
 ## Orchestration & Models
 - [x] Implement robust model fallback logic: when quota limit errors occur, automatically switch to the next appropriate model/provider (e.g., Gemini 3 Pro -> Codex 5.3 -> Opus 4.6).
@@ -19,7 +21,7 @@ _Short-term tasks, bug fixes, and feature implementations. For long-term goals, 
 - [ ] Fully wire up the Council debate to the `SmartPilot` trigger so sessions can autonomously self-correct based on consensus.
 
 ## MCP Substrate & Proxies
-- [ ] Improve MCP router startup: load last-known-good configuration to report immediately, regardless of whether the core is fully ready.
+- [x] Improve MCP router startup: load last-known-good configuration to report immediately, regardless of whether the core is fully ready.
 - [ ] Build the universal integrated MCP directory so installed servers, published catalog entries, BobbyBookmarks backlog links, and future feature-group assets resolve through one operator-facing directory surface.
 - [ ] Implement dynamic progressive tool disclosure (show only 5-6 permanent meta tools initially, auto-load others on high confidence).
 - [ ] Add explicit tool semantic search / tool RAG.

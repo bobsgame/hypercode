@@ -1317,6 +1317,7 @@ export const mcpRouter = t.router({
 
             return {
                 initialized: Boolean(aggregator),
+                aggregatorStatus: aggregator?.getInitializationStatus?.() ?? null,
                 serverCount: effectiveServerCount,
                 toolCount: effectiveToolCount,
                 connectedCount: liveServers.filter((s) => s.status === 'connected').length,
@@ -1337,6 +1338,7 @@ export const mcpRouter = t.router({
         } catch {
             return {
                 initialized: false,
+                aggregatorStatus: aggregator?.getInitializationStatus?.() ?? null,
                 serverCount: 0,
                 toolCount: 0,
                 connectedCount: 0,

@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import type { ComponentType, FormEvent } from 'react';
-import { Button, Card, CardContent, CardHeader, CardTitle } from '@borg/ui';
+import { Button, Card, CardContent, CardHeader, CardTitle, Alert, AlertDescription, AlertTitle } from '@borg/ui';
 import { trpc } from '@/utils/trpc';
 import { buildBulkImportServers } from '@/lib/mcp-import';
 import { toast } from 'sonner';
@@ -92,6 +92,11 @@ type AggregatedTool = {
 
 type StatusSummary = {
     initialized: boolean;
+    aggregatorStatus?: {
+        initialized: boolean;
+        isLKG: boolean;
+        lastError?: string;
+    } | null;
     serverCount: number;
     toolCount: number;
     connectedCount: number;
@@ -1609,6 +1614,17 @@ export default function MCPDashboard(): React.JSX.Element {
                 message="MCP Router Control Plane"
                 note="Core router health, lifecycle telemetry, config import, and downstream server management are live. Progressive disclosure and some search/load ergonomics are still maturing."
             />
+
+            {summary.aggregatorStatus?.isLKG ? (
+                <Alert variant="destructive" className="bg-amber-500/10 text-amber-200 border-amber-500/20">
+                    <AlertTriangle className="h-4 w-4 text-amber-400" />
+                    <AlertTitle>Last-Known-Good Configuration Active</AlertTitle>
+                    <AlertDescription>
+                        Borg failed to load the primary MCP configuration and has fallen back to the last-known-good (LKG) backup.
+                        Please check your configuration files for syntax errors or permission issues.
+                    </AlertDescription>
+                </Alert>
+            ) : null}
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight text-white">MCP Router Control Plane</h1>

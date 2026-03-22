@@ -5,6 +5,7 @@ import SuggestionsPanel from '../../components/SuggestionsPanel';
 import { SessionHandoffWidget } from '../../components/SessionHandoffWidget';
 import { ContextHealthWidget } from '../../components/ContextHealthWidget';
 import { NeuralPulse } from '../../components/NeuralPulse';
+import { BorgOrchestratorWidget } from '../../components/BorgOrchestratorWidget';
 
 export interface DashboardStatusSummary {
     initialized: boolean;
@@ -1153,11 +1154,12 @@ export function DashboardHomeView({
                 </div>
 
                 <div className="grid gap-6 xl:grid-cols-2">
-                    <section className="rounded-3xl border border-slate-800 bg-slate-900/70 p-6 shadow-lg shadow-slate-950/20">
-                        <div className="flex items-start justify-between gap-4">
-                            <div>
-                                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-200">Overview</p>
-                                <h2 className="mt-2 text-xl font-semibold text-white">Router posture</h2>
+                    <div className="flex flex-col gap-6">
+                        <section className="rounded-3xl border border-slate-800 bg-slate-900/70 p-6 shadow-lg shadow-slate-950/20">
+                            <div className="flex items-start justify-between gap-4">
+                                <div>
+                                    <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-200">Overview</p>
+                                    <h2 className="mt-2 text-xl font-semibold text-white">Router posture</h2>
                                 <p className="mt-2 text-sm text-slate-400">Quick health readout for first-time operators.</p>
                             </div>
                             <div className={`rounded-full border px-3 py-1 text-xs font-medium ${routerStatusTone}`}>
@@ -1433,109 +1435,10 @@ export function DashboardHomeView({
                         </div>
                     </section>
 
-                    <section className="rounded-3xl border border-slate-800 bg-slate-900/70 p-6 shadow-lg shadow-slate-950/20">
-                        <div className="flex items-start justify-between gap-4">
-                            <div>
-                                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-200">Sessions</p>
-                                <h2 className="mt-2 text-xl font-semibold text-white">Supervised CLI runtime</h2>
-                                <p className="mt-2 text-sm text-slate-400">Inspect live session state, recent output, and restart posture.</p>
-                            </div>
-                            <span className="rounded-full border border-slate-700 bg-slate-950/70 px-3 py-1 text-xs font-medium text-slate-200">
-                                {sessions.length} total
-                            </span>
-                        </div>
+                    </div>
 
-                        <div className="mt-6 space-y-3">
-                            {sessions.length === 0 ? (
-                                <div className="rounded-2xl border border-dashed border-slate-700 bg-slate-950/50 p-4 text-sm text-slate-400">
-                                    No supervised sessions are registered yet.
-                                </div>
-                            ) : sessions.map((session) => {
-                                const latestLog = session.logs[session.logs.length - 1];
-                                const isPending = pendingSessionActionId === session.id;
-                                const isRunning = session.status === 'running';
-                                const canStart = session.status === 'created' || session.status === 'stopped' || session.status === 'error';
-                                const canStop = session.status === 'starting' || session.status === 'running' || session.status === 'restarting';
-
-                                return (
-                                    <div key={session.id} className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
-                                        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                                            <div className="min-w-0">
-                                                <div className="flex flex-wrap items-center gap-3">
-                                                    <h3 className="text-base font-semibold text-white">{session.name}</h3>
-                                                    <span className={`rounded-full border px-2.5 py-1 text-xs font-medium ${getSessionTone(session.status)}`}>
-                                                        {sentenceCase(session.status)}
-                                                    </span>
-                                                    <span className="rounded-full border border-slate-700 px-2.5 py-1 text-xs text-slate-300">
-                                                        {session.cliType}
-                                                    </span>
-                                                </div>
-                                                <p className="mt-2 break-all font-mono text-xs text-slate-400">{session.worktreePath ?? session.workingDirectory}</p>
-                                                <p className="mt-2 text-xs text-slate-500">
-                                                    Last activity {formatRelativeTimestamp(session.lastActivityAt, currentTimestamp)} · Restarted {session.restartCount}/{session.maxRestartAttempts}
-                                                </p>
-                                                {session.autoRestart === false ? (
-                                                    <p className="mt-2 text-xs text-amber-300">
-                                                        Manual restart only · Borg will not auto-restart this session after a crash.
-                                                    </p>
-                                                ) : null}
-                                                {session.status === 'restarting' && session.scheduledRestartAt ? (
-                                                    <p className="mt-2 text-xs text-amber-300">
-                                                        Restart queued {formatRestartCountdown(session.scheduledRestartAt, currentTimestamp)}
-                                                    </p>
-                                                ) : null}
-                                                {latestLog ? (
-                                                    <div className="mt-3 rounded-xl border border-slate-800 bg-slate-900/70 p-3 text-sm text-slate-300">
-                                                        <div className="mb-2 flex items-center justify-between gap-3 text-xs uppercase tracking-[0.16em] text-slate-500">
-                                                            <span>Latest {latestLog.stream}</span>
-                                                            <span>{formatRelativeTimestamp(latestLog.timestamp, currentTimestamp)}</span>
-                                                        </div>
-                                                        <p className="line-clamp-3 whitespace-pre-wrap break-words">{latestLog.message}</p>
-                                                    </div>
-                                                ) : null}
-                                                {session.lastError ? (
-                                                    <p className="mt-3 text-sm text-rose-300">{session.lastError}</p>
-                                                ) : null}
-                                            </div>
-
-                                            <div className="flex flex-wrap gap-2">
-                                                <button
-                                                    type="button"
-                                                    disabled={!onStartSession || !canStart || isPending}
-                                                    onClick={() => onStartSession?.(session.id)}
-                                                    title={`Start session ${session.name} (${session.cliType})`}
-                                                    aria-label={`Start session ${session.name}`}
-                                                    className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-4 py-2 text-sm font-medium text-emerald-200 transition hover:border-emerald-400 hover:bg-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-50"
-                                                >
-                                                    {isPending && canStart ? 'Starting…' : isRunning ? 'Running' : 'Start'}
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    disabled={!onStopSession || !canStop || isPending}
-                                                    onClick={() => onStopSession?.(session.id)}
-                                                    title={`Stop session ${session.name}`}
-                                                    aria-label={`Stop session ${session.name}`}
-                                                    className="rounded-full border border-slate-700 bg-slate-900/70 px-4 py-2 text-sm font-medium text-slate-100 transition hover:border-slate-500 disabled:cursor-not-allowed disabled:opacity-50"
-                                                >
-                                                    {isPending && canStop ? 'Stopping…' : 'Stop'}
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    disabled={!onRestartSession || isPending}
-                                                    onClick={() => onRestartSession?.(session.id)}
-                                                    title={`Restart session ${session.name} and reattach supervision`}
-                                                    aria-label={`Restart session ${session.name}`}
-                                                    className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-4 py-2 text-sm font-medium text-cyan-200 transition hover:border-cyan-400 hover:bg-cyan-500/20 disabled:cursor-not-allowed disabled:opacity-50"
-                                                >
-                                                    {isPending ? 'Working…' : 'Restart'}
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </section>
+                    <div className="flex flex-col gap-6">
+                        <BorgOrchestratorWidget />
 
                     <section className="rounded-3xl border border-slate-800 bg-slate-900/70 p-6 shadow-lg shadow-slate-950/20">
                         <div className="flex items-start justify-between gap-4">
@@ -1618,6 +1521,12 @@ export function DashboardHomeView({
                             </div>
                         </div>
                     </section>
+
+                    </div>
+
+                    <div className="flex flex-col gap-6">
+                        <BorgOrchestratorWidget />
+                    </div>
                 </div>
             </div>
         </div>

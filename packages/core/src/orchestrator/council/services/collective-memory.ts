@@ -18,7 +18,7 @@ class CollectiveMemoryService {
 
   private initializeTable(): void {
     const db = dbService.getDb();
-    db.run(`
+    db.exec(`
       CREATE TABLE IF NOT EXISTS facts (
         id TEXT PRIMARY KEY,
         key TEXT,
@@ -29,7 +29,7 @@ class CollectiveMemoryService {
         tags TEXT
       )
     `);
-    db.run('CREATE INDEX IF NOT EXISTS idx_facts_key ON facts(key);');
+    db.exec('CREATE INDEX IF NOT EXISTS idx_facts_key ON facts(key);');
   }
 
   async storeFact(fact: Omit<Fact, 'id' | 'timestamp'>): Promise<Fact> {

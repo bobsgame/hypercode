@@ -33,7 +33,8 @@ import {
     normalizeFallbackChain,
     normalizeTaskRoutingRules,
 } from './billing-page-normalizers';
-import type { BillingAuthTruth, BillingQuotaConfidence } from './billing-page-normalizers';
+import type { BillingAuthTruth, BillingQuotaConfidence, BillingQuotaTableRow } from './billing-page-normalizers';
+import { ProviderDetailPanel } from './ProviderDetailPanel';
 
 const FALLBACK_TASK_OPTIONS: BillingTaskRoutingRuleSummary['taskType'][] = ['general', 'coding', 'planning', 'research', 'worker', 'supervisor'];
 
@@ -47,6 +48,9 @@ export default function ProviderAuthBillingMatrix() {
     const [activePortalId, setActivePortalId] = useState<string | null>(null);
     const [activePortalName, setActivePortalName] = useState<string>('');
     const [newKeyValue, setNewKeyValue] = useState<string>('');
+
+    // Provider detail sheet state
+    const [selectedProvider, setSelectedProvider] = useState<BillingQuotaTableRow | null>(null);
     
     const utils = trpc.useUtils();
 
@@ -671,7 +675,11 @@ export default function ProviderAuthBillingMatrix() {
                                     {isQuotasLoading ? (
                                         <tr><td colSpan={5} className="px-6 py-12 text-center text-zinc-500"><Loader2 className="w-6 h-6 animate-spin mx-auto" /></td></tr>
                                     ) : quotaRows.map((q) => (
-                                        <tr key={q.provider} className="hover:bg-white/[0.02] transition-colors">
+                                        <tr 
+                                            key={q.provider} 
+                                            className="hover:bg-white/[0.02] transition-colors cursor-pointer"
+                                            onClick={() => setSelectedProvider(q)}
+                                        >
                                             <td className="px-6 py-4 font-medium text-zinc-200 capitalize">
                                                 <div>
                                                     <div>{q.name}</div>
@@ -970,6 +978,12 @@ export default function ProviderAuthBillingMatrix() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            <ProviderDetailPanel
+                provider={selectedProvider}
+                isOpen={!!selectedProvider}
+                onClose={() => setSelectedProvider(null)}
+            />
 
         </div>
     );

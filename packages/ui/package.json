@@ -1,6 +1,6 @@
 {
     "name":  "@borg/ui",
-    "version":  "0.9.667",
+    "version":  "0.90.0",
     "main":  "dist/index.js",
     "types":  "dist/index.d.ts",
     "scripts":  {

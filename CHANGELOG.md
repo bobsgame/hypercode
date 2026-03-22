@@ -4,6 +4,29 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.90.0] — 2026-03-21
+
+### Dashboard & MCP Router
+
+- feat(web/dashboard): Promoted `borg-orchestrator` (opencode-autopilot) to a first-class feature by creating a standalone `BorgOrchestratorWidget` and refactoring the main dashboard grid to give it half the page real estate.
+- feat(dev): Integrated the Orchestrator server into the standard `pnpm dev` stack. The `dev_tabby_ready.mjs` script now automatically spawns the orchestrator process and validates its health before declaring the stack ready.
+- feat(core/mcp): Implemented Last-Known-Good (LKG) configuration persistence in `MCPConfigStore`. The system now maintains an `mcp_servers.lkg.json` backup that is automatically updated on successful reads/writes.
+- feat(core/mcp): Updated `MCPAggregator` to fallback to LKG configuration if the primary `mcp_servers.json` is missing or corrupted, ensuring immediate availability of known servers during flaky environment injections.
+- feat(core/mcp): Exposed `isLKG` flag and initialization errors via `mcpRouter.getStatus` tRPC procedure.
+- feat(web/mcp): Added a prominent warning banner to the MCP Control Plane dashboard when running in LKG mode, alerting operators to potential configuration synchronization issues.
+- test(core/mcp): Added comprehensive test suite for `MCPConfigStore` LKG logic.
+- chore: Bumped `VERSION` to `0.90.0`.
+
+## [0.10.29] — 2026-03-21
+
+### Detailed Provider Billing & Usage Subpanels
+
+- feat(web/billing): Implemented `ProviderDetailPanel` — a sliding sheet subpanel that drills down into granular quota data for individual providers. Includes tracking for primary consumption vs. limits, multiple usage windows (session, daily, weekly), and real-time technical status (auth method, data confidence, rate limits).
+- feat(web/billing): Updated the main provider capabilities table to be interactive; clicking a row now opens the detail subpanel for that provider.
+- feat(web/billing): Extended `normalizeBillingQuotaRows` to include `windows` and `resetDate` data, enabling rich drilldown views.
+- refactor(ui): Added `indicatorClassName` support to the shared `Progress` component in `@borg/ui`, allowing for semantic progress bar coloring (e.g., emerald for healthy, amber for warning, red for exhausted).
+- chore: Bumped `VERSION` to `0.10.29`.
+
 ## [0.10.28] — 2026-03-21
 
 ### CI/CD Green Build Restoration

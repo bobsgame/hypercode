@@ -312,6 +312,16 @@ export interface BillingQuotaTableRow {
     quotaConfidence: BillingQuotaConfidence;
     /** ISO-8601 timestamp of last real-time provider fetch, or null. */
     quotaRefreshedAt: string | null;
+    resetDate: string | null;
+    windows: Array<{
+        key: string;
+        label: string;
+        used: number;
+        limit: number | null;
+        remaining: number | null;
+        resetDate: string | null;
+        unit: string;
+    }>;
 }
 
 export function normalizeBillingQuotaRows(quotas: unknown): BillingQuotaTableRow[] {
@@ -330,6 +340,21 @@ export function normalizeBillingQuotaRows(quotas: unknown): BillingQuotaTableRow
             const isAuthenticated = toBoolean(row.authenticated, false);
             const authTruthFallback: BillingAuthTruth = isAuthenticated ? 'authenticated' : 'not_configured';
 
+            const windows = Array.isArray(row.windows)
+                ? row.windows.map((w) => {
+                    const win = asRecord(w);
+                    return {
+                        key: toStringValue(win?.key, 'window'),
+                        label: toStringValue(win?.label, 'Quota Window'),
+                        used: toNumber(win?.used, 0),
+                        limit: win?.limit === null ? null : toNumber(win?.limit, 0),
+                        remaining: win?.remaining === null ? null : toNumber(win?.remaining, 0),
+                        resetDate: toStringValue(win?.resetDate) || null,
+                        unit: toStringValue(win?.unit, 'requests'),
+                    };
+                })
+                : [];
+
             return {
                 provider: providerKey,
                 name: toStringValue(row.name, providerKey),
@@ -345,6 +370,8 @@ export function normalizeBillingQuotaRows(quotas: unknown): BillingQuotaTableRow
                 lastError: toStringValue(row.lastError) || null,
                 quotaConfidence: toQuotaConfidence(row.quotaConfidence),
                 quotaRefreshedAt: toStringValue(row.quotaRefreshedAt) || null,
+                resetDate: toStringValue(row.resetDate) || null,
+                windows,
             } satisfies BillingQuotaTableRow;
         })
         .filter((entry): entry is BillingQuotaTableRow => Boolean(entry));

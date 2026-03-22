@@ -295,6 +295,7 @@ async function evaluateReadiness() {
   const coreBridge = coreBridgeChecks.find((check) => check.ok) ?? coreBridgeChecks[0] ?? { ok: false, status: null };
   const extensions = detectBrowserExtensionArtifacts(REPO_ROOT);
   const extension = summarizeBrowserExtensionArtifacts(extensions);
+  const orchestrator = await fetchStatus('http://127.0.0.1:3847/health', 2000);
 
   let mcpStatus = { ok: false, data: null, url: null };
   let memoryStatus = { ok: false, data: null, url: null };
@@ -356,6 +357,7 @@ async function evaluateReadiness() {
   // when the core bridge serves a legacy contract and all fallback telemetry probes are healthy.
   const ready = Boolean(web)
     && coreBridge.ok
+    && orchestrator.ok
     && startupStatus.ok
     && (startupSnapshotReady || fallbackTelemetryHealthy)
     && (startupContractCompatible || fallbackTelemetryHealthy)
@@ -365,6 +367,7 @@ async function evaluateReadiness() {
     ready,
     web,
     coreBridge,
+    orchestrator,
     startupStatus,
     mcpStatus,
     memoryStatus,
@@ -381,6 +384,7 @@ function printReadySummary(state) {
 
   console.log('\n[Borg Dev Ready] ✅ stack is ready');
   console.log(`[Borg Dev Ready] Dashboard: ${dashboardUrl}`);
+  console.log(`[Borg Dev Ready] Orchestrator: http://127.0.0.1:3847 (Health: /health)`);
   console.log('[Borg Dev Ready] Core bridge: ws://127.0.0.1:3001 (HTTP probe: /api/mesh/stream or /health)');
   console.log(`[Borg Dev Ready] Startup telemetry API: ${state.startupStatus.url ?? 'unavailable'}`);
   console.log(`[Borg Dev Ready] MCP telemetry API: ${state.mcpStatus.url ?? 'unavailable'}`);
@@ -442,6 +446,24 @@ function spawnCliDev() {
     'start',
     '--port',
     '3100',
+  ]);
+
+  return spawn(command, args, {
+    cwd,
+    stdio: 'inherit',
+    env,
+  });
+}
+
+function spawnOrchestratorDev() {
+  const env = {
+    ...process.env,
+    BORG_ORCHESTRATOR_PORT: '3847',
+  };
+
+  const { command, args, cwd } = getPnpmSpawnSpec([
+    'run',
+    'dev:orchestrator',
   ]);
 
   return spawn(command, args, {
@@ -551,10 +573,12 @@ function waitForChildExit(label, child) {
 
 async function main() {
   const child = spawnTurboDev();
+  const orchestratorChild = spawnOrchestratorDev();
   let reuseExistingCoreBridge = await detectExistingCoreBridge();
   let cliChild = reuseExistingCoreBridge ? null : spawnCliDev();
   let childExit = null;
   let cliChildExit = null;
+  let orchestratorChildExit = null;
   let attemptedStaleCoreRefresh = false;
 
   if (reuseExistingCoreBridge) {
@@ -587,6 +611,10 @@ async function main() {
     if (cliChild && !cliChild.killed) {
       cliChild.kill(signal);
     }
+
+    if (!orchestratorChild.killed) {
+      orchestratorChild.kill(signal);
+    }
   };
 
   process.on('SIGINT', () => terminateChild('SIGINT'));
@@ -599,6 +627,15 @@ async function main() {
 
   child.on('exit', (code, signal) => {
     childExit = { code, signal };
+  });
+
+  orchestratorChild.on('error', (error) => {
+    console.error(`[Borg Dev Ready] failed to start orchestrator: ${error instanceof Error ? error.message : String(error)}`);
+    // Non-fatal if everything else works, but we should log it
+  });
+
+  orchestratorChild.on('exit', (code, signal) => {
+    orchestratorChildExit = { code, signal };
   });
 
   attachCliChild(cliChild);
@@ -708,6 +745,7 @@ async function main() {
 
   await Promise.all([
     waitForChildExit('dev stack', child),
+    waitForChildExit('orchestrator', orchestratorChild),
     ...(cliChild ? [waitForChildExit('CLI server', cliChild)] : []),
   ]);
 }

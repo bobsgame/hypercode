@@ -8,8 +8,8 @@ import { useState } from "react";
 
 const CORE_NAV_ITEMS = [
     { href: '/', label: 'Mission Control', description: 'Global system overview and launch point', color: 'hover:text-blue-500', activeColor: 'text-blue-500' },
+    { href: '/dashboard/orchestrator', label: 'Orchestrator', description: 'Multi-agent council governance and supervised swarm', color: 'hover:text-purple-500', activeColor: 'text-purple-500' },
     { href: '/dashboard/mcp', label: 'MCP', description: 'MCP routing, aggregation, and tool orchestration', color: 'hover:text-teal-500', activeColor: 'text-teal-500' },
-    { href: '/dashboard/sessions', label: 'Sessions', description: 'Session supervisor, local CLI tools, and worktrees', color: 'hover:text-amber-500', activeColor: 'text-amber-500' },
     { href: '/dashboard/billing', label: 'Providers', description: 'Provider billing, quotas, and fallback chains', color: 'hover:text-indigo-500', activeColor: 'text-indigo-500' },
     { href: '/dashboard/config', label: 'Settings', description: 'Platform configuration and operational preferences', color: 'hover:text-slate-500', activeColor: 'text-slate-500' },
     { href: '/docs', label: 'Docs', description: 'Guides, architecture, and API references', color: 'hover:text-blue-100', activeColor: 'text-blue-500' },
@@ -34,7 +34,7 @@ const LABS_NAV_ITEMS = [
 export function Navigation() {
     const pathname = usePathname();
     const [open, setOpen] = useState(false);
-    const versionLabel = (process.env.NEXT_PUBLIC_BORG_VERSION ?? '0.9.667').replace(/^v/i, '');
+    const versionLabel = (process.env.NEXT_PUBLIC_BORG_VERSION ?? '0.90.0').replace(/^v/i, '');
 
     const isActive = (path: string) => pathname === path;
 

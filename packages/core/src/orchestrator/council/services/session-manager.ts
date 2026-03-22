@@ -58,12 +58,18 @@ class SessionManager extends EventEmitter {
     sessionPersistence.startAutoSave();
   }
 
-  private getPtySupervisor(): PtySupervisor {
-    const mcpServer = getMcpServer();
-    if (!mcpServer.ptySupervisor) {
-      throw new Error('PtySupervisor not initialized in MCPServer');
+  private getPtySupervisor(): PtySupervisor | null {
+    try {
+      const mcpServer = getMcpServer();
+      if (!mcpServer.ptySupervisor) {
+        console.warn('[SessionManager] PtySupervisor not initialized in MCPServer');
+        return null;
+      }
+      return mcpServer.ptySupervisor;
+    } catch {
+      // Graceful fallback for standalone mode
+      return null;
     }
-    return mcpServer.ptySupervisor;
   }
 
   private async resolveTool(cliType: CLIType): Promise<CLITool> {
@@ -143,7 +149,10 @@ class SessionManager extends EventEmitter {
   }
 
   private getTrackedSnapshots(): SupervisedSessionSnapshot[] {
-    const snapshots = this.getPtySupervisor()
+    const supervisor = this.getPtySupervisor();
+    if (!supervisor) return [];
+
+    const snapshots = supervisor
       .listSessions()
       .filter((snapshot) => this.isTrackedCouncilSession(snapshot));
 
@@ -194,7 +203,9 @@ class SessionManager extends EventEmitter {
 
   private async updateMetadata(id: string, patch: Record<string, unknown>): Promise<void> {
     const supervisor = this.getPtySupervisor();
-    supervisor.updateSessionMetadata(id, patch);
+    if (supervisor) {
+      supervisor.updateSessionMetadata(id, patch);
+    }
   }
 
   async startSession(task?: DevelopmentTask, options: SessionOptions = {}): Promise<Session> {
@@ -207,6 +218,9 @@ class SessionManager extends EventEmitter {
     };
     const tags = [...(options.tags ?? [])];
     const supervisor = this.getPtySupervisor();
+    if (!supervisor) {
+      throw new Error('PtySupervisor unavailable (Core/MCPServer not initialized)');
+    }
 
     const created = await supervisor.createSession({
       name: task?.description || `council-${cliType}`,
@@ -269,12 +283,15 @@ class SessionManager extends EventEmitter {
   }
 
   async stopSession(id: string): Promise<void> {
-    const snapshot = this.getPtySupervisor().getSession(id);
+    const supervisor = this.getPtySupervisor();
+    if (!supervisor) throw new Error('PtySupervisor unavailable');
+
+    const snapshot = supervisor.getSession(id);
     if (!snapshot || !this.isTrackedCouncilSession(snapshot)) {
       throw new Error(`Session '${id}' not found`);
     }
 
-    const stopped = await this.getPtySupervisor().stopSession(id);
+    const stopped = await supervisor.stopSession(id);
     const session = this.toSession(stopped);
     this.persistSession(session);
     this.emit('session_stopped', id);
@@ -298,12 +315,15 @@ class SessionManager extends EventEmitter {
   }
 
   async resumeSession(id: string): Promise<Session> {
-    const snapshot = this.getPtySupervisor().getSession(id);
+    const supervisor = this.getPtySupervisor();
+    if (!supervisor) throw new Error('PtySupervisor unavailable');
+
+    const snapshot = supervisor.getSession(id);
     if (!snapshot || !this.isTrackedCouncilSession(snapshot)) {
       throw new Error(`Session '${id}' not found`);
     }
 
-    const resumed = await this.getPtySupervisor().restartSession(id);
+    const resumed = await supervisor.restartSession(id);
     const session = this.toSession(resumed);
     this.persistSession(session);
     wsManager.notifySessionUpdate(session);
@@ -358,8 +378,9 @@ class SessionManager extends EventEmitter {
         : '',
     ].filter(Boolean).join('\n\n');
 
-    if (message) {
-      await this.getPtySupervisor().sendInput(id, `${message}\n`);
+    const supervisor = this.getPtySupervisor();
+    if (message && supervisor) {
+      await supervisor.sendInput(id, `${message}\n`);
     }
 
     const now = Date.now();
@@ -375,7 +396,10 @@ class SessionManager extends EventEmitter {
   }
 
   getSession(id: string): Session | undefined {
-    const snapshot = this.getPtySupervisor().getSession(id);
+    const supervisor = this.getPtySupervisor();
+    if (!supervisor) return undefined;
+
+    const snapshot = supervisor.getSession(id);
     if (!snapshot || !this.isTrackedCouncilSession(snapshot)) {
       return undefined;
     }
@@ -435,7 +459,10 @@ class SessionManager extends EventEmitter {
       return state.cliType;
     }
 
-    const snapshot = this.getPtySupervisor().getSession(id);
+    const supervisor = this.getPtySupervisor();
+    if (!supervisor) return undefined;
+
+    const snapshot = supervisor.getSession(id);
     if (!snapshot || !this.isTrackedCouncilSession(snapshot)) {
       return undefined;
     }
@@ -449,31 +476,43 @@ class SessionManager extends EventEmitter {
       throw new Error(`Session '${id}' not found`);
     }
 
-    const state = this.sessions.get(id) ?? this.syncState(this.getPtySupervisor().getSession(id)!);
+    const supervisor = this.getPtySupervisor();
+    if (!supervisor) throw new Error('PtySupervisor unavailable');
+
+    const state = this.sessions.get(id) ?? this.syncState(supervisor.getSession(id)!);
     state.tags = [...tags];
     void this.updateMetadata(id, { tags: state.tags });
     this.persistSession({ ...session, tags: state.tags });
   }
 
   addSessionTag(id: string, tag: string): void {
-    const state = this.sessions.get(id) ?? this.syncState(this.getPtySupervisor().getSession(id)!);
+    const supervisor = this.getPtySupervisor();
+    if (!supervisor) return;
+
+    const state = this.sessions.get(id) ?? this.syncState(supervisor.getSession(id)!);
     if (!state.tags.includes(tag)) {
       this.updateSessionTags(id, [...state.tags, tag]);
     }
   }
 
   removeSessionTag(id: string, tag: string): void {
-    const state = this.sessions.get(id) ?? this.syncState(this.getPtySupervisor().getSession(id)!);
+    const supervisor = this.getPtySupervisor();
+    if (!supervisor) return;
+
+    const state = this.sessions.get(id) ?? this.syncState(supervisor.getSession(id)!);
     this.updateSessionTags(id, state.tags.filter((existing) => existing !== tag));
   }
 
   getSessionHealth(id: string): SessionHealth | undefined {
-    const snapshot = this.getPtySupervisor().getSession(id);
+    const supervisor = this.getPtySupervisor();
+    if (!supervisor) return undefined;
+
+    const snapshot = supervisor.getSession(id);
     if (!snapshot || !this.isTrackedCouncilSession(snapshot)) {
       return undefined;
     }
 
-    const health = this.getPtySupervisor().getSessionHealth(id);
+    const health = supervisor.getSessionHealth(id);
     return {
       status: health.status,
       lastCheck: health.lastCheck,

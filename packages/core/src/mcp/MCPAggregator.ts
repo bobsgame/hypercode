@@ -1,3 +1,4 @@
+import fs from 'fs';
 import path from 'path';
 
 import { deriveSemanticCatalogForServer } from './catalogMetadata.js';
@@ -39,6 +40,7 @@ export class MCPAggregator {
     private initializationState: {
         inProgress: boolean;
         initialized: boolean;
+        isLKG: boolean;
         lastStartedAt?: number;
         lastCompletedAt?: number;
         lastSuccessAt?: number;
@@ -46,6 +48,7 @@ export class MCPAggregator {
     } = {
         inProgress: false,
         initialized: false,
+        isLKG: false,
     };
 
     constructor(options?: string | MCPAggregatorOptions) {
@@ -82,8 +85,17 @@ export class MCPAggregator {
         this.initializationState.inProgress = true;
         this.initializationState.lastStartedAt = this.now();
         this.initializationState.lastError = undefined;
+        this.initializationState.isLKG = false;
         try {
+            // Check if primary exists, if not we'll be using LKG
+            const primaryExists = fs.existsSync(this.configPath);
             const config = this.configStore.readAll();
+            
+            if (!primaryExists && Object.keys(config).length > 0) {
+                this.initializationState.isLKG = true;
+                console.warn(`[MCPAggregator] Primary config not found, initialized with LKG from ${this.configPath.replace(/\.json$/, '.lkg.json')}`);
+            }
+
             for (const [name, serverCfg] of Object.entries(config)) {
                 this.serverStates.set(name, {
                     name,

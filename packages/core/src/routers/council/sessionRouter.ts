@@ -8,9 +8,9 @@ const cliTypeSchema = z.enum([
   'opencode', 'claude', 'aider', 'cursor', 'continue', 'cody', 'copilot', 'custom',
   'adrenaline', 'amazon-q', 'amazon-q-developer', 'amp-code', 'auggie', 'azure-openai',
   'bito', 'byterover', 'claude-code', 'code-codex', 'codebuff', 'codemachine', 'codex',
-  'crush', 'dolt', 'factory', 'gemini', 'goose', 'grok', 'jules', 'kilo-code', 'kimi',
+  'crush', 'dolt', 'factory', 'factory-droid', 'gemini', 'goose', 'grok', 'jules', 'kilo-code', 'kimi',
   'llm', 'litellm', 'llamafile', 'manus', 'mistral-vibe', 'ollama', 'open-interpreter',
-  'pi', 'qwen-code', 'rowboatx', 'rovo', 'shell-pilot', 'smithery', 'trae', 'warp'
+  'pi', 'qwen-code', 'rowboatx', 'rovo', 'shell-pilot', 'smithery', 'superai-cli', 'trae', 'warp'
 ]);
 
 const developmentTaskSchema = z.object({

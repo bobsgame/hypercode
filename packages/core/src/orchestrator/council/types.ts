@@ -198,6 +198,7 @@ export type CLIType =
   | 'crush'
   | 'dolt'
   | 'factory'
+  | 'factory-droid'
   | 'gemini'
   | 'goose'
   | 'grok'
@@ -217,6 +218,7 @@ export type CLIType =
   | 'rovo'
   | 'shell-pilot'
   | 'smithery'
+  | 'superai-cli'
   | 'trae'
   | 'warp';
 

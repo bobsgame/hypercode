@@ -32,14 +32,17 @@ const LABS_NAV_ITEMS = [
 ];
 
 export function Navigation() {
-    const pathname = usePathname();
+    const pathname = usePathname() || '';
     const [open, setOpen] = useState(false);
     const versionLabel = (process.env.NEXT_PUBLIC_BORG_VERSION ?? '0.90.0').replace(/^v/i, '');
 
-    const isActive = (path: string) => pathname === path;
+    const isActive = (path: string) => {
+        if (path === '/') return pathname === '/';
+        return pathname.startsWith(path);
+    };
 
     return (
-        <nav className="w-full bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 px-6 py-4 flex items-center justify-between sticky top-0 z-50">
+        <nav suppressHydrationWarning className="w-full bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 px-6 py-4 flex items-center justify-between sticky top-0 z-50">
             <div className="flex items-center gap-6">
                 <div className="text-xl font-bold bg-gradient-to-r from-blue-500 to-purple-500 bg-clip-text text-transparent">
                     BORG
@@ -53,6 +56,7 @@ export function Navigation() {
                             href={item.href}
                             title={item.description}
                             aria-label={`${item.label}: ${item.description}`}
+                            suppressHydrationWarning
                             className={`text-sm font-medium transition-colors ${item.color} ${isActive(item.href) ? item.activeColor : 'text-zinc-500 dark:text-zinc-400'}`}
                         >
                             {item.label}
@@ -103,6 +107,7 @@ export function Navigation() {
                                     onClick={() => setOpen(false)}
                                     title={item.description}
                                     aria-label={`${item.label}: ${item.description}`}
+                                    suppressHydrationWarning
                                     className={`text-lg font-medium transition-colors px-2 ${item.color} ${isActive(item.href) ? item.activeColor : 'text-zinc-500 dark:text-zinc-400'}`}
                                 >
                                     {item.label}
@@ -116,6 +121,7 @@ export function Navigation() {
                                     onClick={() => setOpen(false)}
                                     title={item.description}
                                     aria-label={`${item.label}: ${item.description}`}
+                                    suppressHydrationWarning
                                     className={`text-lg font-medium transition-colors ${item.color} ${isActive(item.href) ? item.activeColor : 'text-zinc-500 dark:text-zinc-400'}`}
                                 >
                                     {item.label}

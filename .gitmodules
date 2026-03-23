@@ -16,3 +16,6 @@
 [submodule "packages/claude-mem"]
         path = packages/claude-mem
         url = https://github.com/robertpelloni/claude-mem
+[submodule "apps/maestro"]
+	path = apps/maestro
+	url = https://github.com/robertpelloni/Maestro

@@ -19,7 +19,7 @@ Evolve Borg into the **Ultimate Universal AI Dashboard**, bringing full feature 
 ## Phase I — Omniscient Memory & RAG Ecosystem
 - [x] Make `github.com/robertpelloni/bobbybookmarks` the canonical link backlog datasource for Borg, with sync into local backlog storage plus research/clustering metadata.
 - [x] Pluggable Memory Subsystems (support for vector DBs, file-based, NotebookLM-style).
-- [ ] Automatic context harvesting, pruning, compacting, reranking, and semantic chunking.
+- [x] Automatic context harvesting, pruning, compacting, reranking, and semantic chunking.
 - [x] Seamless integrations with Google Docs, Gmail, Google Drive, and local file systems.
 - [x] Export/Import and autodetect of sessions and memories across environments.
 

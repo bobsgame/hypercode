@@ -2,45 +2,47 @@
 
 _Short-term tasks, bug fixes, and feature implementations. For long-term goals, see ROADMAP.md._
 
+## Critical — Build & Type Safety
+- [x] Fix `council/index.ts` — expose `members`/`updateMembers` at top level for `providers/routing/page.tsx` build fix.
+- [ ] Ensure `council.json` config file exists at `packages/core/config/council.json` with default members for fresh installs.
+- [ ] Clean up orphaned `routers/councilRouter.ts` (top-level) — its logic is now inlined into `council/index.ts`.
+
 ## UI & Dashboard (apps/web)
 - [x] Implement Dashboard page/panel listing submodules, versions, dates, and exact repository locations.
-- [x] Add explicit explanations of the project directory structure layout directly in the UI with a live workspace inventory.
-- [x] Polish the Roundtable/Council UI enough to render live sessions, history, and Smart Pilot compatibility against the migrated council API.
-- [x] Wire a non-destructive "Add Borg as MCP server" action into the Integration Hub for detected MCP client targets.
-- [x] Add a `borg start --dashboard` / auto-launch dashboard flow so startup matches the intended operator experience.
-- [x] Make `borg-orchestrator` (opencode-autopilot) a first-class feature and half of the dashboard grid.
-- [x] Integrate Orchestrator server into the standard `pnpm dev` stack with health-check validation.
-- [x] Ensure all features are thoroughly documented within the UI (tooltips, labels, descriptions).
+- [x] Polish the Roundtable/Council UI enough to render live sessions, history, and Smart Pilot compatibility.
+- [x] Wire a non-destructive "Add Borg as MCP server" action into the Integration Hub.
 - [x] Implement "Code Mode" escape hatch interface in the dashboard.
 - [x] Create detailed usage/billing subpanels tracking credit balances per provider.
+- [x] Build Unified Directory merging installed servers + backlog links.
+- [ ] **Marketplace page** (`/dashboard/marketplace`, 136 lines) — currently calls `MarketplaceService` which has TODO stubs for MeshService peer queries. Wire up actual community entries or catalog data.
+- [ ] **Config page** (`/dashboard/config`, 14 lines) — minimal wrapper around DirectorConfig component. Expand with the full system settings surface (themes, notifications, data retention, etc.).
+- [ ] **Workshop page** — delegates to `@borg/ui` `WorkshopPage`. Verify this component is fully implemented in the UI package.
 
 ## Orchestration & Models
-- [x] Implement robust model fallback logic: when quota limit errors occur, automatically switch to the next appropriate model/provider (e.g., Gemini 3 Pro -> Codex 5.3 -> Opus 4.6).
-- [x] Ensure auto-start/restart logic can handle opencode, superai-cli, codebuff, codemachine, factory droid, codex, claude code, and gemini CLI instances.
-- [x] Implement OAuth logic for subscribing to premium models (Copilot Premium Plus, ChatGPT Plus, Claude Pro, Google AI Plus).
-- [x] Fully wire up the Council debate to the `SmartPilot` trigger so sessions can autonomously self-correct based on consensus.
+- [x] Implement robust model fallback logic with quota-aware cascading.
+- [x] Ensure auto-start/restart logic handles all 11 CLI harness types.
+- [x] Implement OAuth logic for subscribing to premium models.
+- [x] Fully wire up the Council debate to SmartPilot.
+- [ ] **MeshRouter** (`meshRouter`) — currently commented out in `trpc.ts`. The P2P mesh networking layer for distributed Borg instances is scaffolded but disabled. Re-enable when MeshService is stable.
 
 ## MCP Substrate & Proxies
-- [x] Improve MCP router startup: load last-known-good configuration to report immediately, regardless of whether the core is fully ready.
-- [x] Build the universal integrated MCP directory so installed servers, published catalog entries, BobbyBookmarks backlog links, and future feature-group assets resolve through one operator-facing directory surface.
-- [x] Implement dynamic progressive tool disclosure (show only 5-6 permanent meta tools initially, auto-load others on high confidence).
-- [x] Add explicit tool semantic search / tool RAG.
-- [x] Implement TOON format parsing and MCP traffic inspection panels.
-- [x] Build environment variable and secrets management tool inside the dashboard.
+- [x] Improve MCP router startup with LKG configuration.
+- [x] Build the universal integrated MCP directory.
+- [x] Implement dynamic progressive tool disclosure.
+- [x] Add tool semantic search / tool RAG.
+- [x] Implement TOON format parsing and MCP traffic inspection.
+- [x] Build environment variable and secrets management.
 
 ## Memory & RAG
-- [x] Integrate `github.com/robertpelloni/bobbybookmarks` as the canonical link backlog datasource with sync, dedupe, research-status, and clustering visibility in Borg.
-- [x] Connect the memory subsystem to Google Docs, Gmail, and Google Drive for seamless RAG.
-- [x] Implement memory browser extension endpoints (saving web memories, parsing DOM).
-- [x] Integrate NotebookLM-style features for source-grounded, citation-backed answers.
-
-## Automation & Scripts
-- [x] Create automated script to check versions of all submodules, update them, and generate the UI data feed for the submodule dashboard.
-- [x] Harden workspace build startup by clearing stale Next.js web build locks when no active `next build` process exists.
-- [x] Standardize and document the 7-step merge protocol for handling upstream forks.
+- [x] Integrate BobbyBookmarks as canonical link backlog datasource.
+- [x] Connect memory subsystem to Google Workspace (Docs, Gmail, Drive).
+- [x] Implement browser extension endpoints.
+- [x] Integrate NotebookLM-style citation features.
+- [ ] **MarketplaceService TODO stubs** — `MarketplaceService.ts` lines 90 and 113 have TODO comments for MeshService integration (peer discovery and broadcasting). Implement or remove.
+- [ ] **CitationService** — uses keyword-based relevance as placeholder for vector similarity (noted in MEMORY.md). Upgrade to LanceDB embedding queries in production.
 
 ## Documentation
-- [x] Create/Update `MEMORY.md` with ongoing observations.
-- [x] Create/Update `DEPLOY.md` with explicit deployment/startup instructions.
-- [x] Update `CHANGELOG.md` for this sprint.
-- [x] Refine `AGENTS.md`, `GEMINI.md`, `CLAUDE.md`, `GPT.md` to reference the Universal LLM Instructions and the new rigorous documentation protocols.
+- [x] Create/Update MEMORY.md, DEPLOY.md, CHANGELOG.md.
+- [x] Refine AGENTS.md, GEMINI.md, CLAUDE.md, GPT.md with Universal LLM Instructions reference.
+- [ ] Ensure `docs/SUBMODULES.md` is current with all 7 active submodules.
+- [ ] Update `docs/VERSION_LOCATIONS.md` after version bump to 0.99.2.

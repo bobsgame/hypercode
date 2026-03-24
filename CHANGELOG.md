@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.99.2] — 2026-03-24
+
+### Fixed
+- **Council Router Build Error:** Rewrote `packages/core/src/routers/council/index.ts` to expose `members` and `updateMembers` as direct top-level procedures. These were previously orphaned in `routers/councilRouter.ts` (never imported by `trpc.ts`), causing TypeScript errors in `providers/routing/page.tsx`. Both `@borg/core` and `@borg/web` now typecheck cleanly.
+
+### Changed
+- **Branch Cleanup:** Deleted 96 of 104 local feature branches (94 already-merged, 2 legacy v2.7.x pre-Phase-Bankruptcy). Pruned orphaned git worktree. Repository now has a single clean `main` branch.
+- **Documentation Overhaul:** Rewrote `TODO.md` with honest incomplete item tracking (honest audit vs aspirational marking). Updated `ROADMAP.md` with new Phase N (Marketplace, Mesh & Community). Wrote comprehensive `HANDOFF.md` with session findings and next-session directives.
+
+### Version
+- Bumped `VERSION` from `0.99.1` to `0.99.2`.
+
 ## [0.99.1] - 2026-03-23
 
 ### Added

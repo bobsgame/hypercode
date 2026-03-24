@@ -21,7 +21,10 @@ All Phase N objectives have been **COMPLETED**. We have achieved convergence on 
 2. **Phase N2 (CitationService)**: Safely upgraded to LanceDB vector embeddings running locally under `~/.borg/citations_db`.
 3. **Phase N3 (Mobile Remote Control)**: Scaffolded the React Native/Expo `@borg/mobile` companion app natively into the `pnpm` workspace.
 4. **Agent Federation Stabilization**: Hardened `MarketplaceService` and `CitationService` by migrating all disk reliance away from brittle `process.cwd()` calls to the unified, robust `~/.borg` standard as mandated by `MEMORY.md`.
-5. **MCP Competitive Intelligence**: Successfully conducted Deep Research on competing MCP aggregators (Glama, Smithery) and published the `mcp_competitive_intelligence.md` artifact detailing Borg ecosystem strategy.
+5. **MCP Competitive Intelligence**: Successfully conducted Deep Research on competing MCP aggregators (Glama, Smithery) and published the `mcp_competitive_intelligence.md` artifact.
+6. **Repository Entropy Cleanup**: Purged 48 stale, merged feature branches from the local context, effectively eliminating technical clutter.
+7. **CI/CD Stabilization**: Ran full `pnpm run build` monorepo validation resulting in 100% green exit code 0; synced these 7 commits to `origin/main` to restore the GitHub frontpage status.
+8. **Canonical Link Backlog**: Added the `bobbybookmarks` canonical link dataset as a git submodule inside `data/bobbybookmarks` and synced it to remote (Phase I Goal).
 
 ---
 
@@ -29,12 +32,12 @@ All Phase N objectives have been **COMPLETED**. We have achieved convergence on 
 
 With the backend stabilization and sub-components wired, the remaining hurdles focus exclusively on the front-end user experience and global deployment hygiene.
 
-1. **Mobile App Wireframing**: Begin linking the `@borg/mobile` Expo app directly to the Borg daemon's WebSocket endpoints to stream real-time telemetry and Agentic thought logs.
-2. **WebUI Polishing**: Finalize the Main Dashboard React layout, ensuring feature-parity with the 11 recognized CLI tool harnesses.
+1. **Dashboard UI Refinement**: The `borg-extension` and `maestro` implementations are currently throwing `httpLink` and `ERR_CONNECTION_REFUSED` (Port 3847) errors when attempting to configure tRPC subscriptions over the webview injected dashboard. The `TRPCProvider.tsx` needs patching in `claude-mem/` to cleanly handle SSE connections without throwing errors.
+2. **Mobile App Wireframing**: Begin linking the `@borg/mobile` Expo app directly to the Borg daemon's WebSocket endpoints to stream real-time telemetry and Agentic thought logs.
 3. **v1.0.0 Global Cut**: Prepare the repo for the final semantic version bump to 1.0.0 by auditing the root `package.json` lockfiles and executing `pnpm run build` locally in a pristine container.
 
 ## Environment Notes
 - **pnpm v10 required** (packageManager lock in package.json)
 - **Build gate**: `pnpm run build` in `apps/web` — the authoritative build verification
 - **UI imports**: `@borg/ui` only, never `@/components/ui/*`
-- **Git**: 0 local branches now (just `main`). Clean working tree except submodule content mods.
+- **Git**: 0 local branches now (just `main`). Clean working tree and fully synced with GitHub.

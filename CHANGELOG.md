@@ -4,17 +4,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.90.7] - 2026-03-23
+## [0.99.1] - 2026-03-23
 
 ### Added
 - **Maestro Submodule:** Cloned the `robertpelloni/Maestro` repository into `apps/maestro` to serve as the unified Electron dashboard.
-- **Automated Version Alignment:** Rolled out `scripts/bump_version.mjs` to keep string constants and `package.json` manifestations synchronized instantly (`0.90.7`).
+- **Automated Version Alignment:** Rolled out `scripts/bump_version.mjs` to keep string constants and `package.json` manifestations synchronized instantly (`0.99.1`).
 
 ### Fixed
 - **Zombie Process Elimination:** Fixed lingering server instances hanging over ports `4000` and `4001` triggering `EADDRINUSE` deadlocks on `.\start.bat` reloads.
 
-## [0.90.6] - 2026-03-23
-## [0.90.7] — 2026-03-22
+## [0.99.1] - 2026-03-23
+## [0.99.1] — 2026-03-22
 
 ### CLI Harness Expansion
 - feat(core/supervisor): Added 4 new CLI harnesses to `cliHarnessCatalog.ts`: `superai-cli`, `codebuff`, `codemachine`, `factory-droid` (11 total).
@@ -43,7 +43,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### TODO Cleanup
 - Verified and marked as complete: Code Mode escape hatch, MEMORY.md, UI feature documentation, TOON parsing, universal MCP directory, submodule script, merge protocol, auto-start harness coverage, Council→SmartPilot wiring, and all agent docs.
 
-## [0.90.7] — 2026-03-22
+## [0.99.1] — 2026-03-22
 
 ### Always On Tools & Semantic Auto-Execution
 - feat(core/db): Added `always_on` boolean column to both `mcp_servers` and `tools` SQLite tables for persistent Always On state.
@@ -62,26 +62,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - docs: Updated `DEPLOY.md` with MCP configuration path (`~/.borg/`), Always On tools documentation, and ports reference table.
 - docs: Updated `TODO.md` — marked tool semantic search/RAG as complete.
 
-## [0.90.7] — 2026-03-22
+## [0.99.1] — 2026-03-22
 ### Added
 - **TOON Parser Engine:** Replaced the stub JSON serializer in `core/mcp` with a full Tool-Optimized Output Notation parser that compresses LLM context by stripping redundant braces/quotes into a lightweight pseudo-YAML payload framed by `<toon>` tags.
 - **Traffic Inspector TOON Renderer:** Added `<ToonRenderer />` to the dashboard's MCP Traffic Inspector. Raw JSON tool arguments and results are now automatically detected and syntax-highlighted inside an elegant custom emerald component.
 - **Dependency:** Added `yaml` to `@borg/core` to support lossless parsing and serialization.
 - **Stability:** Hardened yaml ESM imports to use explicit named destructured imports (`parse, stringify`) natively avoiding `default` package resolution mismatch across monorepos.
 
-## [0.90.7] — 2026-03-22
+## [0.99.1] — 2026-03-22
 ### Added
 - **Secrets Vault:** Centralized dashboard UI and local SQLite vault for mapping environment variables and API credentials.
 - Automatic backend mapping of secrets inside `McpServersRepository`, overlaying securely into MCP server environment definitions without plaintext leakage.
 
-## [0.90.7] — 2026-03-22
+## [0.99.1] — 2026-03-22
 
 ### Documentation & Vision
 - docs: Generated IDEAS.md containing future architectural pivots and feature ideas.
 - docs: Swept through VISION.md, MEMORY.md, DEPLOY.md, and global agent rules to verify alignment with the Ultimate Universal AI Dashboard objective.
-- chore: Bumped VERSION to 0.90.7.
+- chore: Bumped VERSION to 0.99.1.
 
-## [0.90.7] — 2026-03-21
+## [0.99.1] — 2026-03-21
 
 ### Dashboard & MCP Router
 
@@ -92,9 +92,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - feat(core/mcp): Exposed `isLKG` flag and initialization errors via `mcpRouter.getStatus` tRPC procedure.
 - feat(web/mcp): Added a prominent warning banner to the MCP Control Plane dashboard when running in LKG mode, alerting operators to potential configuration synchronization issues.
 - test(core/mcp): Added comprehensive test suite for `MCPConfigStore` LKG logic.
-- chore: Bumped `VERSION` to `0.90.7`.
+- chore: Bumped `VERSION` to `0.99.1`.
 
-## [0.90.7] — 2026-03-21
+## [0.99.1] — 2026-03-21
 
 ### Detailed Provider Billing & Usage Subpanels
 
@@ -102,9 +102,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - feat(web/billing): Updated the main provider capabilities table to be interactive; clicking a row now opens the detail subpanel for that provider.
 - feat(web/billing): Extended `normalizeBillingQuotaRows` to include `windows` and `resetDate` data, enabling rich drilldown views.
 - refactor(ui): Added `indicatorClassName` support to the shared `Progress` component in `@borg/ui`, allowing for semantic progress bar coloring (e.g., emerald for healthy, amber for warning, red for exhausted).
-- chore: Bumped `VERSION` to `0.90.7`.
+- chore: Bumped `VERSION` to `0.99.1`.
 
-## [0.90.7] — 2026-03-21
+## [0.99.1] — 2026-03-21
 
 ### CI/CD Green Build Restoration
 
@@ -142,7 +142,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Version Sync
 
-- chore: Bumped `VERSION` from `0.9.667` to `0.90.7` to align with CHANGELOG progression.
+- chore: Bumped `VERSION` from `0.9.667` to `0.99.1` to align with CHANGELOG progression.
 
 ## [0.9.667] — 2026-03-21
 
@@ -158,7 +158,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `pnpm -C apps/web exec tsc --noEmit --pretty false` ✅
   - `pnpm -C apps/web build` ✅
 
-## [0.90.7] — 2026-03-21
+## [0.99.1] — 2026-03-21
 
 ### Route-Level useSearchParams Suspense Coverage
 
@@ -172,7 +172,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `pnpm -C apps/web exec tsc --noEmit --pretty false` ✅
   - `pnpm -C apps/web build` ✅
 
-## [0.90.7] — 2026-03-21
+## [0.99.1] — 2026-03-21
 
 ### useSearchParams Suspense Guard Precision Upgrade
 
@@ -185,7 +185,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `pnpm -C apps/web exec tsc --noEmit --pretty false` ✅
   - `pnpm -C apps/web build` ✅
 
-## [0.90.7] — 2026-03-21
+## [0.99.1] — 2026-03-21
 
 ### useSearchParams Suspense Regression Guard
 
@@ -199,7 +199,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `pnpm -C apps/web exec tsc --noEmit --pretty false` ✅
   - `pnpm -C apps/web build` ✅
 
-## [0.90.7] — 2026-03-21
+## [0.99.1] — 2026-03-21
 
 ### Next.js CSR Suspense Boundary Hardening
 
@@ -213,7 +213,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `pnpm -C apps/web exec tsc --noEmit --pretty false` ✅
   - `pnpm -C apps/web build` ✅
 
-## [0.90.7] — 2026-03-21
+## [0.99.1] — 2026-03-21
 
 ### Unified Directory Reset Handler Unification
 
@@ -225,7 +225,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `pnpm -C apps/web exec tsc --noEmit --pretty false` ✅
   - `pnpm -C packages/core exec tsc --noEmit --pretty false` ✅
 
-## [0.90.7] — 2026-03-21
+## [0.99.1] — 2026-03-21
 
 ### Unified Directory Pagination Clamp
 
@@ -237,7 +237,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `pnpm -C apps/web exec tsc --noEmit --pretty false` ✅
   - `pnpm -C packages/core exec tsc --noEmit --pretty false` ✅
 
-## [0.90.7] — 2026-03-21
+## [0.99.1] — 2026-03-21
 
 ### Unified Directory Source-Aware URL Hydration Normalization
 
@@ -252,7 +252,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `pnpm -C apps/web exec tsc --noEmit --pretty false` ✅
   - `pnpm -C packages/core exec tsc --noEmit --pretty false` ✅
 
-## [0.90.7] — 2026-03-21
+## [0.99.1] — 2026-03-21
 
 ### Unified Directory Source Switch Filter Cleanup
 
@@ -267,7 +267,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `pnpm -C apps/web exec tsc --noEmit --pretty false` ✅
   - `pnpm -C packages/core exec tsc --noEmit --pretty false` ✅
 
-## [0.90.7] — 2026-03-21
+## [0.99.1] — 2026-03-21
 
 ### Unified Directory Empty-State Recovery Action
 
@@ -279,7 +279,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `pnpm -C apps/web exec tsc --noEmit --pretty false` ✅
   - `pnpm -C packages/core exec tsc --noEmit --pretty false` ✅
 
-## [0.90.7] — 2026-03-21
+## [0.99.1] — 2026-03-21
 
 ### Unified Directory Disabled Filter Guidance
 
@@ -291,7 +291,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `pnpm -C apps/web exec tsc --noEmit --pretty false` ✅
   - `pnpm -C packages/core exec tsc --noEmit --pretty false` ✅
 
-## [0.90.7] — 2026-03-21
+## [0.99.1] — 2026-03-21
 
 ### Unified Directory Clear Filters URL Reset
 
@@ -303,7 +303,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `pnpm -C apps/web exec tsc --noEmit --pretty false` ✅
   - `pnpm -C packages/core exec tsc --noEmit --pretty false` ✅
 
-## [0.90.7] — 2026-03-21
+## [0.99.1] — 2026-03-21
 
 ### Unified Directory Smart Clear Filters UX
 
@@ -316,7 +316,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `pnpm -C apps/web exec tsc --noEmit --pretty false` ✅
   - `pnpm -C packages/core exec tsc --noEmit --pretty false` ✅
 
-## [0.90.7] — 2026-03-21
+## [0.99.1] — 2026-03-21
 
 ### Unified Directory One-Click Filter Reset
 
@@ -328,7 +328,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `pnpm -C apps/web exec tsc --noEmit --pretty false` ✅
   - `pnpm -C packages/core exec tsc --noEmit --pretty false` ✅
 
-## [0.90.7] — 2026-03-21
+## [0.99.1] — 2026-03-21
 
 ### Unified Directory Effective URL Prefilter Detection
 
@@ -341,7 +341,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `pnpm -C apps/web exec tsc --noEmit --pretty false` ✅
   - `pnpm -C packages/core exec tsc --noEmit --pretty false` ✅
 
-## [0.90.7] — 2026-03-21
+## [0.99.1] — 2026-03-21
 
 ### Unified Directory Source-Aware Backlog Control Display
 
@@ -354,7 +354,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `pnpm -C apps/web exec tsc --noEmit --pretty false` ✅
   - `pnpm -C packages/core exec tsc --noEmit --pretty false` ✅
 
-## [0.90.7] — 2026-03-21
+## [0.99.1] — 2026-03-21
 
 ### Unified Directory Source-Aware Backlog Filter Forwarding
 
@@ -369,7 +369,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `pnpm -C apps/web exec tsc --noEmit --pretty false` ✅
   - `pnpm -C packages/core exec tsc --noEmit --pretty false` ✅
 
-## [0.90.7] — 2026-03-21
+## [0.99.1] — 2026-03-21
 
 ### Unified Directory Source-Aware Backlog Filter Gating
 
@@ -381,7 +381,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `pnpm -C apps/web exec tsc --noEmit --pretty false` ✅
   - `pnpm -C packages/core exec tsc --noEmit --pretty false` ✅
 
-## [0.90.7] — 2026-03-21
+## [0.99.1] — 2026-03-21
 
 ### Unified Directory Duplicate Toggle Coherence
 
@@ -394,7 +394,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `pnpm -C apps/web exec tsc --noEmit --pretty false` ✅
   - `pnpm -C packages/core exec tsc --noEmit --pretty false` ✅
 
-## [0.90.7] — 2026-03-21
+## [0.99.1] — 2026-03-21
 
 ### Unified Directory Canonical Target Navigation
 
@@ -406,7 +406,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `pnpm -C apps/web exec tsc --noEmit --pretty false` ✅
   - `pnpm -C packages/core exec tsc --noEmit --pretty false` ✅
 
-## [0.90.7] — 2026-03-21
+## [0.99.1] — 2026-03-21
 
 ### Unified Directory Duplicate Lineage Visibility
 
@@ -423,7 +423,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `pnpm -C packages/core build` ✅
   - `pnpm -C apps/web exec tsc --noEmit --pretty false` ✅
 
-## [0.90.7] — 2026-03-21
+## [0.99.1] — 2026-03-21
 
 ### Unified Directory Duplicates-Only Triage
 
@@ -445,7 +445,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `pnpm -C packages/core build` ✅
   - `pnpm -C apps/web exec tsc --noEmit --pretty false` ✅
 
-## [0.90.7] — 2026-03-21
+## [0.99.1] — 2026-03-21
 
 ### Unified Directory Duplicate-Aware Backlog Navigation
 
@@ -467,7 +467,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `pnpm -C packages/core build` ✅
   - `pnpm -C apps/web exec tsc --noEmit --pretty false` ✅
 
-## [0.90.7] — 2026-03-21
+## [0.99.1] — 2026-03-21
 
 ### Unified Directory Backlog Triage Filter
 
@@ -487,7 +487,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `pnpm -C packages/core build` ✅
   - `pnpm -C apps/web exec tsc --noEmit --pretty false` ✅
 
-## [0.90.7] — 2026-03-21
+## [0.99.1] — 2026-03-21
 
 ### Unified Directory URL Filter Hydration
 
@@ -500,7 +500,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `pnpm -C apps/web exec tsc --noEmit --pretty false` ✅
   - `pnpm -C packages/core exec tsc --noEmit --pretty false` ✅
 
-## [0.90.7] — 2026-03-21
+## [0.99.1] — 2026-03-21
 
 ### Unified Directory Navigation UX Improvements
 
@@ -517,7 +517,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `pnpm -C packages/core exec tsc --noEmit --pretty false` ✅
   - `pnpm -C packages/core exec vitest run src/routers/unifiedDirectoryRouter.test.ts` ✅
 
-## [0.90.7] — 2026-03-21
+## [0.99.1] — 2026-03-21
 
 ### Unified Directory Validation Hardening
 
@@ -534,7 +534,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `pnpm -C packages/core exec tsc --noEmit --pretty false` ✅
   - `pnpm -C apps/web exec tsc --noEmit --pretty false` ✅
 
-## [0.90.7] — 2026-03-21
+## [0.99.1] — 2026-03-21
 
 ### Unified Directory (first integrated slice)
 
@@ -558,7 +558,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `pnpm -C packages/core build` ✅
   - `pnpm -C apps/web exec tsc --noEmit --pretty false` ✅
 
-## [0.90.7] — 2026-03-20
+## [0.99.1] — 2026-03-20
 
 ### Massive Vision & Documentation Overhaul
 - docs(vision): Completely rewrote `VISION.md` to capture the ultimate scope: the Universal AI Dashboard, Cognitive Control Plane, and Verifiable Orchestration Substrate.

@@ -86,7 +86,7 @@ export class Router {
         const client = new Client(
             {
                 name: "borg-router",
-                version: "0.90.7",
+                version: "0.99.1",
             },
             {
                 capabilities: {},

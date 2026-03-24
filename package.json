@@ -1,6 +1,6 @@
 {
     "name": "borg-monorepo",
-    "version": "0.90.4",
+    "version": "0.99.1",
     "private": true,
     "packageManager": "pnpm@10.28.0",
     "scripts": {

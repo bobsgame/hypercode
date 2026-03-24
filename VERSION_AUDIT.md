@@ -1,0 +1,42 @@
+# VERSION UNIFICATION REPORT (Target: 0.99.1)
+
+- `VERSION`
+- `VERSION.md`
+- `CHANGELOG.md`
+- `apps/web/src/components/Navigation.tsx`
+- `apps/web/src/components/mcp/nav-config.ts`
+- `packages/cli/src/version.ts`
+- `packages/core/src/Router.ts`
+- `packages/core/src/MCPServer.ts`
+- `packages/core/src/stdioLoader.ts`
+- `packages/core/src/routers/openWebUIRouter.ts`
+- `packages/core/src/services/AgentMemoryService.ts`
+- `packages/core/src/services/mcp-client.service.ts`
+- `packages/core/src/bridge/bridge-manifest.test.ts`
+- `package.json`
+- `apps/borg-extension/package.json`
+- `apps/maestro/package.json`
+- `apps/vscode/package.json`
+- `apps/web/package.json`
+- `packages/adk/package.json`
+- `packages/agents/package.json`
+- `packages/ai/package.json`
+- `packages/borg-supervisor/package.json`
+- `packages/browser/package.json`
+- `packages/browser-extension/package.json`
+- `packages/claude-mem/package.json`
+- `packages/cli/package.json`
+- `packages/core/package.json`
+- `packages/mcp-client/package.json`
+- `packages/mcp-registry/package.json`
+- `packages/mcp-router-cli/package.json`
+- `packages/memory/package.json`
+- `packages/search/package.json`
+- `packages/supervisor-plugin/package.json`
+- `packages/tools/package.json`
+- `packages/tsconfig/package.json`
+- `packages/types/package.json`
+- `packages/ui/package.json`
+- `packages/vscode/package.json`
+
+**Total files strictly updated to boundary parameter [0.99.1]:** 38

@@ -8,11 +8,11 @@ export default function App() {
 
   useEffect(() => {
     // Attempt connection to Borg Core's MCP/Telemetry WebSocket bridge
-    const ws = new WebSocket('ws://localhost:3001');
+    const ws = new WebSocket('ws://localhost:3847');
 
     ws.onopen = () => {
       setStatus('Connected to Borg Core');
-      setLogs((prev) => [...prev, '[System] Connected to ws://localhost:3001']);
+      setLogs((prev) => [...prev, '[System] Connected to ws://localhost:3847']);
     };
 
     ws.onmessage = (e) => {

@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.99.8] — 2026-03-24
+
+### Added
+- **Complete Roadmap Vision**: Generated and updated `IDEAS.md` files for all remaining repositories and packages (`adk`, `agents`, `search`, `tools`, `memory`, `vscode`, `mobile`). This provides a comprehensive, high-intelligence roadmap for every component of the Borg ecosystem.
+- **Mobile Companion Hardening**: Updated `apps/mobile` connectivity to correctly point to the standardized port `3847`, enabling real-time telemetry and monitoring from the React Native wireframes.
+
+### Version
+- Bumped `VERSION` from `0.99.7` to `0.99.8`.
+
 ## [0.99.7] — 2026-03-24
 
 ### Fixed

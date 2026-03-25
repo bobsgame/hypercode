@@ -1,43 +1,26 @@
-# Handoff — Antigravity (Claude Opus 4.6) Session
+# Handoff — Gemini 2.0 Flash Session
 
 ## Session Date: 2026-03-24
 
-## Sprint Status
+## Sprint Status: Phase O Initialization (v0.99.6)
 
-### Completed This Session (v0.99.3 & v0.99.4)
-1. **Branch Cleanup**: Deleted **96 of 104** local feature branches. 94 were already merged into main. 2 were legacy pre-Phase-Bankruptcy branches (v2.7.x era) that would have destroyed the clean 0.99.x codebase if merged. One was locked in an orphaned git worktree — pruned and force-deleted.
-2. **Detached HEAD Recovery**: HEAD was detached at `bf9cba6f`. Checked out `main`, fast-forwarded to `origin/main` (66d9d062).
-3. **TypeScript Build Fix**: Fixed the only compile error in the entire monorepo — `providers/routing/page.tsx` referenced `trpc.council.members` and `trpc.council.updateMembers`, but these procedures existed only in an orphaned `routers/councilRouter.ts` that was never imported by `trpc.ts`. Rewrote `council/index.ts` to expose `members`/`updateMembers` as direct top-level procedures with the council.json file I/O logic inlined. Both `packages/core` and `apps/web` now typecheck cleanly.
-4. **Documentation Overhaul**: Rewrote `TODO.md` with honest incomplete items (vs. the previous version where everything was marked complete). Updated `ROADMAP.md` with new Phase N (Marketplace, Mesh & Community). Bumped `VERSION` to `0.99.2` and then `0.99.4`.
-5. **Phase N1 — Marketplace & Mesh**: Activated the `meshRouter` in `trpc.ts`. Implemented real peer discovery in `MarketplaceService`. Connected community tool data for swarm features.
-6. **Phase N2 — Citation Production**: Swapped `CitationService` keyword scoring for LanceDB vector embedding queries. Supported chunk search, document embedding via Xenova, and LanceDB per-session scope storage.
-7. **Production Stabilization**: Adjusted `TRPCProvider.tsx` (`apps/web`) to support standard HTTP SSE subscriptions via `unstable_httpSubscriptionLink`. Next.js builds successfully.
+### Completed This Session
+1.  **Port 3847 Harmonization**: Standardized the `BORG_ORCHESTRATOR_PORT` to `3847` across the monorepo (`packages/ui`, `apps/web`, `apps/maestro`). This resolved persistent `ERR_CONNECTION_REFUSED` errors from legacy port 3001 references.
+2.  **tRPC SSE for Extensions**: Implemented `TRPCProvider.tsx` in `packages/claude-mem` with `unstable_httpSubscriptionLink` and `splitLink`. This allows extension webviews to handle tRPC subscriptions over HTTP SSE, bypassing the "Subscriptions unsupported by httpLink" error.
+3.  **Storage Access Fallback**: Created `safeStorage` utilities in `packages/claude-mem` and `apps/maestro` that automatically fall back to in-memory storage when `localStorage` is inaccessible, fixing errors in sandboxed extension webviews.
+4.  **CI/CD Stabilization**: Restored GitHub frontpage "Green" status by resolving linting and type errors in `apps/maestro` (missing `@types/mdast`, unused `@ts-expect-error` directives, and `agentSessionId` type mismatches in CLI commands).
+5.  **README Mad Science**: Restored the iconic "🧪 ALL CAPS MAD SCIENCE" heading to the project root README.
+6.  **Ambitious Roadmap Expansion**: Seeded `IDEAS.md` files across all major repositories (`ai`, `core`, `mcp-client`, `ui`, `web`, `maestro`, `borg-extension`) with high-intelligence proposals: Rust micro-kernel, P2P Hive Mind, and Bobcoin integration.
+7.  **Documentation Overhaul**: Comprehensively updated `VISION.md`, `ROADMAP.md`, `TODO.md`, and `MEMORY.md` to reflect Phase O goals and the user's ultimate project vision.
 
-### Current Status (v0.99.5 - Sprint Completion)
-All Phase N objectives have been **COMPLETED**. We have achieved convergence on the core 0.99.x architectural goals and are now prepared for finalizing the v1.0.0 Neural Operating System milestone.
+### Pending High-Priority Items (Phase O)
+- **Finalize Dashboard Data-Binding**: Verify all 59+ pages in `apps/web` are fully wired to real tRPC services (especially brain, chronicle, evolution).
+- **Mobile App Hardening**: Link `@borg/mobile` React Native wireframes to real WebSocket/tRPC endpoints for remote monitoring.
+- **Audit package.json lockfiles**: Ensure exact version pinning for v1.0.0 release to prevent dependency drift.
+- **Submodule Dashboard**: Implement the UI for monitoring and updating submodules directly from the dashboard.
 
-### Key Accomplishments (v0.99.5)
-1. **Phase N1 (Mesh Network)**: Fully activated `meshRouter` and wired `MarketplaceService` to live community mesh data, deprecating legacy stub logic.
-2. **Phase N2 (CitationService)**: Safely upgraded to LanceDB vector embeddings running locally under `~/.borg/citations_db`.
-3. **Phase N3 (Mobile Remote Control)**: Scaffolded the React Native/Expo `@borg/mobile` companion app natively into the `pnpm` workspace.
-4. **Agent Federation Stabilization**: Hardened `MarketplaceService` and `CitationService` by migrating all disk reliance away from brittle `process.cwd()` calls to the unified, robust `~/.borg` standard as mandated by `MEMORY.md`.
-5. **MCP Competitive Intelligence**: Successfully conducted Deep Research on competing MCP aggregators (Glama, Smithery) and published the `mcp_competitive_intelligence.md` artifact.
-6. **Repository Entropy Cleanup**: Purged 48 stale, merged feature branches from the local context, effectively eliminating technical clutter.
-7. **CI/CD Stabilization**: Ran full `pnpm run build` monorepo validation resulting in 100% green exit code 0; synced these 7 commits to `origin/main` to restore the GitHub frontpage status.
-8. **Canonical Link Backlog**: Added the `bobbybookmarks` canonical link dataset as a git submodule inside `data/bobbybookmarks` and synced it to remote (Phase I Goal).
-
----
-
-## Next Directives (Phase O - Dashboard Convergence & v1.0.0)
-
-With the backend stabilization and sub-components wired, the remaining hurdles focus exclusively on the front-end user experience and global deployment hygiene.
-
-1. **Dashboard UI Refinement**: The `borg-extension` and `maestro` implementations are currently throwing `httpLink` and `ERR_CONNECTION_REFUSED` (Port 3847) errors when attempting to configure tRPC subscriptions over the webview injected dashboard. The `TRPCProvider.tsx` needs patching in `claude-mem/` to cleanly handle SSE connections without throwing errors.
-2. **Mobile App Wireframing**: Begin linking the `@borg/mobile` Expo app directly to the Borg daemon's WebSocket endpoints to stream real-time telemetry and Agentic thought logs.
-3. **v1.0.0 Global Cut**: Prepare the repo for the final semantic version bump to 1.0.0 by auditing the root `package.json` lockfiles and executing `pnpm run build` locally in a pristine container.
-
-## Environment Notes
-- **pnpm v10 required** (packageManager lock in package.json)
-- **Build gate**: `pnpm run build` in `apps/web` — the authoritative build verification
-- **UI imports**: `@borg/ui` only, never `@/components/ui/*`
-- **Git**: 0 local branches now (just `main`). Clean working tree and fully synced with GitHub.
+### Operational Context for Next Model
+- **Orchestrator Port**: Use `3847` for all orchestrator communication.
+- **Extension Webviews**: Always use the `safeStorage` utility instead of raw `localStorage`.
+- **Subscriptions**: Use `unstable_httpSubscriptionLink` for tRPC subscriptions in restricted contexts.
+- **Build Gate**: Always run `pnpm run build` in `apps/web` and `apps/maestro` to verify integrity.

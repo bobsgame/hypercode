@@ -21,6 +21,8 @@ Borg uses a highly modular architecture that integrates numerous best-in-class u
 | **LiteLLM** | `archive/submodules/litellm` | `https://github.com/BerriAI/litellm` | Reference for multi-provider API translation (Archived). |
 | **MCPProxy** | `archive/submodules/mcpproxy` | `https://github.com/modelcontextprotocol/mcpproxy` | Reference proxy codebase (Archived). |
 | **Claude-Mem** | `packages/claude-mem` | `https://github.com/robertpelloni/claude-mem` | Active core memory subsystem fork. |
+| **MetaMCP** | `external/MetaMCP` | `https://github.com/robertpelloni/MetaMCP` | Multi-provider MCP client and router reference. |
+| **BobbyBookmarks** | `data/bobbybookmarks` | `https://github.com/robertpelloni/bobbybookmarks` | Canonical link backlog and research database. |
 
 ## Updating Submodules
 

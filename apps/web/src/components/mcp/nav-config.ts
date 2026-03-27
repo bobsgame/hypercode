@@ -246,6 +246,14 @@ export const INTEGRATIONS_NAV: NavItem[] = [
         badge: "experimental",
     },
     {
+        title: "Maestro",
+        href: "/dashboard/maestro",
+        icon: MonitorPlay,
+        description: "Maestro Electron desktop shell — system tray controls, deep OS integration, and native orchestration.",
+        variant: "ghost",
+        badge: "experimental",
+    },
+    {
         title: "DeerFlow Harness",
         href: "/dashboard/deer-flow",
         icon: Network,
@@ -335,7 +343,7 @@ export const SIDEBAR_SECTIONS: NavSection[] = [
         items: INTEGRATIONS_NAV,
     },
     {
-        title: "Borg 0.99.1 Core",
+        title: "Borg 0.99.9 Core",
         items: CORE_DASHBOARD_NAV,
     },
     {

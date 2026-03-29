@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { t, publicProcedure, getAgentMemoryService, getSessionManager, getSessionSupervisor, getShellService } from '../lib/trpc-core.js';
+import { t, publicProcedure, getAgentMemoryService, getSessionImportService, getSessionManager, getSessionSupervisor, getShellService } from '../lib/trpc-core.js';
 import { detectCliHarnesses } from '../services/cli-harness-detection.js';
 
 const sessionExecutionProfileSchema = z.enum(['auto', 'powershell', 'posix', 'compatibility']);
@@ -23,6 +23,53 @@ const sessionShellExecutionResultSchema = z.object({
     exitCode: z.number(),
     durationMs: z.number(),
     succeeded: z.boolean(),
+});
+
+const importedSessionMemorySchema = z.object({
+    id: z.string(),
+    importedSessionId: z.string(),
+    kind: z.enum(['memory', 'instruction']),
+    content: z.string(),
+    tags: z.array(z.string()),
+    source: z.enum(['llm', 'heuristic']),
+    metadata: z.record(z.unknown()),
+    createdAt: z.number(),
+});
+
+const importedSessionSchema = z.object({
+    id: z.string(),
+    sourceTool: z.string(),
+    sourcePath: z.string(),
+    externalSessionId: z.string().nullable(),
+    title: z.string().nullable(),
+    sessionFormat: z.string(),
+    transcript: z.string(),
+    excerpt: z.string().nullable(),
+    workingDirectory: z.string().nullable(),
+    transcriptHash: z.string(),
+    normalizedSession: z.record(z.unknown()),
+    metadata: z.record(z.unknown()),
+    discoveredAt: z.number(),
+    importedAt: z.number(),
+    lastModifiedAt: z.number().nullable(),
+    createdAt: z.number(),
+    updatedAt: z.number(),
+    parsedMemories: z.array(importedSessionMemorySchema),
+});
+
+const importedInstructionDocSchema = z.object({
+    path: z.string(),
+    updatedAt: z.number(),
+    size: z.number(),
+});
+
+const sessionImportSummarySchema = z.object({
+    discoveredCount: z.number(),
+    importedCount: z.number(),
+    skippedCount: z.number(),
+    storedMemoryCount: z.number(),
+    instructionDocPath: z.string().nullable(),
+    tools: z.array(z.string()),
 });
 
 const supervisedSessionSnapshotSchema = z.object({
@@ -77,6 +124,40 @@ export const sessionRouter = t.router({
         id: z.string(),
     })).output(supervisedSessionSnapshotSchema.nullable()).query(({ input }) => {
         return getSessionSupervisor().getSession(input.id) ?? null;
+    }),
+
+    importedList: publicProcedure.input(z.object({
+        limit: z.number().int().min(1).max(200).optional(),
+    }).optional().default({ limit: 50 })).output(z.array(importedSessionSchema)).query(({ input }) => {
+        return getSessionImportService()?.listImportedSessions(input.limit) as z.infer<typeof importedSessionSchema>[] ?? [];
+    }),
+
+    importedGet: publicProcedure.input(z.object({
+        id: z.string(),
+    })).output(importedSessionSchema.nullable()).query(({ input }) => {
+        return getSessionImportService()?.getImportedSession(input.id) as z.infer<typeof importedSessionSchema> | null ?? null;
+    }),
+
+    importedScan: publicProcedure.input(z.object({
+        force: z.boolean().optional(),
+    }).optional().default({ force: false })).output(sessionImportSummarySchema).mutation(async ({ input }) => {
+        const service = getSessionImportService();
+        if (!service) {
+            return {
+                discoveredCount: 0,
+                importedCount: 0,
+                skippedCount: 0,
+                storedMemoryCount: 0,
+                instructionDocPath: null,
+                tools: [],
+            };
+        }
+
+        return await service.scanAndImport({ force: input.force }) as z.infer<typeof sessionImportSummarySchema>;
+    }),
+
+    importedInstructionDocs: publicProcedure.output(z.array(importedInstructionDocSchema)).query(async () => {
+        return await getSessionImportService()?.listInstructionDocs?.() as z.infer<typeof importedInstructionDocSchema>[] ?? [];
     }),
 
     create: publicProcedure.input(z.object({

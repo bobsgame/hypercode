@@ -39,7 +39,7 @@ Borg exists to reduce that fragmentation without requiring a hosted backend.
 ### Beta
 - Session supervision workflows
 - Memory retrieval and inspection UX
-- Discovered external session import from supported tools, including Copilot CLI, VS Code Copilot Chat, Simon Willison `llm` CLI logs, OpenAI or ChatGPT export roots, and Prism local SQLite histories plus behavioral metadata, with derived memories and generated instruction docs
+- Discovered external session import from supported tools, including Copilot CLI, VS Code Copilot Chat, Simon Willison `llm` CLI logs, OpenAI or ChatGPT export roots, and Prism local SQLite histories plus behavioral metadata, with derived memories and generated instruction docs; Antigravity local `~/.gemini/antigravity/brain` discovery is now available as an explicitly **Experimental**, reverse-engineered import lane
 - MCP traffic inspection and tool search UX
 - Billing and routing visibility
 - Browser and IDE bridge integration surfaces

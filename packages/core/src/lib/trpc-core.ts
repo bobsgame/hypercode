@@ -166,6 +166,13 @@ export type AgentMemoryServiceRuntime = {
     getCrossSessionLinks?: (input: Record<string, unknown>) => unknown[];
 };
 
+export type SessionImportServiceRuntime = {
+    scanAndImport: (options?: { force?: boolean }) => Promise<unknown>;
+    listImportedSessions: (limit?: number) => unknown[];
+    getImportedSession: (id: string) => unknown | null;
+    listInstructionDocs?: () => Promise<unknown[]>;
+};
+
 export type SymbolPinServiceRuntime = {
     list: () => unknown[];
     pin: (input: Record<string, unknown>) => unknown;
@@ -690,6 +697,10 @@ export function getMemoryManager(): MemoryManagerRuntime {
 
 export function getAgentMemoryService(): AgentMemoryServiceRuntime | undefined {
     return getMcpServer().agentMemoryService as AgentMemoryServiceRuntime | undefined;
+}
+
+export function getSessionImportService(): SessionImportServiceRuntime | undefined {
+    return getMcpServer().sessionImportService as SessionImportServiceRuntime | undefined;
 }
 
 export function getSymbolPinService(): SymbolPinServiceRuntime | undefined {

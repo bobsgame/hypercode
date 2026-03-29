@@ -163,6 +163,9 @@ import { createCouncilTools } from "./mcp/tools/council_tools.js";
 import { NativeSessionMetaTools } from "./mcp/NativeSessionMetaTools.js";
 import { jsonConfigProvider } from './services/config/JsonConfigProvider.js';
 import { configImportService } from './services/config-import.service.js';
+import { publishedCatalogRepository } from './db/repositories/published-catalog.repo.js';
+
+mcpServerDebugLog('[MCPServer] ✓ PermissionManager');
 import { mcpServerPool } from './services/mcp-server-pool.service.js';
 import {
     applyBridgeClientHello,
@@ -539,6 +542,44 @@ export class MCPServer {
                     isError: true,
                 };
             },
+            searchPublishedCatalog: async (query, limit) => {
+                const results = await publishedCatalogRepository.listServers({ search: query, limit: limit ?? 5 });
+                return results.map(r => ({
+                    canonical_id: r.canonical_id,
+                    display_name: r.display_name,
+                    description: r.description,
+                    transport: r.transport,
+                    install_method: r.install_method,
+                    updated_at: r.updated_at
+                }));
+            },
+            installPublishedServer: async (identifier) => {
+                let server = await publishedCatalogRepository.findServerByCanonicalId(identifier);
+                if (!server) {
+                    server = await publishedCatalogRepository.findServerByUuid(identifier);
+                }
+                if (!server) {
+                    return { success: false, message: `Server not found in catalog for identifier: ${identifier}` };
+                }
+                
+                const recipe = await publishedCatalogRepository.getActiveRecipe(server.uuid);
+                if (!recipe) {
+                    return { success: false, message: `No active installation recipe found for server: ${server.display_name}` };
+                }
+
+                // Add to Aggregator config
+                const config = {
+                    enabled: true,
+                    alwaysOn: false,
+                    ...recipe.template,
+                    env: recipe.required_env || {}
+                } as any;
+
+                const nameAlias = server.display_name.toLowerCase().replace(/[^a-z0-9_-]/g, '_');
+                await this.mcpAggregator.addServerConfig(nameAlias, config);
+                
+                return { success: true, message: `Successfully installed and connected server: ${server.display_name} as '${nameAlias}'.\nTools from this server are now available in your working set!` };
+            }
         });
         // Fire and forget config sync
         this.mcpConfigService.syncWithDatabase().catch(err => console.error("[MCPServer] Config Sync Failed:", err));
@@ -3474,8 +3515,8 @@ ${env.tools.filter((tool) => tool.installed).map((tool) => `- **${tool.name}**: 
         // Start Services
         // this.director.startChatDaemon(); // Removed, auto-drive handles this
 
-        // Trigger automatic session log import in the background
-        this.sessionImportService.scanAndImport().catch(e => console.error("[SessionImport] Failed:", e));
+        // Trigger automatic session discovery/import in the background
+        this.sessionImportService.startAutoImport();
 
         // Build Graph in Background
         this.autoTestService.repoGraph.buildGraph().catch(e => console.error("Graph build failed", e));

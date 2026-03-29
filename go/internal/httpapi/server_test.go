@@ -471,9 +471,28 @@ func TestImportedInstructionsEndpoint(t *testing.T) {
 		t.Fatalf("expected status 200, got %d", recorder.Code)
 	}
 
-	body := recorder.Body.String()
-	if body == "" || body[0] != '{' {
-		t.Fatalf("expected JSON object body, got %q", body)
+	var payload struct {
+		Success bool `json:"success"`
+		Data    struct {
+			Path      string `json:"path"`
+			Available bool   `json:"available"`
+			Content   string `json:"content"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("expected JSON payload, got decode error: %v", err)
+	}
+	if !payload.Success {
+		t.Fatalf("expected success payload, got %s", recorder.Body.String())
+	}
+	if !payload.Data.Available {
+		t.Fatalf("expected imported instructions to be available, got %s", recorder.Body.String())
+	}
+	if payload.Data.Path != docPath {
+		t.Fatalf("expected imported instructions path %s, got %s", docPath, payload.Data.Path)
+	}
+	if !strings.Contains(payload.Data.Content, "Auto-imported Agent Instructions") {
+		t.Fatalf("expected imported instructions content in payload, got %s", recorder.Body.String())
 	}
 }
 

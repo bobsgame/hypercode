@@ -16,6 +16,7 @@ import (
 	"github.com/borghq/borg-go/internal/interop"
 	"github.com/borghq/borg-go/internal/lockfile"
 	"github.com/borghq/borg-go/internal/memorystore"
+	"github.com/borghq/borg-go/internal/sessionimport"
 )
 
 type stubDetector struct {
@@ -574,9 +575,27 @@ func TestImportSourcesEndpoint(t *testing.T) {
 		t.Fatalf("expected status 200, got %d", recorder.Code)
 	}
 
-	body := recorder.Body.String()
-	if body == "" || body[0] != '{' {
-		t.Fatalf("expected JSON object body, got %q", body)
+	var payload struct {
+		Success bool                      `json:"success"`
+		Data    []sessionimport.Candidate `json:"data"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("expected JSON payload, got decode error: %v", err)
+	}
+	if !payload.Success {
+		t.Fatalf("expected success payload, got %s", recorder.Body.String())
+	}
+	if len(payload.Data) != 1 {
+		t.Fatalf("expected 1 import source candidate, got %d", len(payload.Data))
+	}
+	if payload.Data[0].SourceTool != "claude-code" || payload.Data[0].SessionFormat != "jsonl" {
+		t.Fatalf("expected claude-code jsonl candidate, got %+v", payload.Data[0])
+	}
+	if payload.Data[0].SourcePath != claudePath {
+		t.Fatalf("expected source path %s, got %s", claudePath, payload.Data[0].SourcePath)
+	}
+	if payload.Data[0].EstimatedSize <= 0 {
+		t.Fatalf("expected positive estimated size, got %+v", payload.Data[0])
 	}
 }
 

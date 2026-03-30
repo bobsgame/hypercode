@@ -16,6 +16,7 @@ import (
 	"github.com/borghq/borg-go/internal/harnesses"
 	"github.com/borghq/borg-go/internal/interop"
 	"github.com/borghq/borg-go/internal/memorystore"
+	"github.com/borghq/borg-go/internal/mesh"
 	"github.com/borghq/borg-go/internal/providers"
 	"github.com/borghq/borg-go/internal/sessionimport"
 )
@@ -23,6 +24,7 @@ import (
 type Server struct {
 	cfg       config.Config
 	detector  controlplane.ToolProvider
+	mesh      *mesh.Service
 	startedAt time.Time
 	mux       *http.ServeMux
 }
@@ -187,6 +189,7 @@ func New(cfg config.Config, detector controlplane.ToolProvider) *Server {
 	server := &Server{
 		cfg:       cfg,
 		detector:  detector,
+		mesh:      mesh.New(cfg),
 		startedAt: time.Now().UTC(),
 		mux:       http.NewServeMux(),
 	}
@@ -494,6 +497,32 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("/api/plan/create-checkpoint", s.handlePlanCreateCheckpoint)
 	s.mux.HandleFunc("/api/plan/rollback", s.handlePlanRollback)
 	s.mux.HandleFunc("/api/plan/clear", s.handlePlanClear)
+	s.mux.HandleFunc("/api/knowledge/graph", s.handleKnowledgeGraph)
+	s.mux.HandleFunc("/api/knowledge/stats", s.handleKnowledgeStats)
+	s.mux.HandleFunc("/api/knowledge/ingest", s.handleKnowledgeIngest)
+	s.mux.HandleFunc("/api/knowledge/resources", s.handleKnowledgeResources)
+	s.mux.HandleFunc("/api/rag/file", s.handleRAGIngestFile)
+	s.mux.HandleFunc("/api/rag/text", s.handleRAGIngestText)
+	s.mux.HandleFunc("/api/directory", s.handleUnifiedDirectoryList)
+	s.mux.HandleFunc("/api/directory/stats", s.handleUnifiedDirectoryStats)
+	s.mux.HandleFunc("/api/tool-chains/aliases", s.handleToolChainAliases)
+	s.mux.HandleFunc("/api/tool-chains/aliases/create", s.handleToolChainCreateAlias)
+	s.mux.HandleFunc("/api/tool-chains/aliases/remove", s.handleToolChainRemoveAlias)
+	s.mux.HandleFunc("/api/tool-chains/aliases/resolve", s.handleToolChainResolveAlias)
+	s.mux.HandleFunc("/api/tool-chains", s.handleToolChainsList)
+	s.mux.HandleFunc("/api/tool-chains/get", s.handleToolChainsGet)
+	s.mux.HandleFunc("/api/tool-chains/create", s.handleToolChainsCreate)
+	s.mux.HandleFunc("/api/tool-chains/execute", s.handleToolChainsExecute)
+	s.mux.HandleFunc("/api/tool-chains/delete", s.handleToolChainsDelete)
+	s.mux.HandleFunc("/api/tool-chains/lazy", s.handleToolChainsLazyStates)
+	s.mux.HandleFunc("/api/tool-chains/lazy/register", s.handleToolChainsRegisterLazy)
+	s.mux.HandleFunc("/api/tool-chains/lazy/mark-loaded", s.handleToolChainsMarkLoaded)
+	s.mux.HandleFunc("/api/browser-controls/scrape", s.handleBrowserControlsScrape)
+	s.mux.HandleFunc("/api/browser-controls/history/push", s.handleBrowserControlsPushHistory)
+	s.mux.HandleFunc("/api/browser-controls/history/query", s.handleBrowserControlsQueryHistory)
+	s.mux.HandleFunc("/api/browser-controls/logs/push", s.handleBrowserControlsPushLogs)
+	s.mux.HandleFunc("/api/browser-controls/logs/query", s.handleBrowserControlsQueryLogs)
+	s.mux.HandleFunc("/api/browser-controls/stats", s.handleBrowserControlsStats)
 	s.mux.HandleFunc("/api/cli/tools", s.handleCLITools)
 	s.mux.HandleFunc("/api/cli/harnesses", s.handleHarnesses)
 	s.mux.HandleFunc("/api/cli/summary", s.handleCLISummary)
@@ -507,6 +536,11 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("/api/runtime/locks", s.handleRuntimeLocks)
 	s.mux.HandleFunc("/api/runtime/status", s.handleRuntimeStatus)
 	s.mux.HandleFunc("/api/runtime/imported-instructions", s.handleImportedInstructions)
+	s.mux.HandleFunc("/api/mesh/status", s.handleMeshStatus)
+	s.mux.HandleFunc("/api/mesh/peers", s.handleMeshPeers)
+	s.mux.HandleFunc("/api/mesh/capabilities", s.handleMeshCapabilities)
+	s.mux.HandleFunc("/api/mesh/query-capabilities", s.handleMeshQueryCapabilities)
+	s.mux.HandleFunc("/api/mesh/find-peer", s.handleMeshFindPeer)
 }
 
 func (s *Server) handleHealth(w http.ResponseWriter, _ *http.Request) {
@@ -798,6 +832,32 @@ func (s *Server) handleAPIIndex(w http.ResponseWriter, _ *http.Request) {
 				{Path: "/api/plan/create-checkpoint", Category: "ui", Description: "Create a plan checkpoint through the TypeScript plan router."},
 				{Path: "/api/plan/rollback", Category: "ui", Description: "Rollback a plan checkpoint through the TypeScript plan router."},
 				{Path: "/api/plan/clear", Category: "ui", Description: "Clear plan sandbox state through the TypeScript plan router."},
+				{Path: "/api/knowledge/graph", Category: "knowledge", Description: "Read the knowledge graph through the TypeScript knowledge router."},
+				{Path: "/api/knowledge/stats", Category: "knowledge", Description: "Read knowledge stats through the TypeScript knowledge router."},
+				{Path: "/api/knowledge/ingest", Category: "knowledge", Description: "Ingest a knowledge URL through the TypeScript knowledge router."},
+				{Path: "/api/knowledge/resources", Category: "knowledge", Description: "Read knowledge resources through the TypeScript knowledge router."},
+				{Path: "/api/rag/file", Category: "knowledge", Description: "Ingest a file into RAG through the TypeScript RAG router."},
+				{Path: "/api/rag/text", Category: "knowledge", Description: "Ingest text into RAG through the TypeScript RAG router."},
+				{Path: "/api/directory", Category: "knowledge", Description: "List unified directory items through the TypeScript unified directory router."},
+				{Path: "/api/directory/stats", Category: "knowledge", Description: "Read unified directory stats through the TypeScript unified directory router."},
+				{Path: "/api/tool-chains/aliases", Category: "tools", Description: "List tool aliases through the TypeScript tool chaining router."},
+				{Path: "/api/tool-chains/aliases/create", Category: "tools", Description: "Create a tool alias through the TypeScript tool chaining router."},
+				{Path: "/api/tool-chains/aliases/remove", Category: "tools", Description: "Remove a tool alias through the TypeScript tool chaining router."},
+				{Path: "/api/tool-chains/aliases/resolve", Category: "tools", Description: "Resolve a tool alias through the TypeScript tool chaining router."},
+				{Path: "/api/tool-chains", Category: "tools", Description: "List tool chains through the TypeScript tool chaining router."},
+				{Path: "/api/tool-chains/get", Category: "tools", Description: "Read a tool chain through the TypeScript tool chaining router."},
+				{Path: "/api/tool-chains/create", Category: "tools", Description: "Create a tool chain through the TypeScript tool chaining router."},
+				{Path: "/api/tool-chains/execute", Category: "tools", Description: "Execute a tool chain through the TypeScript tool chaining router."},
+				{Path: "/api/tool-chains/delete", Category: "tools", Description: "Delete a tool chain through the TypeScript tool chaining router."},
+				{Path: "/api/tool-chains/lazy", Category: "tools", Description: "Read lazy tool states through the TypeScript tool chaining router."},
+				{Path: "/api/tool-chains/lazy/register", Category: "tools", Description: "Register a lazy tool through the TypeScript tool chaining router."},
+				{Path: "/api/tool-chains/lazy/mark-loaded", Category: "tools", Description: "Mark a lazy tool as loaded through the TypeScript tool chaining router."},
+				{Path: "/api/browser-controls/scrape", Category: "browser", Description: "Scrape a page through the TypeScript browser controls router."},
+				{Path: "/api/browser-controls/history/push", Category: "browser", Description: "Push browser history through the TypeScript browser controls router."},
+				{Path: "/api/browser-controls/history/query", Category: "browser", Description: "Query browser history through the TypeScript browser controls router."},
+				{Path: "/api/browser-controls/logs/push", Category: "browser", Description: "Push browser console logs through the TypeScript browser controls router."},
+				{Path: "/api/browser-controls/logs/query", Category: "browser", Description: "Query browser console logs through the TypeScript browser controls router."},
+				{Path: "/api/browser-controls/stats", Category: "browser", Description: "Read browser controls stats through the TypeScript browser controls router."},
 				{Path: "/api/cli/tools", Category: "cli", Description: "Detected local CLI tools and versions."},
 				{Path: "/api/cli/harnesses", Category: "cli", Description: "Harness registry metadata and install visibility."},
 				{Path: "/api/cli/summary", Category: "cli", Description: "Compact CLI and harness readiness summary."},
@@ -811,6 +871,11 @@ func (s *Server) handleAPIIndex(w http.ResponseWriter, _ *http.Request) {
 				{Path: "/api/runtime/locks", Category: "runtime", Description: "Visibility into main HyperCode and sidecar lock files."},
 				{Path: "/api/runtime/status", Category: "runtime", Description: "Top-level runtime summary across CLI, imports, providers, memory, and sessions."},
 				{Path: "/api/runtime/imported-instructions", Category: "runtime", Description: "Read-only bridge to imported instructions generated by the main fork."},
+				{Path: "/api/mesh/status", Category: "mesh", Description: "Native Go mesh node id plus current known peer count."},
+				{Path: "/api/mesh/peers", Category: "mesh", Description: "Known mesh peers discovered from the Go mesh visibility layer."},
+				{Path: "/api/mesh/capabilities", Category: "mesh", Description: "Combined capability map for the Go node plus upstream-discovered peers."},
+				{Path: "/api/mesh/query-capabilities", Category: "mesh", Description: "Detailed capability lookup for a specific mesh node, with upstream fallback when available."},
+				{Path: "/api/mesh/find-peer", Category: "mesh", Description: "Find the first known peer whose advertised capabilities match a required capability set."},
 			},
 		},
 	})
@@ -2450,6 +2515,184 @@ func (s *Server) handlePlanRollback(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handlePlanClear(w http.ResponseWriter, r *http.Request) {
 	s.handleTRPCBridgeBodyCall(w, r, "plan.clear")
+}
+
+func (s *Server) handleKnowledgeGraph(w http.ResponseWriter, r *http.Request) {
+	payload := map[string]any{}
+	if query := strings.TrimSpace(r.URL.Query().Get("query")); query != "" {
+		payload["query"] = query
+	}
+	if depth := strings.TrimSpace(r.URL.Query().Get("depth")); depth != "" {
+		if parsed, err := strconv.Atoi(depth); err == nil {
+			payload["depth"] = parsed
+		}
+	}
+	s.handleTRPCBridgeCall(w, r, http.MethodGet, "knowledge.getGraph", payload)
+}
+
+func (s *Server) handleKnowledgeStats(w http.ResponseWriter, r *http.Request) {
+	s.handleTRPCBridgeCall(w, r, http.MethodGet, "knowledge.getStats", nil)
+}
+
+func (s *Server) handleKnowledgeIngest(w http.ResponseWriter, r *http.Request) {
+	s.handleTRPCBridgeBodyCall(w, r, "knowledge.ingest")
+}
+
+func (s *Server) handleKnowledgeResources(w http.ResponseWriter, r *http.Request) {
+	s.handleTRPCBridgeCall(w, r, http.MethodGet, "knowledge.getResources", nil)
+}
+
+func (s *Server) handleRAGIngestFile(w http.ResponseWriter, r *http.Request) {
+	s.handleTRPCBridgeBodyCall(w, r, "rag.ingestFile")
+}
+
+func (s *Server) handleRAGIngestText(w http.ResponseWriter, r *http.Request) {
+	s.handleTRPCBridgeBodyCall(w, r, "rag.ingestText")
+}
+
+func (s *Server) handleUnifiedDirectoryList(w http.ResponseWriter, r *http.Request) {
+	payload := map[string]any{}
+	if limit := strings.TrimSpace(r.URL.Query().Get("limit")); limit != "" {
+		if parsed, err := strconv.Atoi(limit); err == nil {
+			payload["limit"] = parsed
+		}
+	}
+	if offset := strings.TrimSpace(r.URL.Query().Get("offset")); offset != "" {
+		if parsed, err := strconv.Atoi(offset); err == nil {
+			payload["offset"] = parsed
+		}
+	}
+	if search := strings.TrimSpace(r.URL.Query().Get("search")); search != "" {
+		payload["search"] = search
+	}
+	if source := strings.TrimSpace(r.URL.Query().Get("source")); source != "" {
+		payload["source"] = source
+	}
+	if showDuplicates := strings.TrimSpace(r.URL.Query().Get("show_duplicates")); showDuplicates != "" {
+		payload["show_duplicates"] = strings.EqualFold(showDuplicates, "true") || showDuplicates == "1"
+	}
+	if duplicatesOnly := strings.TrimSpace(r.URL.Query().Get("duplicates_only")); duplicatesOnly != "" {
+		payload["duplicates_only"] = strings.EqualFold(duplicatesOnly, "true") || duplicatesOnly == "1"
+	}
+	if researchStatus := strings.TrimSpace(r.URL.Query().Get("research_status")); researchStatus != "" {
+		payload["research_status"] = researchStatus
+	}
+	s.handleTRPCBridgeCall(w, r, http.MethodGet, "unifiedDirectory.list", payload)
+}
+
+func (s *Server) handleUnifiedDirectoryStats(w http.ResponseWriter, r *http.Request) {
+	s.handleTRPCBridgeCall(w, r, http.MethodGet, "unifiedDirectory.stats", nil)
+}
+
+func (s *Server) handleToolChainAliases(w http.ResponseWriter, r *http.Request) {
+	s.handleTRPCBridgeCall(w, r, http.MethodGet, "toolChaining.listAliases", nil)
+}
+
+func (s *Server) handleToolChainCreateAlias(w http.ResponseWriter, r *http.Request) {
+	s.handleTRPCBridgeBodyCall(w, r, "toolChaining.createAlias")
+}
+
+func (s *Server) handleToolChainRemoveAlias(w http.ResponseWriter, r *http.Request) {
+	s.handleTRPCBridgeBodyCall(w, r, "toolChaining.removeAlias")
+}
+
+func (s *Server) handleToolChainResolveAlias(w http.ResponseWriter, r *http.Request) {
+	name := strings.TrimSpace(r.URL.Query().Get("name"))
+	if name == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"success": false, "error": "missing name query parameter"})
+		return
+	}
+	s.handleTRPCBridgeCall(w, r, http.MethodGet, "toolChaining.resolveAlias", map[string]any{"name": name})
+}
+
+func (s *Server) handleToolChainsList(w http.ResponseWriter, r *http.Request) {
+	s.handleTRPCBridgeCall(w, r, http.MethodGet, "toolChaining.listChains", nil)
+}
+
+func (s *Server) handleToolChainsGet(w http.ResponseWriter, r *http.Request) {
+	id := strings.TrimSpace(r.URL.Query().Get("id"))
+	if id == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"success": false, "error": "missing id query parameter"})
+		return
+	}
+	s.handleTRPCBridgeCall(w, r, http.MethodGet, "toolChaining.getChain", map[string]any{"id": id})
+}
+
+func (s *Server) handleToolChainsCreate(w http.ResponseWriter, r *http.Request) {
+	s.handleTRPCBridgeBodyCall(w, r, "toolChaining.createChain")
+}
+
+func (s *Server) handleToolChainsExecute(w http.ResponseWriter, r *http.Request) {
+	s.handleTRPCBridgeBodyCall(w, r, "toolChaining.executeChain")
+}
+
+func (s *Server) handleToolChainsDelete(w http.ResponseWriter, r *http.Request) {
+	s.handleTRPCBridgeBodyCall(w, r, "toolChaining.deleteChain")
+}
+
+func (s *Server) handleToolChainsLazyStates(w http.ResponseWriter, r *http.Request) {
+	s.handleTRPCBridgeCall(w, r, http.MethodGet, "toolChaining.lazyStates", nil)
+}
+
+func (s *Server) handleToolChainsRegisterLazy(w http.ResponseWriter, r *http.Request) {
+	s.handleTRPCBridgeBodyCall(w, r, "toolChaining.registerLazy")
+}
+
+func (s *Server) handleToolChainsMarkLoaded(w http.ResponseWriter, r *http.Request) {
+	s.handleTRPCBridgeBodyCall(w, r, "toolChaining.markLoaded")
+}
+
+func (s *Server) handleBrowserControlsScrape(w http.ResponseWriter, r *http.Request) {
+	s.handleTRPCBridgeBodyCall(w, r, "browserControls.scrape")
+}
+
+func (s *Server) handleBrowserControlsPushHistory(w http.ResponseWriter, r *http.Request) {
+	s.handleTRPCBridgeBodyCall(w, r, "browserControls.pushHistory")
+}
+
+func (s *Server) handleBrowserControlsQueryHistory(w http.ResponseWriter, r *http.Request) {
+	payload := map[string]any{}
+	if query := strings.TrimSpace(r.URL.Query().Get("query")); query != "" {
+		payload["query"] = query
+	}
+	if limit := strings.TrimSpace(r.URL.Query().Get("limit")); limit != "" {
+		if parsed, err := strconv.Atoi(limit); err == nil {
+			payload["limit"] = parsed
+		}
+	}
+	if since := strings.TrimSpace(r.URL.Query().Get("since")); since != "" {
+		if parsed, err := strconv.ParseInt(since, 10, 64); err == nil {
+			payload["since"] = parsed
+		}
+	}
+	if domain := strings.TrimSpace(r.URL.Query().Get("domain")); domain != "" {
+		payload["domain"] = domain
+	}
+	s.handleTRPCBridgeCall(w, r, http.MethodGet, "browserControls.queryHistory", payload)
+}
+
+func (s *Server) handleBrowserControlsPushLogs(w http.ResponseWriter, r *http.Request) {
+	s.handleTRPCBridgeBodyCall(w, r, "browserControls.pushConsoleLogs")
+}
+
+func (s *Server) handleBrowserControlsQueryLogs(w http.ResponseWriter, r *http.Request) {
+	payload := map[string]any{}
+	if level := strings.TrimSpace(r.URL.Query().Get("level")); level != "" {
+		payload["level"] = level
+	}
+	if search := strings.TrimSpace(r.URL.Query().Get("search")); search != "" {
+		payload["search"] = search
+	}
+	if limit := strings.TrimSpace(r.URL.Query().Get("limit")); limit != "" {
+		if parsed, err := strconv.Atoi(limit); err == nil {
+			payload["limit"] = parsed
+		}
+	}
+	s.handleTRPCBridgeCall(w, r, http.MethodGet, "browserControls.queryConsoleLogs", payload)
+}
+
+func (s *Server) handleBrowserControlsStats(w http.ResponseWriter, r *http.Request) {
+	s.handleTRPCBridgeCall(w, r, http.MethodGet, "browserControls.stats", nil)
 }
 
 func (s *Server) handleSessionBridgeBodyCall(w http.ResponseWriter, r *http.Request, procedure string) {

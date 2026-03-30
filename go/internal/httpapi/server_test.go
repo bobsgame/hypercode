@@ -57,6 +57,94 @@ func TestAPIIndexEndpoint(t *testing.T) {
 	if !strings.Contains(recorder.Body.String(), "\"category\":\"imports\"") {
 		t.Fatalf("expected categorized routes in payload, got %s", recorder.Body.String())
 	}
+	if !strings.Contains(recorder.Body.String(), "\"/api/mesh/status\"") {
+		t.Fatalf("expected mesh route in payload, got %s", recorder.Body.String())
+	}
+}
+
+func TestMeshEndpoints(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/trpc/mesh.getCapabilities":
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"result": map[string]any{
+					"data": map[string]any{
+						"json": map[string]any{
+							"node-ts": []string{"git", "research"},
+						},
+					},
+				},
+			})
+		case "/trpc/mesh.queryCapabilities":
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"result": map[string]any{
+					"data": map[string]any{
+						"json": map[string]any{
+							"capabilities": []string{"git", "research"},
+							"role":         "typescript-main",
+							"load":         0.5,
+							"cachedAt":     1700000000000,
+						},
+					},
+				},
+			})
+		default:
+			t.Fatalf("unexpected bridge path %s", r.URL.Path)
+		}
+	}))
+	defer upstream.Close()
+
+	t.Setenv("BORG_TRPC_UPSTREAM", upstream.URL+"/trpc")
+
+	server := New(config.Default(), stubDetector{})
+
+	statusRecorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(statusRecorder, httptest.NewRequest(http.MethodGet, "/api/mesh/status", nil))
+	if statusRecorder.Code != http.StatusOK {
+		t.Fatalf("expected mesh status 200, got %d", statusRecorder.Code)
+	}
+	if !strings.Contains(statusRecorder.Body.String(), "\"peersCount\":1") {
+		t.Fatalf("expected mesh peer count in payload, got %s", statusRecorder.Body.String())
+	}
+
+	peersRecorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(peersRecorder, httptest.NewRequest(http.MethodGet, "/api/mesh/peers", nil))
+	if peersRecorder.Code != http.StatusOK {
+		t.Fatalf("expected mesh peers 200, got %d", peersRecorder.Code)
+	}
+	if !strings.Contains(peersRecorder.Body.String(), "\"node-ts\"") {
+		t.Fatalf("expected upstream node in peers payload, got %s", peersRecorder.Body.String())
+	}
+
+	capabilitiesRecorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(capabilitiesRecorder, httptest.NewRequest(http.MethodGet, "/api/mesh/capabilities", nil))
+	if capabilitiesRecorder.Code != http.StatusOK {
+		t.Fatalf("expected mesh capabilities 200, got %d", capabilitiesRecorder.Code)
+	}
+	if !strings.Contains(capabilitiesRecorder.Body.String(), "\"node-ts\"") {
+		t.Fatalf("expected upstream capabilities in payload, got %s", capabilitiesRecorder.Body.String())
+	}
+	if !strings.Contains(capabilitiesRecorder.Body.String(), "\"runtime-status\"") {
+		t.Fatalf("expected local Go capabilities in payload, got %s", capabilitiesRecorder.Body.String())
+	}
+
+	queryRecorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(queryRecorder, httptest.NewRequest(http.MethodGet, "/api/mesh/query-capabilities?nodeId=node-ts&timeoutMs=1500", nil))
+	if queryRecorder.Code != http.StatusOK {
+		t.Fatalf("expected mesh query capabilities 200, got %d", queryRecorder.Code)
+	}
+	if !strings.Contains(queryRecorder.Body.String(), "\"typescript-main\"") {
+		t.Fatalf("expected remote role in query payload, got %s", queryRecorder.Body.String())
+	}
+
+	findRecorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(findRecorder, httptest.NewRequest(http.MethodGet, "/api/mesh/find-peer?capability=git,research", nil))
+	if findRecorder.Code != http.StatusOK {
+		t.Fatalf("expected mesh find peer 200, got %d", findRecorder.Code)
+	}
+	if !strings.Contains(findRecorder.Body.String(), "\"nodeId\":\"node-ts\"") {
+		t.Fatalf("expected matching peer in payload, got %s", findRecorder.Body.String())
+	}
 }
 
 func TestConfigStatusEndpoint(t *testing.T) {
@@ -2334,6 +2422,159 @@ func TestUIHelperBridgeRoutes(t *testing.T) {
 		{name: "plan checkpoint create", method: http.MethodPost, path: "/api/plan/create-checkpoint", body: `{"name":"checkpoint-1","description":"desc"}`, contains: `"cp-1"`, procedure: `"procedure":"plan.createCheckpoint"`},
 		{name: "plan rollback", method: http.MethodPost, path: "/api/plan/rollback", body: `{"checkpointId":"cp-1"}`, contains: `"data":true`, procedure: `"procedure":"plan.rollback"`},
 		{name: "plan clear", method: http.MethodPost, path: "/api/plan/clear", body: `{}`, contains: `"success":true`, procedure: `"procedure":"plan.clear"`},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var body io.Reader
+			if tc.body != "" {
+				body = strings.NewReader(tc.body)
+			}
+			request := httptest.NewRequest(tc.method, tc.path, body)
+			if tc.body != "" {
+				request.Header.Set("content-type", "application/json")
+			}
+			recorder := httptest.NewRecorder()
+			server.Handler().ServeHTTP(recorder, request)
+			if recorder.Code != http.StatusOK {
+				t.Fatalf("expected status 200, got %d with body %s", recorder.Code, recorder.Body.String())
+			}
+			if !strings.Contains(recorder.Body.String(), tc.contains) {
+				t.Fatalf("expected response to contain %s, got %s", tc.contains, recorder.Body.String())
+			}
+			if !strings.Contains(recorder.Body.String(), tc.procedure) {
+				t.Fatalf("expected bridge metadata %s, got %s", tc.procedure, recorder.Body.String())
+			}
+		})
+	}
+}
+
+func TestKnowledgeAndChainingBridgeRoutes(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("content-type", "application/json")
+		switch r.URL.Path {
+		case "/trpc/knowledge.getGraph":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"query":"mcp"`) {
+				t.Fatalf("expected knowledge.getGraph payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"nodes": []any{map[string]any{"id": "n1"}}}}}})
+		case "/trpc/knowledge.getStats":
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"count": 3}}}})
+		case "/trpc/knowledge.ingest":
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"success": true}}}})
+		case "/trpc/knowledge.getResources":
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"categories": []any{}}}}})
+		case "/trpc/rag.ingestFile":
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"success": true, "chunksIngested": 4}}}})
+		case "/trpc/rag.ingestText":
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"success": true, "chunksIngested": 2}}}})
+		case "/trpc/unifiedDirectory.list":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"search":"mcp"`) {
+				t.Fatalf("expected unifiedDirectory.list payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"items": []any{map[string]any{"id": "dir-1"}}, "total": 1}}}})
+		case "/trpc/unifiedDirectory.stats":
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"combined_total": 9}}}})
+		case "/trpc/toolChaining.listAliases":
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": []any{map[string]any{"alias": "search"}}}}})
+		case "/trpc/toolChaining.createAlias":
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"alias": "search"}}}})
+		case "/trpc/toolChaining.removeAlias":
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"removed": true}}}})
+		case "/trpc/toolChaining.resolveAlias":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"name":"search"`) {
+				t.Fatalf("expected toolChaining.resolveAlias payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"resolved": true}}}})
+		case "/trpc/toolChaining.listChains":
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": []any{map[string]any{"id": "chain-1"}}}}})
+		case "/trpc/toolChaining.getChain":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"id":"chain-1"`) {
+				t.Fatalf("expected toolChaining.getChain payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"id": "chain-1"}}}})
+		case "/trpc/toolChaining.createChain":
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"id": "chain-1"}}}})
+		case "/trpc/toolChaining.executeChain":
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"success": true, "stepsCompleted": 1}}}})
+		case "/trpc/toolChaining.deleteChain":
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"deleted": true}}}})
+		case "/trpc/toolChaining.lazyStates":
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": []any{map[string]any{"toolName": "search"}}}}})
+		case "/trpc/toolChaining.registerLazy":
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"toolName": "search"}}}})
+		case "/trpc/toolChaining.markLoaded":
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"loaded": true}}}})
+		case "/trpc/browserControls.scrape":
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"title": "Example"}}}})
+		case "/trpc/browserControls.pushHistory":
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"stored": 1}}}})
+		case "/trpc/browserControls.queryHistory":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"domain":"example.com"`) {
+				t.Fatalf("expected browserControls.queryHistory payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"entries": []any{map[string]any{"url": "https://example.com"}}, "total": 1}}}})
+		case "/trpc/browserControls.pushConsoleLogs":
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"stored": 1}}}})
+		case "/trpc/browserControls.queryConsoleLogs":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"search":"err"`) {
+				t.Fatalf("expected browserControls.queryConsoleLogs payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"logs": []any{map[string]any{"message": "error"}}, "total": 1}}}})
+		case "/trpc/browserControls.stats":
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"historyCount": 1}}}})
+		default:
+			t.Fatalf("unexpected upstream path %s", r.URL.Path)
+		}
+	}))
+	defer upstream.Close()
+
+	t.Setenv("BORG_TRPC_UPSTREAM", upstream.URL+"/trpc")
+
+	cfg := config.Default()
+	cfg.MainConfigDir = t.TempDir()
+	server := New(cfg, stubDetector{})
+
+	cases := []struct {
+		name      string
+		method    string
+		path      string
+		body      string
+		contains  string
+		procedure string
+	}{
+		{name: "knowledge graph", method: http.MethodGet, path: "/api/knowledge/graph?query=mcp&depth=2", contains: `"n1"`, procedure: `"procedure":"knowledge.getGraph"`},
+		{name: "knowledge stats", method: http.MethodGet, path: "/api/knowledge/stats", contains: `"count":3`, procedure: `"procedure":"knowledge.getStats"`},
+		{name: "knowledge ingest", method: http.MethodPost, path: "/api/knowledge/ingest", body: `{"url":"https://example.com"}`, contains: `"success":true`, procedure: `"procedure":"knowledge.ingest"`},
+		{name: "knowledge resources", method: http.MethodGet, path: "/api/knowledge/resources", contains: `"categories"`, procedure: `"procedure":"knowledge.getResources"`},
+		{name: "rag ingest file", method: http.MethodPost, path: "/api/rag/file", body: `{"filePath":"README.md","userId":"default"}`, contains: `"chunksIngested":4`, procedure: `"procedure":"rag.ingestFile"`},
+		{name: "rag ingest text", method: http.MethodPost, path: "/api/rag/text", body: `{"text":"hello","sourceName":"note","userId":"default"}`, contains: `"chunksIngested":2`, procedure: `"procedure":"rag.ingestText"`},
+		{name: "directory list", method: http.MethodGet, path: "/api/directory?limit=10&offset=0&search=mcp&source=all&show_duplicates=true&duplicates_only=false&research_status=pending", contains: `"dir-1"`, procedure: `"procedure":"unifiedDirectory.list"`},
+		{name: "directory stats", method: http.MethodGet, path: "/api/directory/stats", contains: `"combined_total":9`, procedure: `"procedure":"unifiedDirectory.stats"`},
+		{name: "tool aliases", method: http.MethodGet, path: "/api/tool-chains/aliases", contains: `"search"`, procedure: `"procedure":"toolChaining.listAliases"`},
+		{name: "tool alias create", method: http.MethodPost, path: "/api/tool-chains/aliases/create", body: `{"serverId":"srv-1","originalName":"search_tools","alias":"search"}`, contains: `"alias":"search"`, procedure: `"procedure":"toolChaining.createAlias"`},
+		{name: "tool alias remove", method: http.MethodPost, path: "/api/tool-chains/aliases/remove", body: `{"alias":"search"}`, contains: `"removed":true`, procedure: `"procedure":"toolChaining.removeAlias"`},
+		{name: "tool alias resolve", method: http.MethodGet, path: "/api/tool-chains/aliases/resolve?name=search", contains: `"resolved":true`, procedure: `"procedure":"toolChaining.resolveAlias"`},
+		{name: "tool chains list", method: http.MethodGet, path: "/api/tool-chains", contains: `"chain-1"`, procedure: `"procedure":"toolChaining.listChains"`},
+		{name: "tool chains get", method: http.MethodGet, path: "/api/tool-chains/get?id=chain-1", contains: `"chain-1"`, procedure: `"procedure":"toolChaining.getChain"`},
+		{name: "tool chains create", method: http.MethodPost, path: "/api/tool-chains/create", body: `{"name":"chain","steps":[{"toolName":"search"}]}`, contains: `"chain-1"`, procedure: `"procedure":"toolChaining.createChain"`},
+		{name: "tool chains execute", method: http.MethodPost, path: "/api/tool-chains/execute", body: `{"chainId":"chain-1","initialInput":{"q":"mcp"}}`, contains: `"stepsCompleted":1`, procedure: `"procedure":"toolChaining.executeChain"`},
+		{name: "tool chains delete", method: http.MethodPost, path: "/api/tool-chains/delete", body: `{"id":"chain-1"}`, contains: `"deleted":true`, procedure: `"procedure":"toolChaining.deleteChain"`},
+		{name: "tool chains lazy", method: http.MethodGet, path: "/api/tool-chains/lazy", contains: `"toolName":"search"`, procedure: `"procedure":"toolChaining.lazyStates"`},
+		{name: "tool chains register lazy", method: http.MethodPost, path: "/api/tool-chains/lazy/register", body: `{"serverId":"srv-1","toolName":"search"}`, contains: `"toolName":"search"`, procedure: `"procedure":"toolChaining.registerLazy"`},
+		{name: "tool chains mark loaded", method: http.MethodPost, path: "/api/tool-chains/lazy/mark-loaded", body: `{"serverId":"srv-1","toolName":"search","loadTimeMs":12}`, contains: `"loaded":true`, procedure: `"procedure":"toolChaining.markLoaded"`},
+		{name: "browser controls scrape", method: http.MethodPost, path: "/api/browser-controls/scrape", body: `{"url":"https://example.com"}`, contains: `"Example"`, procedure: `"procedure":"browserControls.scrape"`},
+		{name: "browser controls push history", method: http.MethodPost, path: "/api/browser-controls/history/push", body: `{"entries":[{"url":"https://example.com","title":"Example","visitedAt":1,"visitCount":1}]}`, contains: `"stored":1`, procedure: `"procedure":"browserControls.pushHistory"`},
+		{name: "browser controls query history", method: http.MethodGet, path: "/api/browser-controls/history/query?query=example&limit=10&since=1&domain=example.com", contains: `"total":1`, procedure: `"procedure":"browserControls.queryHistory"`},
+		{name: "browser controls push logs", method: http.MethodPost, path: "/api/browser-controls/logs/push", body: `{"logs":[{"level":"error","message":"err","source":"console","timestamp":1}]}`, contains: `"stored":1`, procedure: `"procedure":"browserControls.pushConsoleLogs"`},
+		{name: "browser controls query logs", method: http.MethodGet, path: "/api/browser-controls/logs/query?level=error&search=err&limit=10", contains: `"error"`, procedure: `"procedure":"browserControls.queryConsoleLogs"`},
+		{name: "browser controls stats", method: http.MethodGet, path: "/api/browser-controls/stats", contains: `"historyCount":1`, procedure: `"procedure":"browserControls.stats"`},
 	}
 
 	for _, tc := range cases {

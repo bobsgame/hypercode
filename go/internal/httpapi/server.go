@@ -373,6 +373,19 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("/api/skills/create", s.handleSkillsCreate)
 	s.mux.HandleFunc("/api/skills/save", s.handleSkillsSave)
 	s.mux.HandleFunc("/api/skills/assimilate", s.handleSkillsAssimilate)
+	s.mux.HandleFunc("/api/workflows", s.handleWorkflowList)
+	s.mux.HandleFunc("/api/workflows/graph", s.handleWorkflowGraph)
+	s.mux.HandleFunc("/api/workflows/start", s.handleWorkflowStart)
+	s.mux.HandleFunc("/api/workflows/executions", s.handleWorkflowExecutions)
+	s.mux.HandleFunc("/api/workflows/execution", s.handleWorkflowExecution)
+	s.mux.HandleFunc("/api/workflows/history", s.handleWorkflowHistory)
+	s.mux.HandleFunc("/api/workflows/resume", s.handleWorkflowResume)
+	s.mux.HandleFunc("/api/workflows/pause", s.handleWorkflowPause)
+	s.mux.HandleFunc("/api/workflows/approve", s.handleWorkflowApprove)
+	s.mux.HandleFunc("/api/workflows/reject", s.handleWorkflowReject)
+	s.mux.HandleFunc("/api/workflows/canvases", s.handleWorkflowCanvases)
+	s.mux.HandleFunc("/api/workflows/canvas", s.handleWorkflowCanvas)
+	s.mux.HandleFunc("/api/workflows/canvas/save", s.handleWorkflowCanvasSave)
 	s.mux.HandleFunc("/api/cli/tools", s.handleCLITools)
 	s.mux.HandleFunc("/api/cli/harnesses", s.handleHarnesses)
 	s.mux.HandleFunc("/api/cli/summary", s.handleCLISummary)
@@ -556,6 +569,19 @@ func (s *Server) handleAPIIndex(w http.ResponseWriter, _ *http.Request) {
 				{Path: "/api/skills/create", Category: "agents", Description: "Create a skill through the TypeScript skill registry."},
 				{Path: "/api/skills/save", Category: "agents", Description: "Save skill content through the TypeScript skill registry."},
 				{Path: "/api/skills/assimilate", Category: "agents", Description: "Assimilate docs into a skill through the TypeScript skill-assimilation service."},
+				{Path: "/api/workflows", Category: "workflow", Description: "Bridge to TypeScript workflow definitions."},
+				{Path: "/api/workflows/graph", Category: "workflow", Description: "Bridge to a TypeScript workflow graph."},
+				{Path: "/api/workflows/start", Category: "workflow", Description: "Start a TypeScript workflow execution."},
+				{Path: "/api/workflows/executions", Category: "workflow", Description: "List TypeScript workflow executions."},
+				{Path: "/api/workflows/execution", Category: "workflow", Description: "Bridge to a TypeScript workflow execution record."},
+				{Path: "/api/workflows/history", Category: "workflow", Description: "Bridge to TypeScript workflow execution history."},
+				{Path: "/api/workflows/resume", Category: "workflow", Description: "Resume a TypeScript workflow execution."},
+				{Path: "/api/workflows/pause", Category: "workflow", Description: "Pause a TypeScript workflow execution."},
+				{Path: "/api/workflows/approve", Category: "workflow", Description: "Approve a TypeScript workflow execution."},
+				{Path: "/api/workflows/reject", Category: "workflow", Description: "Reject a TypeScript workflow execution."},
+				{Path: "/api/workflows/canvases", Category: "workflow", Description: "List saved TypeScript workflow canvases."},
+				{Path: "/api/workflows/canvas", Category: "workflow", Description: "Load a saved TypeScript workflow canvas."},
+				{Path: "/api/workflows/canvas/save", Category: "workflow", Description: "Save a TypeScript workflow canvas."},
 				{Path: "/api/cli/tools", Category: "cli", Description: "Detected local CLI tools and versions."},
 				{Path: "/api/cli/harnesses", Category: "cli", Description: "Harness registry metadata and install visibility."},
 				{Path: "/api/cli/summary", Category: "cli", Description: "Compact CLI and harness readiness summary."},
@@ -1498,6 +1524,78 @@ func (s *Server) handleSkillsSave(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleSkillsAssimilate(w http.ResponseWriter, r *http.Request) {
 	s.handleTRPCBridgeBodyCall(w, r, "skills.assimilate")
+}
+
+func (s *Server) handleWorkflowList(w http.ResponseWriter, r *http.Request) {
+	s.handleTRPCBridgeCall(w, r, http.MethodGet, "workflow.list", nil)
+}
+
+func (s *Server) handleWorkflowGraph(w http.ResponseWriter, r *http.Request) {
+	workflowID := strings.TrimSpace(r.URL.Query().Get("workflowId"))
+	if workflowID == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"success": false, "error": "missing workflowId query parameter"})
+		return
+	}
+	s.handleTRPCBridgeCall(w, r, http.MethodGet, "workflow.getGraph", map[string]any{"workflowId": workflowID})
+}
+
+func (s *Server) handleWorkflowStart(w http.ResponseWriter, r *http.Request) {
+	s.handleTRPCBridgeBodyCall(w, r, "workflow.start")
+}
+
+func (s *Server) handleWorkflowExecutions(w http.ResponseWriter, r *http.Request) {
+	s.handleTRPCBridgeCall(w, r, http.MethodGet, "workflow.listExecutions", nil)
+}
+
+func (s *Server) handleWorkflowExecution(w http.ResponseWriter, r *http.Request) {
+	executionID := strings.TrimSpace(r.URL.Query().Get("executionId"))
+	if executionID == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"success": false, "error": "missing executionId query parameter"})
+		return
+	}
+	s.handleTRPCBridgeCall(w, r, http.MethodGet, "workflow.getExecution", map[string]any{"executionId": executionID})
+}
+
+func (s *Server) handleWorkflowHistory(w http.ResponseWriter, r *http.Request) {
+	executionID := strings.TrimSpace(r.URL.Query().Get("executionId"))
+	if executionID == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"success": false, "error": "missing executionId query parameter"})
+		return
+	}
+	s.handleTRPCBridgeCall(w, r, http.MethodGet, "workflow.getHistory", map[string]any{"executionId": executionID})
+}
+
+func (s *Server) handleWorkflowResume(w http.ResponseWriter, r *http.Request) {
+	s.handleTRPCBridgeBodyCall(w, r, "workflow.resume")
+}
+
+func (s *Server) handleWorkflowPause(w http.ResponseWriter, r *http.Request) {
+	s.handleTRPCBridgeBodyCall(w, r, "workflow.pause")
+}
+
+func (s *Server) handleWorkflowApprove(w http.ResponseWriter, r *http.Request) {
+	s.handleTRPCBridgeBodyCall(w, r, "workflow.approve")
+}
+
+func (s *Server) handleWorkflowReject(w http.ResponseWriter, r *http.Request) {
+	s.handleTRPCBridgeBodyCall(w, r, "workflow.reject")
+}
+
+func (s *Server) handleWorkflowCanvases(w http.ResponseWriter, r *http.Request) {
+	s.handleTRPCBridgeCall(w, r, http.MethodGet, "workflow.listCanvases", nil)
+}
+
+func (s *Server) handleWorkflowCanvas(w http.ResponseWriter, r *http.Request) {
+	id := strings.TrimSpace(r.URL.Query().Get("id"))
+	if id == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"success": false, "error": "missing id query parameter"})
+		return
+	}
+	s.handleTRPCBridgeCall(w, r, http.MethodGet, "workflow.loadCanvas", map[string]any{"id": id})
+}
+
+func (s *Server) handleWorkflowCanvasSave(w http.ResponseWriter, r *http.Request) {
+	s.handleTRPCBridgeBodyCall(w, r, "workflow.saveCanvas")
 }
 
 func (s *Server) handleSessionBridgeBodyCall(w http.ResponseWriter, r *http.Request, procedure string) {

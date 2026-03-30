@@ -1565,6 +1565,124 @@ func TestAgentBridgeRoutes(t *testing.T) {
 	}
 }
 
+func TestWorkflowBridgeRoutes(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("content-type", "application/json")
+		switch r.URL.Path {
+		case "/trpc/workflow.list":
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": []any{map[string]any{"id": "wf-1", "name": "Workflow One"}}}}})
+		case "/trpc/workflow.getGraph":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"workflowId":"wf-1"`) {
+				t.Fatalf("expected workflowId in getGraph payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"nodes": []any{map[string]any{"id": "n1"}}, "edges": []any{}}}}})
+		case "/trpc/workflow.start":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"workflowId":"wf-1"`) {
+				t.Fatalf("expected workflow.start payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"executionId": "exec-1", "status": "running"}}}})
+		case "/trpc/workflow.listExecutions":
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": []any{map[string]any{"executionId": "exec-1", "status": "running"}}}}})
+		case "/trpc/workflow.getExecution":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"executionId":"exec-1"`) {
+				t.Fatalf("expected workflow.getExecution payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"executionId": "exec-1", "status": "running"}}}})
+		case "/trpc/workflow.getHistory":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"executionId":"exec-1"`) {
+				t.Fatalf("expected workflow.getHistory payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": []any{map[string]any{"event": "started"}}}}})
+		case "/trpc/workflow.resume":
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"success": true}}}})
+		case "/trpc/workflow.pause":
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"success": true}}}})
+		case "/trpc/workflow.approve":
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"success": true}}}})
+		case "/trpc/workflow.reject":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"reason":"needs changes"`) {
+				t.Fatalf("expected workflow.reject payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"success": true}}}})
+		case "/trpc/workflow.listCanvases":
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": []any{map[string]any{"id": "canvas-1", "name": "Canvas One"}}}}})
+		case "/trpc/workflow.loadCanvas":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"id":"canvas-1"`) {
+				t.Fatalf("expected workflow.loadCanvas payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"id": "canvas-1", "nodes": []any{}, "edges": []any{}}}}})
+		case "/trpc/workflow.saveCanvas":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"name":"Canvas One"`) {
+				t.Fatalf("expected workflow.saveCanvas payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"id": "canvas-1"}}}})
+		default:
+			t.Fatalf("unexpected upstream path %s", r.URL.Path)
+		}
+	}))
+	defer upstream.Close()
+
+	t.Setenv("BORG_TRPC_UPSTREAM", upstream.URL+"/trpc")
+
+	cfg := config.Default()
+	cfg.MainConfigDir = t.TempDir()
+	server := New(cfg, stubDetector{})
+
+	cases := []struct {
+		name      string
+		method    string
+		path      string
+		body      string
+		contains  string
+		procedure string
+	}{
+		{name: "workflow list", method: http.MethodGet, path: "/api/workflows", contains: `"wf-1"`, procedure: `"procedure":"workflow.list"`},
+		{name: "workflow graph", method: http.MethodGet, path: "/api/workflows/graph?workflowId=wf-1", contains: `"nodes"`, procedure: `"procedure":"workflow.getGraph"`},
+		{name: "workflow start", method: http.MethodPost, path: "/api/workflows/start", body: `{"workflowId":"wf-1","initialState":{"ticket":"123"}}`, contains: `"executionId":"exec-1"`, procedure: `"procedure":"workflow.start"`},
+		{name: "workflow executions", method: http.MethodGet, path: "/api/workflows/executions", contains: `"status":"running"`, procedure: `"procedure":"workflow.listExecutions"`},
+		{name: "workflow execution", method: http.MethodGet, path: "/api/workflows/execution?executionId=exec-1", contains: `"executionId":"exec-1"`, procedure: `"procedure":"workflow.getExecution"`},
+		{name: "workflow history", method: http.MethodGet, path: "/api/workflows/history?executionId=exec-1", contains: `"started"`, procedure: `"procedure":"workflow.getHistory"`},
+		{name: "workflow resume", method: http.MethodPost, path: "/api/workflows/resume", body: `{"executionId":"exec-1"}`, contains: `"success":true`, procedure: `"procedure":"workflow.resume"`},
+		{name: "workflow pause", method: http.MethodPost, path: "/api/workflows/pause", body: `{"executionId":"exec-1"}`, contains: `"success":true`, procedure: `"procedure":"workflow.pause"`},
+		{name: "workflow approve", method: http.MethodPost, path: "/api/workflows/approve", body: `{"executionId":"exec-1"}`, contains: `"success":true`, procedure: `"procedure":"workflow.approve"`},
+		{name: "workflow reject", method: http.MethodPost, path: "/api/workflows/reject", body: `{"executionId":"exec-1","reason":"needs changes"}`, contains: `"success":true`, procedure: `"procedure":"workflow.reject"`},
+		{name: "workflow canvases", method: http.MethodGet, path: "/api/workflows/canvases", contains: `"canvas-1"`, procedure: `"procedure":"workflow.listCanvases"`},
+		{name: "workflow canvas", method: http.MethodGet, path: "/api/workflows/canvas?id=canvas-1", contains: `"canvas-1"`, procedure: `"procedure":"workflow.loadCanvas"`},
+		{name: "workflow canvas save", method: http.MethodPost, path: "/api/workflows/canvas/save", body: `{"name":"Canvas One","description":"desc","nodes":[],"edges":[]}`, contains: `"id":"canvas-1"`, procedure: `"procedure":"workflow.saveCanvas"`},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var body io.Reader
+			if tc.body != "" {
+				body = strings.NewReader(tc.body)
+			}
+			request := httptest.NewRequest(tc.method, tc.path, body)
+			if tc.body != "" {
+				request.Header.Set("content-type", "application/json")
+			}
+			recorder := httptest.NewRecorder()
+			server.Handler().ServeHTTP(recorder, request)
+			if recorder.Code != http.StatusOK {
+				t.Fatalf("expected status 200, got %d with body %s", recorder.Code, recorder.Body.String())
+			}
+			if !strings.Contains(recorder.Body.String(), tc.contains) {
+				t.Fatalf("expected response to contain %s, got %s", tc.contains, recorder.Body.String())
+			}
+			if !strings.Contains(recorder.Body.String(), tc.procedure) {
+				t.Fatalf("expected bridge metadata %s, got %s", tc.procedure, recorder.Body.String())
+			}
+		})
+	}
+}
+
 func TestCLIToolsEndpoint(t *testing.T) {
 	server := New(config.Default(), stubDetector{
 		tools: []controlplane.Tool{

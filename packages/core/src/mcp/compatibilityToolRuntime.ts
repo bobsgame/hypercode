@@ -318,7 +318,23 @@ export async function executeCompatibleRunPython(
     }
 }
 
-export type ToolSearchFunction = (query: string, limit: number) => Array<{ name: string; description: string; inputSchema?: unknown }>;
+export type ToolSearchFunction = (
+    query: string,
+    limit: number,
+) => Array<{
+    name: string;
+    description: string;
+    inputSchema?: unknown;
+    advertisedName?: string;
+    originalName?: string;
+    serverName?: string;
+    serverDisplayName?: string;
+    matchReason?: string;
+    score?: number;
+    loaded?: boolean;
+    hydrated?: boolean;
+    requiresSchemaHydration?: boolean;
+}>;
 
 export async function executeSemanticAutoCall(
     args: Record<string, unknown>,
@@ -351,6 +367,8 @@ export async function executeSemanticAutoCall(
     const systemPrompt = `You are an expert Tool Selection Agent.
 Given an objective and a list of available tools, you must return JSON containing the EXACT perfect tool name to accomplish the objective, and map the arguments precisely to its schema.
 Do NOT hallucinate tools. You MUST pick from the provided list.
+Prefer candidates with strong match reasons, explicit schemas, and already-loaded or hydrated status when those fit the objective.
+If a schema is partial or empty, infer only conservative arguments from the objective/context and avoid inventing unsupported fields.
 
 Output ONLY valid JSON like:
 {
@@ -359,7 +377,18 @@ Output ONLY valid JSON like:
   "reasoning": "why this tool and args were chosen"
 }`;
 
-    const toolsListStr = candidates.map(t => `- Name: ${t.name}\n  Desc: ${t.description}\n  Schema: ${JSON.stringify(t.inputSchema || 'unknown')}`).join('\n\n');
+    const toolsListStr = candidates.map((tool, index) => `- Rank: ${index + 1}
+  Name: ${tool.name}
+  Advertised Name: ${tool.advertisedName ?? 'n/a'}
+  Original Name: ${tool.originalName ?? 'n/a'}
+  Server: ${tool.serverDisplayName ?? tool.serverName ?? 'n/a'}
+  Match Reason: ${tool.matchReason ?? 'n/a'}
+  Score: ${typeof tool.score === 'number' ? tool.score : 'n/a'}
+  Loaded: ${tool.loaded ? 'yes' : 'no'}
+  Hydrated: ${tool.hydrated ? 'yes' : 'no'}
+  Requires Schema Hydration: ${tool.requiresSchemaHydration ? 'yes' : 'no'}
+  Desc: ${tool.description}
+  Schema: ${JSON.stringify(tool.inputSchema ?? 'unknown')}`).join('\n\n');
 
     const prompt = `Objective:\n${objective}\n\nContext/Variables:\n${context}\n\nCandidate Tools:\n${toolsListStr}`;
 
@@ -381,13 +410,30 @@ Output ONLY valid JSON like:
             return { isError: true, content: [{ type: 'text', text: `LLM failed to select a tool.\nRaw output: ${raw}` }] };
         }
 
+        const selectedTool = candidates.find((candidate) => candidate.name === parsed.toolName);
+        if (!selectedTool) {
+            return {
+                isError: true,
+                content: [{ type: 'text', text: `LLM selected unknown tool '${parsed.toolName}'.\nRaw output: ${raw}` }],
+            };
+        }
+
         const argsToPass = normalizeToolArgs(parsed.arguments);
         const result = await delegatedToolCaller(parsed.toolName, argsToPass, { source: 'auto_call_tool' });
 
         return {
             isError: false,
             content: [
-                { type: 'text', text: `[Auto-Execution Logic: Chose ${parsed.toolName}]\n[Reasoning: ${parsed.reasoning}]\n\n--- Result ---\n${typeof result === 'string' ? result : JSON.stringify(result, null, 2)}` }
+                {
+                    type: 'text',
+                    text: `[Auto-Execution Logic: Chose ${parsed.toolName}]
+[Reasoning: ${parsed.reasoning}]
+[Match Reason: ${selectedTool.matchReason ?? 'n/a'}]
+[Loaded: ${selectedTool.loaded ? 'yes' : 'no'} | Hydrated: ${selectedTool.hydrated ? 'yes' : 'no'}]
+
+--- Result ---
+${typeof result === 'string' ? result : JSON.stringify(result, null, 2)}`,
+                }
             ]
         };
     } catch (e) {

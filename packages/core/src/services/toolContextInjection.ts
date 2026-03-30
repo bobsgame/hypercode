@@ -7,6 +7,7 @@ const TOOL_CONTEXT_EXCLUDED_NAMES = new Set([
     'unload_tool',
     'get_tool_schema',
     'list_loaded_tools',
+    'list_all_tools',
     'get_tool_context',
     'memory_stats',
     'add_memory',

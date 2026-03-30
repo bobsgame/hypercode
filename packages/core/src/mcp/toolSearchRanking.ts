@@ -1,6 +1,7 @@
 export interface ToolSearchCandidate {
     name: string;
     description?: string | null;
+    inputSchema?: unknown;
     serverName?: string | null;
     serverDisplayName?: string | null;
     originalName?: string | null;
@@ -32,6 +33,7 @@ export interface ToolSearchScoreBreakdown {
 export interface RankedToolSearchResult {
     name: string;
     description: string;
+    inputSchema?: unknown;
     serverName?: string;
     serverDisplayName?: string;
     originalName?: string;
@@ -366,6 +368,7 @@ export function rankToolSearchCandidates(
             return {
                 name: candidate.name,
                 description: candidate.description ?? '',
+                inputSchema: candidate.inputSchema,
                 serverName: candidate.serverName ?? undefined,
                 serverDisplayName: candidate.serverDisplayName ?? undefined,
                 originalName: candidate.originalName ?? undefined,

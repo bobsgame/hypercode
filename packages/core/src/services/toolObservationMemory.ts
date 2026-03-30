@@ -26,6 +26,7 @@ const LOW_SIGNAL_TOOL_NAMES = new Set([
     'get_recent_memories',
     'clear_session_memory',
     'list_loaded_tools',
+    'list_all_tools',
     'load_tool',
     'unload_tool',
     'get_tool_schema',

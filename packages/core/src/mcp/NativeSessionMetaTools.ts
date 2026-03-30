@@ -4,6 +4,7 @@ import { SessionToolWorkingSet } from './SessionToolWorkingSet.js';
 import { getToolLoadingDefinitions } from './toolLoadingDefinitions.js';
 import {
     executeGetToolSchemaCompatibility,
+    executeListAllToolsCompatibility,
     executeListLoadedToolsCompatibility,
     executeLoadToolCompatibility,
     executeSearchToolsCompatibility,
@@ -32,6 +33,8 @@ type SearchableTool = Tool & {
     alwaysOn?: boolean;
 };
 
+type ToolListingCategory = 'downstream';
+
 function createTextResult(text: string, isError = false): CallToolResult {
     return {
         content: [{ type: 'text', text }],
@@ -45,6 +48,8 @@ export class NativeSessionMetaTools {
     private toolContextResolver?: (input: { toolName: string; args?: Record<string, unknown> }) => ToolContextPayload | null;
     private llmService?: LLMService;
     private delegatedToolCaller?: (name: string, args: any, meta?: any) => Promise<CallToolResult>;
+    private searchPublishedCatalogCb?: (query: string, limit?: number) => Promise<any[]>;
+    private installPublishedServerCb?: (identifier: string) => Promise<{ success: boolean; message: string }>;
 
     constructor(
         workingSet: SessionToolWorkingSet = new SessionToolWorkingSet(),
@@ -52,12 +57,16 @@ export class NativeSessionMetaTools {
             toolContextResolver?: (input: { toolName: string; args?: Record<string, unknown> }) => ToolContextPayload | null;
             llmService?: LLMService;
             delegatedToolCaller?: (name: string, args: any, meta?: any) => Promise<CallToolResult>;
+            searchPublishedCatalog?: (query: string, limit?: number) => Promise<any[]>;
+            installPublishedServer?: (identifier: string) => Promise<{ success: boolean; message: string }>;
         } = {},
     ) {
         this.workingSet = workingSet;
         this.toolContextResolver = options.toolContextResolver;
         this.llmService = options.llmService;
         this.delegatedToolCaller = options.delegatedToolCaller;
+        this.searchPublishedCatalogCb = options.searchPublishedCatalog;
+        this.installPublishedServerCb = options.installPublishedServer;
     }
 
     public setLLMService(llmService: LLMService): void {
@@ -134,6 +143,37 @@ export class NativeSessionMetaTools {
             return await executeSearchToolsCompatibility(args, (query, limit) => this.searchTools(query, limit));
         }
 
+        if (name === 'search_published_catalog') {
+            if (!this.searchPublishedCatalogCb) {
+                return createTextResult('Catalog search is not available in this Borg session.', true);
+            }
+            const query = typeof args.query === 'string' ? args.query : '';
+            if (!query) return createTextResult('Query is required.', true);
+            const limit = typeof args.limit === 'number' ? args.limit : 5;
+
+            try {
+                const results = await this.searchPublishedCatalogCb(query, limit);
+                return createTextResult(JSON.stringify(results, null, 2));
+            } catch (err) {
+                return createTextResult(`Search failed: ${err instanceof Error ? err.message : String(err)}`, true);
+            }
+        }
+
+        if (name === 'install_published_server') {
+            if (!this.installPublishedServerCb) {
+                return createTextResult('Server installation is not available in this Borg session.', true);
+            }
+            const identifier = typeof args.identifier === 'string' ? args.identifier : '';
+            if (!identifier) return createTextResult('Identifier is required.', true);
+
+            try {
+                const result = await this.installPublishedServerCb(identifier);
+                return createTextResult(result.message, !result.success);
+            } catch (err) {
+                return createTextResult(`Installation failed: ${err instanceof Error ? err.message : String(err)}`, true);
+            }
+        }
+
         if (name === 'load_tool') {
             return await executeLoadToolCompatibility(args, (toolName) => this.catalog.has(toolName), this.workingSet);
         }
@@ -185,6 +225,10 @@ export class NativeSessionMetaTools {
 
         if (name === 'list_loaded_tools') {
             return await executeListLoadedToolsCompatibility(this.workingSet);
+        }
+
+        if (name === 'list_all_tools') {
+            return await executeListAllToolsCompatibility(this.listAllTools(args));
         }
 
         if (name === 'set_capacity') {
@@ -247,6 +291,7 @@ export class NativeSessionMetaTools {
                 semanticGroupLabel: searchableTool.semanticGroupLabel,
                 keywords: searchableTool.keywords,
                 alwaysOn: searchableTool.alwaysOn,
+                inputSchema: tool.inputSchema,
                 loaded: this.workingSet.isLoaded(tool.name),
                 hydrated: this.workingSet.isHydrated(tool.name),
                 deferred: !this.workingSet.isHydrated(tool.name),
@@ -285,6 +330,98 @@ export class NativeSessionMetaTools {
 
             return result;
         });
+    }
+
+    private listAllTools(args: Record<string, unknown>): {
+        summary: {
+            total: number;
+            loaded: number;
+            hydrated: number;
+            alwaysOn: number;
+            categories: Record<ToolListingCategory, number>;
+        };
+        tools: Array<{
+            name: string;
+            description: string;
+            category: ToolListingCategory;
+            serverName?: string;
+            serverDisplayName?: string;
+            advertisedName?: string;
+            originalName?: string;
+            alwaysOn: boolean;
+            loaded: boolean;
+            hydrated: boolean;
+            deferred: boolean;
+            requiresSchemaHydration: boolean;
+            inputSchema: unknown;
+        }>;
+    } {
+        const query = typeof args.query === 'string' ? args.query.trim().toLowerCase() : '';
+        const requestedCategory = typeof args.category === 'string' ? args.category : 'all';
+        const limit = typeof args.limit === 'number' ? Math.max(1, Math.round(args.limit)) : 100;
+
+        const tools = Array.from(this.catalog.values())
+            .map((tool) => {
+                const searchableTool = tool as SearchableTool;
+                return {
+                    name: tool.name,
+                    description: tool.description ?? '',
+                    category: 'downstream' as const,
+                    serverName: searchableTool.server,
+                    serverDisplayName: searchableTool.serverDisplayName,
+                    advertisedName: searchableTool.advertisedName,
+                    originalName: searchableTool.originalName,
+                    alwaysOn: Boolean(searchableTool.alwaysOn),
+                    loaded: this.workingSet.isLoaded(tool.name),
+                    hydrated: this.workingSet.isHydrated(tool.name),
+                    deferred: !this.workingSet.isHydrated(tool.name),
+                    requiresSchemaHydration: !this.workingSet.isHydrated(tool.name),
+                    inputSchema: tool.inputSchema ?? { type: 'object', properties: {} },
+                };
+            })
+            .filter((tool) => requestedCategory === 'all' || requestedCategory === tool.category)
+            .filter((tool) => {
+                if (!query) {
+                    return true;
+                }
+
+                const haystack = [
+                    tool.name,
+                    tool.description,
+                    tool.serverName,
+                    tool.serverDisplayName,
+                    tool.advertisedName,
+                    tool.originalName,
+                ].filter(Boolean).join(' ').toLowerCase();
+
+                return haystack.includes(query);
+            })
+            .sort((left, right) => {
+                if (left.alwaysOn !== right.alwaysOn) {
+                    return left.alwaysOn ? -1 : 1;
+                }
+                if (left.loaded !== right.loaded) {
+                    return left.loaded ? -1 : 1;
+                }
+                if (left.hydrated !== right.hydrated) {
+                    return left.hydrated ? -1 : 1;
+                }
+                return left.name.localeCompare(right.name);
+            })
+            .slice(0, limit);
+
+        return {
+            summary: {
+                total: tools.length,
+                loaded: tools.filter((tool) => tool.loaded).length,
+                hydrated: tools.filter((tool) => tool.hydrated).length,
+                alwaysOn: tools.filter((tool) => tool.alwaysOn).length,
+                categories: {
+                    downstream: tools.length,
+                },
+            },
+            tools,
+        };
     }
 
     private toMinimalTool(tool: Tool): Tool {

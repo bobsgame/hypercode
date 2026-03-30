@@ -16,4 +16,5 @@ export * from "./config-schemas.zod";
 export * from "./server-health.zod";
 export * from "./auto-reconnect.zod";
 export * from "./auto-discovery.zod";
+export * from "./mesh.zod";
 export * from "./memory.js";

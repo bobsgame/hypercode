@@ -1,6 +1,6 @@
 import type { Tool } from '@modelcontextprotocol/sdk/types.js';
 
-type ToolLoadingName = 'search_tools' | 'load_tool' | 'get_tool_schema' | 'get_tool_context' | 'unload_tool' | 'list_loaded_tools' | 'set_capacity' | 'get_eviction_history' | 'clear_eviction_history' | 'auto_call_tool';
+type ToolLoadingName = 'search_tools' | 'search_published_catalog' | 'install_published_server' | 'load_tool' | 'get_tool_schema' | 'get_tool_context' | 'unload_tool' | 'list_loaded_tools' | 'list_all_tools' | 'set_capacity' | 'get_eviction_history' | 'clear_eviction_history' | 'auto_call_tool';
 
 interface ToolLoadingDefinitionOverrides {
     descriptions?: Partial<Record<ToolLoadingName, string>>;
@@ -17,6 +17,29 @@ const baseDefinitions: Record<ToolLoadingName, Tool> = {
                 limit: { type: 'number', description: 'Maximum number of results to return (default 10).' },
             },
             required: ['query'],
+        },
+    },
+    search_published_catalog: {
+        name: 'search_published_catalog',
+        description: 'Search the global, definitive Published MCP Catalog for uninstalled tools (e.g., from github, npm, glama, smithery) by keyword. Use this when the active working set does not contain the tool you need.',
+        inputSchema: {
+            type: 'object',
+            properties: {
+                query: { type: 'string', description: 'Search term for the tool you want to find.' },
+                limit: { type: 'number', description: 'Maximum results to return. Default is 5.' }
+            },
+            required: ['query'],
+        },
+    },
+    install_published_server: {
+        name: 'install_published_server',
+        description: 'Install and connect an MCP server dynamically from the Published Catalog using its UUID or Canonical ID. Once installed, its tools become immediately available in the active session.',
+        inputSchema: {
+            type: 'object',
+            properties: {
+                identifier: { type: 'string', description: 'The UUID or Canonical ID of the server to install (found via search_published_catalog).' },
+            },
+            required: ['identifier'],
         },
     },
     load_tool: {
@@ -90,6 +113,29 @@ const baseDefinitions: Record<ToolLoadingName, Tool> = {
             properties: {},
         },
     },
+    list_all_tools: {
+        name: 'list_all_tools',
+        description: 'List all tools Borg can currently advertise to the model, including always-visible meta tools, compatibility helpers, native built-ins, saved scripts, and Borg-managed downstream MCP tools.',
+        inputSchema: {
+            type: 'object',
+            properties: {
+                query: {
+                    type: 'string',
+                    description: 'Optional keyword filter applied across tool names, descriptions, server names, and advertised names.',
+                },
+                limit: {
+                    type: 'number',
+                    description: 'Maximum number of tools to return after filtering. Defaults to 100.',
+                },
+                category: {
+                    type: 'string',
+                    description: 'Optional category filter: meta, compatibility, native, saved-script, downstream, or all.',
+                    enum: ['all', 'meta', 'compatibility', 'native', 'saved-script', 'downstream'],
+                    default: 'all',
+                },
+            },
+        },
+    },
     set_capacity: {
         name: 'set_capacity',
         description: 'Reconfigure the session working-set capacity limits at runtime. Changes take effect on the next load or hydrate operation.',
@@ -127,12 +173,15 @@ const baseDefinitions: Record<ToolLoadingName, Tool> = {
 
 const toolLoadingOrder: ToolLoadingName[] = [
     'search_tools',
+    'search_published_catalog',
+    'install_published_server',
     'load_tool',
     'auto_call_tool',
     'get_tool_schema',
     'get_tool_context',
     'unload_tool',
     'list_loaded_tools',
+    'list_all_tools',
     'set_capacity',
     'get_eviction_history',
     'clear_eviction_history',

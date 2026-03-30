@@ -160,6 +160,53 @@ describe('NativeSessionMetaTools search auto-load', () => {
         expect(visibleNames).toContain('browser__pinned');
     });
 
+    it('lists all catalog tools with always-on and working-set metadata', async () => {
+        const workingSet = new SessionToolWorkingSet({
+            maxLoadedTools: 2,
+            maxHydratedSchemas: 1,
+        });
+        const metaTools = new NativeSessionMetaTools(workingSet);
+
+        metaTools.refreshCatalog([
+            {
+                name: 'browser__pinned',
+                description: 'Pinned browser tool',
+                inputSchema: { type: 'object', properties: { url: { type: 'string' } } },
+                alwaysOn: true,
+                server: 'browser',
+            } as Tool,
+            {
+                name: 'filesystem__read_file',
+                description: 'Read a file from disk',
+                inputSchema: { type: 'object', properties: { path: { type: 'string' } } },
+                server: 'filesystem',
+            } as Tool,
+        ]);
+
+        metaTools.setAlwaysLoadedTools(['browser__pinned']);
+        metaTools.loadToolIntoSession('filesystem__read_file');
+
+        const result = await metaTools.handleToolCall('list_all_tools', {});
+        const payload = parseTextJson<{
+            summary: { total: number; loaded: number; alwaysOn: number };
+            tools: Array<{ name: string; alwaysOn: boolean; loaded: boolean; inputSchema: { type: string } }>;
+        }>(result);
+
+        expect(payload.summary.total).toBe(2);
+        expect(payload.summary.loaded).toBe(2);
+        expect(payload.summary.alwaysOn).toBe(1);
+        expect(payload.tools.find((tool) => tool.name === 'browser__pinned')).toMatchObject({
+            alwaysOn: true,
+            loaded: true,
+            inputSchema: { type: 'object' },
+        });
+        expect(payload.tools.find((tool) => tool.name === 'filesystem__read_file')).toMatchObject({
+            alwaysOn: false,
+            loaded: true,
+            inputSchema: { type: 'object' },
+        });
+    });
+
     it('supports runtime capacity updates through set_capacity', async () => {
         const workingSet = new SessionToolWorkingSet({
             maxLoadedTools: 4,

@@ -23,6 +23,7 @@ import { registerProviderCommand } from './commands/provider.js';
 import { registerToolsCommand } from './commands/tools.js';
 import { registerConfigCommand } from './commands/config.js';
 import { registerDashboardCommand } from './commands/dashboard.js';
+import { registerMeshCommand } from './commands/mesh.js';
 import { readCanonicalVersion } from './version.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -51,6 +52,7 @@ registerProviderCommand(program);
 registerToolsCommand(program);
 registerConfigCommand(program);
 registerDashboardCommand(program);
+registerMeshCommand(program);
 
 // Default action: show help if no command given
 program.action(() => {

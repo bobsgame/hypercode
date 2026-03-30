@@ -15,6 +15,7 @@ export interface SessionBootstrapPayload {
     objective?: string | null;
     summaryCount: number;
     observationCount: number;
+    toolAdvertisementCount: number;
     prompt: string;
 }
 
@@ -43,14 +44,18 @@ export function buildSessionBootstrapPrompt(input: {
     lastObjective?: string | null;
     summaries: SessionBootstrapSummary[];
     observations: SessionBootstrapObservation[];
+    toolAdvertisementLines?: string[];
 }): SessionBootstrapPayload {
     const summaryLines = input.summaries.slice(0, 3).map((summary) => `- ${pickSummaryLine(summary)}`);
     const observationLines = input.observations.slice(0, 5).map((observation) => `- ${pickObservationLine(observation)}`);
+    const toolAdvertisementLines = (input.toolAdvertisementLines ?? []).slice(0, 8).map((line) => `- ${trimLine(line, 220)}`);
 
     const sections = [
         'Memory bootstrap:',
         input.activeGoal ? `Current goal: ${trimLine(input.activeGoal, 180)}` : null,
         input.lastObjective ? `Last objective: ${trimLine(input.lastObjective, 180)}` : null,
+        toolAdvertisementLines.length > 0 ? 'Suggested tools for the current topic:' : null,
+        ...(toolAdvertisementLines.length > 0 ? toolAdvertisementLines : []),
         summaryLines.length > 0 ? 'Recent session summaries:' : null,
         ...(summaryLines.length > 0 ? summaryLines : []),
         observationLines.length > 0 ? 'Relevant observations:' : null,
@@ -62,6 +67,7 @@ export function buildSessionBootstrapPrompt(input: {
         objective: input.lastObjective ?? null,
         summaryCount: input.summaries.length,
         observationCount: input.observations.length,
+        toolAdvertisementCount: toolAdvertisementLines.length,
         prompt: sections.join('\n'),
     };
 }

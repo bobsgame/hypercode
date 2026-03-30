@@ -86,3 +86,9 @@ export async function executeListLoadedToolsCompatibility(
         tools: workingSet.listLoadedTools(),
     }, null, 2));
 }
+
+export async function executeListAllToolsCompatibility<T>(
+    allTools: T,
+): Promise<CallToolResult> {
+    return createTextResult(JSON.stringify(allTools, null, 2));
+}

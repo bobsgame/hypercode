@@ -58,6 +58,7 @@ import {
 } from "../mcp/compatibilityToolRuntime.js";
 import {
     executeGetToolSchemaCompatibility,
+    executeListAllToolsCompatibility,
     executeListLoadedToolsCompatibility,
     executeLoadToolCompatibility,
     executeSearchToolsCompatibility,
@@ -132,6 +133,7 @@ function searchRegisteredTools(
         all.map((registeredTool) => ({
             name: registeredTool.tool.name,
             description: registeredTool.tool.description ?? '',
+            inputSchema: (registeredTool.fullTool ?? registeredTool.tool).inputSchema,
             serverName: registeredTool.serverName,
             originalName: parseToolName(registeredTool.tool.name)?.originalToolName,
             loaded: options?.isLoaded?.(registeredTool.tool.name) ?? false,
@@ -269,6 +271,124 @@ export const attachTo = async (
         }
     };
 
+    const buildAllAdvertisedToolsPayload = async (args: Record<string, unknown>) => {
+        const query = typeof args?.query === 'string' ? args.query.trim().toLowerCase() : '';
+        const category = typeof args?.category === 'string' ? args.category : 'all';
+        const limit = typeof args?.limit === 'number' ? Math.max(1, Math.round(args.limit)) : 100;
+        const alwaysVisibleTools = new Set(await getAlwaysVisibleTools());
+        const metaDefinitions = getToolLoadingDefinitions();
+        const compatibilityDefinitions = getCompatibilityToolDefinitions();
+        const savedScriptDefinitions = await listSavedScriptTools(
+            { loadScripts: savedScriptService.listScripts },
+            (script) => `[Saved Script] ${script.description || "No description"}`,
+        ).catch(() => []);
+
+        const allTools = [
+            ...metaDefinitions.map((tool) => ({
+                name: tool.name,
+                description: tool.description ?? '',
+                category: 'meta',
+                loaded: true,
+                hydrated: true,
+                alwaysVisible: true,
+                alwaysOn: true,
+                requiresSchemaHydration: false,
+                inputSchema: tool.inputSchema ?? { type: 'object', properties: {} },
+            })),
+            ...compatibilityDefinitions.map((tool) => ({
+                name: tool.name,
+                description: tool.description ?? '',
+                category: 'compatibility',
+                loaded: true,
+                hydrated: true,
+                alwaysVisible: true,
+                alwaysOn: true,
+                requiresSchemaHydration: false,
+                inputSchema: tool.inputSchema ?? { type: 'object', properties: {} },
+            })),
+            ...nativeToolDefinitions.map((tool) => ({
+                name: tool.name,
+                description: tool.description ?? '',
+                category: 'native',
+                loaded: true,
+                hydrated: true,
+                alwaysVisible: true,
+                alwaysOn: true,
+                requiresSchemaHydration: false,
+                inputSchema: tool.inputSchema ?? { type: 'object', properties: {} },
+            })),
+            ...savedScriptDefinitions.map((tool) => ({
+                name: tool.name,
+                description: tool.description ?? '',
+                category: 'saved-script',
+                loaded: true,
+                hydrated: true,
+                alwaysVisible: true,
+                alwaysOn: true,
+                requiresSchemaHydration: false,
+                inputSchema: tool.inputSchema ?? { type: 'object', properties: {} },
+            })),
+            ...toolRegistry.getAllTools().map((registeredTool) => {
+                const fullTool = registeredTool.fullTool ?? registeredTool.tool;
+                const parsedName = parseToolName(registeredTool.tool.name);
+                return {
+                    name: registeredTool.tool.name,
+                    description: fullTool.description ?? '',
+                    category: 'downstream',
+                    serverName: registeredTool.serverName,
+                    originalName: parsedName?.originalToolName,
+                    loaded: toolWorkingSet.isLoaded(registeredTool.tool.name),
+                    hydrated: toolWorkingSet.isHydrated(registeredTool.tool.name),
+                    alwaysVisible: alwaysVisibleTools.has(registeredTool.tool.name),
+                    alwaysOn: alwaysVisibleTools.has(registeredTool.tool.name),
+                    requiresSchemaHydration: Boolean(registeredTool.isDeferred) && !toolWorkingSet.isHydrated(registeredTool.tool.name),
+                    inputSchema: fullTool.inputSchema ?? { type: 'object', properties: {} },
+                };
+            }),
+        ]
+            .filter((tool) => category === 'all' || category === tool.category)
+            .filter((tool) => {
+                if (!query) {
+                    return true;
+                }
+
+                const haystack = [
+                    tool.name,
+                    tool.description,
+                    'serverName' in tool ? tool.serverName : undefined,
+                    'originalName' in tool ? tool.originalName : undefined,
+                ].filter(Boolean).join(' ').toLowerCase();
+                return haystack.includes(query);
+            })
+            .sort((left, right) => {
+                if (left.alwaysOn !== right.alwaysOn) {
+                    return left.alwaysOn ? -1 : 1;
+                }
+                if (left.loaded !== right.loaded) {
+                    return left.loaded ? -1 : 1;
+                }
+                return left.name.localeCompare(right.name);
+            })
+            .slice(0, limit);
+
+        return {
+            summary: {
+                total: allTools.length,
+                categories: {
+                    meta: allTools.filter((tool) => tool.category === 'meta').length,
+                    compatibility: allTools.filter((tool) => tool.category === 'compatibility').length,
+                    native: allTools.filter((tool) => tool.category === 'native').length,
+                    'saved-script': allTools.filter((tool) => tool.category === 'saved-script').length,
+                    downstream: allTools.filter((tool) => tool.category === 'downstream').length,
+                },
+                loaded: allTools.filter((tool) => tool.loaded).length,
+                hydrated: allTools.filter((tool) => tool.hydrated).length,
+                alwaysVisible: allTools.filter((tool) => tool.alwaysVisible).length,
+            },
+            tools: allTools,
+        };
+    };
+
     // Helper function to detect if a server is the same instance
     const isSameServerInstance = (
         params: { name?: string; url?: string | null },
@@ -338,13 +458,14 @@ export const attachTo = async (
                 descriptions: {
                     search_tools: "Semantically search for available tools across all connected MCP servers. Use this to find tools for a specific task.",
                     load_tool: "Load a specific tool by name into your context so you can use it. In progressive mode this loads lightweight metadata first; use get_tool_schema to hydrate the full parameter schema when needed.",
-                    get_tool_schema: "Explicitly fetch and hydrate the full JSON schema for a deferred tool after search/load, reducing default token overhead for sub-agents.",
-                    get_tool_context: "Fetch compact Borg memory context before calling a downstream tool so the model can reuse recent observations, summaries, and file-specific learnings.",
-                    unload_tool: "Remove a previously loaded tool from the current session working set so it no longer appears in the exposed tool list.",
-                    list_loaded_tools: "List tools currently loaded into the session working set, including whether their full schemas are hydrated.",
-                    clear_eviction_history: "Clear the bounded recent eviction-history buffer for the current session working set.",
-                },
-            }),
+                     get_tool_schema: "Explicitly fetch and hydrate the full JSON schema for a deferred tool after search/load, reducing default token overhead for sub-agents.",
+                     get_tool_context: "Fetch compact Borg memory context before calling a downstream tool so the model can reuse recent observations, summaries, and file-specific learnings.",
+                     unload_tool: "Remove a previously loaded tool from the current session working set so it no longer appears in the exposed tool list.",
+                     list_loaded_tools: "List tools currently loaded into the session working set, including whether their full schemas are hydrated.",
+                     list_all_tools: "List all currently advertisable tools across meta helpers, compatibility tools, native built-ins, saved scripts, and Borg-managed downstream MCP tools.",
+                     clear_eviction_history: "Clear the bounded recent eviction-history buffer for the current session working set.",
+                 },
+             }),
             ...getCompatibilityToolDefinitions(),
         ];
 
@@ -688,6 +809,10 @@ export const attachTo = async (
 
         if (name === "list_loaded_tools") {
             return formatResult(await executeListLoadedToolsCompatibility(toolWorkingSet));
+        }
+
+        if (name === "list_all_tools") {
+            return formatResult(await executeListAllToolsCompatibility(await buildAllAdvertisedToolsPayload(args ?? {})));
         }
 
         if (name === "set_capacity") {

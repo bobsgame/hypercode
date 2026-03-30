@@ -889,13 +889,18 @@ export class AgentMemoryService {
             .slice(0, limit);
     }
 
-    getSessionBootstrap(options: { activeGoal?: string | null; lastObjective?: string | null } = {}) {
+    getSessionBootstrap(options: {
+        activeGoal?: string | null;
+        lastObjective?: string | null;
+        toolAdvertisementLines?: string[];
+    } = {}) {
         const summaries = this.getRecentSessionSummaries(3);
         const observations = this.getRecentObservations(5);
 
         return buildSessionBootstrapPrompt({
             activeGoal: options.activeGoal,
             lastObjective: options.lastObjective,
+            toolAdvertisementLines: options.toolAdvertisementLines,
             summaries: summaries.map((memory) => ({ content: memory.content })),
             observations: observations.map((memory) => {
                 const observation = getStructuredObservation(memory.metadata);

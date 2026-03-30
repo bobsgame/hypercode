@@ -181,7 +181,7 @@ const baseDefinitions: Record<CompatibilityToolName, Tool> = {
     },
     auto_call_tool: {
         name: 'auto_call_tool',
-        description: 'Automatically searches for the best tool to accomplish an objective, maps the parameters using an LLM, and executes it. Use this when you know what you want to do but don\'t have the exact tool schema loaded.',
+        description: 'One-shot discovery and execution. Automatically searches for the best tool to accomplish an objective, maps the parameters using the best available schema and metadata, and executes it immediately.',
         inputSchema: {
             type: 'object',
             properties: {
@@ -191,10 +191,10 @@ const baseDefinitions: Record<CompatibilityToolName, Tool> = {
                 },
                 context: {
                     type: 'string',
-                    description: 'Any necessary variables, file paths, or text snippets required to fill the tool arguments.',
+                    description: 'Optional variables, file paths, snippets, or structured notes required to fill tool arguments.',
                 },
             },
-            required: ['objective', 'context'],
+            required: ['objective'],
         },
     },
 };

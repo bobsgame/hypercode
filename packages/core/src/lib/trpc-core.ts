@@ -156,7 +156,11 @@ export type AgentMemoryServiceRuntime = {
     searchObservations?: (query: string, options?: Record<string, unknown>) => Promise<unknown[]>;
     getRecentSessionSummaries?: (limit?: number) => unknown[];
     searchSessionSummaries?: (query: string, limit?: number) => Promise<unknown[]>;
-    getSessionBootstrap?: (options?: { activeGoal?: string | null; lastObjective?: string | null }) => unknown;
+    getSessionBootstrap?: (options?: {
+        activeGoal?: string | null;
+        lastObjective?: string | null;
+        toolAdvertisementLines?: string[];
+    }) => unknown;
     getToolContext?: (input: { toolName: string; args?: unknown; activeGoal?: string | null; lastObjective?: string | null }) => unknown;
     captureUserPrompt?: (input: Record<string, unknown>) => Promise<unknown>;
     getRecentUserPrompts?: (limit?: number, options?: Record<string, unknown>) => unknown[];

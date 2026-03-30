@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { t, publicProcedure, getAgentMemoryService, getSessionImportService, getSessionManager, getSessionSupervisor, getShellService } from '../lib/trpc-core.js';
+import { t, publicProcedure, getAgentMemoryService, getMcpServer, getSessionImportService, getSessionManager, getSessionSupervisor, getShellService } from '../lib/trpc-core.js';
 import { detectCliHarnesses } from '../services/cli-harness-detection.js';
 
 const sessionExecutionProfileSchema = z.enum(['auto', 'powershell', 'posix', 'compatibility']);
@@ -111,6 +111,73 @@ const supervisedSessionSnapshotSchema = z.object({
     logs: z.array(sessionSupervisorLogEntrySchema),
 });
 
+type ToolAdvertisementPayload = {
+    tools?: Array<{
+        name?: string;
+        description?: string;
+        category?: string;
+        matchReason?: string;
+    }>;
+};
+
+function parseToolTextPayload<T>(result: unknown, fallback: T): T {
+    const text = (result as { content?: Array<{ type?: string; text?: string }> })
+        ?.content?.find((item) => item.type === 'text')?.text;
+
+    if (typeof text !== 'string' || !text.trim()) {
+        return fallback;
+    }
+
+    try {
+        return JSON.parse(text) as T;
+    } catch {
+        return fallback;
+    }
+}
+
+async function buildToolAdvertisementLines(activeGoal?: string | null, lastObjective?: string | null): Promise<string[]> {
+    const query = [lastObjective, activeGoal].filter((value): value is string => typeof value === 'string' && value.trim().length > 0).join(' ');
+    const mcpServer = getMcpServer();
+    const executeTool = typeof mcpServer.executeTool === 'function' ? mcpServer.executeTool.bind(mcpServer) : null;
+    if (!executeTool) {
+        return [];
+    }
+
+    const [recommendedResult, allToolsResult] = await Promise.all([
+        executeTool('search_tools', { query: query || 'search use tool', limit: 5 }).catch(() => null),
+        executeTool('list_all_tools', { query, limit: 16 }).catch(() => null),
+    ]);
+
+    const recommended = parseToolTextPayload<Array<{
+        name?: string;
+        matchReason?: string;
+        description?: string;
+    }>>(recommendedResult, []);
+    const allToolsPayload = parseToolTextPayload<ToolAdvertisementPayload>(allToolsResult, { tools: [] });
+    const allTools = Array.isArray(allToolsPayload.tools) ? allToolsPayload.tools : [];
+
+    const coreAlwaysVisibleNames = new Set([
+        'search_tools',
+        'auto_call_tool',
+        'list_all_tools',
+        'run_code',
+        'run_agent',
+    ]);
+
+    const lines = [
+        ...recommended
+            .filter((tool) => typeof tool.name === 'string' && tool.name.trim().length > 0)
+            .slice(0, 4)
+            .map((tool) => `${tool.name} — ${tool.matchReason ?? tool.description ?? 'recommended for the current topic'}`),
+        ...allTools
+            .filter((tool) => typeof tool.name === 'string' && coreAlwaysVisibleNames.has(tool.name))
+            .slice(0, 5)
+            .map((tool) => `${tool.name} — ${tool.description ?? 'always available helper'}`),
+    ];
+
+    return Array.from(new Set(lines));
+}
+
 export const sessionRouter = t.router({
     catalog: publicProcedure.query(async () => {
         return detectCliHarnesses();
@@ -191,6 +258,10 @@ export const sessionRouter = t.router({
         const bootstrap = agentMemoryService.getSessionBootstrap({
             activeGoal: sessionState.activeGoal,
             lastObjective: sessionState.lastObjective,
+            toolAdvertisementLines: await buildToolAdvertisementLines(
+                sessionState.activeGoal,
+                sessionState.lastObjective,
+            ),
         });
 
         return supervisor.updateSessionMetadata(input.id, {
@@ -341,6 +412,10 @@ export const sessionRouter = t.router({
 
         const nextState = manager.getState();
         const agentMemoryService = getAgentMemoryService();
+        const toolAdvertisementLines = await buildToolAdvertisementLines(
+            nextState.activeGoal,
+            nextState.lastObjective,
+        );
 
         if (agentMemoryService?.captureUserPrompt) {
             if (typeof input.activeGoal === 'string' && input.activeGoal.trim() && input.activeGoal !== previousState.activeGoal) {
@@ -368,7 +443,17 @@ export const sessionRouter = t.router({
             }
         }
 
-        return { success: true };
+        return {
+            success: true,
+            toolAdvertisements: toolAdvertisementLines,
+            memoryBootstrap: agentMemoryService?.getSessionBootstrap
+                ? agentMemoryService.getSessionBootstrap({
+                    activeGoal: nextState.activeGoal,
+                    lastObjective: nextState.lastObjective,
+                    toolAdvertisementLines,
+                })
+                : null,
+        };
     }),
 
     clear: publicProcedure.mutation(() => {

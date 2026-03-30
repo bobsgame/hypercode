@@ -80,8 +80,28 @@ func TestConfigStatusEndpoint(t *testing.T) {
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("expected status 200, got %d", recorder.Code)
 	}
-	if !strings.Contains(recorder.Body.String(), "\"workspaceRoot\"") {
-		t.Fatalf("expected workspace root in payload, got %s", recorder.Body.String())
+
+	var payload struct {
+		Success bool          `json:"success"`
+		Data    config.Status `json:"data"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("expected JSON payload, got decode error: %v", err)
+	}
+	if !payload.Success {
+		t.Fatalf("expected success payload, got %s", recorder.Body.String())
+	}
+	if payload.Data.WorkspaceRoot.Path != workspaceRoot || !payload.Data.WorkspaceRoot.Exists {
+		t.Fatalf("expected workspace root status for %s, got %+v", workspaceRoot, payload.Data.WorkspaceRoot)
+	}
+	if payload.Data.ConfigDir.Path != cfg.ConfigDir || !payload.Data.ConfigDir.Exists {
+		t.Fatalf("expected config dir status for %s, got %+v", cfg.ConfigDir, payload.Data.ConfigDir)
+	}
+	if payload.Data.MainConfigDir.Path != cfg.MainConfigDir || !payload.Data.MainConfigDir.Exists {
+		t.Fatalf("expected main config dir status for %s, got %+v", cfg.MainConfigDir, payload.Data.MainConfigDir)
+	}
+	if payload.Data.BorgConfigFile.Exists || payload.Data.MCPConfigFile.Exists {
+		t.Fatalf("expected config files to be absent in this fixture, got borg=%+v mcp=%+v", payload.Data.BorgConfigFile, payload.Data.MCPConfigFile)
 	}
 }
 

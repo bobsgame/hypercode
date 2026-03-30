@@ -328,6 +328,9 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("/api/tests/stop", s.handleTestsStop)
 	s.mux.HandleFunc("/api/tests/run", s.handleTestsRun)
 	s.mux.HandleFunc("/api/tests/results", s.handleTestsResults)
+	s.mux.HandleFunc("/api/autonomy/get-level", s.handleAutonomyGetLevel)
+	s.mux.HandleFunc("/api/autonomy/set-level", s.handleAutonomySetLevel)
+	s.mux.HandleFunc("/api/autonomy/activate-full", s.handleAutonomyActivateFull)
 	s.mux.HandleFunc("/api/metrics/stats", s.handleMetricsStats)
 	s.mux.HandleFunc("/api/metrics/track", s.handleMetricsTrack)
 	s.mux.HandleFunc("/api/metrics/system-snapshot", s.handleMetricsSystemSnapshot)
@@ -768,6 +771,9 @@ func (s *Server) handleAPIIndex(w http.ResponseWriter, _ *http.Request) {
 				{Path: "/api/expert/research", Category: "agents", Description: "Dispatch a research task through the TypeScript expert router."},
 				{Path: "/api/expert/code", Category: "agents", Description: "Dispatch a coding task through the TypeScript expert router."},
 				{Path: "/api/expert/status", Category: "agents", Description: "Read TypeScript expert agent status."},
+				{Path: "/api/autonomy/get-level", Category: "governance", Description: "Read the current autonomy level through the TypeScript autonomy router."},
+				{Path: "/api/autonomy/set-level", Category: "governance", Description: "Set autonomy level through the TypeScript autonomy router."},
+				{Path: "/api/autonomy/activate-full", Category: "governance", Description: "Activate full autonomy through the TypeScript autonomy router."},
 				{Path: "/api/policies", Category: "governance", Description: "List policies through the TypeScript policies router."},
 				{Path: "/api/policies/get", Category: "governance", Description: "Read a policy through the TypeScript policies router."},
 				{Path: "/api/policies/create", Category: "governance", Description: "Create a policy through the TypeScript policies router."},

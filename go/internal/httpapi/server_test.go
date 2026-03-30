@@ -375,6 +375,76 @@ func TestToolsContextEndpoint(t *testing.T) {
 	}
 }
 
+func TestAutonomyBridgeRoutes(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("content-type", "application/json")
+		switch r.URL.Path {
+		case "/trpc/autonomy.getLevel":
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"result": map[string]any{"data": map[string]any{"json": "medium"}},
+			})
+		case "/trpc/autonomy.setLevel":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"level":"high"`) {
+				t.Fatalf("expected autonomy.setLevel payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"result": map[string]any{"data": map[string]any{"json": "high"}},
+			})
+		case "/trpc/autonomy.activateFullAutonomy":
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"result": map[string]any{"data": map[string]any{"json": "Autonomous Supervisor Activated (High Level + Chat Daemon + Watchdog)"}},
+			})
+		default:
+			t.Fatalf("unexpected upstream path %s", r.URL.Path)
+		}
+	}))
+	defer upstream.Close()
+
+	t.Setenv("BORG_TRPC_UPSTREAM", upstream.URL+"/trpc")
+
+	cfg := config.Default()
+	cfg.MainConfigDir = t.TempDir()
+	server := New(cfg, stubDetector{})
+
+	cases := []struct {
+		name      string
+		method    string
+		path      string
+		body      string
+		contains  string
+		procedure string
+	}{
+		{name: "autonomy get level", method: http.MethodGet, path: "/api/autonomy/get-level", contains: `"medium"`, procedure: `"procedure":"autonomy.getLevel"`},
+		{name: "autonomy set level", method: http.MethodPost, path: "/api/autonomy/set-level", body: `{"level":"high"}`, contains: `"high"`, procedure: `"procedure":"autonomy.setLevel"`},
+		{name: "autonomy activate full", method: http.MethodPost, path: "/api/autonomy/activate-full", body: `null`, contains: `"Autonomous Supervisor Activated`, procedure: `"procedure":"autonomy.activateFullAutonomy"`},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var body io.Reader
+			if tc.body != "" {
+				body = strings.NewReader(tc.body)
+			}
+			request := httptest.NewRequest(tc.method, tc.path, body)
+			if tc.body != "" {
+				request.Header.Set("content-type", "application/json")
+			}
+			recorder := httptest.NewRecorder()
+			server.Handler().ServeHTTP(recorder, request)
+			if recorder.Code != http.StatusOK {
+				t.Fatalf("expected status 200, got %d with body %s", recorder.Code, recorder.Body.String())
+			}
+			if !strings.Contains(recorder.Body.String(), tc.contains) {
+				t.Fatalf("expected response to contain %s, got %s", tc.contains, recorder.Body.String())
+			}
+			if !strings.Contains(recorder.Body.String(), tc.procedure) {
+				t.Fatalf("expected bridge metadata %s, got %s", tc.procedure, recorder.Body.String())
+			}
+		})
+	}
+}
+
 func TestConfigStatusEndpoint(t *testing.T) {
 	workspaceRoot := t.TempDir()
 	cfg := config.Default()

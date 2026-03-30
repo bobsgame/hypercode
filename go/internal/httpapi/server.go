@@ -323,6 +323,18 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("/api/tests/stop", s.handleTestsStop)
 	s.mux.HandleFunc("/api/tests/run", s.handleTestsRun)
 	s.mux.HandleFunc("/api/tests/results", s.handleTestsResults)
+	s.mux.HandleFunc("/api/metrics/stats", s.handleMetricsStats)
+	s.mux.HandleFunc("/api/metrics/track", s.handleMetricsTrack)
+	s.mux.HandleFunc("/api/metrics/system-snapshot", s.handleMetricsSystemSnapshot)
+	s.mux.HandleFunc("/api/metrics/timeline", s.handleMetricsTimeline)
+	s.mux.HandleFunc("/api/metrics/provider-breakdown", s.handleMetricsProviderBreakdown)
+	s.mux.HandleFunc("/api/metrics/monitoring", s.handleMetricsMonitoring)
+	s.mux.HandleFunc("/api/metrics/routing-history", s.handleMetricsRoutingHistory)
+	s.mux.HandleFunc("/api/logs", s.handleLogsList)
+	s.mux.HandleFunc("/api/logs/summary", s.handleLogsSummary)
+	s.mux.HandleFunc("/api/logs/clear", s.handleLogsClear)
+	s.mux.HandleFunc("/api/server-health/check", s.handleServerHealthCheck)
+	s.mux.HandleFunc("/api/server-health/reset", s.handleServerHealthReset)
 	s.mux.HandleFunc("/api/cli/tools", s.handleCLITools)
 	s.mux.HandleFunc("/api/cli/harnesses", s.handleHarnesses)
 	s.mux.HandleFunc("/api/cli/summary", s.handleCLISummary)
@@ -456,6 +468,18 @@ func (s *Server) handleAPIIndex(w http.ResponseWriter, _ *http.Request) {
 				{Path: "/api/tests/stop", Category: "code", Description: "Stop the TypeScript auto-test service."},
 				{Path: "/api/tests/run", Category: "code", Description: "Run the relevant TypeScript test file for a given source path."},
 				{Path: "/api/tests/results", Category: "code", Description: "Bridge to recent TypeScript auto-test results."},
+				{Path: "/api/metrics/stats", Category: "ops", Description: "Bridge to aggregated TypeScript metrics stats for a time window."},
+				{Path: "/api/metrics/track", Category: "ops", Description: "Track a custom metric event through the TypeScript control plane."},
+				{Path: "/api/metrics/system-snapshot", Category: "ops", Description: "Bridge to the TypeScript real-time system resource snapshot."},
+				{Path: "/api/metrics/timeline", Category: "ops", Description: "Bridge to downsampled TypeScript metrics timeline data."},
+				{Path: "/api/metrics/provider-breakdown", Category: "ops", Description: "Bridge to TypeScript provider request, latency, and cost breakdowns."},
+				{Path: "/api/metrics/monitoring", Category: "ops", Description: "Toggle TypeScript metrics monitoring state."},
+				{Path: "/api/metrics/routing-history", Category: "ops", Description: "Bridge to recent TypeScript LLM routing and failover decisions."},
+				{Path: "/api/logs", Category: "ops", Description: "Bridge to TypeScript observability log listing with optional filters."},
+				{Path: "/api/logs/summary", Category: "ops", Description: "Bridge to the TypeScript observability summary rollup."},
+				{Path: "/api/logs/clear", Category: "ops", Description: "Clear TypeScript observability logs."},
+				{Path: "/api/server-health/check", Category: "ops", Description: "Bridge to the TypeScript MCP server health state for a specific server UUID."},
+				{Path: "/api/server-health/reset", Category: "ops", Description: "Reset the TypeScript MCP server health error state for a specific server UUID."},
 				{Path: "/api/cli/tools", Category: "cli", Description: "Detected local CLI tools and versions."},
 				{Path: "/api/cli/harnesses", Category: "cli", Description: "Harness registry metadata and install visibility."},
 				{Path: "/api/cli/summary", Category: "cli", Description: "Compact CLI and harness readiness summary."},
@@ -1101,6 +1125,103 @@ func (s *Server) handleTestsRun(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleTestsResults(w http.ResponseWriter, r *http.Request) {
 	s.handleTRPCBridgeCall(w, r, http.MethodGet, "tests.results", nil)
+}
+
+func (s *Server) handleMetricsStats(w http.ResponseWriter, r *http.Request) {
+	payload := map[string]any{}
+	if windowMs := strings.TrimSpace(r.URL.Query().Get("windowMs")); windowMs != "" {
+		if parsed, err := strconv.Atoi(windowMs); err == nil {
+			payload["windowMs"] = parsed
+		}
+	}
+	s.handleTRPCBridgeCall(w, r, http.MethodGet, "metrics.getStats", payload)
+}
+
+func (s *Server) handleMetricsTrack(w http.ResponseWriter, r *http.Request) {
+	s.handleTRPCBridgeBodyCall(w, r, "metrics.track")
+}
+
+func (s *Server) handleMetricsSystemSnapshot(w http.ResponseWriter, r *http.Request) {
+	s.handleTRPCBridgeCall(w, r, http.MethodGet, "metrics.systemSnapshot", nil)
+}
+
+func (s *Server) handleMetricsTimeline(w http.ResponseWriter, r *http.Request) {
+	payload := map[string]any{}
+	if windowMs := strings.TrimSpace(r.URL.Query().Get("windowMs")); windowMs != "" {
+		if parsed, err := strconv.Atoi(windowMs); err == nil {
+			payload["windowMs"] = parsed
+		}
+	}
+	if buckets := strings.TrimSpace(r.URL.Query().Get("buckets")); buckets != "" {
+		if parsed, err := strconv.Atoi(buckets); err == nil {
+			payload["buckets"] = parsed
+		}
+	}
+	if metricType := strings.TrimSpace(r.URL.Query().Get("metricType")); metricType != "" {
+		payload["metricType"] = metricType
+	}
+	s.handleTRPCBridgeCall(w, r, http.MethodGet, "metrics.getTimeline", payload)
+}
+
+func (s *Server) handleMetricsProviderBreakdown(w http.ResponseWriter, r *http.Request) {
+	s.handleTRPCBridgeCall(w, r, http.MethodGet, "metrics.getProviderBreakdown", nil)
+}
+
+func (s *Server) handleMetricsMonitoring(w http.ResponseWriter, r *http.Request) {
+	s.handleTRPCBridgeBodyCall(w, r, "metrics.toggleMonitoring")
+}
+
+func (s *Server) handleMetricsRoutingHistory(w http.ResponseWriter, r *http.Request) {
+	payload := map[string]any{}
+	if limit := strings.TrimSpace(r.URL.Query().Get("limit")); limit != "" {
+		if parsed, err := strconv.Atoi(limit); err == nil {
+			payload["limit"] = parsed
+		}
+	}
+	s.handleTRPCBridgeCall(w, r, http.MethodGet, "metrics.getRoutingHistory", payload)
+}
+
+func (s *Server) handleLogsList(w http.ResponseWriter, r *http.Request) {
+	payload := map[string]any{}
+	if limit := strings.TrimSpace(r.URL.Query().Get("limit")); limit != "" {
+		if parsed, err := strconv.Atoi(limit); err == nil {
+			payload["limit"] = parsed
+		}
+	}
+	if sessionID := strings.TrimSpace(r.URL.Query().Get("sessionId")); sessionID != "" {
+		payload["sessionId"] = sessionID
+	}
+	if serverName := strings.TrimSpace(r.URL.Query().Get("serverName")); serverName != "" {
+		payload["serverName"] = serverName
+	}
+	s.handleTRPCBridgeCall(w, r, http.MethodGet, "logs.list", payload)
+}
+
+func (s *Server) handleLogsSummary(w http.ResponseWriter, r *http.Request) {
+	payload := map[string]any{}
+	if limit := strings.TrimSpace(r.URL.Query().Get("limit")); limit != "" {
+		if parsed, err := strconv.Atoi(limit); err == nil {
+			payload["limit"] = parsed
+		}
+	}
+	s.handleTRPCBridgeCall(w, r, http.MethodGet, "logs.summary", payload)
+}
+
+func (s *Server) handleLogsClear(w http.ResponseWriter, r *http.Request) {
+	s.handleTRPCBridgeCall(w, r, http.MethodPost, "logs.clear", nil)
+}
+
+func (s *Server) handleServerHealthCheck(w http.ResponseWriter, r *http.Request) {
+	serverUUID := strings.TrimSpace(r.URL.Query().Get("serverUuid"))
+	if serverUUID == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"success": false, "error": "missing serverUuid query parameter"})
+		return
+	}
+	s.handleTRPCBridgeCall(w, r, http.MethodGet, "serverHealth.check", map[string]any{"serverUuid": serverUUID})
+}
+
+func (s *Server) handleServerHealthReset(w http.ResponseWriter, r *http.Request) {
+	s.handleTRPCBridgeBodyCall(w, r, "serverHealth.reset")
 }
 
 func (s *Server) handleSessionBridgeBodyCall(w http.ResponseWriter, r *http.Request, procedure string) {

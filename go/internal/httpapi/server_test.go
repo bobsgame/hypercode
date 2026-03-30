@@ -1206,6 +1206,117 @@ func TestCodeBridgeRoutes(t *testing.T) {
 	}
 }
 
+func TestAdminBridgeRoutes(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("content-type", "application/json")
+		switch r.URL.Path {
+		case "/trpc/metrics.getStats":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"windowMs":60000`) {
+				t.Fatalf("expected metrics.getStats payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"counts": map[string]any{"requests": 5}}}}})
+		case "/trpc/metrics.track":
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"success": true}}}})
+		case "/trpc/metrics.systemSnapshot":
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"process": map[string]any{"pid": 1234}, "system": map[string]any{"platform": "win32"}}}}})
+		case "/trpc/metrics.getTimeline":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"metricType":"requests"`) {
+				t.Fatalf("expected metrics.getTimeline payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"series": []any{map[string]any{"timestamp": 1, "value": 2}}, "buckets": 10}}}})
+		case "/trpc/metrics.getProviderBreakdown":
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"totalCost": 1.25, "providers": []any{map[string]any{"provider": "openai", "requests": 3}}}}}})
+		case "/trpc/metrics.toggleMonitoring":
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"success": true, "monitoring": true}}}})
+		case "/trpc/metrics.getRoutingHistory":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"limit":7`) {
+				t.Fatalf("expected metrics.getRoutingHistory payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": []map[string]any{{"provider": "openai", "reason": "quota"}}}}})
+		case "/trpc/logs.list":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"sessionId":"sess-1"`) || !strings.Contains(string(body), `"serverName":"core"`) {
+				t.Fatalf("expected logs.list payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": []map[string]any{{"toolName": "search_tools", "level": "info"}}}}})
+		case "/trpc/logs.summary":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"limit":50`) {
+				t.Fatalf("expected logs.summary payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"totals": map[string]any{"totalCalls": 3}, "topTools": []map[string]any{{"name": "search_tools", "count": 2}}}}}})
+		case "/trpc/logs.clear":
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"success": true, "message": "Logs cleared"}}}})
+		case "/trpc/serverHealth.check":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"serverUuid":"srv-1"`) {
+				t.Fatalf("expected serverHealth.check payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"status": "HEALTHY", "crashCount": 0, "maxAttempts": 3}}}})
+		case "/trpc/serverHealth.reset":
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"success": true}}}})
+		default:
+			t.Fatalf("unexpected upstream path %s", r.URL.Path)
+		}
+	}))
+	defer upstream.Close()
+
+	t.Setenv("BORG_TRPC_UPSTREAM", upstream.URL+"/trpc")
+
+	cfg := config.Default()
+	cfg.MainConfigDir = t.TempDir()
+	server := New(cfg, stubDetector{})
+
+	cases := []struct {
+		name      string
+		method    string
+		path      string
+		body      string
+		contains  string
+		procedure string
+	}{
+		{name: "metrics stats", method: http.MethodGet, path: "/api/metrics/stats?windowMs=60000", contains: `"requests":5`, procedure: `"procedure":"metrics.getStats"`},
+		{name: "metrics track", method: http.MethodPost, path: "/api/metrics/track", body: `{"type":"requests","value":1,"tags":{"provider":"openai"}}`, contains: `"success":true`, procedure: `"procedure":"metrics.track"`},
+		{name: "metrics system snapshot", method: http.MethodGet, path: "/api/metrics/system-snapshot", contains: `"platform":"win32"`, procedure: `"procedure":"metrics.systemSnapshot"`},
+		{name: "metrics timeline", method: http.MethodGet, path: "/api/metrics/timeline?windowMs=60000&buckets=10&metricType=requests", contains: `"buckets":10`, procedure: `"procedure":"metrics.getTimeline"`},
+		{name: "metrics provider breakdown", method: http.MethodGet, path: "/api/metrics/provider-breakdown", contains: `"totalCost":1.25`, procedure: `"procedure":"metrics.getProviderBreakdown"`},
+		{name: "metrics monitoring", method: http.MethodPost, path: "/api/metrics/monitoring", body: `{"enabled":true,"intervalMs":5000}`, contains: `"monitoring":true`, procedure: `"procedure":"metrics.toggleMonitoring"`},
+		{name: "metrics routing history", method: http.MethodGet, path: "/api/metrics/routing-history?limit=7", contains: `"reason":"quota"`, procedure: `"procedure":"metrics.getRoutingHistory"`},
+		{name: "logs list", method: http.MethodGet, path: "/api/logs?limit=10&sessionId=sess-1&serverName=core", contains: `"search_tools"`, procedure: `"procedure":"logs.list"`},
+		{name: "logs summary", method: http.MethodGet, path: "/api/logs/summary?limit=50", contains: `"totalCalls":3`, procedure: `"procedure":"logs.summary"`},
+		{name: "logs clear", method: http.MethodPost, path: "/api/logs/clear", contains: `"Logs cleared"`, procedure: `"procedure":"logs.clear"`},
+		{name: "server health check", method: http.MethodGet, path: "/api/server-health/check?serverUuid=srv-1", contains: `"maxAttempts":3`, procedure: `"procedure":"serverHealth.check"`},
+		{name: "server health reset", method: http.MethodPost, path: "/api/server-health/reset", body: `{"serverUuid":"srv-1"}`, contains: `"success":true`, procedure: `"procedure":"serverHealth.reset"`},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var body io.Reader
+			if tc.body != "" {
+				body = strings.NewReader(tc.body)
+			}
+			request := httptest.NewRequest(tc.method, tc.path, body)
+			if tc.body != "" {
+				request.Header.Set("content-type", "application/json")
+			}
+			recorder := httptest.NewRecorder()
+			server.Handler().ServeHTTP(recorder, request)
+			if recorder.Code != http.StatusOK {
+				t.Fatalf("expected status 200, got %d with body %s", recorder.Code, recorder.Body.String())
+			}
+			if !strings.Contains(recorder.Body.String(), tc.contains) {
+				t.Fatalf("expected response to contain %s, got %s", tc.contains, recorder.Body.String())
+			}
+			if !strings.Contains(recorder.Body.String(), tc.procedure) {
+				t.Fatalf("expected bridge metadata %s, got %s", tc.procedure, recorder.Body.String())
+			}
+		})
+	}
+}
+
 func TestCLIToolsEndpoint(t *testing.T) {
 	server := New(config.Default(), stubDetector{
 		tools: []controlplane.Tool{

@@ -242,6 +242,7 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("/api/providers/routing-summary", s.handleRoutingSummary)
 	s.mux.HandleFunc("/api/sessions", s.handleSessions)
 	s.mux.HandleFunc("/api/sessions/summary", s.handleSessionSummary)
+	s.mux.HandleFunc("/api/sessions/context", s.handleSessionContext)
 	s.mux.HandleFunc("/api/sessions/supervisor/catalog", s.handleSupervisorSessionCatalog)
 	s.mux.HandleFunc("/api/sessions/supervisor/list", s.handleSupervisorSessionList)
 	s.mux.HandleFunc("/api/sessions/supervisor/get", s.handleSupervisorSessionGet)
@@ -579,6 +580,7 @@ func (s *Server) handleAPIIndex(w http.ResponseWriter, _ *http.Request) {
 				{Path: "/api/providers/routing-summary", Category: "providers", Description: "Read-only preview of intended task routing order."},
 				{Path: "/api/sessions", Category: "sessions", Description: "Discovered session artifacts exposed as read-only sessions."},
 				{Path: "/api/sessions/summary", Category: "sessions", Description: "Compact summary of discovered sessions by tool, format, task, and model hint."},
+				{Path: "/api/sessions/context", Category: "sessions", Description: "Go-owned session context summary combining startup readiness, memory bootstrap, and tool advertisements."},
 				{Path: "/api/sessions/supervisor/catalog", Category: "sessions", Description: "Bridge to the TypeScript session harness catalog."},
 				{Path: "/api/sessions/supervisor/list", Category: "sessions", Description: "Bridge to the TypeScript supervised session list."},
 				{Path: "/api/sessions/supervisor/get", Category: "sessions", Description: "Bridge to a specific TypeScript supervised session snapshot."},

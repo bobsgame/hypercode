@@ -29,21 +29,32 @@ func (s *Server) handleStartupStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	status, err := s.buildStartupStatus(r.Context())
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]any{"success": false, "error": err.Error()})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"data":    status,
+	})
+}
+
+func (s *Server) buildStartupStatus(ctx context.Context) (StartupStatus, error) {
 	configStatus := config.Snapshot(s.cfg)
 	memoryStatus, err := memorystore.ReadStatus(s.cfg.WorkspaceRoot)
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]any{"success": false, "error": err.Error()})
-		return
+		return StartupStatus{}, err
 	}
 
-	meshStatus, err := s.mesh.Status(r.Context())
+	meshStatus, err := s.mesh.Status(ctx)
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]any{"success": false, "error": err.Error()})
-		return
+		return StartupStatus{}, err
 	}
 
-	upstreamReady, upstreamBase := s.checkUpstreamProcedure(r.Context(), "health", nil)
-	supervisorReady, supervisorBase := s.checkUpstreamProcedure(r.Context(), "session.catalog", nil)
+	upstreamReady, upstreamBase := s.checkUpstreamProcedure(ctx, "health", nil)
+	supervisorReady, supervisorBase := s.checkUpstreamProcedure(ctx, "session.catalog", nil)
 
 	blockingReasons := make([]StartupBlockingReason, 0, 4)
 	if !configStatus.WorkspaceRoot.Exists {
@@ -88,44 +99,41 @@ func (s *Server) handleStartupStatus(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	writeJSON(w, http.StatusOK, map[string]any{
-		"success": true,
-		"data": StartupStatus{
-			Status:          "running",
-			Ready:           len(blockingReasons) == 0,
-			Summary:         summary,
-			BlockingReasons: blockingReasons,
-			Checks: map[string]any{
-				"config": map[string]any{
-					"workspaceRootAvailable": configStatus.WorkspaceRoot.Exists,
-					"goConfigDirAvailable":   configStatus.ConfigDir.Exists,
-					"mainConfigDirAvailable": configStatus.MainConfigDir.Exists,
-					"repoConfigAvailable":    configStatus.BorgConfigFile.Exists,
-					"mcpConfigAvailable":     configStatus.MCPConfigFile.Exists,
-				},
-				"memory": map[string]any{
-					"ready":                   memoryStatus.Exists,
-					"storePath":               memoryStatus.StorePath,
-					"totalEntries":            memoryStatus.TotalEntries,
-					"presentDefaultSections":  memoryStatus.PresentDefaultSectionCount,
-					"expectedDefaultSections": memoryStatus.DefaultSectionCount,
-					"missingSections":         memoryStatus.MissingSections,
-				},
-				"mainControlPlane": map[string]any{
-					"ready":   upstreamReady,
-					"baseUrl": upstreamBase,
-				},
-				"sessionSupervisorBridge": map[string]any{
-					"ready":   supervisorReady,
-					"baseUrl": supervisorBase,
-				},
-				"mesh": map[string]any{
-					"nodeId":     meshStatus.NodeID,
-					"peersCount": meshStatus.PeersCount,
-				},
+	return StartupStatus{
+		Status:          "running",
+		Ready:           len(blockingReasons) == 0,
+		Summary:         summary,
+		BlockingReasons: blockingReasons,
+		Checks: map[string]any{
+			"config": map[string]any{
+				"workspaceRootAvailable": configStatus.WorkspaceRoot.Exists,
+				"goConfigDirAvailable":   configStatus.ConfigDir.Exists,
+				"mainConfigDirAvailable": configStatus.MainConfigDir.Exists,
+				"repoConfigAvailable":    configStatus.BorgConfigFile.Exists,
+				"mcpConfigAvailable":     configStatus.MCPConfigFile.Exists,
+			},
+			"memory": map[string]any{
+				"ready":                   memoryStatus.Exists,
+				"storePath":               memoryStatus.StorePath,
+				"totalEntries":            memoryStatus.TotalEntries,
+				"presentDefaultSections":  memoryStatus.PresentDefaultSectionCount,
+				"expectedDefaultSections": memoryStatus.DefaultSectionCount,
+				"missingSections":         memoryStatus.MissingSections,
+			},
+			"mainControlPlane": map[string]any{
+				"ready":   upstreamReady,
+				"baseUrl": upstreamBase,
+			},
+			"sessionSupervisorBridge": map[string]any{
+				"ready":   supervisorReady,
+				"baseUrl": supervisorBase,
+			},
+			"mesh": map[string]any{
+				"nodeId":     meshStatus.NodeID,
+				"peersCount": meshStatus.PeersCount,
 			},
 		},
-	})
+	}, nil
 }
 
 func (s *Server) checkUpstreamProcedure(ctx context.Context, procedure string, payload any) (bool, string) {

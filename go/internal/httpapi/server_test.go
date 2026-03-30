@@ -215,6 +215,86 @@ func TestStartupStatusEndpoint(t *testing.T) {
 	}
 }
 
+func TestSessionContextEndpoint(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/trpc/health":
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"result": map[string]any{"data": map[string]any{"json": map[string]any{"status": "ok"}}},
+			})
+		case "/trpc/session.catalog":
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"result": map[string]any{"data": map[string]any{"json": map[string]any{"sessions": []any{}}}},
+			})
+		case "/trpc/memory.getSessionBootstrap":
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"result": map[string]any{"data": map[string]any{"json": map[string]any{
+					"goal":                   "ship the go sidecar",
+					"objective":              "surface current context",
+					"summaryCount":           2,
+					"observationCount":       3,
+					"toolAdvertisementCount": 1,
+					"prompt":                 "Memory bootstrap:\nCurrent goal: ship the go sidecar",
+				}}},
+			})
+		case "/trpc/mcp.callTool":
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"result": map[string]any{"data": map[string]any{"json": map[string]any{
+					"ok": true,
+					"result": map[string]any{
+						"content": []map[string]any{{"type": "text", "text": "list_all_tools"}},
+					},
+				}}},
+			})
+		case "/trpc/mesh.getCapabilities":
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"result": map[string]any{"data": map[string]any{"json": map[string]any{}}},
+			})
+		default:
+			t.Fatalf("unexpected bridge path %s", r.URL.Path)
+		}
+	}))
+	defer upstream.Close()
+
+	t.Setenv("BORG_TRPC_UPSTREAM", upstream.URL+"/trpc")
+
+	workspaceRoot := t.TempDir()
+	cfg := config.Default()
+	cfg.WorkspaceRoot = workspaceRoot
+	cfg.ConfigDir = filepath.Join(workspaceRoot, ".borg-go")
+	cfg.MainConfigDir = filepath.Join(workspaceRoot, ".borg")
+	if err := os.MkdirAll(cfg.ConfigDir, 0o755); err != nil {
+		t.Fatalf("failed to create go config dir: %v", err)
+	}
+	if err := os.MkdirAll(cfg.MainConfigDir, 0o755); err != nil {
+		t.Fatalf("failed to create main config dir: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(workspaceRoot, ".borg", "memory"), 0o755); err != nil {
+		t.Fatalf("failed to create memory dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(workspaceRoot, ".borg", "memory", "claude_mem.json"), []byte(`{"default":[]}`), 0o644); err != nil {
+		t.Fatalf("failed to seed memory store: %v", err)
+	}
+
+	server := New(cfg, stubDetector{})
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/api/sessions/context?activeGoal=ship%20the%20go%20sidecar&lastObjective=surface%20current%20context", nil)
+	server.Handler().ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected session context 200, got %d with body %s", recorder.Code, recorder.Body.String())
+	}
+	if !strings.Contains(recorder.Body.String(), "\"startup\"") {
+		t.Fatalf("expected startup payload, got %s", recorder.Body.String())
+	}
+	if !strings.Contains(recorder.Body.String(), "\"Memory bootstrap:\\nCurrent goal: ship the go sidecar\"") {
+		t.Fatalf("expected bootstrap prompt, got %s", recorder.Body.String())
+	}
+	if !strings.Contains(recorder.Body.String(), "\"toolName\":\"list_all_tools\"") {
+		t.Fatalf("expected tool ads bridge metadata, got %s", recorder.Body.String())
+	}
+}
+
 func TestConfigStatusEndpoint(t *testing.T) {
 	workspaceRoot := t.TempDir()
 	cfg := config.Default()

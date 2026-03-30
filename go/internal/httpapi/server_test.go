@@ -1479,6 +1479,92 @@ func TestControlBridgeRoutes(t *testing.T) {
 	}
 }
 
+func TestAgentBridgeRoutes(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("content-type", "application/json")
+		switch r.URL.Path {
+		case "/trpc/agent.runTool":
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"ok": true, "content": "tool output"}}}})
+		case "/trpc/agent.chat":
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"response": "hello", "degraded": false}}}})
+		case "/trpc/commands.execute":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"input":"/status"`) {
+				t.Fatalf("expected commands.execute payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"handled": true, "output": "ok"}}}})
+		case "/trpc/commands.list":
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": []any{map[string]any{"name": "status", "description": "Show status"}}}}})
+		case "/trpc/skills.list":
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": []any{map[string]any{"id": "skill-1", "name": "debug", "description": "Debug help", "content": "Use rg", "path": "skills/debug.md"}}}}})
+		case "/trpc/skills.read":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"name":"debug"`) {
+				t.Fatalf("expected skills.read payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"content": []any{map[string]any{"type": "text", "text": "Skill content"}}}}}})
+		case "/trpc/skills.create":
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"content": []any{map[string]any{"type": "text", "text": "Created"}}}}}})
+		case "/trpc/skills.save":
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"content": []any{map[string]any{"type": "text", "text": "Saved"}}}}}})
+		case "/trpc/skills.assimilate":
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"success": true, "logs": []any{"assimilated"}}}}})
+		default:
+			t.Fatalf("unexpected upstream path %s", r.URL.Path)
+		}
+	}))
+	defer upstream.Close()
+
+	t.Setenv("BORG_TRPC_UPSTREAM", upstream.URL+"/trpc")
+
+	cfg := config.Default()
+	cfg.MainConfigDir = t.TempDir()
+	server := New(cfg, stubDetector{})
+
+	cases := []struct {
+		name      string
+		method    string
+		path      string
+		body      string
+		contains  string
+		procedure string
+	}{
+		{name: "agent run tool", method: http.MethodPost, path: "/api/agent/tool", body: `{"toolName":"search_tools","arguments":{"query":"borg"}}`, contains: `"tool output"`, procedure: `"procedure":"agent.runTool"`},
+		{name: "agent chat", method: http.MethodPost, path: "/api/agent/chat", body: `{"message":"hello"}`, contains: `"response":"hello"`, procedure: `"procedure":"agent.chat"`},
+		{name: "commands execute", method: http.MethodPost, path: "/api/commands/execute", body: `{"input":"/status"}`, contains: `"handled":true`, procedure: `"procedure":"commands.execute"`},
+		{name: "commands list", method: http.MethodGet, path: "/api/commands", contains: `"name":"status"`, procedure: `"procedure":"commands.list"`},
+		{name: "skills list", method: http.MethodGet, path: "/api/skills", contains: `"skill-1"`, procedure: `"procedure":"skills.list"`},
+		{name: "skills read", method: http.MethodGet, path: "/api/skills/read?name=debug", contains: `"Skill content"`, procedure: `"procedure":"skills.read"`},
+		{name: "skills create", method: http.MethodPost, path: "/api/skills/create", body: `{"id":"skill-2","name":"trace","description":"Trace help"}`, contains: `"Created"`, procedure: `"procedure":"skills.create"`},
+		{name: "skills save", method: http.MethodPost, path: "/api/skills/save", body: `{"id":"skill-2","content":"Updated content"}`, contains: `"Saved"`, procedure: `"procedure":"skills.save"`},
+		{name: "skills assimilate", method: http.MethodPost, path: "/api/skills/assimilate", body: `{"topic":"debugging","docsUrl":"https://example.com"}`, contains: `"assimilated"`, procedure: `"procedure":"skills.assimilate"`},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var body io.Reader
+			if tc.body != "" {
+				body = strings.NewReader(tc.body)
+			}
+			request := httptest.NewRequest(tc.method, tc.path, body)
+			if tc.body != "" {
+				request.Header.Set("content-type", "application/json")
+			}
+			recorder := httptest.NewRecorder()
+			server.Handler().ServeHTTP(recorder, request)
+			if recorder.Code != http.StatusOK {
+				t.Fatalf("expected status 200, got %d with body %s", recorder.Code, recorder.Body.String())
+			}
+			if !strings.Contains(recorder.Body.String(), tc.contains) {
+				t.Fatalf("expected response to contain %s, got %s", tc.contains, recorder.Body.String())
+			}
+			if !strings.Contains(recorder.Body.String(), tc.procedure) {
+				t.Fatalf("expected bridge metadata %s, got %s", tc.procedure, recorder.Body.String())
+			}
+		})
+	}
+}
+
 func TestCLIToolsEndpoint(t *testing.T) {
 	server := New(config.Default(), stubDetector{
 		tools: []controlplane.Tool{

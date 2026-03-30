@@ -364,6 +364,15 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("/api/shell/log", s.handleShellLog)
 	s.mux.HandleFunc("/api/shell/history/query", s.handleShellQueryHistory)
 	s.mux.HandleFunc("/api/shell/history/system", s.handleShellSystemHistory)
+	s.mux.HandleFunc("/api/agent/tool", s.handleAgentRunTool)
+	s.mux.HandleFunc("/api/agent/chat", s.handleAgentChat)
+	s.mux.HandleFunc("/api/commands/execute", s.handleCommandsExecute)
+	s.mux.HandleFunc("/api/commands", s.handleCommandsList)
+	s.mux.HandleFunc("/api/skills", s.handleSkillsList)
+	s.mux.HandleFunc("/api/skills/read", s.handleSkillsRead)
+	s.mux.HandleFunc("/api/skills/create", s.handleSkillsCreate)
+	s.mux.HandleFunc("/api/skills/save", s.handleSkillsSave)
+	s.mux.HandleFunc("/api/skills/assimilate", s.handleSkillsAssimilate)
 	s.mux.HandleFunc("/api/cli/tools", s.handleCLITools)
 	s.mux.HandleFunc("/api/cli/harnesses", s.handleHarnesses)
 	s.mux.HandleFunc("/api/cli/summary", s.handleCLISummary)
@@ -538,6 +547,15 @@ func (s *Server) handleAPIIndex(w http.ResponseWriter, _ *http.Request) {
 				{Path: "/api/shell/log", Category: "control", Description: "Log a shell command through the TypeScript shell service."},
 				{Path: "/api/shell/history/query", Category: "control", Description: "Bridge to TypeScript shell history search."},
 				{Path: "/api/shell/history/system", Category: "control", Description: "Bridge to recent TypeScript system shell history."},
+				{Path: "/api/agent/tool", Category: "agents", Description: "Run a tool through the TypeScript agent router."},
+				{Path: "/api/agent/chat", Category: "agents", Description: "Bridge to the TypeScript agent chat surface."},
+				{Path: "/api/commands/execute", Category: "agents", Description: "Execute a TypeScript command-registry entry."},
+				{Path: "/api/commands", Category: "agents", Description: "Bridge to the TypeScript command registry list."},
+				{Path: "/api/skills", Category: "agents", Description: "Bridge to the TypeScript skill registry list."},
+				{Path: "/api/skills/read", Category: "agents", Description: "Read a skill through the TypeScript skill registry."},
+				{Path: "/api/skills/create", Category: "agents", Description: "Create a skill through the TypeScript skill registry."},
+				{Path: "/api/skills/save", Category: "agents", Description: "Save skill content through the TypeScript skill registry."},
+				{Path: "/api/skills/assimilate", Category: "agents", Description: "Assimilate docs into a skill through the TypeScript skill-assimilation service."},
 				{Path: "/api/cli/tools", Category: "cli", Description: "Detected local CLI tools and versions."},
 				{Path: "/api/cli/harnesses", Category: "cli", Description: "Harness registry metadata and install visibility."},
 				{Path: "/api/cli/summary", Category: "cli", Description: "Compact CLI and harness readiness summary."},
@@ -1439,6 +1457,47 @@ func (s *Server) handleShellSystemHistory(w http.ResponseWriter, r *http.Request
 		}
 	}
 	s.handleTRPCBridgeCall(w, r, http.MethodGet, "shell.getSystemHistory", payload)
+}
+
+func (s *Server) handleAgentRunTool(w http.ResponseWriter, r *http.Request) {
+	s.handleTRPCBridgeBodyCall(w, r, "agent.runTool")
+}
+
+func (s *Server) handleAgentChat(w http.ResponseWriter, r *http.Request) {
+	s.handleTRPCBridgeBodyCall(w, r, "agent.chat")
+}
+
+func (s *Server) handleCommandsExecute(w http.ResponseWriter, r *http.Request) {
+	s.handleTRPCBridgeBodyCall(w, r, "commands.execute")
+}
+
+func (s *Server) handleCommandsList(w http.ResponseWriter, r *http.Request) {
+	s.handleTRPCBridgeCall(w, r, http.MethodGet, "commands.list", nil)
+}
+
+func (s *Server) handleSkillsList(w http.ResponseWriter, r *http.Request) {
+	s.handleTRPCBridgeCall(w, r, http.MethodGet, "skills.list", nil)
+}
+
+func (s *Server) handleSkillsRead(w http.ResponseWriter, r *http.Request) {
+	name := strings.TrimSpace(r.URL.Query().Get("name"))
+	if name == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"success": false, "error": "missing name query parameter"})
+		return
+	}
+	s.handleTRPCBridgeCall(w, r, http.MethodGet, "skills.read", map[string]any{"name": name})
+}
+
+func (s *Server) handleSkillsCreate(w http.ResponseWriter, r *http.Request) {
+	s.handleTRPCBridgeBodyCall(w, r, "skills.create")
+}
+
+func (s *Server) handleSkillsSave(w http.ResponseWriter, r *http.Request) {
+	s.handleTRPCBridgeBodyCall(w, r, "skills.save")
+}
+
+func (s *Server) handleSkillsAssimilate(w http.ResponseWriter, r *http.Request) {
+	s.handleTRPCBridgeBodyCall(w, r, "skills.assimilate")
 }
 
 func (s *Server) handleSessionBridgeBodyCall(w http.ResponseWriter, r *http.Request, procedure string) {

@@ -2676,7 +2676,125 @@ func (s *Server) handleMCPClearToolSelectionTelemetry(w http.ResponseWriter, r *
 }
 
 func (s *Server) handleMCPServerTest(w http.ResponseWriter, r *http.Request) {
-	s.handleTRPCBridgeBodyCall(w, r, "mcp.runServerTest")
+	var payload map[string]any
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"success": false, "error": "invalid JSON body"})
+		return
+	}
+
+	var result any
+	upstreamBase, err := s.callUpstreamJSON(r.Context(), "mcp.runServerTest", payload, &result)
+	if err == nil {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"data":    result,
+			"bridge": map[string]any{
+				"upstreamBase": upstreamBase,
+				"procedure":    "mcp.runServerTest",
+			},
+		})
+		return
+	}
+
+	startedAt := time.Now()
+	targetKind, _ := payload["targetKind"].(string)
+	operation, _ := payload["operation"].(string)
+	serverName, _ := payload["serverName"].(string)
+	toolName, _ := payload["toolName"].(string)
+	args, _ := payload["args"].(map[string]any)
+	if args == nil {
+		args = map[string]any{}
+	}
+
+	requestPayload := map[string]any{
+		"jsonrpc": "2.0",
+		"id":      "probe-go-local",
+		"method":  operation,
+		"params": func() map[string]any {
+			if operation == "tools/call" {
+				return map[string]any{"name": toolName, "arguments": args}
+			}
+			return map[string]any{}
+		}(),
+		"target": func() string {
+			if targetKind == "router" {
+				return "borg-router"
+			}
+			if strings.TrimSpace(serverName) != "" {
+				return serverName
+			}
+			return "unknown-server"
+		}(),
+		"via": func() string {
+			if targetKind == "router" {
+				return "borg-router"
+			}
+			return "direct-downstream"
+		}(),
+	}
+
+	buildFailure := func(summary string, payloadBody map[string]any) map[string]any {
+		endedAt := time.Now()
+		return map[string]any{
+			"success": false,
+			"target": map[string]any{
+				"kind": targetKind,
+				"displayName": func() string {
+					if targetKind == "router" {
+						return "Borg router"
+					}
+					if strings.TrimSpace(serverName) != "" {
+						return serverName
+					}
+					return "Unknown downstream server"
+				}(),
+				"serverName": nullableString(serverName),
+				"via":        requestPayload["via"],
+			},
+			"operation": operation,
+			"startedAt": startedAt.UnixMilli(),
+			"endedAt":   endedAt.UnixMilli(),
+			"latencyMs": endedAt.Sub(startedAt).Milliseconds(),
+			"request":   requestPayload,
+			"response": map[string]any{
+				"summary": summary,
+				"payload": payloadBody,
+			},
+			"trafficEvents": []map[string]any{},
+		}
+	}
+
+	switch {
+	case targetKind == "server" && strings.TrimSpace(serverName) == "":
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"data":    buildFailure("Downstream probe requires a server name.", map[string]any{"error": "Downstream probe requires a server name."}),
+			"bridge":  map[string]any{"fallback": "go-local-mcp", "procedure": "mcp.runServerTest", "reason": err.Error()},
+		})
+		return
+	case operation == "tools/call" && strings.TrimSpace(toolName) == "":
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"data":    buildFailure("Tool call probe requires a tool name.", map[string]any{"error": "Tool call probe requires a tool name."}),
+			"bridge":  map[string]any{"fallback": "go-local-mcp", "procedure": "mcp.runServerTest", "reason": err.Error()},
+		})
+		return
+	case targetKind == "router":
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"data":    buildFailure("Borg MCP router is not initialized.", map[string]any{"error": "Borg MCP router is not initialized."}),
+			"bridge":  map[string]any{"fallback": "go-local-mcp", "procedure": "mcp.runServerTest", "reason": err.Error()},
+		})
+		return
+	default:
+		message := "Downstream server '" + serverName + "' is not currently connected."
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"data":    buildFailure(message, map[string]any{"error": message}),
+			"bridge":  map[string]any{"fallback": "go-local-mcp", "procedure": "mcp.runServerTest", "reason": err.Error()},
+		})
+		return
+	}
 }
 
 func (s *Server) handleMCPSetLifecycleModes(w http.ResponseWriter, r *http.Request) {

@@ -820,6 +820,31 @@ func TestMCPAddAndRemoveServerFallBackToLocalConfiguredServers(t *testing.T) {
 	}
 }
 
+func TestMCPServerTestFallsBackToStructuredProbeFailures(t *testing.T) {
+	t.Setenv("BORG_TRPC_UPSTREAM", "http://127.0.0.1:1/trpc")
+	cfg := config.Default()
+	cfg.WorkspaceRoot = t.TempDir()
+	cfg.ConfigDir = t.TempDir()
+	cfg.MainConfigDir = t.TempDir()
+	server := New(cfg, stubDetector{})
+
+	routerReq := httptest.NewRequest(http.MethodPost, "/api/mcp/server-test", strings.NewReader(`{"targetKind":"router","operation":"tools/list"}`))
+	routerReq.Header.Set("content-type", "application/json")
+	routerRecorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(routerRecorder, routerReq)
+	if routerRecorder.Code != http.StatusOK || !strings.Contains(routerRecorder.Body.String(), `"fallback":"go-local-mcp"`) || !strings.Contains(routerRecorder.Body.String(), `Borg MCP router is not initialized.`) {
+		t.Fatalf("expected local router probe fallback response, got %d %s", routerRecorder.Code, routerRecorder.Body.String())
+	}
+
+	serverReq := httptest.NewRequest(http.MethodPost, "/api/mcp/server-test", strings.NewReader(`{"targetKind":"server","operation":"tools/list"}`))
+	serverReq.Header.Set("content-type", "application/json")
+	serverRecorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(serverRecorder, serverReq)
+	if serverRecorder.Code != http.StatusOK || !strings.Contains(serverRecorder.Body.String(), `Downstream probe requires a server name.`) {
+		t.Fatalf("expected downstream validation fallback response, got %d %s", serverRecorder.Code, serverRecorder.Body.String())
+	}
+}
+
 func TestAutonomyBridgeRoutes(t *testing.T) {
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("content-type", "application/json")

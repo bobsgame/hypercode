@@ -4358,6 +4358,60 @@ func TestMCPConfiguredServersFallBackToLocalJsonc(t *testing.T) {
 	}
 }
 
+func TestMCPSyncTargetsAndExportFallBackToLocalJsonc(t *testing.T) {
+	mainConfigDir := t.TempDir()
+	jsoncContent := `// Borg MCP configuration
+{
+  "mcpServers": {
+    "core": {
+      "command": "node",
+      "args": ["server.js"]
+    }
+  }
+}
+`
+	if err := os.WriteFile(filepath.Join(mainConfigDir, "mcp.jsonc"), []byte(jsoncContent), 0o644); err != nil {
+		t.Fatalf("failed to write local mcp jsonc: %v", err)
+	}
+
+	appData := t.TempDir()
+	t.Setenv("APPDATA", appData)
+	t.Setenv("BORG_TRPC_UPSTREAM", "http://127.0.0.1:1/trpc")
+
+	cfg := config.Default()
+	cfg.WorkspaceRoot = t.TempDir()
+	cfg.MainConfigDir = mainConfigDir
+	server := New(cfg, stubDetector{})
+
+	syncRequest := httptest.NewRequest(http.MethodGet, "/api/mcp/servers/sync-targets", nil)
+	syncRecorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(syncRecorder, syncRequest)
+
+	if syncRecorder.Code != http.StatusOK {
+		t.Fatalf("expected sync-targets fallback status 200, got %d with body %s", syncRecorder.Code, syncRecorder.Body.String())
+	}
+	if !strings.Contains(syncRecorder.Body.String(), `"fallback":"go-local-jsonc"`) {
+		t.Fatalf("expected go-local-jsonc fallback metadata, got %s", syncRecorder.Body.String())
+	}
+	if !strings.Contains(syncRecorder.Body.String(), `"client":"claude-desktop"`) {
+		t.Fatalf("expected claude-desktop sync target, got %s", syncRecorder.Body.String())
+	}
+
+	exportRequest := httptest.NewRequest(http.MethodGet, "/api/mcp/servers/export-client-config?client=claude-desktop", nil)
+	exportRecorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(exportRecorder, exportRequest)
+
+	if exportRecorder.Code != http.StatusOK {
+		t.Fatalf("expected export fallback status 200, got %d with body %s", exportRecorder.Code, exportRecorder.Body.String())
+	}
+	if !strings.Contains(exportRecorder.Body.String(), `"procedure":"mcpServers.exportClientConfig"`) {
+		t.Fatalf("expected export procedure metadata, got %s", exportRecorder.Body.String())
+	}
+	if !strings.Contains(exportRecorder.Body.String(), `"client":"claude-desktop"`) || !strings.Contains(exportRecorder.Body.String(), `"core"`) || !strings.Contains(exportRecorder.Body.String(), `"command":"node"`) {
+		t.Fatalf("expected local client config preview, got %s", exportRecorder.Body.String())
+	}
+}
+
 func TestImportedSessionBridgeRoutes(t *testing.T) {
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("content-type", "application/json")

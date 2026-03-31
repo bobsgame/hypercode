@@ -1997,7 +1997,47 @@ func (s *Server) handleMCPRegistrySnapshot(w http.ResponseWriter, r *http.Reques
 }
 
 func (s *Server) handleMCPSyncTargets(w http.ResponseWriter, r *http.Request) {
-	s.handleTRPCBridgeCall(w, r, http.MethodGet, "mcpServers.syncTargets", nil)
+	if r.Method != http.MethodGet {
+		writeJSON(w, http.StatusMethodNotAllowed, map[string]any{
+			"success": false,
+			"error":   "method not allowed",
+		})
+		return
+	}
+
+	var targets []map[string]any
+	upstreamBase, err := s.callUpstreamJSON(r.Context(), "mcpServers.syncTargets", nil, &targets)
+	if err == nil {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"data":    targets,
+			"bridge": map[string]any{
+				"upstreamBase": upstreamBase,
+				"procedure":    "mcpServers.syncTargets",
+			},
+		})
+		return
+	}
+
+	fallbackTargets, fallbackErr := s.localMCPSyncTargets()
+	if fallbackErr != nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{
+			"success": false,
+			"error":   err.Error(),
+			"detail":  fallbackErr.Error(),
+		})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"data":    fallbackTargets,
+		"bridge": map[string]any{
+			"fallback":  "go-local-jsonc",
+			"procedure": "mcpServers.syncTargets",
+			"reason":    err.Error(),
+		},
+	})
 }
 
 func (s *Server) handleMCPExportClientConfig(w http.ResponseWriter, r *http.Request) {
@@ -2013,7 +2053,41 @@ func (s *Server) handleMCPExportClientConfig(w http.ResponseWriter, r *http.Requ
 	if path := strings.TrimSpace(r.URL.Query().Get("path")); path != "" {
 		payload["path"] = path
 	}
-	s.handleTRPCBridgeCall(w, r, http.MethodGet, "mcpServers.exportClientConfig", payload)
+
+	var preview map[string]any
+	upstreamBase, err := s.callUpstreamJSON(r.Context(), "mcpServers.exportClientConfig", payload, &preview)
+	if err == nil {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"data":    preview,
+			"bridge": map[string]any{
+				"upstreamBase": upstreamBase,
+				"procedure":    "mcpServers.exportClientConfig",
+			},
+		})
+		return
+	}
+
+	overridePath, _ := payload["path"].(string)
+	fallbackPreview, fallbackErr := s.localMCPExportClientConfig(client, overridePath)
+	if fallbackErr != nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{
+			"success": false,
+			"error":   err.Error(),
+			"detail":  fallbackErr.Error(),
+		})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"data":    fallbackPreview,
+		"bridge": map[string]any{
+			"fallback":  "go-local-jsonc",
+			"procedure": "mcpServers.exportClientConfig",
+			"reason":    err.Error(),
+		},
+	})
 }
 
 func (s *Server) handleMCPSyncClientConfig(w http.ResponseWriter, r *http.Request) {
@@ -4857,6 +4931,138 @@ func (s *Server) localConfiguredMCPServers() ([]map[string]any, error) {
 		return leftName < rightName
 	})
 	return results, nil
+}
+
+func (s *Server) localMCPSyncTargets() ([]map[string]any, error) {
+	clients := []string{"claude-desktop", "cursor", "vscode"}
+	results := make([]map[string]any, 0, len(clients))
+	for _, client := range clients {
+		path, candidates, exists, err := s.resolveLocalClientConfigTarget(client, "")
+		if err != nil {
+			return nil, err
+		}
+		results = append(results, map[string]any{
+			"client":     client,
+			"path":       path,
+			"candidates": candidates,
+			"exists":     exists,
+		})
+	}
+	return results, nil
+}
+
+func (s *Server) localMCPExportClientConfig(client string, overridePath string) (map[string]any, error) {
+	servers, err := s.localConfiguredMCPServers()
+	if err != nil {
+		return nil, err
+	}
+	targetPath, _, exists, err := s.resolveLocalClientConfigTarget(client, overridePath)
+	if err != nil {
+		return nil, err
+	}
+	document := map[string]any{
+		"mcpServers": buildClientConfigMCPServers(servers),
+	}
+	jsonText := prettyJSON(document) + "\n"
+	return map[string]any{
+		"client":      client,
+		"targetPath":  targetPath,
+		"existed":     exists,
+		"serverCount": len(document["mcpServers"].(map[string]any)),
+		"document":    document,
+		"json":        jsonText,
+	}, nil
+}
+
+func (s *Server) resolveLocalClientConfigTarget(client string, overridePath string) (string, []string, bool, error) {
+	candidates := []string{}
+	if strings.TrimSpace(overridePath) != "" {
+		candidates = []string{overridePath}
+	} else {
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			return "", nil, false, err
+		}
+		appData := os.Getenv("APPDATA")
+		if appData == "" {
+			appData = filepath.Join(homeDir, "AppData", "Roaming")
+		}
+		switch client {
+		case "claude-desktop":
+			candidates = []string{filepath.Join(appData, "Claude", "claude_desktop_config.json")}
+		case "cursor":
+			candidates = []string{
+				filepath.Join(appData, "Cursor", "User", "globalStorage", "mcp-servers.json"),
+				filepath.Join(appData, "Cursor", "User", "mcp.json"),
+			}
+		case "vscode":
+			candidates = []string{
+				filepath.Join(appData, "Code", "User", "globalStorage", "mcp-servers.json"),
+				filepath.Join(appData, "Code", "User", "settings.json"),
+				filepath.Join(s.cfg.WorkspaceRoot, ".vscode", "mcp.json"),
+			}
+		default:
+			return "", nil, false, errors.New("unsupported client")
+		}
+	}
+
+	for _, candidate := range candidates {
+		if _, err := os.Stat(candidate); err == nil {
+			return candidate, candidates, true, nil
+		}
+	}
+	if len(candidates) == 0 {
+		return "", nil, false, errors.New("no client config candidates")
+	}
+	return candidates[0], candidates, false, nil
+}
+
+func buildClientConfigMCPServers(servers []map[string]any) map[string]any {
+	result := make(map[string]any)
+	for _, server := range servers {
+		name, _ := server["name"].(string)
+		if strings.TrimSpace(name) == "" {
+			continue
+		}
+		serverType, _ := server["type"].(string)
+		command, _ := server["command"].(string)
+		url, _ := server["url"].(string)
+		args := stringSlice(server["args"])
+		env := stringMap(server["env"])
+		headers := stringMap(server["headers"])
+		bearerToken, _ := server["bearerToken"].(string)
+
+		if serverType == "STDIO" {
+			if strings.TrimSpace(command) == "" {
+				continue
+			}
+			definition := map[string]any{
+				"command": command,
+			}
+			if len(args) > 0 {
+				definition["args"] = args
+			}
+			if len(env) > 0 {
+				definition["env"] = env
+			}
+			result[name] = definition
+			continue
+		}
+		if strings.TrimSpace(url) == "" {
+			continue
+		}
+		definition := map[string]any{
+			"url": url,
+		}
+		if bearerToken != "" {
+			headers["Authorization"] = "Bearer " + bearerToken
+		}
+		if len(headers) > 0 {
+			definition["headers"] = headers
+		}
+		result[name] = definition
+	}
+	return result
 }
 
 func stripServerMeta(value any) any {

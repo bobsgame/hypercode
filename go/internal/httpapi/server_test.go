@@ -590,6 +590,58 @@ func TestCouncilBridgeRoutes(t *testing.T) {
 			_ = json.NewEncoder(w).Encode(map[string]any{
 				"result": map[string]any{"data": map[string]any{"json": []any{map[string]any{"name": "default"}}}},
 			})
+		case "/trpc/council.sessions.persisted":
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"result": map[string]any{"data": map[string]any{"json": []any{map[string]any{"id": "sess-persisted", "persisted": true}}}},
+			})
+		case "/trpc/council.sessions.byTag":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"tag":"priority"`) {
+				t.Fatalf("expected council.sessions.byTag payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"result": map[string]any{"data": map[string]any{"json": []any{map[string]any{"id": "sess-tagged", "tags": []any{"priority"}}}}},
+			})
+		case "/trpc/council.sessions.byTemplate":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"template":"default"`) {
+				t.Fatalf("expected council.sessions.byTemplate payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"result": map[string]any{"data": map[string]any{"json": []any{map[string]any{"id": "sess-template", "templateName": "default"}}}},
+			})
+		case "/trpc/council.sessions.byCLI":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"cliType":"hypercode"`) {
+				t.Fatalf("expected council.sessions.byCLI payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"result": map[string]any{"data": map[string]any{"json": []any{map[string]any{"id": "sess-cli", "cliType": "hypercode"}}}},
+			})
+		case "/trpc/council.sessions.updateTags":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"id":"sess-1"`) || !strings.Contains(string(body), `"priority"`) {
+				t.Fatalf("expected council.sessions.updateTags payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"result": map[string]any{"data": map[string]any{"json": map[string]any{"id": "sess-1", "tags": []any{"priority", "go"}}}},
+			})
+		case "/trpc/council.sessions.addTag":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"id":"sess-1"`) || !strings.Contains(string(body), `"tag":"priority"`) {
+				t.Fatalf("expected council.sessions.addTag payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"result": map[string]any{"data": map[string]any{"json": map[string]any{"id": "sess-1", "tags": []any{"priority"}}}},
+			})
+		case "/trpc/council.sessions.removeTag":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"id":"sess-1"`) || !strings.Contains(string(body), `"tag":"priority"`) {
+				t.Fatalf("expected council.sessions.removeTag payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"result": map[string]any{"data": map[string]any{"json": map[string]any{"id": "sess-1", "tags": []any{}}}},
+			})
 		case "/trpc/council.quota.status":
 			_ = json.NewEncoder(w).Encode(map[string]any{
 				"result": map[string]any{"data": map[string]any{"json": map[string]any{"enabled": true}}},
@@ -694,6 +746,13 @@ func TestCouncilBridgeRoutes(t *testing.T) {
 		{name: "council sessions delete", method: http.MethodPost, path: "/api/council/sessions/delete", body: `{"id":"sess-1"}`, contains: `"success":true`, procedure: `"procedure":"council.sessions.delete"`},
 		{name: "council sessions logs", method: http.MethodGet, path: "/api/council/sessions/logs?id=sess-1", contains: `"log line"`, procedure: `"procedure":"council.sessions.getLogs"`},
 		{name: "council sessions templates", method: http.MethodGet, path: "/api/council/sessions/templates", contains: `"default"`, procedure: `"procedure":"council.sessions.templates"`},
+		{name: "council sessions persisted", method: http.MethodGet, path: "/api/council/sessions/persisted", contains: `"sess-persisted"`, procedure: `"procedure":"council.sessions.persisted"`},
+		{name: "council sessions by tag", method: http.MethodGet, path: "/api/council/sessions/by-tag?tag=priority", contains: `"sess-tagged"`, procedure: `"procedure":"council.sessions.byTag"`},
+		{name: "council sessions by template", method: http.MethodGet, path: "/api/council/sessions/by-template?template=default", contains: `"sess-template"`, procedure: `"procedure":"council.sessions.byTemplate"`},
+		{name: "council sessions by cli", method: http.MethodGet, path: "/api/council/sessions/by-cli?cliType=hypercode", contains: `"sess-cli"`, procedure: `"procedure":"council.sessions.byCLI"`},
+		{name: "council sessions update tags", method: http.MethodPost, path: "/api/council/sessions/tags/update", body: `{"id":"sess-1","tags":["priority","go"]}`, contains: `"priority","go"`, procedure: `"procedure":"council.sessions.updateTags"`},
+		{name: "council sessions add tag", method: http.MethodPost, path: "/api/council/sessions/tags/add", body: `{"id":"sess-1","tag":"priority"}`, contains: `"priority"`, procedure: `"procedure":"council.sessions.addTag"`},
+		{name: "council sessions remove tag", method: http.MethodPost, path: "/api/council/sessions/tags/remove", body: `{"id":"sess-1","tag":"priority"}`, contains: `"tags":[]`, procedure: `"procedure":"council.sessions.removeTag"`},
 		{name: "council quota status", method: http.MethodGet, path: "/api/council/quota/status", contains: `"enabled":true`, procedure: `"procedure":"council.quota.status"`},
 		{name: "council quota get config", method: http.MethodGet, path: "/api/council/quota/config", contains: `"windowMs":60000`, procedure: `"procedure":"council.quota.getConfig"`},
 		{name: "council quota update config", method: http.MethodPost, path: "/api/council/quota/config", body: `{"windowMs":120000}`, contains: `"success":true`, procedure: `"procedure":"council.quota.updateConfig"`},

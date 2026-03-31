@@ -64,6 +64,49 @@ func (s *Server) handleCouncilSessionsTemplates(w http.ResponseWriter, r *http.R
 	s.handleTRPCBridgeCall(w, r, http.MethodGet, "council.sessions.templates", nil)
 }
 
+func (s *Server) handleCouncilSessionsPersisted(w http.ResponseWriter, r *http.Request) {
+	s.handleTRPCBridgeCall(w, r, http.MethodGet, "council.sessions.persisted", nil)
+}
+
+func (s *Server) handleCouncilSessionsByTag(w http.ResponseWriter, r *http.Request) {
+	tag := strings.TrimSpace(r.URL.Query().Get("tag"))
+	if tag == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"success": false, "error": "missing tag query parameter"})
+		return
+	}
+	s.handleTRPCBridgeCall(w, r, http.MethodGet, "council.sessions.byTag", map[string]any{"tag": tag})
+}
+
+func (s *Server) handleCouncilSessionsByTemplate(w http.ResponseWriter, r *http.Request) {
+	template := strings.TrimSpace(r.URL.Query().Get("template"))
+	if template == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"success": false, "error": "missing template query parameter"})
+		return
+	}
+	s.handleTRPCBridgeCall(w, r, http.MethodGet, "council.sessions.byTemplate", map[string]any{"template": template})
+}
+
+func (s *Server) handleCouncilSessionsByCLI(w http.ResponseWriter, r *http.Request) {
+	cliType := strings.TrimSpace(r.URL.Query().Get("cliType"))
+	if cliType == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"success": false, "error": "missing cliType query parameter"})
+		return
+	}
+	s.handleTRPCBridgeCall(w, r, http.MethodGet, "council.sessions.byCLI", map[string]any{"cliType": cliType})
+}
+
+func (s *Server) handleCouncilSessionsUpdateTags(w http.ResponseWriter, r *http.Request) {
+	s.handleTRPCBridgeBodyCall(w, r, "council.sessions.updateTags")
+}
+
+func (s *Server) handleCouncilSessionsAddTag(w http.ResponseWriter, r *http.Request) {
+	s.handleTRPCBridgeBodyCall(w, r, "council.sessions.addTag")
+}
+
+func (s *Server) handleCouncilSessionsRemoveTag(w http.ResponseWriter, r *http.Request) {
+	s.handleTRPCBridgeBodyCall(w, r, "council.sessions.removeTag")
+}
+
 func (s *Server) handleCouncilQuotaStatus(w http.ResponseWriter, r *http.Request) {
 	s.handleTRPCBridgeCall(w, r, http.MethodGet, "council.quota.status", nil)
 }

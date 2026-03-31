@@ -356,6 +356,13 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("/api/council/sessions/delete", s.handleCouncilSessionsDelete)
 	s.mux.HandleFunc("/api/council/sessions/logs", s.handleCouncilSessionsLogs)
 	s.mux.HandleFunc("/api/council/sessions/templates", s.handleCouncilSessionsTemplates)
+	s.mux.HandleFunc("/api/council/sessions/persisted", s.handleCouncilSessionsPersisted)
+	s.mux.HandleFunc("/api/council/sessions/by-tag", s.handleCouncilSessionsByTag)
+	s.mux.HandleFunc("/api/council/sessions/by-template", s.handleCouncilSessionsByTemplate)
+	s.mux.HandleFunc("/api/council/sessions/by-cli", s.handleCouncilSessionsByCLI)
+	s.mux.HandleFunc("/api/council/sessions/tags/update", s.handleCouncilSessionsUpdateTags)
+	s.mux.HandleFunc("/api/council/sessions/tags/add", s.handleCouncilSessionsAddTag)
+	s.mux.HandleFunc("/api/council/sessions/tags/remove", s.handleCouncilSessionsRemoveTag)
 	s.mux.HandleFunc("/api/council/quota/status", s.handleCouncilQuotaStatus)
 	s.mux.HandleFunc("/api/council/quota/config", s.handleCouncilQuotaConfig)
 	s.mux.HandleFunc("/api/council/quota/enabled", s.handleCouncilQuotaEnabled)
@@ -877,6 +884,13 @@ func (s *Server) handleAPIIndex(w http.ResponseWriter, _ *http.Request) {
 				{Path: "/api/council/sessions/delete", Category: "governance", Description: "Delete a council session through the TypeScript council router."},
 				{Path: "/api/council/sessions/logs", Category: "governance", Description: "Read council session logs through the TypeScript council router."},
 				{Path: "/api/council/sessions/templates", Category: "governance", Description: "Read council session templates through the TypeScript council router."},
+				{Path: "/api/council/sessions/persisted", Category: "governance", Description: "List persisted council sessions through the TypeScript council router."},
+				{Path: "/api/council/sessions/by-tag", Category: "governance", Description: "List council sessions by tag through the TypeScript council router."},
+				{Path: "/api/council/sessions/by-template", Category: "governance", Description: "List council sessions by template through the TypeScript council router."},
+				{Path: "/api/council/sessions/by-cli", Category: "governance", Description: "List council sessions by CLI type through the TypeScript council router."},
+				{Path: "/api/council/sessions/tags/update", Category: "governance", Description: "Replace council session tags through the TypeScript council router."},
+				{Path: "/api/council/sessions/tags/add", Category: "governance", Description: "Add a council session tag through the TypeScript council router."},
+				{Path: "/api/council/sessions/tags/remove", Category: "governance", Description: "Remove a council session tag through the TypeScript council router."},
 				{Path: "/api/council/quota/status", Category: "governance", Description: "Read council quota status through the TypeScript council router."},
 				{Path: "/api/council/quota/config", Category: "governance", Description: "Read or update council quota config through the TypeScript council router."},
 				{Path: "/api/council/quota/enabled", Category: "governance", Description: "Enable or disable council quota enforcement through the TypeScript council router."},

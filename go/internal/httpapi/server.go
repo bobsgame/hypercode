@@ -351,11 +351,16 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("/api/council/sessions/stats", s.handleCouncilSessionsStats)
 	s.mux.HandleFunc("/api/council/sessions/get", s.handleCouncilSessionsGet)
 	s.mux.HandleFunc("/api/council/sessions/start", s.handleCouncilSessionsStart)
+	s.mux.HandleFunc("/api/council/sessions/bulk-start", s.handleCouncilSessionsBulkStart)
+	s.mux.HandleFunc("/api/council/sessions/bulk-stop", s.handleCouncilSessionsBulkStop)
+	s.mux.HandleFunc("/api/council/sessions/bulk-resume", s.handleCouncilSessionsBulkResume)
 	s.mux.HandleFunc("/api/council/sessions/stop", s.handleCouncilSessionsStop)
 	s.mux.HandleFunc("/api/council/sessions/resume", s.handleCouncilSessionsResume)
 	s.mux.HandleFunc("/api/council/sessions/delete", s.handleCouncilSessionsDelete)
+	s.mux.HandleFunc("/api/council/sessions/guidance", s.handleCouncilSessionsGuidance)
 	s.mux.HandleFunc("/api/council/sessions/logs", s.handleCouncilSessionsLogs)
 	s.mux.HandleFunc("/api/council/sessions/templates", s.handleCouncilSessionsTemplates)
+	s.mux.HandleFunc("/api/council/sessions/from-template", s.handleCouncilSessionsStartFromTemplate)
 	s.mux.HandleFunc("/api/council/sessions/persisted", s.handleCouncilSessionsPersisted)
 	s.mux.HandleFunc("/api/council/sessions/by-tag", s.handleCouncilSessionsByTag)
 	s.mux.HandleFunc("/api/council/sessions/by-template", s.handleCouncilSessionsByTemplate)
@@ -392,6 +397,8 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("/api/council/hooks/register", s.handleCouncilHooksRegister)
 	s.mux.HandleFunc("/api/council/hooks/unregister", s.handleCouncilHooksUnregister)
 	s.mux.HandleFunc("/api/council/hooks/clear", s.handleCouncilHooksClear)
+	s.mux.HandleFunc("/api/council/ide/status", s.handleCouncilIDEStatus)
+	s.mux.HandleFunc("/api/council/ide/submit-task", s.handleCouncilIDESubmitTask)
 	s.mux.HandleFunc("/api/council/visual/system-diagram", s.handleCouncilVisualSystemDiagram)
 	s.mux.HandleFunc("/api/council/visual/plan-diagram", s.handleCouncilVisualPlanDiagram)
 	s.mux.HandleFunc("/api/council/visual/parse-plan", s.handleCouncilVisualParsePlan)
@@ -879,11 +886,16 @@ func (s *Server) handleAPIIndex(w http.ResponseWriter, _ *http.Request) {
 				{Path: "/api/council/sessions/stats", Category: "governance", Description: "Read council session stats through the TypeScript council router."},
 				{Path: "/api/council/sessions/get", Category: "governance", Description: "Read a specific council session through the TypeScript council router."},
 				{Path: "/api/council/sessions/start", Category: "governance", Description: "Start a council session through the TypeScript council router."},
+				{Path: "/api/council/sessions/bulk-start", Category: "governance", Description: "Start multiple council sessions through the TypeScript council router."},
+				{Path: "/api/council/sessions/bulk-stop", Category: "governance", Description: "Stop all council sessions through the TypeScript council router."},
+				{Path: "/api/council/sessions/bulk-resume", Category: "governance", Description: "Resume all council sessions through the TypeScript council router."},
 				{Path: "/api/council/sessions/stop", Category: "governance", Description: "Stop a council session through the TypeScript council router."},
 				{Path: "/api/council/sessions/resume", Category: "governance", Description: "Resume a council session through the TypeScript council router."},
 				{Path: "/api/council/sessions/delete", Category: "governance", Description: "Delete a council session through the TypeScript council router."},
+				{Path: "/api/council/sessions/guidance", Category: "governance", Description: "Send guidance to a council session through the TypeScript council router."},
 				{Path: "/api/council/sessions/logs", Category: "governance", Description: "Read council session logs through the TypeScript council router."},
 				{Path: "/api/council/sessions/templates", Category: "governance", Description: "Read council session templates through the TypeScript council router."},
+				{Path: "/api/council/sessions/from-template", Category: "governance", Description: "Start a council session from a template through the TypeScript council router."},
 				{Path: "/api/council/sessions/persisted", Category: "governance", Description: "List persisted council sessions through the TypeScript council router."},
 				{Path: "/api/council/sessions/by-tag", Category: "governance", Description: "List council sessions by tag through the TypeScript council router."},
 				{Path: "/api/council/sessions/by-template", Category: "governance", Description: "List council sessions by template through the TypeScript council router."},
@@ -920,6 +932,8 @@ func (s *Server) handleAPIIndex(w http.ResponseWriter, _ *http.Request) {
 				{Path: "/api/council/hooks/register", Category: "governance", Description: "Register a council auto-continue hook through the TypeScript hooks router."},
 				{Path: "/api/council/hooks/unregister", Category: "governance", Description: "Unregister a council auto-continue hook through the TypeScript hooks router."},
 				{Path: "/api/council/hooks/clear", Category: "governance", Description: "Clear all registered council auto-continue hooks through the TypeScript hooks router."},
+				{Path: "/api/council/ide/status", Category: "governance", Description: "Read council IDE bridge status through the TypeScript IDE router."},
+				{Path: "/api/council/ide/submit-task", Category: "governance", Description: "Submit an IDE-generated task through the TypeScript IDE router."},
 				{Path: "/api/council/visual/system-diagram", Category: "governance", Description: "Read the council system diagram through the TypeScript visual router."},
 				{Path: "/api/council/visual/plan-diagram", Category: "governance", Description: "Render a council plan diagram through the TypeScript visual router."},
 				{Path: "/api/council/visual/parse-plan", Category: "governance", Description: "Parse a council Mermaid plan through the TypeScript visual router."},

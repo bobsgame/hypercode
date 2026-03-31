@@ -566,6 +566,22 @@ func TestCouncilBridgeRoutes(t *testing.T) {
 			_ = json.NewEncoder(w).Encode(map[string]any{
 				"result": map[string]any{"data": map[string]any{"json": map[string]any{"id": "sess-2"}}},
 			})
+		case "/trpc/council.sessions.bulkStart":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"count":2`) {
+				t.Fatalf("expected council.sessions.bulkStart payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"result": map[string]any{"data": map[string]any{"json": map[string]any{"sessions": []any{map[string]any{"id": "sess-bulk-1"}, map[string]any{"id": "sess-bulk-2"}}, "failed": []any{}}}},
+			})
+		case "/trpc/council.sessions.bulkStop":
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"result": map[string]any{"data": map[string]any{"json": map[string]any{"stopped": 2, "failed": 0}}},
+			})
+		case "/trpc/council.sessions.bulkResume":
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"result": map[string]any{"data": map[string]any{"json": map[string]any{"sessions": []any{map[string]any{"id": "sess-1"}, map[string]any{"id": "sess-2"}}, "failed": []any{}}}},
+			})
 		case "/trpc/council.sessions.stop":
 			_ = json.NewEncoder(w).Encode(map[string]any{
 				"result": map[string]any{"data": map[string]any{"json": map[string]any{"id": "sess-1", "status": "stopped"}}},
@@ -578,6 +594,14 @@ func TestCouncilBridgeRoutes(t *testing.T) {
 			_ = json.NewEncoder(w).Encode(map[string]any{
 				"result": map[string]any{"data": map[string]any{"json": map[string]any{"success": true}}},
 			})
+		case "/trpc/council.sessions.sendGuidance":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"id":"sess-1"`) || !strings.Contains(string(body), `"approved":true`) {
+				t.Fatalf("expected council.sessions.sendGuidance payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"result": map[string]any{"data": map[string]any{"json": map[string]any{"id": "sess-1", "guidanceApplied": true}}},
+			})
 		case "/trpc/council.sessions.getLogs":
 			body, _ := io.ReadAll(r.Body)
 			if !strings.Contains(string(body), `"id":"sess-1"`) {
@@ -589,6 +613,14 @@ func TestCouncilBridgeRoutes(t *testing.T) {
 		case "/trpc/council.sessions.templates":
 			_ = json.NewEncoder(w).Encode(map[string]any{
 				"result": map[string]any{"data": map[string]any{"json": []any{map[string]any{"name": "default"}}}},
+			})
+		case "/trpc/council.sessions.startFromTemplate":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"name":"default"`) {
+				t.Fatalf("expected council.sessions.startFromTemplate payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"result": map[string]any{"data": map[string]any{"json": map[string]any{"id": "sess-template-started", "templateName": "default"}}},
 			})
 		case "/trpc/council.sessions.persisted":
 			_ = json.NewEncoder(w).Encode(map[string]any{
@@ -741,11 +773,16 @@ func TestCouncilBridgeRoutes(t *testing.T) {
 		{name: "council sessions stats", method: http.MethodGet, path: "/api/council/sessions/stats", contains: `"total":1`, procedure: `"procedure":"council.sessions.stats"`},
 		{name: "council sessions get", method: http.MethodGet, path: "/api/council/sessions/get?id=sess-1", contains: `"sess-1"`, procedure: `"procedure":"council.sessions.get"`},
 		{name: "council sessions start", method: http.MethodPost, path: "/api/council/sessions/start", body: `{"cliType":"hypercode"}`, contains: `"sess-2"`, procedure: `"procedure":"council.sessions.start"`},
+		{name: "council sessions bulk start", method: http.MethodPost, path: "/api/council/sessions/bulk-start", body: `{"count":2,"cliType":"hypercode"}`, contains: `"sess-bulk-1"`, procedure: `"procedure":"council.sessions.bulkStart"`},
+		{name: "council sessions bulk stop", method: http.MethodPost, path: "/api/council/sessions/bulk-stop", contains: `"stopped":2`, procedure: `"procedure":"council.sessions.bulkStop"`},
+		{name: "council sessions bulk resume", method: http.MethodPost, path: "/api/council/sessions/bulk-resume", contains: `"sess-2"`, procedure: `"procedure":"council.sessions.bulkResume"`},
 		{name: "council sessions stop", method: http.MethodPost, path: "/api/council/sessions/stop", body: `{"id":"sess-1"}`, contains: `"stopped"`, procedure: `"procedure":"council.sessions.stop"`},
 		{name: "council sessions resume", method: http.MethodPost, path: "/api/council/sessions/resume", body: `{"id":"sess-1"}`, contains: `"running"`, procedure: `"procedure":"council.sessions.resume"`},
 		{name: "council sessions delete", method: http.MethodPost, path: "/api/council/sessions/delete", body: `{"id":"sess-1"}`, contains: `"success":true`, procedure: `"procedure":"council.sessions.delete"`},
+		{name: "council sessions guidance", method: http.MethodPost, path: "/api/council/sessions/guidance", body: `{"id":"sess-1","approved":true,"feedback":"ship it","suggestedNextSteps":["test"]}`, contains: `"guidanceApplied":true`, procedure: `"procedure":"council.sessions.sendGuidance"`},
 		{name: "council sessions logs", method: http.MethodGet, path: "/api/council/sessions/logs?id=sess-1", contains: `"log line"`, procedure: `"procedure":"council.sessions.getLogs"`},
 		{name: "council sessions templates", method: http.MethodGet, path: "/api/council/sessions/templates", contains: `"default"`, procedure: `"procedure":"council.sessions.templates"`},
+		{name: "council sessions from template", method: http.MethodPost, path: "/api/council/sessions/from-template", body: `{"name":"default"}`, contains: `"sess-template-started"`, procedure: `"procedure":"council.sessions.startFromTemplate"`},
 		{name: "council sessions persisted", method: http.MethodGet, path: "/api/council/sessions/persisted", contains: `"sess-persisted"`, procedure: `"procedure":"council.sessions.persisted"`},
 		{name: "council sessions by tag", method: http.MethodGet, path: "/api/council/sessions/by-tag?tag=priority", contains: `"sess-tagged"`, procedure: `"procedure":"council.sessions.byTag"`},
 		{name: "council sessions by template", method: http.MethodGet, path: "/api/council/sessions/by-template?template=default", contains: `"sess-template"`, procedure: `"procedure":"council.sessions.byTemplate"`},
@@ -1442,6 +1479,67 @@ func TestCouncilHooksBridgeRoutes(t *testing.T) {
 		{name: "hooks register", method: http.MethodPost, path: "/api/council/hooks/register", body: `{"phase":"pre-debate","webhookUrl":"https://example.com/hook","priority":5}`, contains: `"hookId":"hook-1"`, procedure: `"procedure":"council.hooks.register"`},
 		{name: "hooks unregister", method: http.MethodPost, path: "/api/council/hooks/unregister", body: `{"id":"hook-1"}`, contains: `"success":true`, procedure: `"procedure":"council.hooks.unregister"`},
 		{name: "hooks clear", method: http.MethodPost, path: "/api/council/hooks/clear", contains: `"success":true`, procedure: `"procedure":"council.hooks.clear"`},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var body io.Reader
+			if tc.body != "" {
+				body = strings.NewReader(tc.body)
+			}
+			request := httptest.NewRequest(tc.method, tc.path, body)
+			if tc.body != "" {
+				request.Header.Set("content-type", "application/json")
+			}
+			recorder := httptest.NewRecorder()
+			server.Handler().ServeHTTP(recorder, request)
+			if recorder.Code != http.StatusOK {
+				t.Fatalf("expected status 200, got %d with body %s", recorder.Code, recorder.Body.String())
+			}
+			if !strings.Contains(recorder.Body.String(), tc.contains) {
+				t.Fatalf("expected response to contain %s, got %s", tc.contains, recorder.Body.String())
+			}
+			if !strings.Contains(recorder.Body.String(), tc.procedure) {
+				t.Fatalf("expected bridge metadata %s, got %s", tc.procedure, recorder.Body.String())
+			}
+		})
+	}
+}
+
+func TestCouncilIDEBridgeRoutes(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("content-type", "application/json")
+		switch r.URL.Path {
+		case "/trpc/council.ide.status":
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"success": true, "ready": true, "capabilities": []any{"council", "smart-pilot"}}}}})
+		case "/trpc/council.ide.submitTask":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"description":"Fix the failing test"`) {
+				t.Fatalf("expected council.ide.submitTask payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"success": true, "taskId": "ide-1", "sessionId": "sess-1"}}}})
+		default:
+			t.Fatalf("unexpected upstream path %s", r.URL.Path)
+		}
+	}))
+	defer upstream.Close()
+
+	t.Setenv("BORG_TRPC_UPSTREAM", upstream.URL+"/trpc")
+
+	cfg := config.Default()
+	cfg.MainConfigDir = t.TempDir()
+	server := New(cfg, stubDetector{})
+
+	cases := []struct {
+		name      string
+		method    string
+		path      string
+		body      string
+		contains  string
+		procedure string
+	}{
+		{name: "ide status", method: http.MethodGet, path: "/api/council/ide/status", contains: `"ready":true`, procedure: `"procedure":"council.ide.status"`},
+		{name: "ide submit task", method: http.MethodPost, path: "/api/council/ide/submit-task", body: `{"description":"Fix the failing test","fileContext":{"path":"src/app.ts","content":"console.log('hi')"}}`, contains: `"taskId":"ide-1"`, procedure: `"procedure":"council.ide.submitTask"`},
 	}
 
 	for _, tc := range cases {

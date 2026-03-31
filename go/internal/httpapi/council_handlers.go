@@ -39,6 +39,18 @@ func (s *Server) handleCouncilSessionsStart(w http.ResponseWriter, r *http.Reque
 	s.handleTRPCBridgeBodyCall(w, r, "council.sessions.start")
 }
 
+func (s *Server) handleCouncilSessionsBulkStart(w http.ResponseWriter, r *http.Request) {
+	s.handleTRPCBridgeBodyCall(w, r, "council.sessions.bulkStart")
+}
+
+func (s *Server) handleCouncilSessionsBulkStop(w http.ResponseWriter, r *http.Request) {
+	s.handleTRPCBridgeCall(w, r, http.MethodPost, "council.sessions.bulkStop", nil)
+}
+
+func (s *Server) handleCouncilSessionsBulkResume(w http.ResponseWriter, r *http.Request) {
+	s.handleTRPCBridgeCall(w, r, http.MethodPost, "council.sessions.bulkResume", nil)
+}
+
 func (s *Server) handleCouncilSessionsStop(w http.ResponseWriter, r *http.Request) {
 	s.handleTRPCBridgeBodyCall(w, r, "council.sessions.stop")
 }
@@ -49,6 +61,10 @@ func (s *Server) handleCouncilSessionsResume(w http.ResponseWriter, r *http.Requ
 
 func (s *Server) handleCouncilSessionsDelete(w http.ResponseWriter, r *http.Request) {
 	s.handleTRPCBridgeBodyCall(w, r, "council.sessions.delete")
+}
+
+func (s *Server) handleCouncilSessionsGuidance(w http.ResponseWriter, r *http.Request) {
+	s.handleTRPCBridgeBodyCall(w, r, "council.sessions.sendGuidance")
 }
 
 func (s *Server) handleCouncilSessionsLogs(w http.ResponseWriter, r *http.Request) {
@@ -62,6 +78,10 @@ func (s *Server) handleCouncilSessionsLogs(w http.ResponseWriter, r *http.Reques
 
 func (s *Server) handleCouncilSessionsTemplates(w http.ResponseWriter, r *http.Request) {
 	s.handleTRPCBridgeCall(w, r, http.MethodGet, "council.sessions.templates", nil)
+}
+
+func (s *Server) handleCouncilSessionsStartFromTemplate(w http.ResponseWriter, r *http.Request) {
+	s.handleTRPCBridgeBodyCall(w, r, "council.sessions.startFromTemplate")
 }
 
 func (s *Server) handleCouncilSessionsPersisted(w http.ResponseWriter, r *http.Request) {

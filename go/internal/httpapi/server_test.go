@@ -798,6 +798,80 @@ func TestDeerFlowBridgeRoutes(t *testing.T) {
 	}
 }
 
+func TestHealerBridgeRoutes(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("content-type", "application/json")
+		switch r.URL.Path {
+		case "/trpc/healer.diagnose":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"error":"boom"`) {
+				t.Fatalf("expected healer.diagnose payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"result": map[string]any{"data": map[string]any{"json": map[string]any{"summary": "likely quota exhaustion"}}},
+			})
+		case "/trpc/healer.heal":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"context":"retry with fallback"`) {
+				t.Fatalf("expected healer.heal payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"result": map[string]any{"data": map[string]any{"json": map[string]any{"success": true}}},
+			})
+		case "/trpc/healer.getHistory":
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"result": map[string]any{"data": map[string]any{"json": []any{map[string]any{"error": "boom", "success": true}}}},
+			})
+		default:
+			t.Fatalf("unexpected upstream path %s", r.URL.Path)
+		}
+	}))
+	defer upstream.Close()
+
+	t.Setenv("BORG_TRPC_UPSTREAM", upstream.URL+"/trpc")
+
+	cfg := config.Default()
+	cfg.MainConfigDir = t.TempDir()
+	server := New(cfg, stubDetector{})
+
+	cases := []struct {
+		name      string
+		method    string
+		path      string
+		body      string
+		contains  string
+		procedure string
+	}{
+		{name: "healer diagnose", method: http.MethodPost, path: "/api/healer/diagnose", body: `{"error":"boom","context":"provider timeout"}`, contains: `"likely quota exhaustion"`, procedure: `"procedure":"healer.diagnose"`},
+		{name: "healer heal", method: http.MethodPost, path: "/api/healer/heal", body: `{"error":"boom","context":"retry with fallback"}`, contains: `"success":true`, procedure: `"procedure":"healer.heal"`},
+		{name: "healer history", method: http.MethodGet, path: "/api/healer/history", contains: `"error":"boom"`, procedure: `"procedure":"healer.getHistory"`},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var body io.Reader
+			if tc.body != "" {
+				body = strings.NewReader(tc.body)
+			}
+			request := httptest.NewRequest(tc.method, tc.path, body)
+			if tc.body != "" {
+				request.Header.Set("content-type", "application/json")
+			}
+			recorder := httptest.NewRecorder()
+			server.Handler().ServeHTTP(recorder, request)
+			if recorder.Code != http.StatusOK {
+				t.Fatalf("expected status 200, got %d with body %s", recorder.Code, recorder.Body.String())
+			}
+			if !strings.Contains(recorder.Body.String(), tc.contains) {
+				t.Fatalf("expected response to contain %s, got %s", tc.contains, recorder.Body.String())
+			}
+			if !strings.Contains(recorder.Body.String(), tc.procedure) {
+				t.Fatalf("expected bridge metadata %s, got %s", tc.procedure, recorder.Body.String())
+			}
+		})
+	}
+}
+
 func TestConfigStatusEndpoint(t *testing.T) {
 	workspaceRoot := t.TempDir()
 	cfg := config.Default()

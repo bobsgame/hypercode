@@ -363,6 +363,9 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("/api/deerflow/models", s.handleDeerFlowModels)
 	s.mux.HandleFunc("/api/deerflow/skills", s.handleDeerFlowSkills)
 	s.mux.HandleFunc("/api/deerflow/memory", s.handleDeerFlowMemory)
+	s.mux.HandleFunc("/api/healer/diagnose", s.handleHealerDiagnose)
+	s.mux.HandleFunc("/api/healer/heal", s.handleHealerHeal)
+	s.mux.HandleFunc("/api/healer/history", s.handleHealerHistory)
 	s.mux.HandleFunc("/api/metrics/stats", s.handleMetricsStats)
 	s.mux.HandleFunc("/api/metrics/track", s.handleMetricsTrack)
 	s.mux.HandleFunc("/api/metrics/system-snapshot", s.handleMetricsSystemSnapshot)
@@ -838,6 +841,9 @@ func (s *Server) handleAPIIndex(w http.ResponseWriter, _ *http.Request) {
 				{Path: "/api/deerflow/models", Category: "operator", Description: "List DeerFlow models through the TypeScript DeerFlow router."},
 				{Path: "/api/deerflow/skills", Category: "operator", Description: "List DeerFlow skills through the TypeScript DeerFlow router."},
 				{Path: "/api/deerflow/memory", Category: "operator", Description: "Read DeerFlow memory status through the TypeScript DeerFlow router."},
+				{Path: "/api/healer/diagnose", Category: "operator", Description: "Analyze an error through the TypeScript healer router."},
+				{Path: "/api/healer/heal", Category: "operator", Description: "Attempt a heal action through the TypeScript healer router."},
+				{Path: "/api/healer/history", Category: "operator", Description: "Read healer history through the TypeScript healer router."},
 				{Path: "/api/policies", Category: "governance", Description: "List policies through the TypeScript policies router."},
 				{Path: "/api/policies/get", Category: "governance", Description: "Read a policy through the TypeScript policies router."},
 				{Path: "/api/policies/create", Category: "governance", Description: "Create a policy through the TypeScript policies router."},

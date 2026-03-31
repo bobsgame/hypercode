@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -1485,7 +1486,88 @@ func (s *Server) handleImportedSessionGet(w http.ResponseWriter, r *http.Request
 }
 
 func (s *Server) handleImportedSessionScan(w http.ResponseWriter, r *http.Request) {
-	s.handleTRPCBridgeBodyCall(w, r, "session.importedScan")
+	if r.Method != http.MethodPost {
+		writeJSON(w, http.StatusMethodNotAllowed, map[string]any{
+			"success": false,
+			"error":   "method not allowed",
+		})
+		return
+	}
+
+	var payload map[string]any
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil && err.Error() != "EOF" {
+		writeJSON(w, http.StatusBadRequest, map[string]any{
+			"success": false,
+			"error":   "invalid JSON body",
+		})
+		return
+	}
+
+	var summary struct {
+		DiscoveredCount    int      `json:"discoveredCount"`
+		ImportedCount      int      `json:"importedCount"`
+		SkippedCount       int      `json:"skippedCount"`
+		StoredMemoryCount  int      `json:"storedMemoryCount"`
+		InstructionDocPath *string  `json:"instructionDocPath"`
+		Tools              []string `json:"tools"`
+	}
+	upstreamBase, err := s.callUpstreamJSON(r.Context(), "session.importedScan", payload, &summary)
+	if err == nil {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"data":    summary,
+			"bridge": map[string]any{
+				"upstreamBase": upstreamBase,
+				"procedure":    "session.importedScan",
+			},
+		})
+		return
+	}
+
+	candidates, scanErr := s.scanValidatedImportSources()
+	if scanErr != nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{
+			"success": false,
+			"error":   err.Error(),
+			"detail":  scanErr.Error(),
+		})
+		return
+	}
+
+	discoveredCount := len(candidates)
+	importedCount := 0
+	skippedCount := 0
+	toolsSet := make(map[string]struct{})
+	for _, candidate := range candidates {
+		if candidate.Valid {
+			skippedCount++
+		}
+		if candidate.SourceTool != "" {
+			toolsSet[candidate.SourceTool] = struct{}{}
+		}
+	}
+	tools := make([]string, 0, len(toolsSet))
+	for tool := range toolsSet {
+		tools = append(tools, tool)
+	}
+	sort.Strings(tools)
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"data": map[string]any{
+			"discoveredCount":    discoveredCount,
+			"importedCount":      importedCount,
+			"skippedCount":       skippedCount,
+			"storedMemoryCount":  0,
+			"instructionDocPath": nil,
+			"tools":              tools,
+		},
+		"bridge": map[string]any{
+			"fallback":  "go-sessionimport",
+			"procedure": "session.importedScan",
+			"reason":    err.Error(),
+		},
+	})
 }
 
 func (s *Server) handleImportedSessionInstructionDocs(w http.ResponseWriter, r *http.Request) {

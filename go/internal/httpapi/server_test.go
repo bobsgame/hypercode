@@ -4168,6 +4168,41 @@ func TestImportedSessionBridgeRoutes(t *testing.T) {
 	}
 }
 
+func TestImportedSessionScanFallsBackToGoScanner(t *testing.T) {
+	workspaceRoot := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(workspaceRoot, ".claude"), 0o755); err != nil {
+		t.Fatalf("failed to create claude root: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(workspaceRoot, ".claude", "session.jsonl"), []byte("{\"model\":\"claude\"}\n"), 0o644); err != nil {
+		t.Fatalf("failed to seed claude session: %v", err)
+	}
+
+	t.Setenv("BORG_TRPC_UPSTREAM", "http://127.0.0.1:1/trpc")
+
+	cfg := config.Default()
+	cfg.WorkspaceRoot = workspaceRoot
+	cfg.MainConfigDir = t.TempDir()
+	server := New(cfg, stubDetector{})
+
+	request := httptest.NewRequest(http.MethodPost, "/api/sessions/imported/scan", strings.NewReader(`{"force":true}`))
+	request.Header.Set("content-type", "application/json")
+	recorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected fallback status 200, got %d with body %s", recorder.Code, recorder.Body.String())
+	}
+	if !strings.Contains(recorder.Body.String(), `"fallback":"go-sessionimport"`) {
+		t.Fatalf("expected go-sessionimport fallback metadata, got %s", recorder.Body.String())
+	}
+	if !strings.Contains(recorder.Body.String(), `"discoveredCount":`) {
+		t.Fatalf("expected discoveredCount in fallback summary, got %s", recorder.Body.String())
+	}
+	if !strings.Contains(recorder.Body.String(), `"claude-code"`) {
+		t.Fatalf("expected claude-code tool in fallback summary, got %s", recorder.Body.String())
+	}
+}
+
 func TestMemoryBridgeRoutes(t *testing.T) {
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("content-type", "application/json")

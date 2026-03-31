@@ -30,3 +30,30 @@ Best suited for:
 
 - Production-style build checks often catch issues that dev flows miss.
 - Keep conclusions grounded in code and docs that actually exist.
+
+## Binary-topology context
+
+When analyzing future architecture, use this recommended target layout:
+
+- `hypercode` / `hypercoded` for the core control plane
+- `hypermcpd` plus `hypermcp-indexer` for MCP routing and metadata work
+- `hypermemd` plus `hyperingest` for memory/session/resource/background ingestion
+- `hyperharness` / `hyperharnessd` for harness execution surfaces
+- `hypercode-web` and `hypercode-native` as client applications
+
+Use these ownership assumptions during analysis:
+
+- `hypercoded` owns orchestration and operator-facing state
+- `hypermcpd` owns MCP lifecycle, routing, and inventory exposure
+- `hypermcp-indexer` owns scrape/probe/cache refresh jobs
+- `hypermemd` owns memory/session/resource persistence and serving
+- `hyperingest` owns imports, discovery, and normalization pipelines
+- `hyperharnessd` owns execution-loop runtime isolation
+- client apps should stay clients unless runtime evidence proves a boundary should move
+
+Gemini should bias toward:
+
+- validating whether a proposed binary boundary has a real ownership/lifecycle reason
+- identifying which packages are stable enough to extract cleanly
+- distinguishing modular-monolith package seams from true process seams
+- avoiding “split everything” recommendations unless the deployment/runtime evidence clearly supports it

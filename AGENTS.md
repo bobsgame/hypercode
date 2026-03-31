@@ -87,6 +87,66 @@ Do not present scaffolding, mocks, or partial integrations as complete.
 - Prefer type-safe fixes over escape hatches.
 - Treat extension bridges, tool execution, and config ingestion as high-risk surfaces.
 
+## Recommended binary topology
+
+Treat the long-term HyperCode runtime as a **small family of focused binaries**, not one giant process and not a fully exploded microservice graph.
+
+### Core naming
+
+- `hypercode` — operator CLI
+- `hypercoded` — primary control-plane daemon
+- `hypercode-web` — web GUI client
+- `hypercode-native` — native GUI client
+- `hyperharness` — harness CLI
+- `hyperharnessd` — harness runtime daemon
+- `hypermcpd` — MCP router / aggregator daemon
+- `hypermcp-indexer` — MCP scrape / probe / metadata worker
+- `hypermemd` — long-running memory/session/resource daemon
+- `hyperingest` — batch/session/bookmark/import worker
+
+### Ownership boundaries
+
+- **Servers/daemons own state** and long-running coordination.
+- **CLIs and GUIs are clients** of those servers, not alternate places to duplicate orchestration logic.
+- **Workers own batch or background jobs**, not interactive operator flows.
+
+### Responsibility map
+
+- `hypercoded`
+  - owns top-level orchestration, operator state, routing policy, supervision, and system health/status surfaces
+- `hypercode`
+  - is the operator-facing CLI that talks to `hypercoded`
+- `hypercode-web` and `hypercode-native`
+  - are GUI clients for the same control-plane APIs and should not become independent orchestration backends
+- `hyperharnessd`
+  - owns model execution loops, tool-call execution flow, harness-local session runtime, and harness isolation concerns
+- `hyperharness`
+  - is the direct CLI/operator entrypoint for harness-specific tasks when a narrower surface than `hypercode` is useful
+- `hypermcpd`
+  - owns MCP server registry, routing, connection lifecycle, tool inventory exposure, and runtime tool mediation
+- `hypermcp-indexer`
+  - owns MCP scraping, probing, metadata caching, schema capture, and offline inventory refresh jobs
+- `hypermemd`
+  - owns long-running memory state, session context persistence, resource coordination, and memory-serving APIs
+- `hyperingest`
+  - owns batch imports such as bookmarks, session discovery/import, prompt-library ingestion, and other background normalization/indexing jobs
+
+### Recommended rollout order
+
+Do **not** split everything at once. Prefer this extraction order:
+
+1. Keep `hypercode` and `hypercoded` as the primary operator pair.
+2. Extract `hypermcpd` when MCP routing/probing/cache lifecycle clearly needs its own uptime or crash boundary.
+3. Extract `hypermemd` and/or `hyperingest` when background ingestion, session processing, or memory persistence starts competing with operator latency.
+4. Extract `hyperharnessd` when harness execution needs its own resource envelope or failure isolation.
+
+### Default architectural guidance
+
+- Prefer a **modular monolith first** with shared packages and stable contracts.
+- Split binaries only when there is a clear need for separate lifecycle, scaling, crash isolation, privilege boundaries, or deployment targets.
+- Avoid premature process boundaries; they add config, orchestration, debugging, and contract-drift cost before they add enough value.
+- When describing future architecture, present this as the **recommended direction**, not as already completed reality unless the binaries actually exist.
+
 ## Validation baseline
 
 Run targeted verification for the area you change. At minimum, prefer:
@@ -117,3 +177,33 @@ Borg succeeds by becoming:
 - and more useful as a local control plane.
 
 Ambition is welcome. Overclaiming is not.
+
+## 🏛️ The Triad of Orchestrators
+
+Borg operates with three primary orchestrator interfaces, designed to distribute workload across local, desktop, and cloud environments:
+
+1. **cli-orchestrator (CLI)**:
+   - The native local terminal interface, historically surfaced under Borg's older standalone orchestrator branding, bridging stdio MCP servers and foundational agentic workflows.
+   - Borg now tracks `submodules/hypercode` as the primary external CLI harness assimilation lane for this interface. The upstream exposes a Go/Cobra CLI with a TUI REPL, `pipe` command, and a Borg-aware adapter package, but the integration should still be described as **Experimental** until the runtime contract is deeper than metadata and launch scaffolding.
+2. **electron-orchestrator (Desktop)**:
+   - A cross-platform Electron application (submoduled from `robertpelloni/maestro`) built for hacking parallel projects. 
+   - **Capabilities**: Unattended Auto Run playbooks, Git Worktrees, Group Chat moderation, and visual context management.
+3. **cloud-orchestrator**:
+   - A high-performance "Lean Core" web stack (Bun, Hono, React 19 SPA) running natively on `port 8080`.
+   - **Role**: Coordinates remote autonomous models (Jules, Spark, Copilot Cloud, Codex Cloud, Claude Cloud, etc.) with real-time WebSocket telemetry and persistent task queueing.
+
+At present, `electron-orchestrator` and `cli-orchestrator` should not be described as having 100% feature parity. The desktop surface has broader operator workflows today, while the CLI surface remains the cleaner control-plane foundation and the active Go-port target.
+
+Additionally, Borg leverages the **BobbyBookmarks** ecosystem (`data/bobbybookmarks`)—a Python-driven data ingestion pipeline offering advanced deduplication and autonomous deep research capabilities.
+
+
+# cli-orchestrator: System Prompts & Execution Rules
+
+You are the core routing engine for the Borg operating system. Your primary function is to orchestrate multi-agent workflows and manage communication with local Model Context Protocol (MCP) servers operating over `stdio`.
+
+## Core Routing Directives
+
+* **Strict JSON-RPC 2.0 Enforcement:** All communication with local MCP servers must strictly adhere to the JSON-RPC 2.0 specification. Do not output conversational text when a tool call is required.
+* **State & Transport Persistence:** You are communicating via standard input/output streams (`stdio`). You must wait for the server to return a `result` or `error` object before assuming a task is complete. Do not prematurely close the transport loop.
+* **Payload Accuracy:** When invoking a tool on a local server, ensure your `arguments` payload matches the server's predefined JSON schema exactly. No missing keys, no hallucinated parameters.
+* **Graceful Failures:** If an MCP server returns an error via `stderr` or fails to respond within the timeout window, log the failure state immediately. Do not attempt to guess or hallucinate the tool's output.

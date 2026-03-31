@@ -61,6 +61,8 @@ Focus on the strongest product shape already present:
 - stronger import/export clarity
 - clearer runtime health reporting
 - better working-set management
+- groundwork for a canonical internal MCP server library with ingestion, dedupe, and provenance tracking
+- groundwork for benchmarking, ranking, and operator review loops across discovered MCP servers
 
 ### B. Memory quality
 - better provenance
@@ -73,11 +75,19 @@ Focus on the strongest product shape already present:
 - stronger attach/restart ergonomics
 - clearer crash/recovery visibility
 - clearer isolation behavior
+- converge primary CLI harness support around first-class Borg identities, starting with `hypercode`
 
 ### D. Provider routing polish
 - clearer fallback history
 - stronger quota truthfulness
 - more actionable auth-state and routing config
+
+### E. Architecture convergence
+- converge the repo toward the recommended HyperCode binary family without splitting everything at once
+- turn current packages into clearer extraction seams for `hypercoded`, `hypermcpd`, `hypermemd`, `hyperingest`, and `hyperharnessd`
+- keep CLIs and GUIs as clients of daemon-owned state
+- keep shared contracts and config stable before promoting them into cross-process APIs
+- treat the current Go workspace as the main proving ground for daemon boundaries and bridge-first replacement work
 
 ## Later
 
@@ -85,11 +95,16 @@ Focus on the strongest product shape already present:
 - safer public tool ingestion and sandboxing
 - richer operator automation with guardrails
 - deeper benchmark and latency reporting
+- graduate selected daemon boundaries into real standalone binaries once uptime, isolation, or deployment needs justify them
 
 ## Vision
 
 These remain exploratory until the control plane is stronger:
 - advanced council or debate systems
+- a definitive internal library of MCP servers aggregated from public lists and kept refreshed inside Borg
+- benchmarking and comparative ranking across competing MCP server implementations
+- eventual model reach to any relevant MCP tool through one operator-controlled control plane
+- an operator-owned substrate spanning any model, any provider, any session, and any relevant tool
 - multi-node federation or mesh-style coordination
 - marketplace or community distribution systems
 - performance-critical Rust components

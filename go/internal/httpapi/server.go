@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -140,6 +141,13 @@ type CLISummary struct {
 	PrimaryHarness              string                 `json:"primaryHarness,omitempty"`
 	AvailableTools              []controlplane.Tool    `json:"availableTools"`
 	InstalledHarnesses          []harnesses.Definition `json:"installedHarnesses"`
+}
+
+type SkillSummary struct {
+	ID     string `json:"id"`
+	Name   string `json:"name"`
+	Folder string `json:"folder"`
+	Path   string `json:"path,omitempty"`
 }
 
 type ImportedInstructionsSummary struct {
@@ -580,6 +588,7 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("/api/commands/execute", s.handleCommandsExecute)
 	s.mux.HandleFunc("/api/commands", s.handleCommandsList)
 	s.mux.HandleFunc("/api/skills", s.handleSkillsList)
+	s.mux.HandleFunc("/api/skills/summary", s.handleSkillsSummary)
 	s.mux.HandleFunc("/api/skills/read", s.handleSkillsRead)
 	s.mux.HandleFunc("/api/skills/create", s.handleSkillsCreate)
 	s.mux.HandleFunc("/api/skills/save", s.handleSkillsSave)
@@ -1021,6 +1030,7 @@ func (s *Server) handleAPIIndex(w http.ResponseWriter, _ *http.Request) {
 				{Path: "/api/commands/execute", Category: "agents", Description: "Execute a TypeScript command-registry entry."},
 				{Path: "/api/commands", Category: "agents", Description: "Bridge to the TypeScript command registry list."},
 				{Path: "/api/skills", Category: "agents", Description: "Bridge to the TypeScript skill registry list."},
+				{Path: "/api/skills/summary", Category: "agents", Description: "List skills with progressive-disclosure metadata only (id, name, folder, path)."},
 				{Path: "/api/skills/read", Category: "agents", Description: "Read a skill through the TypeScript skill registry."},
 				{Path: "/api/skills/create", Category: "agents", Description: "Create a skill through the TypeScript skill registry."},
 				{Path: "/api/skills/save", Category: "agents", Description: "Save skill content through the TypeScript skill registry."},
@@ -2416,6 +2426,55 @@ func (s *Server) handleCommandsList(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleSkillsList(w http.ResponseWriter, r *http.Request) {
 	s.handleTRPCBridgeCall(w, r, http.MethodGet, "skills.list", nil)
+}
+
+func (s *Server) handleSkillsSummary(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeJSON(w, http.StatusMethodNotAllowed, map[string]any{"success": false, "error": "method not allowed"})
+		return
+	}
+
+	var rawSkills []struct {
+		ID   string `json:"id"`
+		Name string `json:"name"`
+		Path string `json:"path"`
+	}
+	upstreamBase, err := s.callUpstreamJSON(r.Context(), "skills.list", nil, &rawSkills)
+	if err != nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"success": false, "error": err.Error()})
+		return
+	}
+
+	query := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("query")))
+	summaries := make([]SkillSummary, 0, len(rawSkills))
+	for _, skill := range rawSkills {
+		folder := strings.TrimSpace(filepath.Base(filepath.Dir(skill.Path)))
+		if folder == "." || folder == string(filepath.Separator) {
+			folder = ""
+		}
+		summary := SkillSummary{
+			ID:     skill.ID,
+			Name:   skill.Name,
+			Folder: folder,
+			Path:   skill.Path,
+		}
+		if query != "" {
+			haystack := strings.ToLower(strings.Join([]string{summary.ID, summary.Name, summary.Folder, summary.Path}, " "))
+			if !strings.Contains(haystack, query) {
+				continue
+			}
+		}
+		summaries = append(summaries, summary)
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"data":    summaries,
+		"bridge": map[string]any{
+			"upstreamBase": upstreamBase,
+			"procedure":    "skills.list",
+		},
+	})
 }
 
 func (s *Server) handleSkillsRead(w http.ResponseWriter, r *http.Request) {

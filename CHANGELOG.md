@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Go Skills Summary Route**: The experimental Go workspace now exposes `/api/skills/summary`, a progressive-disclosure skill catalog that trims the bridged TypeScript skill registry down to compact `id`, `name`, `folder`, and `path` metadata with optional query filtering instead of eagerly exposing full description/content payloads.
 - **Go MCP Auto-Call Bridge**: The experimental Go workspace now exposes `/api/mcp/tools/auto-call`, a dedicated bridge that wraps the TypeScript `auto_call_tool` meta-tool so sidecar and operator surfaces can request one-shot semantic tool discovery and execution without manually constructing the inner `mcp.callTool` payload.
 - **Go Session Scanner Unit Coverage**: Added direct `go/internal/sessionimport/scanner_test.go` coverage for `sessionimport.Scanner` root reporting, candidate discovery, overlapping-root deduplication, and directory-skip behavior so automatic import discovery is validated below the HTTP layer instead of only through sidecar route tests.
 - **Council Rotation Rooms**: Added a new `council.rotation` control-plane surface for shared-context multi-model rooms, including plan-mode agreement tracking, discussion transcripts, rotating role assignments, and execution-mode implementer round-robin handoff.

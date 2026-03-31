@@ -4766,7 +4766,7 @@ func TestAgentBridgeRoutes(t *testing.T) {
 		case "/trpc/commands.list":
 			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": []any{map[string]any{"name": "status", "description": "Show status"}}}}})
 		case "/trpc/skills.list":
-			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": []any{map[string]any{"id": "skill-1", "name": "debug", "description": "Debug help", "content": "Use rg", "path": "skills/debug.md"}}}}})
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": []any{map[string]any{"id": "skill-1", "name": "debug", "description": "Debug help", "content": "Use rg", "path": "skills/debug/SKILL.md"}}}}})
 		case "/trpc/skills.read":
 			body, _ := io.ReadAll(r.Body)
 			if !strings.Contains(string(body), `"name":"debug"`) {
@@ -4804,6 +4804,7 @@ func TestAgentBridgeRoutes(t *testing.T) {
 		{name: "commands execute", method: http.MethodPost, path: "/api/commands/execute", body: `{"input":"/status"}`, contains: `"handled":true`, procedure: `"procedure":"commands.execute"`},
 		{name: "commands list", method: http.MethodGet, path: "/api/commands", contains: `"name":"status"`, procedure: `"procedure":"commands.list"`},
 		{name: "skills list", method: http.MethodGet, path: "/api/skills", contains: `"skill-1"`, procedure: `"procedure":"skills.list"`},
+		{name: "skills summary", method: http.MethodGet, path: "/api/skills/summary?query=deb", contains: `"folder":"debug"`, procedure: `"procedure":"skills.list"`},
 		{name: "skills read", method: http.MethodGet, path: "/api/skills/read?name=debug", contains: `"Skill content"`, procedure: `"procedure":"skills.read"`},
 		{name: "skills create", method: http.MethodPost, path: "/api/skills/create", body: `{"id":"skill-2","name":"trace","description":"Trace help"}`, contains: `"Created"`, procedure: `"procedure":"skills.create"`},
 		{name: "skills save", method: http.MethodPost, path: "/api/skills/save", body: `{"id":"skill-2","content":"Updated content"}`, contains: `"Saved"`, procedure: `"procedure":"skills.save"`},

@@ -359,6 +359,16 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("/api/council/quota/unthrottle", s.handleCouncilQuotaUnthrottle)
 	s.mux.HandleFunc("/api/council/quota/record-request", s.handleCouncilQuotaRecordRequest)
 	s.mux.HandleFunc("/api/council/quota/rate-limit-error", s.handleCouncilQuotaRecordRateLimitError)
+	s.mux.HandleFunc("/api/council/history/status", s.handleCouncilHistoryStatus)
+	s.mux.HandleFunc("/api/council/history/config", s.handleCouncilHistoryConfig)
+	s.mux.HandleFunc("/api/council/history/toggle", s.handleCouncilHistoryToggle)
+	s.mux.HandleFunc("/api/council/history/stats", s.handleCouncilHistoryStats)
+	s.mux.HandleFunc("/api/council/history/list", s.handleCouncilHistoryList)
+	s.mux.HandleFunc("/api/council/history/get", s.handleCouncilHistoryGet)
+	s.mux.HandleFunc("/api/council/history/delete", s.handleCouncilHistoryDelete)
+	s.mux.HandleFunc("/api/council/history/supervisor", s.handleCouncilHistorySupervisor)
+	s.mux.HandleFunc("/api/council/history/clear", s.handleCouncilHistoryClear)
+	s.mux.HandleFunc("/api/council/history/initialize", s.handleCouncilHistoryInitialize)
 	s.mux.HandleFunc("/api/council/visual/system-diagram", s.handleCouncilVisualSystemDiagram)
 	s.mux.HandleFunc("/api/council/visual/plan-diagram", s.handleCouncilVisualPlanDiagram)
 	s.mux.HandleFunc("/api/council/visual/parse-plan", s.handleCouncilVisualParsePlan)
@@ -854,6 +864,16 @@ func (s *Server) handleAPIIndex(w http.ResponseWriter, _ *http.Request) {
 				{Path: "/api/council/quota/unthrottle", Category: "governance", Description: "Unthrottle a council quota provider through the TypeScript council router."},
 				{Path: "/api/council/quota/record-request", Category: "governance", Description: "Record a council quota request through the TypeScript council router."},
 				{Path: "/api/council/quota/rate-limit-error", Category: "governance", Description: "Record a council quota rate-limit error through the TypeScript council router."},
+				{Path: "/api/council/history/status", Category: "governance", Description: "Read council debate-history status through the TypeScript history router."},
+				{Path: "/api/council/history/config", Category: "governance", Description: "Read or update council debate-history config through the TypeScript history router."},
+				{Path: "/api/council/history/toggle", Category: "governance", Description: "Toggle council debate-history through the TypeScript history router."},
+				{Path: "/api/council/history/stats", Category: "governance", Description: "Read council debate-history stats through the TypeScript history router."},
+				{Path: "/api/council/history/list", Category: "governance", Description: "List council debate-history records through the TypeScript history router."},
+				{Path: "/api/council/history/get", Category: "governance", Description: "Read a council debate-history record through the TypeScript history router."},
+				{Path: "/api/council/history/delete", Category: "governance", Description: "Delete a council debate-history record through the TypeScript history router."},
+				{Path: "/api/council/history/supervisor", Category: "governance", Description: "Read council supervisor vote history through the TypeScript history router."},
+				{Path: "/api/council/history/clear", Category: "governance", Description: "Clear council debate-history through the TypeScript history router."},
+				{Path: "/api/council/history/initialize", Category: "governance", Description: "Initialize council debate-history through the TypeScript history router."},
 				{Path: "/api/council/visual/system-diagram", Category: "governance", Description: "Read the council system diagram through the TypeScript visual router."},
 				{Path: "/api/council/visual/plan-diagram", Category: "governance", Description: "Render a council plan diagram through the TypeScript visual router."},
 				{Path: "/api/council/visual/parse-plan", Category: "governance", Description: "Parse a council Mermaid plan through the TypeScript visual router."},

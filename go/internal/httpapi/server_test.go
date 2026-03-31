@@ -1071,6 +1071,109 @@ func TestCloudDevBridgeRoutes(t *testing.T) {
 	}
 }
 
+func TestCouncilHistoryBridgeRoutes(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("content-type", "application/json")
+		switch r.URL.Path {
+		case "/trpc/council.history.status":
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"enabled": true, "recordCount": 4}}}})
+		case "/trpc/council.history.getConfig":
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"enabled": true, "retentionDays": 30}}}})
+		case "/trpc/council.history.updateConfig":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"retentionDays":14`) {
+				t.Fatalf("expected council.history.updateConfig payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"enabled": true, "retentionDays": 14}}}})
+		case "/trpc/council.history.toggle":
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"enabled": false}}}})
+		case "/trpc/council.history.stats":
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"averageConsensus": 0.9}}}})
+		case "/trpc/council.history.list":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"sessionId":"sess-1"`) || !strings.Contains(string(body), `"approved":true`) || !strings.Contains(string(body), `"minConsensus":0.5`) {
+				t.Fatalf("expected council.history.list payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{
+				"records": []any{map[string]any{"id": "deb-1"}},
+				"meta":    map[string]any{"count": 1, "totalRecords": 4},
+			}}}})
+		case "/trpc/council.history.get":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"id":"deb-1"`) {
+				t.Fatalf("expected council.history.get payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"id": "deb-1", "approved": true}}}})
+		case "/trpc/council.history.delete":
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"deleted": true, "id": "deb-1"}}}})
+		case "/trpc/council.history.supervisorHistory":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"name":"planner"`) {
+				t.Fatalf("expected council.history.supervisorHistory payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": []any{map[string]any{"decision": "approve"}}}}})
+		case "/trpc/council.history.clear":
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"cleared": 4}}}})
+		case "/trpc/council.history.initialize":
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"initialized": true, "recordCount": 4}}}})
+		default:
+			t.Fatalf("unexpected upstream path %s", r.URL.Path)
+		}
+	}))
+	defer upstream.Close()
+
+	t.Setenv("BORG_TRPC_UPSTREAM", upstream.URL+"/trpc")
+
+	cfg := config.Default()
+	cfg.MainConfigDir = t.TempDir()
+	server := New(cfg, stubDetector{})
+
+	cases := []struct {
+		name      string
+		method    string
+		path      string
+		body      string
+		contains  string
+		procedure string
+	}{
+		{name: "council history status", method: http.MethodGet, path: "/api/council/history/status", contains: `"recordCount":4`, procedure: `"procedure":"council.history.status"`},
+		{name: "council history get config", method: http.MethodGet, path: "/api/council/history/config", contains: `"retentionDays":30`, procedure: `"procedure":"council.history.getConfig"`},
+		{name: "council history update config", method: http.MethodPost, path: "/api/council/history/config", body: `{"retentionDays":14}`, contains: `"retentionDays":14`, procedure: `"procedure":"council.history.updateConfig"`},
+		{name: "council history toggle", method: http.MethodPost, path: "/api/council/history/toggle", body: `{"enabled":false}`, contains: `"enabled":false`, procedure: `"procedure":"council.history.toggle"`},
+		{name: "council history stats", method: http.MethodGet, path: "/api/council/history/stats", contains: `"averageConsensus":0.9`, procedure: `"procedure":"council.history.stats"`},
+		{name: "council history list", method: http.MethodGet, path: "/api/council/history/list?sessionId=sess-1&approved=true&minConsensus=0.5&limit=10&offset=0&sortBy=timestamp&sortOrder=desc", contains: `"deb-1"`, procedure: `"procedure":"council.history.list"`},
+		{name: "council history get", method: http.MethodGet, path: "/api/council/history/get?id=deb-1", contains: `"approved":true`, procedure: `"procedure":"council.history.get"`},
+		{name: "council history delete", method: http.MethodPost, path: "/api/council/history/delete", body: `{"id":"deb-1"}`, contains: `"deleted":true`, procedure: `"procedure":"council.history.delete"`},
+		{name: "council history supervisor", method: http.MethodGet, path: "/api/council/history/supervisor?name=planner", contains: `"approve"`, procedure: `"procedure":"council.history.supervisorHistory"`},
+		{name: "council history clear", method: http.MethodPost, path: "/api/council/history/clear", contains: `"cleared":4`, procedure: `"procedure":"council.history.clear"`},
+		{name: "council history initialize", method: http.MethodPost, path: "/api/council/history/initialize", contains: `"initialized":true`, procedure: `"procedure":"council.history.initialize"`},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var body io.Reader
+			if tc.body != "" {
+				body = strings.NewReader(tc.body)
+			}
+			request := httptest.NewRequest(tc.method, tc.path, body)
+			if tc.body != "" {
+				request.Header.Set("content-type", "application/json")
+			}
+			recorder := httptest.NewRecorder()
+			server.Handler().ServeHTTP(recorder, request)
+			if recorder.Code != http.StatusOK {
+				t.Fatalf("expected status 200, got %d with body %s", recorder.Code, recorder.Body.String())
+			}
+			if !strings.Contains(recorder.Body.String(), tc.contains) {
+				t.Fatalf("expected response to contain %s, got %s", tc.contains, recorder.Body.String())
+			}
+			if !strings.Contains(recorder.Body.String(), tc.procedure) {
+				t.Fatalf("expected bridge metadata %s, got %s", tc.procedure, recorder.Body.String())
+			}
+		})
+	}
+}
+
 func TestConfigStatusEndpoint(t *testing.T) {
 	workspaceRoot := t.TempDir()
 	cfg := config.Default()

@@ -1174,6 +1174,90 @@ func TestCouncilHistoryBridgeRoutes(t *testing.T) {
 	}
 }
 
+func TestCouncilBaseBridgeRoutes(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("content-type", "application/json")
+		switch r.URL.Path {
+		case "/trpc/council.status":
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"enabled": true, "supervisorCount": 2}}}})
+		case "/trpc/council.updateConfig":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"debateRounds":3`) {
+				t.Fatalf("expected council.updateConfig payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"debateRounds": 3}}}})
+		case "/trpc/council.addSupervisors":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"name":"planner"`) {
+				t.Fatalf("expected council.addSupervisors payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"added": []any{"planner"}, "failed": []any{}}}}})
+		case "/trpc/council.clearSupervisors":
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"success": true}}}})
+		case "/trpc/council.debate":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"description":"Ship feature"`) {
+				t.Fatalf("expected council.debate payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"decision": "approve"}}}})
+		case "/trpc/council.toggle":
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"enabled": false}}}})
+		case "/trpc/council.addMock":
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"added": "MockSupervisor-1"}}}})
+		default:
+			t.Fatalf("unexpected upstream path %s", r.URL.Path)
+		}
+	}))
+	defer upstream.Close()
+
+	t.Setenv("BORG_TRPC_UPSTREAM", upstream.URL+"/trpc")
+
+	cfg := config.Default()
+	cfg.MainConfigDir = t.TempDir()
+	server := New(cfg, stubDetector{})
+
+	cases := []struct {
+		name      string
+		method    string
+		path      string
+		body      string
+		contains  string
+		procedure string
+	}{
+		{name: "council base status", method: http.MethodGet, path: "/api/council/status", contains: `"supervisorCount":2`, procedure: `"procedure":"council.status"`},
+		{name: "council base update config", method: http.MethodPost, path: "/api/council/config/update", body: `{"debateRounds":3}`, contains: `"debateRounds":3`, procedure: `"procedure":"council.updateConfig"`},
+		{name: "council base add supervisors", method: http.MethodPost, path: "/api/council/supervisors/add", body: `{"supervisors":[{"name":"planner","provider":"openai"}]}`, contains: `"planner"`, procedure: `"procedure":"council.addSupervisors"`},
+		{name: "council base clear supervisors", method: http.MethodPost, path: "/api/council/supervisors/clear", contains: `"success":true`, procedure: `"procedure":"council.clearSupervisors"`},
+		{name: "council base debate", method: http.MethodPost, path: "/api/council/debate", body: `{"id":"task-1","description":"Ship feature","context":"ctx","files":["README.md"]}`, contains: `"approve"`, procedure: `"procedure":"council.debate"`},
+		{name: "council base toggle", method: http.MethodPost, path: "/api/council/toggle", contains: `"enabled":false`, procedure: `"procedure":"council.toggle"`},
+		{name: "council base add mock", method: http.MethodPost, path: "/api/council/mock/add", contains: `"MockSupervisor-1"`, procedure: `"procedure":"council.addMock"`},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var body io.Reader
+			if tc.body != "" {
+				body = strings.NewReader(tc.body)
+			}
+			request := httptest.NewRequest(tc.method, tc.path, body)
+			if tc.body != "" {
+				request.Header.Set("content-type", "application/json")
+			}
+			recorder := httptest.NewRecorder()
+			server.Handler().ServeHTTP(recorder, request)
+			if recorder.Code != http.StatusOK {
+				t.Fatalf("expected status 200, got %d with body %s", recorder.Code, recorder.Body.String())
+			}
+			if !strings.Contains(recorder.Body.String(), tc.contains) {
+				t.Fatalf("expected response to contain %s, got %s", tc.contains, recorder.Body.String())
+			}
+			if !strings.Contains(recorder.Body.String(), tc.procedure) {
+				t.Fatalf("expected bridge metadata %s, got %s", tc.procedure, recorder.Body.String())
+			}
+		})
+	}
+}
+
 func TestConfigStatusEndpoint(t *testing.T) {
 	workspaceRoot := t.TempDir()
 	cfg := config.Default()

@@ -339,6 +339,13 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("/api/director/auto-drive/start", s.handleDirectorStartAutoDrive)
 	s.mux.HandleFunc("/api/council/members", s.handleCouncilMembers)
 	s.mux.HandleFunc("/api/council/members/update", s.handleCouncilUpdateMembers)
+	s.mux.HandleFunc("/api/council/status", s.handleCouncilBaseStatus)
+	s.mux.HandleFunc("/api/council/config/update", s.handleCouncilBaseUpdateConfig)
+	s.mux.HandleFunc("/api/council/supervisors/add", s.handleCouncilBaseAddSupervisors)
+	s.mux.HandleFunc("/api/council/supervisors/clear", s.handleCouncilBaseClearSupervisors)
+	s.mux.HandleFunc("/api/council/debate", s.handleCouncilBaseDebate)
+	s.mux.HandleFunc("/api/council/toggle", s.handleCouncilBaseToggle)
+	s.mux.HandleFunc("/api/council/mock/add", s.handleCouncilBaseAddMock)
 	s.mux.HandleFunc("/api/council/sessions", s.handleCouncilSessionsList)
 	s.mux.HandleFunc("/api/council/sessions/active", s.handleCouncilSessionsActive)
 	s.mux.HandleFunc("/api/council/sessions/stats", s.handleCouncilSessionsStats)
@@ -844,6 +851,13 @@ func (s *Server) handleAPIIndex(w http.ResponseWriter, _ *http.Request) {
 				{Path: "/api/director/auto-drive/start", Category: "governance", Description: "Start auto-drive through the TypeScript director router."},
 				{Path: "/api/council/members", Category: "governance", Description: "Read council members through the TypeScript council router."},
 				{Path: "/api/council/members/update", Category: "governance", Description: "Update council members through the TypeScript council router."},
+				{Path: "/api/council/status", Category: "governance", Description: "Read council base status through the TypeScript council router."},
+				{Path: "/api/council/config/update", Category: "governance", Description: "Update council base config through the TypeScript council router."},
+				{Path: "/api/council/supervisors/add", Category: "governance", Description: "Add council supervisors through the TypeScript council router."},
+				{Path: "/api/council/supervisors/clear", Category: "governance", Description: "Clear council supervisors through the TypeScript council router."},
+				{Path: "/api/council/debate", Category: "governance", Description: "Run a council debate through the TypeScript council router."},
+				{Path: "/api/council/toggle", Category: "governance", Description: "Toggle the council through the TypeScript council router."},
+				{Path: "/api/council/mock/add", Category: "governance", Description: "Add a mock council supervisor through the TypeScript council router."},
 				{Path: "/api/council/sessions", Category: "governance", Description: "List council sessions through the TypeScript council router."},
 				{Path: "/api/council/sessions/active", Category: "governance", Description: "List active council sessions through the TypeScript council router."},
 				{Path: "/api/council/sessions/stats", Category: "governance", Description: "Read council session stats through the TypeScript council router."},

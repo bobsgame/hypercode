@@ -4179,6 +4179,59 @@ var SearchTools = struct{
 	}
 }
 
+func TestMCPRegistrySnapshotFallsBackToMasterIndex(t *testing.T) {
+	workspaceRoot := t.TempDir()
+	indexContent := `{
+  // comment
+  "categories": {
+    "mcpServers": [
+      {
+        "id": "mcp-1",
+        "name": "Core MCP",
+        "url": "https://example.com/mcp",
+        "description": "Core MCP server",
+        "tags": ["mcp", "tools"]
+      }
+    ],
+    "other": [
+      {
+        "id": "other-1",
+        "name": "Not MCP",
+        "url": "https://example.com/other",
+        "description": "Ignore me"
+      }
+    ]
+  }
+}`
+	if err := os.WriteFile(filepath.Join(workspaceRoot, "BORG_MASTER_INDEX.jsonc"), []byte(indexContent), 0o644); err != nil {
+		t.Fatalf("failed to write master index fixture: %v", err)
+	}
+
+	t.Setenv("BORG_TRPC_UPSTREAM", "http://127.0.0.1:1/trpc")
+
+	cfg := config.Default()
+	cfg.WorkspaceRoot = workspaceRoot
+	cfg.MainConfigDir = t.TempDir()
+	server := New(cfg, stubDetector{})
+
+	request := httptest.NewRequest(http.MethodGet, "/api/mcp/servers/registry-snapshot", nil)
+	recorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected fallback status 200, got %d with body %s", recorder.Code, recorder.Body.String())
+	}
+	if !strings.Contains(recorder.Body.String(), `"fallback":"go-master-index"`) {
+		t.Fatalf("expected go-master-index fallback metadata, got %s", recorder.Body.String())
+	}
+	if !strings.Contains(recorder.Body.String(), `"name":"Core MCP"`) {
+		t.Fatalf("expected MCP-like registry entry, got %s", recorder.Body.String())
+	}
+	if strings.Contains(recorder.Body.String(), `"name":"Not MCP"`) {
+		t.Fatalf("expected non-MCP entry to be filtered, got %s", recorder.Body.String())
+	}
+}
+
 func TestImportedSessionBridgeRoutes(t *testing.T) {
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("content-type", "application/json")

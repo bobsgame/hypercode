@@ -1866,7 +1866,47 @@ func (s *Server) handleMCPConfiguredServerClearMetadataCache(w http.ResponseWrit
 }
 
 func (s *Server) handleMCPRegistrySnapshot(w http.ResponseWriter, r *http.Request) {
-	s.handleTRPCBridgeCall(w, r, http.MethodGet, "mcpServers.registrySnapshot", nil)
+	if r.Method != http.MethodGet {
+		writeJSON(w, http.StatusMethodNotAllowed, map[string]any{
+			"success": false,
+			"error":   "method not allowed",
+		})
+		return
+	}
+
+	var snapshot []map[string]any
+	upstreamBase, err := s.callUpstreamJSON(r.Context(), "mcpServers.registrySnapshot", nil, &snapshot)
+	if err == nil {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"data":    snapshot,
+			"bridge": map[string]any{
+				"upstreamBase": upstreamBase,
+				"procedure":    "mcpServers.registrySnapshot",
+			},
+		})
+		return
+	}
+
+	fallbackSnapshot, fallbackErr := s.localMCPRegistrySnapshot()
+	if fallbackErr != nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{
+			"success": false,
+			"error":   err.Error(),
+			"detail":  fallbackErr.Error(),
+		})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"data":    fallbackSnapshot,
+		"bridge": map[string]any{
+			"fallback":  "go-master-index",
+			"procedure": "mcpServers.registrySnapshot",
+			"reason":    err.Error(),
+		},
+	})
 }
 
 func (s *Server) handleMCPSyncTargets(w http.ResponseWriter, r *http.Request) {
@@ -4425,6 +4465,134 @@ func fallbackSearchMCPTools(definitions []harnesses.Definition, query string) []
 		})
 	}
 	return results
+}
+
+func (s *Server) localMCPRegistrySnapshot() ([]map[string]any, error) {
+	indexPath := filepath.Join(s.cfg.WorkspaceRoot, "BORG_MASTER_INDEX.jsonc")
+	content, err := os.ReadFile(indexPath)
+	if err != nil {
+		return nil, err
+	}
+
+	sanitized := stripJSONCLineComments(string(content))
+	var parsed struct {
+		Categories map[string][]map[string]any `json:"categories"`
+	}
+	if err := json.Unmarshal([]byte(sanitized), &parsed); err != nil {
+		return nil, err
+	}
+
+	results := make([]map[string]any, 0)
+	seenByURL := make(map[string]struct{})
+	for category, items := range parsed.Categories {
+		for _, item := range items {
+			url, _ := item["url"].(string)
+			if strings.TrimSpace(url) == "" {
+				continue
+			}
+			if _, seen := seenByURL[url]; seen {
+				continue
+			}
+			if !isMCPLikeRegistryEntry(category, item) {
+				continue
+			}
+			seenByURL[url] = struct{}{}
+
+			name, _ := item["name"].(string)
+			if strings.TrimSpace(name) == "" {
+				name, _ = item["id"].(string)
+			}
+			if strings.TrimSpace(name) == "" {
+				name = url
+			}
+			description, _ := item["description"].(string)
+			if strings.TrimSpace(description) == "" {
+				description, _ = item["summary"].(string)
+			}
+			if strings.TrimSpace(description) == "" {
+				description = "No description available."
+			}
+
+			tags := make([]string, 0)
+			if rawTags, ok := item["tags"].([]any); ok {
+				for _, rawTag := range rawTags {
+					tag, _ := rawTag.(string)
+					if strings.TrimSpace(tag) == "" {
+						continue
+					}
+					tags = append(tags, strings.ToLower(tag))
+				}
+			}
+			id, _ := item["id"].(string)
+			if strings.TrimSpace(id) == "" {
+				id = url
+			}
+			results = append(results, map[string]any{
+				"id":          id,
+				"name":        name,
+				"url":         url,
+				"category":    category,
+				"description": description,
+				"tags":        tags,
+			})
+		}
+	}
+
+	sort.Slice(results, func(i, j int) bool {
+		leftName, _ := results[i]["name"].(string)
+		rightName, _ := results[j]["name"].(string)
+		return leftName < rightName
+	})
+	if len(results) > 300 {
+		results = results[:300]
+	}
+	return results, nil
+}
+
+func isMCPLikeRegistryEntry(category string, item map[string]any) bool {
+	url, _ := item["url"].(string)
+	kind, _ := item["kind"].(string)
+	if strings.Contains(strings.ToLower(category), "mcp") || strings.Contains(strings.ToLower(kind), "mcp") || strings.Contains(strings.ToLower(url), "modelcontextprotocol") || strings.Contains(strings.ToLower(url), "mcp") {
+		return true
+	}
+	if rawTags, ok := item["tags"].([]any); ok {
+		for _, rawTag := range rawTags {
+			tag, _ := rawTag.(string)
+			if strings.Contains(strings.ToLower(tag), "mcp") {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func stripJSONCLineComments(content string) string {
+	lines := strings.Split(content, "\n")
+	for index, line := range lines {
+		inString := false
+		escaped := false
+		for i := 0; i < len(line)-1; i++ {
+			ch := line[i]
+			if escaped {
+				escaped = false
+				continue
+			}
+			if ch == '\\' {
+				escaped = true
+				continue
+			}
+			if ch == '"' {
+				inString = !inString
+				continue
+			}
+			if !inString && ch == '/' && line[i+1] == '/' {
+				line = line[:i]
+				break
+			}
+		}
+		lines[index] = line
+	}
+	return strings.Join(lines, "\n")
 }
 
 func (s *Server) handleRuntimeLocks(w http.ResponseWriter, _ *http.Request) {

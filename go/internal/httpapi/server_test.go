@@ -641,6 +641,26 @@ func TestMemoryContextsFallsBackToLocalRegistry(t *testing.T) {
 	}
 }
 
+func TestMemoryAgentStatsFallsBackToZeroState(t *testing.T) {
+	t.Setenv("BORG_TRPC_UPSTREAM", "http://127.0.0.1:1/trpc")
+	cfg := config.Default()
+	cfg.WorkspaceRoot = t.TempDir()
+	cfg.ConfigDir = t.TempDir()
+	cfg.MainConfigDir = t.TempDir()
+	server := New(cfg, stubDetector{})
+
+	recorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/api/memory/agent-stats", nil))
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", recorder.Code)
+	}
+	body := recorder.Body.String()
+	if !strings.Contains(body, `"fallback":"go-local-memory"`) || !strings.Contains(body, `"totalCount":0`) || !strings.Contains(body, `"sessionSummaryCount":0`) {
+		t.Fatalf("expected local zero-state agent stats fallback, got %s", body)
+	}
+}
+
 func TestAutonomyBridgeRoutes(t *testing.T) {
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("content-type", "application/json")

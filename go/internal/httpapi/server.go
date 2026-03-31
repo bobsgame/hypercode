@@ -2814,7 +2814,49 @@ func (s *Server) handleMemoryContextDelete(w http.ResponseWriter, r *http.Reques
 }
 
 func (s *Server) handleMemoryAgentStats(w http.ResponseWriter, r *http.Request) {
-	s.handleTRPCBridgeCall(w, r, http.MethodGet, "memory.getAgentStats", nil)
+	var result any
+	upstreamBase, err := s.callUpstreamJSON(r.Context(), "memory.getAgentStats", nil, &result)
+	if err == nil {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"data":    result,
+			"bridge": map[string]any{
+				"upstreamBase": upstreamBase,
+				"procedure":    "memory.getAgentStats",
+			},
+		})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"data": map[string]any{
+			"totalCount":             0,
+			"sessionCount":           0,
+			"workingCount":           0,
+			"longTermCount":          0,
+			"observationCount":       0,
+			"uniqueObservationCount": 0,
+			"promptCount":            0,
+			"sessionSummaryCount":    0,
+			"session":                0,
+			"working":                0,
+			"long_term":              0,
+			"user":                   0,
+			"agent":                  0,
+			"project":                0,
+			"discovery":              0,
+			"decision":               0,
+			"progress":               0,
+			"warning":                0,
+			"fix":                    0,
+		},
+		"bridge": map[string]any{
+			"fallback":  "go-local-memory",
+			"procedure": "memory.getAgentStats",
+			"reason":    err.Error(),
+		},
+	})
 }
 
 func (s *Server) handleMemoryAgentSearch(w http.ResponseWriter, r *http.Request) {

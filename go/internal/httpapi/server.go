@@ -1929,19 +1929,74 @@ func (s *Server) handleMCPConfiguredServerGet(w http.ResponseWriter, r *http.Req
 }
 
 func (s *Server) handleMCPConfiguredServerCreate(w http.ResponseWriter, r *http.Request) {
-	s.handleTRPCBridgeBodyCall(w, r, "mcpServers.create")
+	s.handleConfiguredServerMutation(w, r, "mcpServers.create", func(payload map[string]any) (any, error) {
+		return s.localCreateConfiguredServer(payload)
+	})
 }
 
 func (s *Server) handleMCPConfiguredServerUpdate(w http.ResponseWriter, r *http.Request) {
-	s.handleTRPCBridgeBodyCall(w, r, "mcpServers.update")
+	s.handleConfiguredServerMutation(w, r, "mcpServers.update", func(payload map[string]any) (any, error) {
+		return s.localUpdateConfiguredServer(payload)
+	})
 }
 
 func (s *Server) handleMCPConfiguredServerDelete(w http.ResponseWriter, r *http.Request) {
-	s.handleTRPCBridgeBodyCall(w, r, "mcpServers.delete")
+	s.handleConfiguredServerMutation(w, r, "mcpServers.delete", func(payload map[string]any) (any, error) {
+		return s.localDeleteConfiguredServer(payload)
+	})
 }
 
 func (s *Server) handleMCPConfiguredServerBulkImport(w http.ResponseWriter, r *http.Request) {
-	s.handleTRPCBridgeBodyCall(w, r, "mcpServers.bulkImport")
+	if r.Method != http.MethodPost {
+		writeJSON(w, http.StatusMethodNotAllowed, map[string]any{
+			"success": false,
+			"error":   "method not allowed",
+		})
+		return
+	}
+
+	var payload []map[string]any
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{
+			"success": false,
+			"error":   "invalid JSON body",
+		})
+		return
+	}
+
+	var result any
+	upstreamBase, err := s.callUpstreamJSON(r.Context(), "mcpServers.bulkImport", payload, &result)
+	if err == nil {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"data":    result,
+			"bridge": map[string]any{
+				"upstreamBase": upstreamBase,
+				"procedure":    "mcpServers.bulkImport",
+			},
+		})
+		return
+	}
+
+	fallbackResult, fallbackErr := s.localBulkImportConfiguredServers(payload)
+	if fallbackErr != nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{
+			"success": false,
+			"error":   err.Error(),
+			"detail":  fallbackErr.Error(),
+		})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"data":    fallbackResult,
+		"bridge": map[string]any{
+			"fallback":  "go-local-jsonc",
+			"procedure": "mcpServers.bulkImport",
+			"reason":    err.Error(),
+		},
+	})
 }
 
 func (s *Server) handleMCPConfiguredServerReloadMetadata(w http.ResponseWriter, r *http.Request) {
@@ -2091,7 +2146,27 @@ func (s *Server) handleMCPExportClientConfig(w http.ResponseWriter, r *http.Requ
 }
 
 func (s *Server) handleMCPSyncClientConfig(w http.ResponseWriter, r *http.Request) {
-	s.handleTRPCBridgeBodyCall(w, r, "mcpServers.syncClientConfig")
+	s.handleConfiguredServerMutation(w, r, "mcpServers.syncClientConfig", func(payload map[string]any) (any, error) {
+		client, _ := payload["client"].(string)
+		overridePath, _ := payload["path"].(string)
+		preview, err := s.localMCPExportClientConfig(client, overridePath)
+		if err != nil {
+			return nil, err
+		}
+		targetPath, _ := preview["targetPath"].(string)
+		jsonText, _ := preview["json"].(string)
+		if strings.TrimSpace(targetPath) == "" {
+			return nil, errors.New("missing client target path")
+		}
+		if err := os.MkdirAll(filepath.Dir(targetPath), 0o755); err != nil {
+			return nil, err
+		}
+		if err := os.WriteFile(targetPath, []byte(jsonText), 0o644); err != nil {
+			return nil, err
+		}
+		preview["written"] = true
+		return preview, nil
+	})
 }
 
 func (s *Server) handleMCPTools(w http.ResponseWriter, r *http.Request) {
@@ -4428,6 +4503,59 @@ func (s *Server) handleMemoryStatus(w http.ResponseWriter, _ *http.Request) {
 	})
 }
 
+func (s *Server) handleConfiguredServerMutation(w http.ResponseWriter, r *http.Request, procedure string, fallback func(map[string]any) (any, error)) {
+	if r.Method != http.MethodPost {
+		writeJSON(w, http.StatusMethodNotAllowed, map[string]any{
+			"success": false,
+			"error":   "method not allowed",
+		})
+		return
+	}
+
+	var payload map[string]any
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{
+			"success": false,
+			"error":   "invalid JSON body",
+		})
+		return
+	}
+
+	var result any
+	upstreamBase, err := s.callUpstreamJSON(r.Context(), procedure, payload, &result)
+	if err == nil {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"data":    result,
+			"bridge": map[string]any{
+				"upstreamBase": upstreamBase,
+				"procedure":    procedure,
+			},
+		})
+		return
+	}
+
+	fallbackResult, fallbackErr := fallback(payload)
+	if fallbackErr != nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{
+			"success": false,
+			"error":   err.Error(),
+			"detail":  fallbackErr.Error(),
+		})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"data":    fallbackResult,
+		"bridge": map[string]any{
+			"fallback":  "go-local-jsonc",
+			"procedure": procedure,
+			"reason":    err.Error(),
+		},
+	})
+}
+
 func (s *Server) handleRuntimeStatus(w http.ResponseWriter, r *http.Request) {
 	candidates, err := s.scanImportSources()
 	if err != nil {
@@ -5004,6 +5132,205 @@ func (s *Server) localConfiguredMCPServers() ([]map[string]any, error) {
 		return leftName < rightName
 	})
 	return results, nil
+}
+
+func (s *Server) localCreateConfiguredServer(payload map[string]any) (any, error) {
+	name, _ := payload["name"].(string)
+	if strings.TrimSpace(name) == "" {
+		return nil, errors.New("missing server name")
+	}
+	config, err := s.readLocalMCPConfigObject()
+	if err != nil {
+		return nil, err
+	}
+	servers, _ := config["mcpServers"].(map[string]any)
+	if servers == nil {
+		servers = map[string]any{}
+	}
+	servers[name] = configuredServerEntryFromPayload(payload)
+	config["mcpServers"] = servers
+	if err := s.writeLocalMCPConfigObject(config); err != nil {
+		return nil, err
+	}
+	return s.localConfiguredServerByName(name)
+}
+
+func (s *Server) localUpdateConfiguredServer(payload map[string]any) (any, error) {
+	uuid, _ := payload["uuid"].(string)
+	config, err := s.readLocalMCPConfigObject()
+	if err != nil {
+		return nil, err
+	}
+	servers, _ := config["mcpServers"].(map[string]any)
+	if servers == nil {
+		return nil, errors.New("no configured servers")
+	}
+	targetName := strings.TrimSpace(nameForSyntheticUUID(servers, uuid))
+	if targetName == "" {
+		return nil, errors.New("configured server not found")
+	}
+
+	current, _ := servers[targetName].(map[string]any)
+	if current == nil {
+		current = map[string]any{}
+	}
+	nextName := targetName
+	if updatedName, ok := payload["name"].(string); ok && strings.TrimSpace(updatedName) != "" {
+		nextName = updatedName
+	}
+	updated := mergeConfiguredServerEntry(current, payload)
+	delete(servers, targetName)
+	servers[nextName] = updated
+	config["mcpServers"] = servers
+	if err := s.writeLocalMCPConfigObject(config); err != nil {
+		return nil, err
+	}
+	return s.localConfiguredServerByName(nextName)
+}
+
+func (s *Server) localDeleteConfiguredServer(payload map[string]any) (any, error) {
+	uuid, _ := payload["uuid"].(string)
+	config, err := s.readLocalMCPConfigObject()
+	if err != nil {
+		return nil, err
+	}
+	servers, _ := config["mcpServers"].(map[string]any)
+	if servers == nil {
+		return map[string]any{"ok": true}, nil
+	}
+	targetName := strings.TrimSpace(nameForSyntheticUUID(servers, uuid))
+	if targetName == "" {
+		return map[string]any{"ok": true}, nil
+	}
+	delete(servers, targetName)
+	config["mcpServers"] = servers
+	if err := s.writeLocalMCPConfigObject(config); err != nil {
+		return nil, err
+	}
+	return map[string]any{"ok": true}, nil
+}
+
+func (s *Server) localBulkImportConfiguredServers(payload []map[string]any) (any, error) {
+	config, err := s.readLocalMCPConfigObject()
+	if err != nil {
+		return nil, err
+	}
+	servers, _ := config["mcpServers"].(map[string]any)
+	if servers == nil {
+		servers = map[string]any{}
+	}
+
+	if len(payload) == 0 {
+		return []map[string]any{}, nil
+	}
+
+	importedNames := make([]string, 0, len(payload))
+	for _, item := range payload {
+		name, _ := item["name"].(string)
+		if strings.TrimSpace(name) == "" {
+			continue
+		}
+		servers[name] = configuredServerEntryFromPayload(item)
+		importedNames = append(importedNames, name)
+	}
+	config["mcpServers"] = servers
+	if err := s.writeLocalMCPConfigObject(config); err != nil {
+		return nil, err
+	}
+
+	results := make([]map[string]any, 0, len(importedNames))
+	for _, name := range importedNames {
+		server, err := s.localConfiguredServerByName(name)
+		if err != nil {
+			return nil, err
+		}
+		results = append(results, server)
+	}
+	return results, nil
+}
+
+func (s *Server) localConfiguredServerByName(name string) (map[string]any, error) {
+	servers, err := s.localConfiguredMCPServers()
+	if err != nil {
+		return nil, err
+	}
+	for _, server := range servers {
+		serverName, _ := server["name"].(string)
+		if serverName == name {
+			return server, nil
+		}
+	}
+	return nil, errors.New("configured server not found")
+}
+
+func (s *Server) readLocalMCPConfigObject() (map[string]any, error) {
+	editor, err := s.localMCPJsoncEditor()
+	if err != nil {
+		return nil, err
+	}
+	content, _ := editor["content"].(string)
+	var parsed map[string]any
+	if err := json.Unmarshal([]byte(stripJSONCLineComments(content)), &parsed); err != nil {
+		return nil, err
+	}
+	if _, ok := parsed["mcpServers"]; !ok {
+		parsed["mcpServers"] = map[string]any{}
+	}
+	return parsed, nil
+}
+
+func (s *Server) writeLocalMCPConfigObject(config map[string]any) error {
+	return s.saveLocalMCPJsonc(prettyJSON(config))
+}
+
+func configuredServerEntryFromPayload(payload map[string]any) map[string]any {
+	entry := map[string]any{}
+	for _, key := range []string{"description", "command", "url", "bearerToken", "source_published_server_uuid", "type"} {
+		if value, ok := payload[key]; ok && value != nil {
+			entry[key] = value
+		}
+	}
+	if args := stringSlice(payload["args"]); len(args) > 0 {
+		entry["args"] = args
+	}
+	if env := stringMap(payload["env"]); len(env) > 0 {
+		envMap := make(map[string]any, len(env))
+		for key, value := range env {
+			envMap[key] = value
+		}
+		entry["env"] = envMap
+	}
+	if headers := stringMap(payload["headers"]); len(headers) > 0 {
+		headerMap := make(map[string]any, len(headers))
+		for key, value := range headers {
+			headerMap[key] = value
+		}
+		entry["headers"] = headerMap
+	}
+	if alwaysOn, ok := payload["always_on"].(bool); ok {
+		entry["always_on"] = alwaysOn
+	}
+	return entry
+}
+
+func mergeConfiguredServerEntry(current map[string]any, patch map[string]any) map[string]any {
+	next := make(map[string]any, len(current))
+	for key, value := range current {
+		next[key] = value
+	}
+	for key, value := range configuredServerEntryFromPayload(patch) {
+		next[key] = value
+	}
+	return next
+}
+
+func nameForSyntheticUUID(servers map[string]any, uuid string) string {
+	for name := range servers {
+		if syntheticServerUUID(name) == uuid {
+			return name
+		}
+	}
+	return ""
 }
 
 func (s *Server) localMCPSyncTargets() ([]map[string]any, error) {

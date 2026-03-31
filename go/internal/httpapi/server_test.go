@@ -845,6 +845,38 @@ func TestMCPServerTestFallsBackToStructuredProbeFailures(t *testing.T) {
 	}
 }
 
+func TestMCPLifecycleModesFallBackToLocalState(t *testing.T) {
+	workspaceRoot := t.TempDir()
+	toolsDir := filepath.Join(workspaceRoot, "submodules", "hypercode", "tools")
+	if err := os.MkdirAll(toolsDir, 0o755); err != nil {
+		t.Fatalf("failed to create hypercode tools dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(toolsDir, "registry.go"), []byte("package tools\n"), 0o644); err != nil {
+		t.Fatalf("failed to seed tool dir: %v", err)
+	}
+
+	t.Setenv("BORG_TRPC_UPSTREAM", "http://127.0.0.1:1/trpc")
+	cfg := config.Default()
+	cfg.WorkspaceRoot = workspaceRoot
+	cfg.ConfigDir = t.TempDir()
+	cfg.MainConfigDir = t.TempDir()
+	server := New(cfg, stubDetector{})
+
+	setReq := httptest.NewRequest(http.MethodPost, "/api/mcp/lifecycle-modes", strings.NewReader(`{"lazySessionMode":true,"singleActiveServerMode":false}`))
+	setReq.Header.Set("content-type", "application/json")
+	setRecorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(setRecorder, setReq)
+	if setRecorder.Code != http.StatusOK || !strings.Contains(setRecorder.Body.String(), `"lazySessionMode":true`) {
+		t.Fatalf("expected lifecycle response to set lazySessionMode, got %d %s", setRecorder.Code, setRecorder.Body.String())
+	}
+
+	statusRecorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(statusRecorder, httptest.NewRequest(http.MethodGet, "/api/mcp/status", nil))
+	if statusRecorder.Code != http.StatusOK || !strings.Contains(statusRecorder.Body.String(), `"lazySessionMode":true`) {
+		t.Fatalf("expected fallback mcp status to include lifecycle state, got %d %s", statusRecorder.Code, statusRecorder.Body.String())
+	}
+}
+
 func TestAutonomyBridgeRoutes(t *testing.T) {
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("content-type", "application/json")

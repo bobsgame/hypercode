@@ -27,11 +27,12 @@ import (
 )
 
 type Server struct {
-	cfg       config.Config
-	detector  controlplane.ToolProvider
-	mesh      *mesh.Service
-	startedAt time.Time
-	mux       *http.ServeMux
+	cfg            config.Config
+	detector       controlplane.ToolProvider
+	mesh           *mesh.Service
+	startedAt      time.Time
+	mux            *http.ServeMux
+	lifecycleModes map[string]any
 }
 
 type Session struct {
@@ -235,6 +236,10 @@ func New(cfg config.Config, detector controlplane.ToolProvider) *Server {
 		mesh:      mesh.New(cfg),
 		startedAt: time.Now().UTC(),
 		mux:       http.NewServeMux(),
+		lifecycleModes: map[string]any{
+			"lazySessionMode":        false,
+			"singleActiveServerMode": false,
+		},
 	}
 
 	server.registerRoutes()
@@ -1773,6 +1778,11 @@ func (s *Server) handleMCPStatus(w http.ResponseWriter, r *http.Request) {
 			"availableToolCount":       len(tools),
 			"harnessCount":             summary.HarnessCount,
 			"sourceBackedHarnessCount": summary.SourceBackedHarnessCount,
+			"lifecycle": map[string]any{
+				"lazySessionMode":        s.lifecycleModes["lazySessionMode"],
+				"singleActiveServerMode": s.lifecycleModes["singleActiveServerMode"],
+				"events":                 []map[string]any{},
+			},
 		},
 		"bridge": map[string]any{
 			"fallback":  "go-local-mcp",
@@ -2798,7 +2808,47 @@ func (s *Server) handleMCPServerTest(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleMCPSetLifecycleModes(w http.ResponseWriter, r *http.Request) {
-	s.handleTRPCBridgeBodyCall(w, r, "mcp.setLifecycleModes")
+	var payload map[string]any
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"success": false, "error": "invalid JSON body"})
+		return
+	}
+
+	if value, ok := payload["lazySessionMode"].(bool); ok {
+		s.lifecycleModes["lazySessionMode"] = value
+	}
+	if value, ok := payload["singleActiveServerMode"].(bool); ok {
+		s.lifecycleModes["singleActiveServerMode"] = value
+	}
+
+	var result any
+	upstreamBase, err := s.callUpstreamJSON(r.Context(), "mcp.setLifecycleModes", payload, &result)
+	if err == nil {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"data":    result,
+			"bridge": map[string]any{
+				"upstreamBase": upstreamBase,
+				"procedure":    "mcp.setLifecycleModes",
+			},
+		})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"data": map[string]any{
+			"ok": true,
+			"lifecycle": map[string]any{
+				"lazySessionMode":        s.lifecycleModes["lazySessionMode"],
+				"singleActiveServerMode": s.lifecycleModes["singleActiveServerMode"],
+			},
+		},
+		"bridge": map[string]any{
+			"fallback":  "go-local-mcp",
+			"procedure": "mcp.setLifecycleModes",
+			"reason":    err.Error(),
+		},
+	})
 }
 
 func (s *Server) handleMCPAddServer(w http.ResponseWriter, r *http.Request) {

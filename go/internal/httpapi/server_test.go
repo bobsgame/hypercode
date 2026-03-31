@@ -661,6 +661,46 @@ func TestMemoryAgentStatsFallsBackToZeroState(t *testing.T) {
 	}
 }
 
+func TestMCPEmptyStateRoutesFallBackLocally(t *testing.T) {
+	t.Setenv("BORG_TRPC_UPSTREAM", "http://127.0.0.1:1/trpc")
+	cfg := config.Default()
+	cfg.WorkspaceRoot = t.TempDir()
+	cfg.ConfigDir = t.TempDir()
+	cfg.MainConfigDir = t.TempDir()
+	server := New(cfg, stubDetector{})
+
+	cases := []struct {
+		path        string
+		method      string
+		containsAny []string
+	}{
+		{path: "/api/mcp/traffic", method: http.MethodGet, containsAny: []string{`"fallback":"go-local-mcp"`, `"data":[]`}},
+		{path: "/api/mcp/tool-selection-telemetry", method: http.MethodGet, containsAny: []string{`"fallback":"go-local-mcp"`, `"data":[]`}},
+		{path: "/api/mcp/tool-selection-telemetry/clear", method: http.MethodPost, containsAny: []string{`"ok":true`}},
+		{path: "/api/mcp/working-set", method: http.MethodGet, containsAny: []string{`"maxLoadedTools":0`, `"tools":[]`}},
+		{path: "/api/mcp/working-set/evictions", method: http.MethodGet, containsAny: []string{`"fallback":"go-local-mcp"`, `"data":[]`}},
+		{path: "/api/mcp/working-set/evictions/clear", method: http.MethodPost, containsAny: []string{`already empty`, `Cleared 0 eviction history entries.`}},
+	}
+
+	for _, tc := range cases {
+		recorder := httptest.NewRecorder()
+		server.Handler().ServeHTTP(recorder, httptest.NewRequest(tc.method, tc.path, nil))
+		if recorder.Code != http.StatusOK {
+			t.Fatalf("%s %s: expected 200, got %d", tc.method, tc.path, recorder.Code)
+		}
+		matched := false
+		for _, expected := range tc.containsAny {
+			if strings.Contains(recorder.Body.String(), expected) {
+				matched = true
+				break
+			}
+		}
+		if !matched {
+			t.Fatalf("%s %s: expected response to contain one of %v, got %s", tc.method, tc.path, tc.containsAny, recorder.Body.String())
+		}
+	}
+}
+
 func TestAutonomyBridgeRoutes(t *testing.T) {
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("content-type", "application/json")

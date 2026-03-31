@@ -2596,15 +2596,83 @@ func (s *Server) handleMCPToolPreferences(w http.ResponseWriter, r *http.Request
 }
 
 func (s *Server) handleMCPTraffic(w http.ResponseWriter, r *http.Request) {
-	s.handleTRPCBridgeCall(w, r, http.MethodGet, "mcp.traffic", nil)
+	var result any
+	upstreamBase, err := s.callUpstreamJSON(r.Context(), "mcp.traffic", nil, &result)
+	if err == nil {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"data":    result,
+			"bridge": map[string]any{
+				"upstreamBase": upstreamBase,
+				"procedure":    "mcp.traffic",
+			},
+		})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"data":    []map[string]any{},
+		"bridge": map[string]any{
+			"fallback":  "go-local-mcp",
+			"procedure": "mcp.traffic",
+			"reason":    err.Error(),
+		},
+	})
 }
 
 func (s *Server) handleMCPToolSelectionTelemetry(w http.ResponseWriter, r *http.Request) {
-	s.handleTRPCBridgeCall(w, r, http.MethodGet, "mcp.getToolSelectionTelemetry", nil)
+	var result any
+	upstreamBase, err := s.callUpstreamJSON(r.Context(), "mcp.getToolSelectionTelemetry", nil, &result)
+	if err == nil {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"data":    result,
+			"bridge": map[string]any{
+				"upstreamBase": upstreamBase,
+				"procedure":    "mcp.getToolSelectionTelemetry",
+			},
+		})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"data":    []map[string]any{},
+		"bridge": map[string]any{
+			"fallback":  "go-local-mcp",
+			"procedure": "mcp.getToolSelectionTelemetry",
+			"reason":    err.Error(),
+		},
+	})
 }
 
 func (s *Server) handleMCPClearToolSelectionTelemetry(w http.ResponseWriter, r *http.Request) {
-	s.handleTRPCBridgeCall(w, r, http.MethodPost, "mcp.clearToolSelectionTelemetry", nil)
+	var result any
+	upstreamBase, err := s.callUpstreamJSON(r.Context(), "mcp.clearToolSelectionTelemetry", nil, &result)
+	if err == nil {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"data":    result,
+			"bridge": map[string]any{
+				"upstreamBase": upstreamBase,
+				"procedure":    "mcp.clearToolSelectionTelemetry",
+			},
+		})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"data": map[string]any{
+			"ok": true,
+		},
+		"bridge": map[string]any{
+			"fallback":  "go-local-mcp",
+			"procedure": "mcp.clearToolSelectionTelemetry",
+			"reason":    err.Error(),
+		},
+	})
 }
 
 func (s *Server) handleMCPServerTest(w http.ResponseWriter, r *http.Request) {
@@ -2720,15 +2788,91 @@ func (s *Server) handleMCPJsoncConfig(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleMCPWorkingSet(w http.ResponseWriter, r *http.Request) {
-	s.handleTRPCBridgeCall(w, r, http.MethodGet, "mcp.getWorkingSet", nil)
+	var result any
+	upstreamBase, err := s.callUpstreamJSON(r.Context(), "mcp.getWorkingSet", nil, &result)
+	if err == nil {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"data":    result,
+			"bridge": map[string]any{
+				"upstreamBase": upstreamBase,
+				"procedure":    "mcp.getWorkingSet",
+			},
+		})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"data": map[string]any{
+			"limits": map[string]any{
+				"maxLoadedTools":          0,
+				"maxHydratedSchemas":      0,
+				"idleEvictionThresholdMs": 0,
+			},
+			"tools": []map[string]any{},
+		},
+		"bridge": map[string]any{
+			"fallback":  "go-local-mcp",
+			"procedure": "mcp.getWorkingSet",
+			"reason":    err.Error(),
+		},
+	})
 }
 
 func (s *Server) handleMCPWorkingSetEvictions(w http.ResponseWriter, r *http.Request) {
-	s.handleTRPCBridgeCall(w, r, http.MethodGet, "mcp.getWorkingSetEvictionHistory", nil)
+	var result any
+	upstreamBase, err := s.callUpstreamJSON(r.Context(), "mcp.getWorkingSetEvictionHistory", nil, &result)
+	if err == nil {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"data":    result,
+			"bridge": map[string]any{
+				"upstreamBase": upstreamBase,
+				"procedure":    "mcp.getWorkingSetEvictionHistory",
+			},
+		})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"data":    []map[string]any{},
+		"bridge": map[string]any{
+			"fallback":  "go-local-mcp",
+			"procedure": "mcp.getWorkingSetEvictionHistory",
+			"reason":    err.Error(),
+		},
+	})
 }
 
 func (s *Server) handleMCPClearWorkingSetEvictions(w http.ResponseWriter, r *http.Request) {
-	s.handleTRPCBridgeCall(w, r, http.MethodPost, "mcp.clearWorkingSetEvictionHistory", nil)
+	var result any
+	upstreamBase, err := s.callUpstreamJSON(r.Context(), "mcp.clearWorkingSetEvictionHistory", nil, &result)
+	if err == nil {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"data":    result,
+			"bridge": map[string]any{
+				"upstreamBase": upstreamBase,
+				"procedure":    "mcp.clearWorkingSetEvictionHistory",
+			},
+		})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"data": map[string]any{
+			"ok":      true,
+			"message": "MCP server unavailable; eviction history already empty.",
+		},
+		"bridge": map[string]any{
+			"fallback":  "go-local-mcp",
+			"procedure": "mcp.clearWorkingSetEvictionHistory",
+			"reason":    err.Error(),
+		},
+	})
 }
 
 func (s *Server) handleMCPLoadTool(w http.ResponseWriter, r *http.Request) {

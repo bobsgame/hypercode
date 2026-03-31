@@ -10,15 +10,15 @@ import (
 	"strings"
 	"time"
 
-	"github.com/borghq/borg-go/internal/buildinfo"
-	"github.com/borghq/borg-go/internal/config"
-	"github.com/borghq/borg-go/internal/controlplane"
-	"github.com/borghq/borg-go/internal/harnesses"
-	"github.com/borghq/borg-go/internal/interop"
-	"github.com/borghq/borg-go/internal/memorystore"
-	"github.com/borghq/borg-go/internal/mesh"
-	"github.com/borghq/borg-go/internal/providers"
-	"github.com/borghq/borg-go/internal/sessionimport"
+	"github.com/borghq/hypercode-go/internal/buildinfo"
+	"github.com/borghq/hypercode-go/internal/config"
+	"github.com/borghq/hypercode-go/internal/controlplane"
+	"github.com/borghq/hypercode-go/internal/harnesses"
+	"github.com/borghq/hypercode-go/internal/interop"
+	"github.com/borghq/hypercode-go/internal/memorystore"
+	"github.com/borghq/hypercode-go/internal/mesh"
+	"github.com/borghq/hypercode-go/internal/providers"
+	"github.com/borghq/hypercode-go/internal/sessionimport"
 )
 
 type Server struct {
@@ -236,6 +236,30 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("/api/index", s.handleAPIIndex)
 	s.mux.HandleFunc("/api/health/server", s.handleHealth)
 	s.mux.HandleFunc("/api/config/status", s.handleConfigStatus)
+	s.mux.HandleFunc("/api/config/list", s.handleConfigList)
+	s.mux.HandleFunc("/api/config/get", s.handleConfigGet)
+	s.mux.HandleFunc("/api/config/upsert", s.handleConfigUpsert)
+	s.mux.HandleFunc("/api/config/delete", s.handleConfigDelete)
+	s.mux.HandleFunc("/api/config/update", s.handleConfigUpdate)
+	s.mux.HandleFunc("/api/config/mcp-timeout", s.handleConfigGetMCPTimeout)
+	s.mux.HandleFunc("/api/config/mcp-timeout/set", s.handleConfigSetMCPTimeout)
+	s.mux.HandleFunc("/api/config/mcp-max-attempts", s.handleConfigGetMCPMaxAttempts)
+	s.mux.HandleFunc("/api/config/mcp-max-attempts/set", s.handleConfigSetMCPMaxAttempts)
+	s.mux.HandleFunc("/api/config/mcp-max-total-timeout", s.handleConfigGetMCPMaxTotalTimeout)
+	s.mux.HandleFunc("/api/config/mcp-max-total-timeout/set", s.handleConfigSetMCPMaxTotalTimeout)
+	s.mux.HandleFunc("/api/config/mcp-reset-timeout-on-progress", s.handleConfigGetMCPResetTimeoutOnProgress)
+	s.mux.HandleFunc("/api/config/mcp-reset-timeout-on-progress/set", s.handleConfigSetMCPResetTimeoutOnProgress)
+	s.mux.HandleFunc("/api/config/session-lifetime", s.handleConfigGetSessionLifetime)
+	s.mux.HandleFunc("/api/config/session-lifetime/set", s.handleConfigSetSessionLifetime)
+	s.mux.HandleFunc("/api/config/signup-disabled", s.handleConfigGetSignupDisabled)
+	s.mux.HandleFunc("/api/config/signup-disabled/set", s.handleConfigSetSignupDisabled)
+	s.mux.HandleFunc("/api/config/sso-signup-disabled", s.handleConfigGetSSOSignupDisabled)
+	s.mux.HandleFunc("/api/config/sso-signup-disabled/set", s.handleConfigSetSSOSignupDisabled)
+	s.mux.HandleFunc("/api/config/basic-auth-disabled", s.handleConfigGetBasicAuthDisabled)
+	s.mux.HandleFunc("/api/config/basic-auth-disabled/set", s.handleConfigSetBasicAuthDisabled)
+	s.mux.HandleFunc("/api/config/auth-providers", s.handleConfigGetAuthProviders)
+	s.mux.HandleFunc("/api/config/always-visible-tools", s.handleConfigGetAlwaysVisibleTools)
+	s.mux.HandleFunc("/api/config/always-visible-tools/set", s.handleConfigSetAlwaysVisibleTools)
 	s.mux.HandleFunc("/api/providers/status", s.handleProviderStatus)
 	s.mux.HandleFunc("/api/providers/catalog", s.handleProviderCatalog)
 	s.mux.HandleFunc("/api/providers/summary", s.handleProviderSummary)
@@ -250,10 +274,30 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("/api/sessions/supervisor/start", s.handleSupervisorSessionStart)
 	s.mux.HandleFunc("/api/sessions/supervisor/stop", s.handleSupervisorSessionStop)
 	s.mux.HandleFunc("/api/sessions/supervisor/restart", s.handleSupervisorSessionRestart)
+	s.mux.HandleFunc("/api/sessions/supervisor/logs", s.handleSupervisorSessionLogs)
+	s.mux.HandleFunc("/api/sessions/supervisor/execute-shell", s.handleSupervisorSessionExecuteShell)
+	s.mux.HandleFunc("/api/sessions/supervisor/attach-info", s.handleSupervisorSessionAttachInfo)
+	s.mux.HandleFunc("/api/sessions/supervisor/health", s.handleSupervisorSessionHealth)
+	s.mux.HandleFunc("/api/sessions/supervisor/state", s.handleSupervisorSessionState)
+	s.mux.HandleFunc("/api/sessions/supervisor/update-state", s.handleSupervisorSessionUpdateState)
+	s.mux.HandleFunc("/api/sessions/supervisor/clear", s.handleSupervisorSessionClear)
+	s.mux.HandleFunc("/api/sessions/supervisor/heartbeat", s.handleSupervisorSessionHeartbeat)
+	s.mux.HandleFunc("/api/sessions/supervisor/restore", s.handleSupervisorSessionRestore)
 	s.mux.HandleFunc("/api/sessions/imported/list", s.handleImportedSessionList)
 	s.mux.HandleFunc("/api/sessions/imported/get", s.handleImportedSessionGet)
 	s.mux.HandleFunc("/api/sessions/imported/scan", s.handleImportedSessionScan)
 	s.mux.HandleFunc("/api/sessions/imported/instruction-docs", s.handleImportedSessionInstructionDocs)
+	s.mux.HandleFunc("/api/billing/status", s.handleBillingStatus)
+	s.mux.HandleFunc("/api/billing/provider-quotas", s.handleBillingProviderQuotas)
+	s.mux.HandleFunc("/api/billing/cost-history", s.handleBillingCostHistory)
+	s.mux.HandleFunc("/api/billing/model-pricing", s.handleBillingModelPricing)
+	s.mux.HandleFunc("/api/billing/fallback-chain", s.handleBillingFallbackChain)
+	s.mux.HandleFunc("/api/billing/task-routing-rules", s.handleBillingTaskRoutingRules)
+	s.mux.HandleFunc("/api/billing/routing-strategy", s.handleBillingSetRoutingStrategy)
+	s.mux.HandleFunc("/api/billing/task-routing-rule", s.handleBillingSetTaskRoutingRule)
+	s.mux.HandleFunc("/api/billing/depleted-models", s.handleBillingDepletedModels)
+	s.mux.HandleFunc("/api/billing/fallback-history", s.handleBillingFallbackHistory)
+	s.mux.HandleFunc("/api/billing/fallback-history/clear", s.handleBillingClearFallbackHistory)
 	s.mux.HandleFunc("/api/mcp/status", s.handleMCPStatus)
 	s.mux.HandleFunc("/api/mcp/servers/runtime", s.handleMCPRuntimeServers)
 	s.mux.HandleFunc("/api/mcp/servers/configured", s.handleMCPConfiguredServers)
@@ -271,6 +315,7 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("/api/mcp/tools", s.handleMCPTools)
 	s.mux.HandleFunc("/api/mcp/tools/search", s.handleMCPSearchTools)
 	s.mux.HandleFunc("/api/mcp/tools/call", s.handleMCPCallTool)
+	s.mux.HandleFunc("/api/mcp/tools/auto-call", s.handleMCPAutoCallTool)
 	s.mux.HandleFunc("/api/mcp/tool-ads", s.handleMCPToolAdvertisements)
 	s.mux.HandleFunc("/api/mcp/tools/schema", s.handleMCPToolSchema)
 	s.mux.HandleFunc("/api/mcp/preferences", s.handleMCPToolPreferences)
@@ -278,6 +323,9 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("/api/mcp/tool-selection-telemetry", s.handleMCPToolSelectionTelemetry)
 	s.mux.HandleFunc("/api/mcp/tool-selection-telemetry/clear", s.handleMCPClearToolSelectionTelemetry)
 	s.mux.HandleFunc("/api/mcp/server-test", s.handleMCPServerTest)
+	s.mux.HandleFunc("/api/mcp/lifecycle-modes", s.handleMCPSetLifecycleModes)
+	s.mux.HandleFunc("/api/mcp/runtime-servers/add", s.handleMCPAddServer)
+	s.mux.HandleFunc("/api/mcp/runtime-servers/remove", s.handleMCPRemoveServer)
 	s.mux.HandleFunc("/api/mcp/config/jsonc", s.handleMCPJsoncConfig)
 	s.mux.HandleFunc("/api/mcp/working-set", s.handleMCPWorkingSet)
 	s.mux.HandleFunc("/api/mcp/working-set/evictions", s.handleMCPWorkingSetEvictions)
@@ -286,14 +334,27 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("/api/mcp/working-set/unload", s.handleMCPUnloadTool)
 	s.mux.HandleFunc("/api/memory/search", s.handleMemorySearch)
 	s.mux.HandleFunc("/api/memory/contexts", s.handleMemoryContexts)
+	s.mux.HandleFunc("/api/memory/context/save", s.handleMemoryContextSave)
 	s.mux.HandleFunc("/api/memory/context/get", s.handleMemoryContextGet)
 	s.mux.HandleFunc("/api/memory/context/delete", s.handleMemoryContextDelete)
 	s.mux.HandleFunc("/api/memory/agent-stats", s.handleMemoryAgentStats)
 	s.mux.HandleFunc("/api/memory/agent-search", s.handleMemoryAgentSearch)
+	s.mux.HandleFunc("/api/memory/facts/add", s.handleMemoryAddFact)
+	s.mux.HandleFunc("/api/memory/observations/record", s.handleMemoryRecordObservation)
+	s.mux.HandleFunc("/api/memory/observations/recent", s.handleMemoryRecentObservations)
+	s.mux.HandleFunc("/api/memory/observations/search", s.handleMemorySearchObservations)
+	s.mux.HandleFunc("/api/memory/user-prompts/capture", s.handleMemoryCaptureUserPrompt)
+	s.mux.HandleFunc("/api/memory/user-prompts/recent", s.handleMemoryRecentUserPrompts)
+	s.mux.HandleFunc("/api/memory/user-prompts/search", s.handleMemorySearchUserPrompts)
+	s.mux.HandleFunc("/api/memory/pivot/search", s.handleMemorySearchPivot)
+	s.mux.HandleFunc("/api/memory/timeline/window", s.handleMemoryTimelineWindow)
+	s.mux.HandleFunc("/api/memory/cross-session-links", s.handleMemoryCrossSessionLinks)
 	s.mux.HandleFunc("/api/memory/session-bootstrap", s.handleMemorySessionBootstrap)
 	s.mux.HandleFunc("/api/memory/tool-context", s.handleMemoryToolContext)
+	s.mux.HandleFunc("/api/memory/session-summaries/capture", s.handleMemoryCaptureSessionSummary)
 	s.mux.HandleFunc("/api/memory/session-summaries/recent", s.handleMemoryRecentSessionSummaries)
 	s.mux.HandleFunc("/api/memory/session-summaries/search", s.handleMemorySearchSessionSummaries)
+	s.mux.HandleFunc("/api/memory/sectioned-status", s.handleMemorySectionedStatus)
 	s.mux.HandleFunc("/api/memory/interchange-formats", s.handleMemoryInterchangeFormats)
 	s.mux.HandleFunc("/api/memory/export", s.handleMemoryExport)
 	s.mux.HandleFunc("/api/memory/import", s.handleMemoryImport)
@@ -328,6 +389,25 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("/api/tests/stop", s.handleTestsStop)
 	s.mux.HandleFunc("/api/tests/run", s.handleTestsRun)
 	s.mux.HandleFunc("/api/tests/results", s.handleTestsResults)
+	s.mux.HandleFunc("/api/autodev/start-loop", s.handleAutoDevStartLoop)
+	s.mux.HandleFunc("/api/autodev/cancel-loop", s.handleAutoDevCancelLoop)
+	s.mux.HandleFunc("/api/autodev/loops", s.handleAutoDevGetLoops)
+	s.mux.HandleFunc("/api/autodev/loop", s.handleAutoDevGetLoop)
+	s.mux.HandleFunc("/api/autodev/clear-completed", s.handleAutoDevClearCompleted)
+	s.mux.HandleFunc("/api/darwin/evolve", s.handleDarwinEvolve)
+	s.mux.HandleFunc("/api/darwin/experiment", s.handleDarwinExperiment)
+	s.mux.HandleFunc("/api/darwin/status", s.handleDarwinStatus)
+	s.mux.HandleFunc("/api/squad", s.handleSquadList)
+	s.mux.HandleFunc("/api/squad/spawn", s.handleSquadSpawn)
+	s.mux.HandleFunc("/api/squad/kill", s.handleSquadKill)
+	s.mux.HandleFunc("/api/squad/chat", s.handleSquadChat)
+	s.mux.HandleFunc("/api/squad/indexer/toggle", s.handleSquadToggleIndexer)
+	s.mux.HandleFunc("/api/squad/indexer/status", s.handleSquadIndexerStatus)
+	s.mux.HandleFunc("/api/supervisor/decompose", s.handleSupervisorDecompose)
+	s.mux.HandleFunc("/api/supervisor/supervise", s.handleSupervisorSupervise)
+	s.mux.HandleFunc("/api/supervisor/status", s.handleSupervisorStatus)
+	s.mux.HandleFunc("/api/supervisor/tasks", s.handleSupervisorListTasks)
+	s.mux.HandleFunc("/api/supervisor/cancel", s.handleSupervisorCancel)
 	s.mux.HandleFunc("/api/autonomy/get-level", s.handleAutonomyGetLevel)
 	s.mux.HandleFunc("/api/autonomy/set-level", s.handleAutonomySetLevel)
 	s.mux.HandleFunc("/api/autonomy/activate-full", s.handleAutonomyActivateFull)
@@ -335,6 +415,9 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("/api/director/chat", s.handleDirectorChat)
 	s.mux.HandleFunc("/api/director/status", s.handleDirectorStatus)
 	s.mux.HandleFunc("/api/director/config/update", s.handleDirectorUpdateConfig)
+	s.mux.HandleFunc("/api/director-config", s.handleDirectorConfigGet)
+	s.mux.HandleFunc("/api/director-config/test", s.handleDirectorConfigTest)
+	s.mux.HandleFunc("/api/director-config/update", s.handleDirectorConfigUpdate)
 	s.mux.HandleFunc("/api/director/auto-drive/stop", s.handleDirectorStopAutoDrive)
 	s.mux.HandleFunc("/api/director/auto-drive/start", s.handleDirectorStartAutoDrive)
 	s.mux.HandleFunc("/api/council/members", s.handleCouncilMembers)
@@ -399,6 +482,33 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("/api/council/hooks/clear", s.handleCouncilHooksClear)
 	s.mux.HandleFunc("/api/council/ide/status", s.handleCouncilIDEStatus)
 	s.mux.HandleFunc("/api/council/ide/submit-task", s.handleCouncilIDESubmitTask)
+	s.mux.HandleFunc("/api/council/evolution/start", s.handleCouncilEvolutionStart)
+	s.mux.HandleFunc("/api/council/evolution/stop", s.handleCouncilEvolutionStop)
+	s.mux.HandleFunc("/api/council/evolution/optimize", s.handleCouncilEvolutionOptimize)
+	s.mux.HandleFunc("/api/council/evolution/evolve", s.handleCouncilEvolutionEvolve)
+	s.mux.HandleFunc("/api/council/evolution/test", s.handleCouncilEvolutionTest)
+	s.mux.HandleFunc("/api/council/fine-tune/datasets", s.handleCouncilFineTuneDatasets)
+	s.mux.HandleFunc("/api/council/fine-tune/datasets/get", s.handleCouncilFineTuneDatasetGet)
+	s.mux.HandleFunc("/api/council/fine-tune/jobs", s.handleCouncilFineTuneJobs)
+	s.mux.HandleFunc("/api/council/fine-tune/jobs/start", s.handleCouncilFineTuneJobStart)
+	s.mux.HandleFunc("/api/council/fine-tune/models", s.handleCouncilFineTuneModels)
+	s.mux.HandleFunc("/api/council/fine-tune/models/deploy", s.handleCouncilFineTuneModelDeploy)
+	s.mux.HandleFunc("/api/council/fine-tune/chat", s.handleCouncilFineTuneChat)
+	s.mux.HandleFunc("/api/council/fine-tune/stats", s.handleCouncilFineTuneStats)
+	s.mux.HandleFunc("/api/council/rotation", s.handleCouncilRotationList)
+	s.mux.HandleFunc("/api/council/rotation/get", s.handleCouncilRotationGet)
+	s.mux.HandleFunc("/api/council/rotation/create", s.handleCouncilRotationCreate)
+	s.mux.HandleFunc("/api/council/rotation/add-participant", s.handleCouncilRotationAddParticipant)
+	s.mux.HandleFunc("/api/council/rotation/post-message", s.handleCouncilRotationPostMessage)
+	s.mux.HandleFunc("/api/council/rotation/set-agreement", s.handleCouncilRotationSetAgreement)
+	s.mux.HandleFunc("/api/council/rotation/advance-turn", s.handleCouncilRotationAdvanceTurn)
+	s.mux.HandleFunc("/api/council/rotation/configure-supervisor", s.handleCouncilRotationConfigureSupervisor)
+	s.mux.HandleFunc("/api/council/rotation/run-supervisor-check", s.handleCouncilRotationRunSupervisorCheck)
+	s.mux.HandleFunc("/api/council/rotation/update-shared-context", s.handleCouncilRotationUpdateSharedContext)
+	s.mux.HandleFunc("/api/council/rotation/pause", s.handleCouncilRotationPause)
+	s.mux.HandleFunc("/api/council/rotation/resume", s.handleCouncilRotationResume)
+	s.mux.HandleFunc("/api/council/rotation/start-execution", s.handleCouncilRotationStartExecution)
+	s.mux.HandleFunc("/api/council/rotation/complete", s.handleCouncilRotationComplete)
 	s.mux.HandleFunc("/api/council/visual/system-diagram", s.handleCouncilVisualSystemDiagram)
 	s.mux.HandleFunc("/api/council/visual/plan-diagram", s.handleCouncilVisualPlanDiagram)
 	s.mux.HandleFunc("/api/council/visual/parse-plan", s.handleCouncilVisualParsePlan)
@@ -565,6 +675,14 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("/api/session-export/detect-format", s.handleSessionExportDetectFormat)
 	s.mux.HandleFunc("/api/session-export/formats", s.handleSessionExportKnownFormats)
 	s.mux.HandleFunc("/api/session-export/history", s.handleSessionExportHistory)
+	s.mux.HandleFunc("/api/browser/status", s.handleBrowserStatus)
+	s.mux.HandleFunc("/api/browser/close-page", s.handleBrowserClosePage)
+	s.mux.HandleFunc("/api/browser/close-all", s.handleBrowserCloseAll)
+	s.mux.HandleFunc("/api/browser/search-history", s.handleBrowserSearchHistory)
+	s.mux.HandleFunc("/api/browser/scrape", s.handleBrowserScrapePage)
+	s.mux.HandleFunc("/api/browser/screenshot", s.handleBrowserScreenshot)
+	s.mux.HandleFunc("/api/browser/debug", s.handleBrowserDebug)
+	s.mux.HandleFunc("/api/browser/proxy-fetch", s.handleBrowserProxyFetch)
 	s.mux.HandleFunc("/api/browser-extension/save-memory", s.handleBrowserExtensionSaveMemory)
 	s.mux.HandleFunc("/api/browser-extension/parse-dom", s.handleBrowserExtensionParseDOM)
 	s.mux.HandleFunc("/api/browser-extension/memories", s.handleBrowserExtensionListMemories)
@@ -621,6 +739,19 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("/api/browser-controls/logs/push", s.handleBrowserControlsPushLogs)
 	s.mux.HandleFunc("/api/browser-controls/logs/query", s.handleBrowserControlsQueryLogs)
 	s.mux.HandleFunc("/api/browser-controls/stats", s.handleBrowserControlsStats)
+	s.mux.HandleFunc("/api/swarm/start", s.handleSwarmStart)
+	s.mux.HandleFunc("/api/swarm/resume", s.handleSwarmResumeMission)
+	s.mux.HandleFunc("/api/swarm/approve-task", s.handleSwarmApproveTask)
+	s.mux.HandleFunc("/api/swarm/decompose-task", s.handleSwarmDecomposeTask)
+	s.mux.HandleFunc("/api/swarm/update-task-priority", s.handleSwarmUpdateTaskPriority)
+	s.mux.HandleFunc("/api/swarm/debate", s.handleSwarmExecuteDebate)
+	s.mux.HandleFunc("/api/swarm/consensus", s.handleSwarmSeekConsensus)
+	s.mux.HandleFunc("/api/swarm/missions", s.handleSwarmMissionHistory)
+	s.mux.HandleFunc("/api/swarm/risk/summary", s.handleSwarmMissionRiskSummary)
+	s.mux.HandleFunc("/api/swarm/risk/rows", s.handleSwarmMissionRiskRows)
+	s.mux.HandleFunc("/api/swarm/risk/facets", s.handleSwarmMissionRiskFacets)
+	s.mux.HandleFunc("/api/swarm/mesh-capabilities", s.handleSwarmMeshCapabilities)
+	s.mux.HandleFunc("/api/swarm/direct-message", s.handleSwarmSendDirectMessage)
 	s.mux.HandleFunc("/api/cli/tools", s.handleCLITools)
 	s.mux.HandleFunc("/api/cli/harnesses", s.handleHarnesses)
 	s.mux.HandleFunc("/api/cli/summary", s.handleCLISummary)
@@ -640,6 +771,7 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("/api/mesh/capabilities", s.handleMeshCapabilities)
 	s.mux.HandleFunc("/api/mesh/query-capabilities", s.handleMeshQueryCapabilities)
 	s.mux.HandleFunc("/api/mesh/find-peer", s.handleMeshFindPeer)
+	s.mux.HandleFunc("/api/mesh/broadcast", s.handleMeshBroadcast)
 }
 
 func (s *Server) handleHealth(w http.ResponseWriter, _ *http.Request) {
@@ -670,6 +802,30 @@ func (s *Server) handleAPIIndex(w http.ResponseWriter, _ *http.Request) {
 				{Path: "/api/index", Category: "meta", Description: "Self-describing index of the Go sidecar API surface."},
 				{Path: "/api/health/server", Category: "meta", Description: "Health check alias for API consumers."},
 				{Path: "/api/config/status", Category: "config", Description: "Path and config visibility snapshot for the sidecar and main workspace."},
+				{Path: "/api/config/list", Category: "config", Description: "List config key/value entries through the TypeScript config router."},
+				{Path: "/api/config/get", Category: "config", Description: "Read one config key through the TypeScript config router."},
+				{Path: "/api/config/upsert", Category: "config", Description: "Upsert a config key through the TypeScript config router."},
+				{Path: "/api/config/delete", Category: "config", Description: "Delete a config key through the TypeScript config router."},
+				{Path: "/api/config/update", Category: "config", Description: "Update a config key through the TypeScript config router."},
+				{Path: "/api/config/mcp-timeout", Category: "config", Description: "Read MCP timeout through the TypeScript config router."},
+				{Path: "/api/config/mcp-timeout/set", Category: "config", Description: "Update MCP timeout through the TypeScript config router."},
+				{Path: "/api/config/mcp-max-attempts", Category: "config", Description: "Read MCP max attempts through the TypeScript config router."},
+				{Path: "/api/config/mcp-max-attempts/set", Category: "config", Description: "Update MCP max attempts through the TypeScript config router."},
+				{Path: "/api/config/mcp-max-total-timeout", Category: "config", Description: "Read MCP max total timeout through the TypeScript config router."},
+				{Path: "/api/config/mcp-max-total-timeout/set", Category: "config", Description: "Update MCP max total timeout through the TypeScript config router."},
+				{Path: "/api/config/mcp-reset-timeout-on-progress", Category: "config", Description: "Read the MCP reset-on-progress flag through the TypeScript config router."},
+				{Path: "/api/config/mcp-reset-timeout-on-progress/set", Category: "config", Description: "Update the MCP reset-on-progress flag through the TypeScript config router."},
+				{Path: "/api/config/session-lifetime", Category: "config", Description: "Read session lifetime through the TypeScript config router."},
+				{Path: "/api/config/session-lifetime/set", Category: "config", Description: "Update session lifetime through the TypeScript config router."},
+				{Path: "/api/config/signup-disabled", Category: "config", Description: "Read signup-disabled state through the TypeScript config router."},
+				{Path: "/api/config/signup-disabled/set", Category: "config", Description: "Update signup-disabled state through the TypeScript config router."},
+				{Path: "/api/config/sso-signup-disabled", Category: "config", Description: "Read SSO-signup-disabled state through the TypeScript config router."},
+				{Path: "/api/config/sso-signup-disabled/set", Category: "config", Description: "Update SSO-signup-disabled state through the TypeScript config router."},
+				{Path: "/api/config/basic-auth-disabled", Category: "config", Description: "Read basic-auth-disabled state through the TypeScript config router."},
+				{Path: "/api/config/basic-auth-disabled/set", Category: "config", Description: "Update basic-auth-disabled state through the TypeScript config router."},
+				{Path: "/api/config/auth-providers", Category: "config", Description: "Read auth providers through the TypeScript config router."},
+				{Path: "/api/config/always-visible-tools", Category: "config", Description: "Read always-visible tools through the TypeScript config router."},
+				{Path: "/api/config/always-visible-tools/set", Category: "config", Description: "Update always-visible tools through the TypeScript config router."},
 				{Path: "/api/providers/status", Category: "providers", Description: "Provider credential presence and auth-method hints."},
 				{Path: "/api/providers/catalog", Category: "providers", Description: "Provider catalog metadata including default models and preferred tasks."},
 				{Path: "/api/providers/summary", Category: "providers", Description: "Compact provider counts and auth/preferred-task buckets."},
@@ -684,10 +840,30 @@ func (s *Server) handleAPIIndex(w http.ResponseWriter, _ *http.Request) {
 				{Path: "/api/sessions/supervisor/start", Category: "sessions", Description: "Start a supervised session through the TypeScript control plane."},
 				{Path: "/api/sessions/supervisor/stop", Category: "sessions", Description: "Stop a supervised session through the TypeScript control plane."},
 				{Path: "/api/sessions/supervisor/restart", Category: "sessions", Description: "Restart a supervised session through the TypeScript control plane."},
+				{Path: "/api/sessions/supervisor/logs", Category: "sessions", Description: "Bridge to buffered logs for a specific TypeScript supervised session."},
+				{Path: "/api/sessions/supervisor/execute-shell", Category: "sessions", Description: "Execute a contextual shell command in a TypeScript supervised session."},
+				{Path: "/api/sessions/supervisor/attach-info", Category: "sessions", Description: "Bridge to supervised-session readiness and process metadata."},
+				{Path: "/api/sessions/supervisor/health", Category: "sessions", Description: "Bridge to health details for a TypeScript supervised session."},
+				{Path: "/api/sessions/supervisor/state", Category: "sessions", Description: "Bridge to the shared TypeScript session-manager state."},
+				{Path: "/api/sessions/supervisor/update-state", Category: "sessions", Description: "Update the shared TypeScript session-manager state."},
+				{Path: "/api/sessions/supervisor/clear", Category: "sessions", Description: "Clear the shared TypeScript session-manager state."},
+				{Path: "/api/sessions/supervisor/heartbeat", Category: "sessions", Description: "Touch the shared TypeScript session-manager heartbeat."},
+				{Path: "/api/sessions/supervisor/restore", Category: "sessions", Description: "Restore supervised sessions through the TypeScript control plane."},
 				{Path: "/api/sessions/imported/list", Category: "sessions", Description: "Bridge to imported sessions already processed by the TypeScript control plane."},
 				{Path: "/api/sessions/imported/get", Category: "sessions", Description: "Bridge to a specific imported session record from the TypeScript control plane."},
 				{Path: "/api/sessions/imported/scan", Category: "sessions", Description: "Trigger TypeScript imported-session scanning, import, and memory extraction."},
 				{Path: "/api/sessions/imported/instruction-docs", Category: "sessions", Description: "Bridge to imported-session instruction documents generated by the TypeScript control plane."},
+				{Path: "/api/billing/status", Category: "providers", Description: "Read billing status through the TypeScript billing router."},
+				{Path: "/api/billing/provider-quotas", Category: "providers", Description: "Read provider quota state through the TypeScript billing router."},
+				{Path: "/api/billing/cost-history", Category: "providers", Description: "Read billing cost history through the TypeScript billing router."},
+				{Path: "/api/billing/model-pricing", Category: "providers", Description: "Read model pricing through the TypeScript billing router."},
+				{Path: "/api/billing/fallback-chain", Category: "providers", Description: "Read provider fallback chain through the TypeScript billing router."},
+				{Path: "/api/billing/task-routing-rules", Category: "providers", Description: "Read task routing rules through the TypeScript billing router."},
+				{Path: "/api/billing/routing-strategy", Category: "providers", Description: "Update global routing strategy through the TypeScript billing router."},
+				{Path: "/api/billing/task-routing-rule", Category: "providers", Description: "Update task-specific routing through the TypeScript billing router."},
+				{Path: "/api/billing/depleted-models", Category: "providers", Description: "Read depleted model state through the TypeScript billing router."},
+				{Path: "/api/billing/fallback-history", Category: "providers", Description: "Read provider fallback history through the TypeScript billing router."},
+				{Path: "/api/billing/fallback-history/clear", Category: "providers", Description: "Clear provider fallback history through the TypeScript billing router."},
 				{Path: "/api/mcp/status", Category: "mcp", Description: "Bridge to TypeScript MCP runtime status and pool state."},
 				{Path: "/api/mcp/servers/runtime", Category: "mcp", Description: "Bridge to TypeScript runtime MCP server visibility."},
 				{Path: "/api/mcp/servers/configured", Category: "mcp", Description: "Bridge to configured MCP server records managed by the TypeScript control plane."},
@@ -705,6 +881,7 @@ func (s *Server) handleAPIIndex(w http.ResponseWriter, _ *http.Request) {
 				{Path: "/api/mcp/tools", Category: "mcp", Description: "Bridge to aggregated MCP tools from the TypeScript control plane."},
 				{Path: "/api/mcp/tools/search", Category: "mcp", Description: "Bridge to TypeScript MCP tool search with optional profile hinting."},
 				{Path: "/api/mcp/tools/call", Category: "mcp", Description: "Execute an MCP tool through the TypeScript control plane."},
+				{Path: "/api/mcp/tools/auto-call", Category: "mcp", Description: "Run one-shot semantic tool discovery and execution through the TypeScript auto_call_tool meta-tool."},
 				{Path: "/api/mcp/tool-ads", Category: "mcp", Description: "Bridge goal/objective-aware tool advertisements through the TypeScript list_all_tools helper."},
 				{Path: "/api/mcp/tools/schema", Category: "mcp", Description: "Hydrate and return a specific MCP tool schema through the TypeScript control plane."},
 				{Path: "/api/mcp/preferences", Category: "mcp", Description: "Get or update MCP tool-selection preferences via the TypeScript control plane."},
@@ -712,6 +889,9 @@ func (s *Server) handleAPIIndex(w http.ResponseWriter, _ *http.Request) {
 				{Path: "/api/mcp/tool-selection-telemetry", Category: "mcp", Description: "Bridge to TypeScript auto-tool selection telemetry."},
 				{Path: "/api/mcp/tool-selection-telemetry/clear", Category: "mcp", Description: "Clear TypeScript auto-tool selection telemetry."},
 				{Path: "/api/mcp/server-test", Category: "mcp", Description: "Run a TypeScript MCP server probe through the sidecar."},
+				{Path: "/api/mcp/lifecycle-modes", Category: "mcp", Description: "Update TypeScript MCP pool lifecycle modes through the sidecar."},
+				{Path: "/api/mcp/runtime-servers/add", Category: "mcp", Description: "Add a downstream runtime MCP server through the TypeScript control plane."},
+				{Path: "/api/mcp/runtime-servers/remove", Category: "mcp", Description: "Remove a downstream runtime MCP server through the TypeScript control plane."},
 				{Path: "/api/mcp/config/jsonc", Category: "mcp", Description: "Read or update the TypeScript MCP JSONC config through the sidecar."},
 				{Path: "/api/mcp/working-set", Category: "mcp", Description: "Bridge to the TypeScript MCP working-set snapshot."},
 				{Path: "/api/mcp/working-set/evictions", Category: "mcp", Description: "Bridge to TypeScript MCP working-set eviction history."},
@@ -720,14 +900,27 @@ func (s *Server) handleAPIIndex(w http.ResponseWriter, _ *http.Request) {
 				{Path: "/api/mcp/working-set/unload", Category: "mcp", Description: "Unload an MCP tool from the TypeScript working set."},
 				{Path: "/api/memory/search", Category: "memory", Description: "Bridge to TypeScript contextual memory search."},
 				{Path: "/api/memory/contexts", Category: "memory", Description: "Bridge to TypeScript saved context listing."},
+				{Path: "/api/memory/context/save", Category: "memory", Description: "Save a memory context through the TypeScript control plane."},
 				{Path: "/api/memory/context/get", Category: "memory", Description: "Bridge to a specific saved memory context."},
 				{Path: "/api/memory/context/delete", Category: "memory", Description: "Delete a saved memory context through the TypeScript control plane."},
 				{Path: "/api/memory/agent-stats", Category: "memory", Description: "Bridge to TypeScript agent-memory statistics."},
 				{Path: "/api/memory/agent-search", Category: "memory", Description: "Bridge to TypeScript agent-memory search."},
+				{Path: "/api/memory/facts/add", Category: "memory", Description: "Add a memory fact through the TypeScript control plane."},
+				{Path: "/api/memory/observations/record", Category: "memory", Description: "Record a structured observation through the TypeScript control plane."},
+				{Path: "/api/memory/observations/recent", Category: "memory", Description: "Bridge to recent structured observations from the TypeScript control plane."},
+				{Path: "/api/memory/observations/search", Category: "memory", Description: "Search structured observations through the TypeScript control plane."},
+				{Path: "/api/memory/user-prompts/capture", Category: "memory", Description: "Capture a structured user prompt through the TypeScript control plane."},
+				{Path: "/api/memory/user-prompts/recent", Category: "memory", Description: "Bridge to recent user prompts from the TypeScript control plane."},
+				{Path: "/api/memory/user-prompts/search", Category: "memory", Description: "Search captured user prompts through the TypeScript control plane."},
+				{Path: "/api/memory/pivot/search", Category: "memory", Description: "Bridge to pivot-based memory search through the TypeScript control plane."},
+				{Path: "/api/memory/timeline/window", Category: "memory", Description: "Bridge to memory timeline window queries from the TypeScript control plane."},
+				{Path: "/api/memory/cross-session-links", Category: "memory", Description: "Bridge to cross-session memory-link queries from the TypeScript control plane."},
 				{Path: "/api/memory/session-bootstrap", Category: "memory", Description: "Bridge to TypeScript session bootstrap memory context."},
 				{Path: "/api/memory/tool-context", Category: "memory", Description: "Bridge to TypeScript tool-context memory lookup."},
+				{Path: "/api/memory/session-summaries/capture", Category: "memory", Description: "Capture a session-summary memory through the TypeScript control plane."},
 				{Path: "/api/memory/session-summaries/recent", Category: "memory", Description: "Bridge to recent session-summary memories from the TypeScript control plane."},
 				{Path: "/api/memory/session-summaries/search", Category: "memory", Description: "Bridge to session-summary memory search from the TypeScript control plane."},
+				{Path: "/api/memory/sectioned-status", Category: "memory", Description: "Bridge to the TypeScript sectioned-memory status snapshot."},
 				{Path: "/api/memory/interchange-formats", Category: "memory", Description: "Bridge to the TypeScript memory interchange-format list."},
 				{Path: "/api/memory/export", Category: "memory", Description: "Bridge to TypeScript memory export."},
 				{Path: "/api/memory/import", Category: "memory", Description: "Bridge to TypeScript memory import."},
@@ -762,6 +955,25 @@ func (s *Server) handleAPIIndex(w http.ResponseWriter, _ *http.Request) {
 				{Path: "/api/tests/stop", Category: "code", Description: "Stop the TypeScript auto-test service."},
 				{Path: "/api/tests/run", Category: "code", Description: "Run the relevant TypeScript test file for a given source path."},
 				{Path: "/api/tests/results", Category: "code", Description: "Bridge to recent TypeScript auto-test results."},
+				{Path: "/api/autodev/start-loop", Category: "code", Description: "Start an autoDev loop through the TypeScript autoDev router."},
+				{Path: "/api/autodev/cancel-loop", Category: "code", Description: "Cancel an autoDev loop through the TypeScript autoDev router."},
+				{Path: "/api/autodev/loops", Category: "code", Description: "List autoDev loops through the TypeScript autoDev router."},
+				{Path: "/api/autodev/loop", Category: "code", Description: "Read one autoDev loop through the TypeScript autoDev router."},
+				{Path: "/api/autodev/clear-completed", Category: "code", Description: "Clear completed autoDev loops through the TypeScript autoDev router."},
+				{Path: "/api/darwin/evolve", Category: "code", Description: "Propose a Darwin mutation through the TypeScript darwin router."},
+				{Path: "/api/darwin/experiment", Category: "code", Description: "Start a Darwin experiment through the TypeScript darwin router."},
+				{Path: "/api/darwin/status", Category: "code", Description: "Read Darwin experiment status through the TypeScript darwin router."},
+				{Path: "/api/squad", Category: "agents", Description: "List squad members through the TypeScript squad router."},
+				{Path: "/api/squad/spawn", Category: "agents", Description: "Spawn a squad member through the TypeScript squad router."},
+				{Path: "/api/squad/kill", Category: "agents", Description: "Terminate a squad member through the TypeScript squad router."},
+				{Path: "/api/squad/chat", Category: "agents", Description: "Send a message to a squad member through the TypeScript squad router."},
+				{Path: "/api/squad/indexer/toggle", Category: "agents", Description: "Toggle the squad indexer through the TypeScript squad router."},
+				{Path: "/api/squad/indexer/status", Category: "agents", Description: "Read squad indexer status through the TypeScript squad router."},
+				{Path: "/api/supervisor/decompose", Category: "agents", Description: "Decompose a goal through the TypeScript supervisor router."},
+				{Path: "/api/supervisor/supervise", Category: "agents", Description: "Run a supervised task through the TypeScript supervisor router."},
+				{Path: "/api/supervisor/status", Category: "agents", Description: "Read supervisor status through the TypeScript supervisor router."},
+				{Path: "/api/supervisor/tasks", Category: "agents", Description: "List supervisor tasks through the TypeScript supervisor router."},
+				{Path: "/api/supervisor/cancel", Category: "agents", Description: "Cancel a supervisor task through the TypeScript supervisor router."},
 				{Path: "/api/metrics/stats", Category: "ops", Description: "Bridge to aggregated TypeScript metrics stats for a time window."},
 				{Path: "/api/metrics/track", Category: "ops", Description: "Track a custom metric event through the TypeScript control plane."},
 				{Path: "/api/metrics/system-snapshot", Category: "ops", Description: "Bridge to the TypeScript real-time system resource snapshot."},
@@ -870,6 +1082,9 @@ func (s *Server) handleAPIIndex(w http.ResponseWriter, _ *http.Request) {
 				{Path: "/api/director/chat", Category: "governance", Description: "Chat with the TypeScript director runtime."},
 				{Path: "/api/director/status", Category: "governance", Description: "Read TypeScript director runtime status."},
 				{Path: "/api/director/config/update", Category: "governance", Description: "Update TypeScript director config."},
+				{Path: "/api/director-config", Category: "governance", Description: "Read TypeScript directorConfig settings."},
+				{Path: "/api/director-config/test", Category: "governance", Description: "Run TypeScript directorConfig readiness checks."},
+				{Path: "/api/director-config/update", Category: "governance", Description: "Update TypeScript directorConfig settings."},
 				{Path: "/api/director/auto-drive/stop", Category: "governance", Description: "Stop auto-drive through the TypeScript director router."},
 				{Path: "/api/director/auto-drive/start", Category: "governance", Description: "Start auto-drive through the TypeScript director router."},
 				{Path: "/api/council/members", Category: "governance", Description: "Read council members through the TypeScript council router."},
@@ -934,6 +1149,33 @@ func (s *Server) handleAPIIndex(w http.ResponseWriter, _ *http.Request) {
 				{Path: "/api/council/hooks/clear", Category: "governance", Description: "Clear all registered council auto-continue hooks through the TypeScript hooks router."},
 				{Path: "/api/council/ide/status", Category: "governance", Description: "Read council IDE bridge status through the TypeScript IDE router."},
 				{Path: "/api/council/ide/submit-task", Category: "governance", Description: "Submit an IDE-generated task through the TypeScript IDE router."},
+				{Path: "/api/council/evolution/start", Category: "governance", Description: "Start council self-evolution through the TypeScript evolution router."},
+				{Path: "/api/council/evolution/stop", Category: "governance", Description: "Stop council self-evolution through the TypeScript evolution router."},
+				{Path: "/api/council/evolution/optimize", Category: "governance", Description: "Optimize council self-evolution weights through the TypeScript evolution router."},
+				{Path: "/api/council/evolution/evolve", Category: "governance", Description: "Run a council evolution task through the TypeScript evolution router."},
+				{Path: "/api/council/evolution/test", Category: "governance", Description: "Run a council evolution self-test through the TypeScript evolution router."},
+				{Path: "/api/council/fine-tune/datasets", Category: "governance", Description: "Create or list fine-tuning datasets through the TypeScript fineTune router."},
+				{Path: "/api/council/fine-tune/datasets/get", Category: "governance", Description: "Read a fine-tuning dataset through the TypeScript fineTune router."},
+				{Path: "/api/council/fine-tune/jobs", Category: "governance", Description: "Create or list fine-tuning jobs through the TypeScript fineTune router."},
+				{Path: "/api/council/fine-tune/jobs/start", Category: "governance", Description: "Start a fine-tuning job through the TypeScript fineTune router."},
+				{Path: "/api/council/fine-tune/models", Category: "governance", Description: "Register or list fine-tuned models through the TypeScript fineTune router."},
+				{Path: "/api/council/fine-tune/models/deploy", Category: "governance", Description: "Deploy a fine-tuned model through the TypeScript fineTune router."},
+				{Path: "/api/council/fine-tune/chat", Category: "governance", Description: "Chat through a deployed fine-tuned model via the TypeScript fineTune router."},
+				{Path: "/api/council/fine-tune/stats", Category: "governance", Description: "Read fine-tuning statistics through the TypeScript fineTune router."},
+				{Path: "/api/council/rotation", Category: "governance", Description: "List shared-context council rotation rooms through the TypeScript rotation router."},
+				{Path: "/api/council/rotation/get", Category: "governance", Description: "Read a shared-context council rotation room through the TypeScript rotation router."},
+				{Path: "/api/council/rotation/create", Category: "governance", Description: "Create a shared-context council rotation room through the TypeScript rotation router."},
+				{Path: "/api/council/rotation/add-participant", Category: "governance", Description: "Add a participant to a council rotation room through the TypeScript rotation router."},
+				{Path: "/api/council/rotation/post-message", Category: "governance", Description: "Post a council rotation chatroom message through the TypeScript rotation router."},
+				{Path: "/api/council/rotation/set-agreement", Category: "governance", Description: "Record a plan-mode agreement vote through the TypeScript rotation router."},
+				{Path: "/api/council/rotation/advance-turn", Category: "governance", Description: "Advance a council rotation room turn through the TypeScript rotation router."},
+				{Path: "/api/council/rotation/configure-supervisor", Category: "governance", Description: "Configure a supervisor for a council rotation room through the TypeScript rotation router."},
+				{Path: "/api/council/rotation/run-supervisor-check", Category: "governance", Description: "Run a supervisor evaluation for a council rotation room through the TypeScript rotation router."},
+				{Path: "/api/council/rotation/update-shared-context", Category: "governance", Description: "Update shared context for a council rotation room through the TypeScript rotation router."},
+				{Path: "/api/council/rotation/pause", Category: "governance", Description: "Pause a council rotation room through the TypeScript rotation router."},
+				{Path: "/api/council/rotation/resume", Category: "governance", Description: "Resume a council rotation room through the TypeScript rotation router."},
+				{Path: "/api/council/rotation/start-execution", Category: "governance", Description: "Start execution mode for a council rotation room through the TypeScript rotation router."},
+				{Path: "/api/council/rotation/complete", Category: "governance", Description: "Complete a council rotation room through the TypeScript rotation router."},
 				{Path: "/api/council/visual/system-diagram", Category: "governance", Description: "Read the council system diagram through the TypeScript visual router."},
 				{Path: "/api/council/visual/plan-diagram", Category: "governance", Description: "Render a council plan diagram through the TypeScript visual router."},
 				{Path: "/api/council/visual/parse-plan", Category: "governance", Description: "Parse a council Mermaid plan through the TypeScript visual router."},
@@ -999,6 +1241,14 @@ func (s *Server) handleAPIIndex(w http.ResponseWriter, _ *http.Request) {
 				{Path: "/api/session-export/detect-format", Category: "sessions", Description: "Detect session export format through the TypeScript session export router."},
 				{Path: "/api/session-export/formats", Category: "sessions", Description: "List known session export formats through the TypeScript session export router."},
 				{Path: "/api/session-export/history", Category: "sessions", Description: "Read session export history through the TypeScript session export router."},
+				{Path: "/api/browser/status", Category: "browser", Description: "Read browser status through the TypeScript browser router."},
+				{Path: "/api/browser/close-page", Category: "browser", Description: "Close a browser page through the TypeScript browser router."},
+				{Path: "/api/browser/close-all", Category: "browser", Description: "Close all browser pages through the TypeScript browser router."},
+				{Path: "/api/browser/search-history", Category: "browser", Description: "Search browser history through the TypeScript browser router."},
+				{Path: "/api/browser/scrape", Category: "browser", Description: "Scrape the current browser page through the TypeScript browser router."},
+				{Path: "/api/browser/screenshot", Category: "browser", Description: "Capture a browser screenshot through the TypeScript browser router."},
+				{Path: "/api/browser/debug", Category: "browser", Description: "Issue browser debug actions through the TypeScript browser router."},
+				{Path: "/api/browser/proxy-fetch", Category: "browser", Description: "Run a browser proxy fetch through the TypeScript browser router."},
 				{Path: "/api/browser-extension/save-memory", Category: "ui", Description: "Save a browser-extension memory through the TypeScript browser extension router."},
 				{Path: "/api/browser-extension/parse-dom", Category: "ui", Description: "Parse browser DOM content through the TypeScript browser extension router."},
 				{Path: "/api/browser-extension/memories", Category: "ui", Description: "List browser-extension memories through the TypeScript browser extension router."},
@@ -1055,6 +1305,19 @@ func (s *Server) handleAPIIndex(w http.ResponseWriter, _ *http.Request) {
 				{Path: "/api/browser-controls/logs/push", Category: "browser", Description: "Push browser console logs through the TypeScript browser controls router."},
 				{Path: "/api/browser-controls/logs/query", Category: "browser", Description: "Query browser console logs through the TypeScript browser controls router."},
 				{Path: "/api/browser-controls/stats", Category: "browser", Description: "Read browser controls stats through the TypeScript browser controls router."},
+				{Path: "/api/swarm/start", Category: "orchestration", Description: "Start a TypeScript swarm orchestration mission."},
+				{Path: "/api/swarm/resume", Category: "orchestration", Description: "Resume a TypeScript swarm mission."},
+				{Path: "/api/swarm/approve-task", Category: "orchestration", Description: "Approve or reject a swarm task through the TypeScript swarm router."},
+				{Path: "/api/swarm/decompose-task", Category: "orchestration", Description: "Decompose a swarm task through the TypeScript swarm router."},
+				{Path: "/api/swarm/update-task-priority", Category: "orchestration", Description: "Update swarm task priority through the TypeScript swarm router."},
+				{Path: "/api/swarm/debate", Category: "orchestration", Description: "Run a multi-model swarm debate through the TypeScript swarm router."},
+				{Path: "/api/swarm/consensus", Category: "orchestration", Description: "Seek multi-model consensus through the TypeScript swarm router."},
+				{Path: "/api/swarm/missions", Category: "orchestration", Description: "List swarm mission history through the TypeScript swarm router."},
+				{Path: "/api/swarm/risk/summary", Category: "orchestration", Description: "Read swarm mission risk summary through the TypeScript swarm router."},
+				{Path: "/api/swarm/risk/rows", Category: "orchestration", Description: "Read swarm mission risk rows through the TypeScript swarm router."},
+				{Path: "/api/swarm/risk/facets", Category: "orchestration", Description: "Read swarm mission risk facets through the TypeScript swarm router."},
+				{Path: "/api/swarm/mesh-capabilities", Category: "orchestration", Description: "Read swarm mesh capabilities through the TypeScript swarm router."},
+				{Path: "/api/swarm/direct-message", Category: "orchestration", Description: "Send a direct mesh message through the TypeScript swarm router."},
 				{Path: "/api/cli/tools", Category: "cli", Description: "Detected local CLI tools and versions."},
 				{Path: "/api/cli/harnesses", Category: "cli", Description: "Harness registry metadata and install visibility."},
 				{Path: "/api/cli/summary", Category: "cli", Description: "Compact CLI and harness readiness summary."},
@@ -1074,6 +1337,7 @@ func (s *Server) handleAPIIndex(w http.ResponseWriter, _ *http.Request) {
 				{Path: "/api/mesh/capabilities", Category: "mesh", Description: "Combined capability map for the Go node plus upstream-discovered peers."},
 				{Path: "/api/mesh/query-capabilities", Category: "mesh", Description: "Detailed capability lookup for a specific mesh node, with upstream fallback when available."},
 				{Path: "/api/mesh/find-peer", Category: "mesh", Description: "Find the first known peer whose advertised capabilities match a required capability set."},
+				{Path: "/api/mesh/broadcast", Category: "mesh", Description: "Broadcast a mesh message through the TypeScript mesh router."},
 			},
 		},
 	})
@@ -1315,6 +1579,30 @@ func (s *Server) handleMCPCallTool(w http.ResponseWriter, r *http.Request) {
 	s.handleTRPCBridgeBodyCall(w, r, "mcp.callTool")
 }
 
+func (s *Server) handleMCPAutoCallTool(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeJSON(w, http.StatusMethodNotAllowed, map[string]any{
+			"success": false,
+			"error":   "method not allowed",
+		})
+		return
+	}
+
+	var args any
+	if err := json.NewDecoder(r.Body).Decode(&args); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{
+			"success": false,
+			"error":   "invalid JSON body",
+		})
+		return
+	}
+
+	s.handleTRPCBridgeCall(w, r, http.MethodPost, "mcp.callTool", map[string]any{
+		"name": "auto_call_tool",
+		"args": args,
+	})
+}
+
 func (s *Server) handleMCPToolAdvertisements(w http.ResponseWriter, r *http.Request) {
 	query := strings.TrimSpace(r.URL.Query().Get("query"))
 	goal := strings.TrimSpace(r.URL.Query().Get("goal"))
@@ -1373,6 +1661,18 @@ func (s *Server) handleMCPServerTest(w http.ResponseWriter, r *http.Request) {
 	s.handleTRPCBridgeBodyCall(w, r, "mcp.runServerTest")
 }
 
+func (s *Server) handleMCPSetLifecycleModes(w http.ResponseWriter, r *http.Request) {
+	s.handleTRPCBridgeBodyCall(w, r, "mcp.setLifecycleModes")
+}
+
+func (s *Server) handleMCPAddServer(w http.ResponseWriter, r *http.Request) {
+	s.handleTRPCBridgeBodyCall(w, r, "mcp.addServer")
+}
+
+func (s *Server) handleMCPRemoveServer(w http.ResponseWriter, r *http.Request) {
+	s.handleTRPCBridgeBodyCall(w, r, "mcp.removeServer")
+}
+
 func (s *Server) handleMCPJsoncConfig(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
@@ -1429,6 +1729,10 @@ func (s *Server) handleMemoryContexts(w http.ResponseWriter, r *http.Request) {
 	s.handleTRPCBridgeCall(w, r, http.MethodGet, "memory.listContexts", nil)
 }
 
+func (s *Server) handleMemoryContextSave(w http.ResponseWriter, r *http.Request) {
+	s.handleTRPCBridgeBodyCall(w, r, "memory.saveContext")
+}
+
 func (s *Server) handleMemoryContextGet(w http.ResponseWriter, r *http.Request) {
 	id := strings.TrimSpace(r.URL.Query().Get("id"))
 	if id == "" {
@@ -1470,6 +1774,104 @@ func (s *Server) handleMemoryAgentSearch(w http.ResponseWriter, r *http.Request)
 	s.handleTRPCBridgeCall(w, r, http.MethodGet, "memory.searchAgentMemory", payload)
 }
 
+func (s *Server) handleMemoryAddFact(w http.ResponseWriter, r *http.Request) {
+	s.handleTRPCBridgeBodyCall(w, r, "memory.addFact")
+}
+
+func (s *Server) handleMemoryRecordObservation(w http.ResponseWriter, r *http.Request) {
+	s.handleTRPCBridgeBodyCall(w, r, "memory.recordObservation")
+}
+
+func (s *Server) handleMemoryRecentObservations(w http.ResponseWriter, r *http.Request) {
+	payload := map[string]any{"limit": 10}
+	if limit := strings.TrimSpace(r.URL.Query().Get("limit")); limit != "" {
+		if parsed, err := strconv.Atoi(limit); err == nil {
+			payload["limit"] = parsed
+		}
+	}
+	if namespace := strings.TrimSpace(r.URL.Query().Get("namespace")); namespace != "" {
+		payload["namespace"] = namespace
+	}
+	if observationType := strings.TrimSpace(r.URL.Query().Get("type")); observationType != "" {
+		payload["type"] = observationType
+	}
+	s.handleTRPCBridgeCall(w, r, http.MethodGet, "memory.getRecentObservations", payload)
+}
+
+func (s *Server) handleMemorySearchObservations(w http.ResponseWriter, r *http.Request) {
+	query := strings.TrimSpace(r.URL.Query().Get("query"))
+	if query == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]any{
+			"success": false,
+			"error":   "missing query parameter",
+		})
+		return
+	}
+	payload := map[string]any{"query": query, "limit": 10}
+	if limit := strings.TrimSpace(r.URL.Query().Get("limit")); limit != "" {
+		if parsed, err := strconv.Atoi(limit); err == nil {
+			payload["limit"] = parsed
+		}
+	}
+	if namespace := strings.TrimSpace(r.URL.Query().Get("namespace")); namespace != "" {
+		payload["namespace"] = namespace
+	}
+	if observationType := strings.TrimSpace(r.URL.Query().Get("type")); observationType != "" {
+		payload["type"] = observationType
+	}
+	s.handleTRPCBridgeCall(w, r, http.MethodGet, "memory.searchObservations", payload)
+}
+
+func (s *Server) handleMemoryCaptureUserPrompt(w http.ResponseWriter, r *http.Request) {
+	s.handleTRPCBridgeBodyCall(w, r, "memory.captureUserPrompt")
+}
+
+func (s *Server) handleMemoryRecentUserPrompts(w http.ResponseWriter, r *http.Request) {
+	payload := map[string]any{"limit": 10}
+	if limit := strings.TrimSpace(r.URL.Query().Get("limit")); limit != "" {
+		if parsed, err := strconv.Atoi(limit); err == nil {
+			payload["limit"] = parsed
+		}
+	}
+	if role := strings.TrimSpace(r.URL.Query().Get("role")); role != "" {
+		payload["role"] = role
+	}
+	s.handleTRPCBridgeCall(w, r, http.MethodGet, "memory.getRecentUserPrompts", payload)
+}
+
+func (s *Server) handleMemorySearchUserPrompts(w http.ResponseWriter, r *http.Request) {
+	query := strings.TrimSpace(r.URL.Query().Get("query"))
+	if query == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]any{
+			"success": false,
+			"error":   "missing query parameter",
+		})
+		return
+	}
+	payload := map[string]any{"query": query, "limit": 10}
+	if limit := strings.TrimSpace(r.URL.Query().Get("limit")); limit != "" {
+		if parsed, err := strconv.Atoi(limit); err == nil {
+			payload["limit"] = parsed
+		}
+	}
+	if role := strings.TrimSpace(r.URL.Query().Get("role")); role != "" {
+		payload["role"] = role
+	}
+	s.handleTRPCBridgeCall(w, r, http.MethodGet, "memory.searchUserPrompts", payload)
+}
+
+func (s *Server) handleMemorySearchPivot(w http.ResponseWriter, r *http.Request) {
+	s.handleTRPCBridgeBodyCall(w, r, "memory.searchMemoryPivot")
+}
+
+func (s *Server) handleMemoryTimelineWindow(w http.ResponseWriter, r *http.Request) {
+	s.handleTRPCBridgeBodyCall(w, r, "memory.getMemoryTimelineWindow")
+}
+
+func (s *Server) handleMemoryCrossSessionLinks(w http.ResponseWriter, r *http.Request) {
+	s.handleTRPCBridgeBodyCall(w, r, "memory.getCrossSessionMemoryLinks")
+}
+
 func (s *Server) handleMemorySessionBootstrap(w http.ResponseWriter, r *http.Request) {
 	payload := map[string]any{}
 	if activeGoal := strings.TrimSpace(r.URL.Query().Get("activeGoal")); activeGoal != "" {
@@ -1500,6 +1902,10 @@ func (s *Server) handleMemoryToolContext(w http.ResponseWriter, r *http.Request)
 	s.handleTRPCBridgeCall(w, r, http.MethodGet, "memory.getToolContext", payload)
 }
 
+func (s *Server) handleMemoryCaptureSessionSummary(w http.ResponseWriter, r *http.Request) {
+	s.handleTRPCBridgeBodyCall(w, r, "memory.captureSessionSummary")
+}
+
 func (s *Server) handleMemoryRecentSessionSummaries(w http.ResponseWriter, r *http.Request) {
 	payload := map[string]any{"limit": 10}
 	if limit := strings.TrimSpace(r.URL.Query().Get("limit")); limit != "" {
@@ -1526,6 +1932,10 @@ func (s *Server) handleMemorySearchSessionSummaries(w http.ResponseWriter, r *ht
 		}
 	}
 	s.handleTRPCBridgeCall(w, r, http.MethodGet, "memory.searchSessionSummaries", payload)
+}
+
+func (s *Server) handleMemorySectionedStatus(w http.ResponseWriter, r *http.Request) {
+	s.handleTRPCBridgeCall(w, r, http.MethodGet, "memory.getSectionedMemoryStatus", nil)
 }
 
 func (s *Server) handleMemoryInterchangeFormats(w http.ResponseWriter, r *http.Request) {

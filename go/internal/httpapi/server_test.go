@@ -11,13 +11,13 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/borghq/borg-go/internal/config"
-	"github.com/borghq/borg-go/internal/controlplane"
-	"github.com/borghq/borg-go/internal/interop"
-	"github.com/borghq/borg-go/internal/lockfile"
-	"github.com/borghq/borg-go/internal/memorystore"
-	"github.com/borghq/borg-go/internal/providers"
-	"github.com/borghq/borg-go/internal/sessionimport"
+	"github.com/borghq/hypercode-go/internal/config"
+	"github.com/borghq/hypercode-go/internal/controlplane"
+	"github.com/borghq/hypercode-go/internal/interop"
+	"github.com/borghq/hypercode-go/internal/lockfile"
+	"github.com/borghq/hypercode-go/internal/memorystore"
+	"github.com/borghq/hypercode-go/internal/providers"
+	"github.com/borghq/hypercode-go/internal/sessionimport"
 )
 
 type stubDetector struct {
@@ -88,6 +88,23 @@ func TestMeshEndpoints(t *testing.T) {
 					},
 				},
 			})
+		case "/trpc/mesh.broadcast":
+			body, err := io.ReadAll(r.Body)
+			if err != nil {
+				t.Fatalf("failed to read mesh broadcast body: %v", err)
+			}
+			if !strings.Contains(string(body), `"type":"DIRECT_MESSAGE"`) {
+				t.Fatalf("expected mesh broadcast payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"result": map[string]any{
+					"data": map[string]any{
+						"json": map[string]any{
+							"success": true,
+						},
+					},
+				},
+			})
 		default:
 			t.Fatalf("unexpected bridge path %s", r.URL.Path)
 		}
@@ -144,6 +161,17 @@ func TestMeshEndpoints(t *testing.T) {
 	}
 	if !strings.Contains(findRecorder.Body.String(), "\"nodeId\":\"node-ts\"") {
 		t.Fatalf("expected matching peer in payload, got %s", findRecorder.Body.String())
+	}
+
+	broadcastRequest := httptest.NewRequest(http.MethodPost, "/api/mesh/broadcast", strings.NewReader(`{"type":"DIRECT_MESSAGE","payload":{"message":"hello"}}`))
+	broadcastRequest.Header.Set("content-type", "application/json")
+	broadcastRecorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(broadcastRecorder, broadcastRequest)
+	if broadcastRecorder.Code != http.StatusOK {
+		t.Fatalf("expected mesh broadcast 200, got %d", broadcastRecorder.Code)
+	}
+	if !strings.Contains(broadcastRecorder.Body.String(), "\"procedure\":\"mesh.broadcast\"") {
+		t.Fatalf("expected mesh broadcast bridge metadata, got %s", broadcastRecorder.Body.String())
 	}
 }
 
@@ -441,6 +469,87 @@ func TestAutonomyBridgeRoutes(t *testing.T) {
 			if !strings.Contains(recorder.Body.String(), tc.procedure) {
 				t.Fatalf("expected bridge metadata %s, got %s", tc.procedure, recorder.Body.String())
 			}
+
+			var payload struct {
+				Success bool            `json:"success"`
+				Data    json.RawMessage `json:"data"`
+				Bridge  struct {
+					Procedure string `json:"procedure"`
+				} `json:"bridge"`
+			}
+			if err := json.Unmarshal(recorder.Body.Bytes(), &payload); err != nil {
+				t.Fatalf("expected JSON payload, got decode error: %v", err)
+			}
+			if !payload.Success {
+				t.Fatalf("expected success payload, got %s", recorder.Body.String())
+			}
+
+			switch tc.name {
+			case "list tools":
+				var tools []map[string]any
+				if err := json.Unmarshal(payload.Data, &tools); err != nil {
+					t.Fatalf("expected tools payload, got decode error: %v", err)
+				}
+				if len(tools) != 1 || tools[0]["name"] != "search_tools" || tools[0]["server"] != "core" {
+					t.Fatalf("expected single core search_tools entry, got %+v", tools)
+				}
+			case "search tools":
+				var tools []map[string]any
+				if err := json.Unmarshal(payload.Data, &tools); err != nil {
+					t.Fatalf("expected search results payload, got decode error: %v", err)
+				}
+				if len(tools) != 1 || tools[0]["name"] != "search_tools" || tools[0]["alwaysShow"] != true {
+					t.Fatalf("expected always-show search_tools result, got %+v", tools)
+				}
+			case "call tool":
+				var result struct {
+					Ok     bool `json:"ok"`
+					Result struct {
+						Content []struct {
+							Type string `json:"type"`
+							Text string `json:"text"`
+						} `json:"content"`
+					} `json:"result"`
+				}
+				if err := json.Unmarshal(payload.Data, &result); err != nil {
+					t.Fatalf("expected tool call payload, got decode error: %v", err)
+				}
+				if !result.Ok || len(result.Result.Content) != 1 || result.Result.Content[0].Text != "done" {
+					t.Fatalf("expected successful tool call result, got %+v", result)
+				}
+			case "auto call tool":
+				var result struct {
+					Ok     bool `json:"ok"`
+					Result struct {
+						Content []struct {
+							Type string `json:"type"`
+							Text string `json:"text"`
+						} `json:"content"`
+					} `json:"result"`
+				}
+				if err := json.Unmarshal(payload.Data, &result); err != nil {
+					t.Fatalf("expected auto tool call payload, got decode error: %v", err)
+				}
+				if payload.Bridge.Procedure != "mcp.callTool" || !result.Ok || len(result.Result.Content) != 1 || result.Result.Content[0].Text != "auto_call_tool" {
+					t.Fatalf("expected successful auto_call_tool bridge result, got bridge=%+v data=%+v", payload.Bridge, result)
+				}
+			case "tool advertisements":
+				var result struct {
+					Ok     bool `json:"ok"`
+					Result struct {
+						Content []struct {
+							Type string `json:"type"`
+							Text string `json:"text"`
+						} `json:"content"`
+					} `json:"result"`
+				}
+				if err := json.Unmarshal(payload.Data, &result); err != nil {
+					t.Fatalf("expected tool advertisement payload, got decode error: %v", err)
+				}
+				if payload.Bridge.Procedure != "mcp.callTool" || !result.Ok || len(result.Result.Content) != 1 || result.Result.Content[0].Text != "list_all_tools" {
+					t.Fatalf("expected list_all_tools advertisement bridge result, got bridge=%+v data=%+v", payload.Bridge, result)
+				}
+			}
 		})
 	}
 }
@@ -466,6 +575,22 @@ func TestDirectorBridgeRoutes(t *testing.T) {
 				"result": map[string]any{"data": map[string]any{"json": map[string]any{"status": "online"}}},
 			})
 		case "/trpc/director.updateConfig":
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"result": map[string]any{"data": map[string]any{"json": map[string]any{"success": true}}},
+			})
+		case "/trpc/directorConfig.get":
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"result": map[string]any{"data": map[string]any{"json": map[string]any{"persona": "professional", "defaultTopic": "status"}}},
+			})
+		case "/trpc/directorConfig.test":
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"result": map[string]any{"data": map[string]any{"json": map[string]any{"success": true, "directorReady": true, "llmServiceReady": true}}},
+			})
+		case "/trpc/directorConfig.update":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"persona":"chaos"`) {
+				t.Fatalf("expected directorConfig.update payload, got %s", string(body))
+			}
 			_ = json.NewEncoder(w).Encode(map[string]any{
 				"result": map[string]any{"data": map[string]any{"json": map[string]any{"success": true}}},
 			})
@@ -501,8 +626,173 @@ func TestDirectorBridgeRoutes(t *testing.T) {
 		{name: "director chat", method: http.MethodPost, path: "/api/director/chat", body: `{"message":"status?"}`, contains: `"Director online"`, procedure: `"procedure":"director.chat"`},
 		{name: "director status", method: http.MethodGet, path: "/api/director/status", contains: `"status":"online"`, procedure: `"procedure":"director.status"`},
 		{name: "director update config", method: http.MethodPost, path: "/api/director/config/update", body: `{"defaultTopic":"mcp"}`, contains: `"success":true`, procedure: `"procedure":"director.updateConfig"`},
+		{name: "director-config get", method: http.MethodGet, path: "/api/director-config", contains: `"persona":"professional"`, procedure: `"procedure":"directorConfig.get"`},
+		{name: "director-config test", method: http.MethodGet, path: "/api/director-config/test", contains: `"directorReady":true`, procedure: `"procedure":"directorConfig.test"`},
+		{name: "director-config update", method: http.MethodPost, path: "/api/director-config/update", body: `{"persona":"chaos"}`, contains: `"success":true`, procedure: `"procedure":"directorConfig.update"`},
 		{name: "director stop auto drive", method: http.MethodPost, path: "/api/director/auto-drive/stop", body: `null`, contains: `"Stopped"`, procedure: `"procedure":"director.stopAutoDrive"`},
 		{name: "director start auto drive", method: http.MethodPost, path: "/api/director/auto-drive/start", body: `null`, contains: `"Started"`, procedure: `"procedure":"director.startAutoDrive"`},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var body io.Reader
+			if tc.body != "" {
+				body = strings.NewReader(tc.body)
+			}
+			request := httptest.NewRequest(tc.method, tc.path, body)
+			if tc.body != "" {
+				request.Header.Set("content-type", "application/json")
+			}
+			recorder := httptest.NewRecorder()
+			server.Handler().ServeHTTP(recorder, request)
+			if recorder.Code != http.StatusOK {
+				t.Fatalf("expected status 200, got %d with body %s", recorder.Code, recorder.Body.String())
+			}
+			if !strings.Contains(recorder.Body.String(), tc.contains) {
+				t.Fatalf("expected response to contain %s, got %s", tc.contains, recorder.Body.String())
+			}
+			if !strings.Contains(recorder.Body.String(), tc.procedure) {
+				t.Fatalf("expected bridge metadata %s, got %s", tc.procedure, recorder.Body.String())
+			}
+		})
+	}
+}
+
+func TestAutoDevBridgeRoutes(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("content-type", "application/json")
+		switch r.URL.Path {
+		case "/trpc/autoDev.startLoop":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"type":"test"`) {
+				t.Fatalf("expected autoDev.startLoop payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"result": map[string]any{"data": map[string]any{"json": map[string]any{"success": true, "loopId": "loop-1"}}},
+			})
+		case "/trpc/autoDev.cancelLoop":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"loopId":"loop-1"`) {
+				t.Fatalf("expected autoDev.cancelLoop payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"result": map[string]any{"data": map[string]any{"json": true}},
+			})
+		case "/trpc/autoDev.getLoops":
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"result": map[string]any{"data": map[string]any{"json": []any{map[string]any{"id": "loop-1", "status": "running"}}}},
+			})
+		case "/trpc/autoDev.getLoop":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"loopId":"loop-1"`) {
+				t.Fatalf("expected autoDev.getLoop payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"result": map[string]any{"data": map[string]any{"json": map[string]any{"id": "loop-1", "status": "running"}}},
+			})
+		case "/trpc/autoDev.clearCompleted":
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"result": map[string]any{"data": map[string]any{"json": 3}},
+			})
+		default:
+			t.Fatalf("unexpected upstream path %s", r.URL.Path)
+		}
+	}))
+	defer upstream.Close()
+
+	t.Setenv("BORG_TRPC_UPSTREAM", upstream.URL+"/trpc")
+
+	cfg := config.Default()
+	cfg.MainConfigDir = t.TempDir()
+	server := New(cfg, stubDetector{})
+
+	cases := []struct {
+		name      string
+		method    string
+		path      string
+		body      string
+		contains  string
+		procedure string
+	}{
+		{name: "autodev start loop", method: http.MethodPost, path: "/api/autodev/start-loop", body: `{"type":"test","maxAttempts":3}`, contains: `"loopId":"loop-1"`, procedure: `"procedure":"autoDev.startLoop"`},
+		{name: "autodev cancel loop", method: http.MethodPost, path: "/api/autodev/cancel-loop", body: `{"loopId":"loop-1"}`, contains: `"data":true`, procedure: `"procedure":"autoDev.cancelLoop"`},
+		{name: "autodev list loops", method: http.MethodGet, path: "/api/autodev/loops", contains: `"loop-1"`, procedure: `"procedure":"autoDev.getLoops"`},
+		{name: "autodev get loop", method: http.MethodGet, path: "/api/autodev/loop?loopId=loop-1", contains: `"status":"running"`, procedure: `"procedure":"autoDev.getLoop"`},
+		{name: "autodev clear completed", method: http.MethodPost, path: "/api/autodev/clear-completed", contains: `"data":3`, procedure: `"procedure":"autoDev.clearCompleted"`},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var body io.Reader
+			if tc.body != "" {
+				body = strings.NewReader(tc.body)
+			}
+			request := httptest.NewRequest(tc.method, tc.path, body)
+			if tc.body != "" {
+				request.Header.Set("content-type", "application/json")
+			}
+			recorder := httptest.NewRecorder()
+			server.Handler().ServeHTTP(recorder, request)
+			if recorder.Code != http.StatusOK {
+				t.Fatalf("expected status 200, got %d with body %s", recorder.Code, recorder.Body.String())
+			}
+			if !strings.Contains(recorder.Body.String(), tc.contains) {
+				t.Fatalf("expected response to contain %s, got %s", tc.contains, recorder.Body.String())
+			}
+			if !strings.Contains(recorder.Body.String(), tc.procedure) {
+				t.Fatalf("expected bridge metadata %s, got %s", tc.procedure, recorder.Body.String())
+			}
+		})
+	}
+}
+
+func TestDarwinBridgeRoutes(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("content-type", "application/json")
+		switch r.URL.Path {
+		case "/trpc/darwin.evolve":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"goal":"Improve prompts"`) {
+				t.Fatalf("expected darwin.evolve payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"result": map[string]any{"data": map[string]any{"json": map[string]any{"mutationId": "mut-1"}}},
+			})
+		case "/trpc/darwin.experiment":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"mutationId":"mut-1"`) {
+				t.Fatalf("expected darwin.experiment payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"result": map[string]any{"data": map[string]any{"json": map[string]any{"experimentId": "exp-1"}}},
+			})
+		case "/trpc/darwin.getStatus":
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"result": map[string]any{"data": map[string]any{"json": map[string]any{"running": true, "experimentCount": 1}}},
+			})
+		default:
+			t.Fatalf("unexpected upstream path %s", r.URL.Path)
+		}
+	}))
+	defer upstream.Close()
+
+	t.Setenv("BORG_TRPC_UPSTREAM", upstream.URL+"/trpc")
+
+	cfg := config.Default()
+	cfg.MainConfigDir = t.TempDir()
+	server := New(cfg, stubDetector{})
+
+	cases := []struct {
+		name      string
+		method    string
+		path      string
+		body      string
+		contains  string
+		procedure string
+	}{
+		{name: "darwin evolve", method: http.MethodPost, path: "/api/darwin/evolve", body: `{"prompt":"Refactor prompt","goal":"Improve prompts"}`, contains: `"mutationId":"mut-1"`, procedure: `"procedure":"darwin.evolve"`},
+		{name: "darwin experiment", method: http.MethodPost, path: "/api/darwin/experiment", body: `{"mutationId":"mut-1","task":"Run benchmark"}`, contains: `"experimentId":"exp-1"`, procedure: `"procedure":"darwin.experiment"`},
+		{name: "darwin status", method: http.MethodGet, path: "/api/darwin/status", contains: `"running":true`, procedure: `"procedure":"darwin.getStatus"`},
 	}
 
 	for _, tc := range cases {
@@ -1167,6 +1457,183 @@ func TestCloudDevBridgeRoutes(t *testing.T) {
 	}
 }
 
+func TestConfigRouterBridgeRoutes(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("content-type", "application/json")
+		switch r.URL.Path {
+		case "/trpc/config.list":
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": []any{
+				map[string]any{"key": "theme", "value": "dark"},
+			}}}})
+		case "/trpc/config.get":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"key":"theme"`) {
+				t.Fatalf("expected config.get payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": "dark"}}})
+		case "/trpc/config.upsert":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"id":"theme"`) || !strings.Contains(string(body), `"value":"light"`) {
+				t.Fatalf("expected config.upsert payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": true}}})
+		case "/trpc/config.delete":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"key":"theme"`) {
+				t.Fatalf("expected config.delete payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": true}}})
+		case "/trpc/config.update":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"key":"theme"`) || !strings.Contains(string(body), `"value":"light"`) {
+				t.Fatalf("expected config.update payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": true}}})
+		case "/trpc/config.getMcpTimeout":
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": 15000}}})
+		case "/trpc/config.setMcpTimeout":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"timeout":20000`) {
+				t.Fatalf("expected config.setMcpTimeout payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"success": true}}}})
+		case "/trpc/config.getMcpMaxAttempts":
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": 4}}})
+		case "/trpc/config.setMcpMaxAttempts":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"maxAttempts":5`) {
+				t.Fatalf("expected config.setMcpMaxAttempts payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"success": true}}}})
+		case "/trpc/config.getMcpMaxTotalTimeout":
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": 30000}}})
+		case "/trpc/config.setMcpMaxTotalTimeout":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"timeout":45000`) {
+				t.Fatalf("expected config.setMcpMaxTotalTimeout payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"success": true}}}})
+		case "/trpc/config.getMcpResetTimeoutOnProgress":
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": true}}})
+		case "/trpc/config.setMcpResetTimeoutOnProgress":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"enabled":false`) {
+				t.Fatalf("expected config.setMcpResetTimeoutOnProgress payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"success": true}}}})
+		case "/trpc/config.getSessionLifetime":
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": 3600000}}})
+		case "/trpc/config.setSessionLifetime":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"lifetime":7200000`) {
+				t.Fatalf("expected config.setSessionLifetime payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"success": true}}}})
+		case "/trpc/config.getSignupDisabled":
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": false}}})
+		case "/trpc/config.setSignupDisabled":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"disabled":true`) {
+				t.Fatalf("expected config.setSignupDisabled payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"success": true}}}})
+		case "/trpc/config.getSsoSignupDisabled":
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": true}}})
+		case "/trpc/config.setSsoSignupDisabled":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"disabled":false`) {
+				t.Fatalf("expected config.setSsoSignupDisabled payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"success": true}}}})
+		case "/trpc/config.getBasicAuthDisabled":
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": false}}})
+		case "/trpc/config.setBasicAuthDisabled":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"disabled":true`) {
+				t.Fatalf("expected config.setBasicAuthDisabled payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"success": true}}}})
+		case "/trpc/config.getAuthProviders":
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": []any{"github", "google"}}}})
+		case "/trpc/config.getAlwaysVisibleTools":
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": []any{"list_all_tools", "search_tools"}}}})
+		case "/trpc/config.setAlwaysVisibleTools":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"tools":["list_all_tools","search_tools"]`) {
+				t.Fatalf("expected config.setAlwaysVisibleTools payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"success": true, "tools": []any{"list_all_tools", "search_tools"}}}}})
+		default:
+			t.Fatalf("unexpected upstream path %s", r.URL.Path)
+		}
+	}))
+	defer upstream.Close()
+
+	t.Setenv("BORG_TRPC_UPSTREAM", upstream.URL+"/trpc")
+
+	cfg := config.Default()
+	cfg.MainConfigDir = t.TempDir()
+	server := New(cfg, stubDetector{})
+
+	cases := []struct {
+		name      string
+		method    string
+		path      string
+		body      string
+		contains  string
+		procedure string
+	}{
+		{name: "config list", method: http.MethodGet, path: "/api/config/list", contains: `"theme"`, procedure: `"procedure":"config.list"`},
+		{name: "config get", method: http.MethodGet, path: "/api/config/get?key=theme", contains: `"data":"dark"`, procedure: `"procedure":"config.get"`},
+		{name: "config upsert", method: http.MethodPost, path: "/api/config/upsert", body: `{"id":"theme","value":"light"}`, contains: `"data":true`, procedure: `"procedure":"config.upsert"`},
+		{name: "config delete", method: http.MethodPost, path: "/api/config/delete", body: `{"key":"theme"}`, contains: `"data":true`, procedure: `"procedure":"config.delete"`},
+		{name: "config update", method: http.MethodPost, path: "/api/config/update", body: `{"key":"theme","value":"light"}`, contains: `"data":true`, procedure: `"procedure":"config.update"`},
+		{name: "config get mcp timeout", method: http.MethodGet, path: "/api/config/mcp-timeout", contains: `"data":15000`, procedure: `"procedure":"config.getMcpTimeout"`},
+		{name: "config set mcp timeout", method: http.MethodPost, path: "/api/config/mcp-timeout/set", body: `{"timeout":20000}`, contains: `"success":true`, procedure: `"procedure":"config.setMcpTimeout"`},
+		{name: "config get mcp max attempts", method: http.MethodGet, path: "/api/config/mcp-max-attempts", contains: `"data":4`, procedure: `"procedure":"config.getMcpMaxAttempts"`},
+		{name: "config set mcp max attempts", method: http.MethodPost, path: "/api/config/mcp-max-attempts/set", body: `{"maxAttempts":5}`, contains: `"success":true`, procedure: `"procedure":"config.setMcpMaxAttempts"`},
+		{name: "config get mcp max total timeout", method: http.MethodGet, path: "/api/config/mcp-max-total-timeout", contains: `"data":30000`, procedure: `"procedure":"config.getMcpMaxTotalTimeout"`},
+		{name: "config set mcp max total timeout", method: http.MethodPost, path: "/api/config/mcp-max-total-timeout/set", body: `{"timeout":45000}`, contains: `"success":true`, procedure: `"procedure":"config.setMcpMaxTotalTimeout"`},
+		{name: "config get mcp reset on progress", method: http.MethodGet, path: "/api/config/mcp-reset-timeout-on-progress", contains: `"data":true`, procedure: `"procedure":"config.getMcpResetTimeoutOnProgress"`},
+		{name: "config set mcp reset on progress", method: http.MethodPost, path: "/api/config/mcp-reset-timeout-on-progress/set", body: `{"enabled":false}`, contains: `"success":true`, procedure: `"procedure":"config.setMcpResetTimeoutOnProgress"`},
+		{name: "config get session lifetime", method: http.MethodGet, path: "/api/config/session-lifetime", contains: `"data":3600000`, procedure: `"procedure":"config.getSessionLifetime"`},
+		{name: "config set session lifetime", method: http.MethodPost, path: "/api/config/session-lifetime/set", body: `{"lifetime":7200000}`, contains: `"success":true`, procedure: `"procedure":"config.setSessionLifetime"`},
+		{name: "config get signup disabled", method: http.MethodGet, path: "/api/config/signup-disabled", contains: `"data":false`, procedure: `"procedure":"config.getSignupDisabled"`},
+		{name: "config set signup disabled", method: http.MethodPost, path: "/api/config/signup-disabled/set", body: `{"disabled":true}`, contains: `"success":true`, procedure: `"procedure":"config.setSignupDisabled"`},
+		{name: "config get sso signup disabled", method: http.MethodGet, path: "/api/config/sso-signup-disabled", contains: `"data":true`, procedure: `"procedure":"config.getSsoSignupDisabled"`},
+		{name: "config set sso signup disabled", method: http.MethodPost, path: "/api/config/sso-signup-disabled/set", body: `{"disabled":false}`, contains: `"success":true`, procedure: `"procedure":"config.setSsoSignupDisabled"`},
+		{name: "config get basic auth disabled", method: http.MethodGet, path: "/api/config/basic-auth-disabled", contains: `"data":false`, procedure: `"procedure":"config.getBasicAuthDisabled"`},
+		{name: "config set basic auth disabled", method: http.MethodPost, path: "/api/config/basic-auth-disabled/set", body: `{"disabled":true}`, contains: `"success":true`, procedure: `"procedure":"config.setBasicAuthDisabled"`},
+		{name: "config get auth providers", method: http.MethodGet, path: "/api/config/auth-providers", contains: `"github"`, procedure: `"procedure":"config.getAuthProviders"`},
+		{name: "config get always visible tools", method: http.MethodGet, path: "/api/config/always-visible-tools", contains: `"list_all_tools"`, procedure: `"procedure":"config.getAlwaysVisibleTools"`},
+		{name: "config set always visible tools", method: http.MethodPost, path: "/api/config/always-visible-tools/set", body: `{"tools":["list_all_tools","search_tools"]}`, contains: `"success":true`, procedure: `"procedure":"config.setAlwaysVisibleTools"`},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var body io.Reader
+			if tc.body != "" {
+				body = strings.NewReader(tc.body)
+			}
+			request := httptest.NewRequest(tc.method, tc.path, body)
+			if tc.body != "" {
+				request.Header.Set("content-type", "application/json")
+			}
+			recorder := httptest.NewRecorder()
+			server.Handler().ServeHTTP(recorder, request)
+			if recorder.Code != http.StatusOK {
+				t.Fatalf("expected status 200, got %d with body %s", recorder.Code, recorder.Body.String())
+			}
+			if !strings.Contains(recorder.Body.String(), tc.contains) {
+				t.Fatalf("expected response to contain %s, got %s", tc.contains, recorder.Body.String())
+			}
+			if !strings.Contains(recorder.Body.String(), tc.procedure) {
+				t.Fatalf("expected bridge metadata %s, got %s", tc.procedure, recorder.Body.String())
+			}
+		})
+	}
+}
+
 func TestCouncilHistoryBridgeRoutes(t *testing.T) {
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("content-type", "application/json")
@@ -1567,6 +2034,825 @@ func TestCouncilIDEBridgeRoutes(t *testing.T) {
 	}
 }
 
+func TestCouncilEvolutionBridgeRoutes(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("content-type", "application/json")
+		switch r.URL.Path {
+		case "/trpc/council.evolution.start":
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"success": true, "message": "Continuous learning started"}}}})
+		case "/trpc/council.evolution.stop":
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"success": true, "message": "Continuous learning stopped"}}}})
+		case "/trpc/council.evolution.optimize":
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"success": true}}}})
+		case "/trpc/council.evolution.evolve":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"description":"Improve routing heuristics"`) {
+				t.Fatalf("expected council.evolution.evolve payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"success": true, "sessionId": "evolve-1"}}}})
+		case "/trpc/council.evolution.test":
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"success": true, "passed": true}}}})
+		default:
+			t.Fatalf("unexpected upstream path %s", r.URL.Path)
+		}
+	}))
+	defer upstream.Close()
+
+	t.Setenv("BORG_TRPC_UPSTREAM", upstream.URL+"/trpc")
+
+	cfg := config.Default()
+	cfg.MainConfigDir = t.TempDir()
+	server := New(cfg, stubDetector{})
+
+	cases := []struct {
+		name      string
+		method    string
+		path      string
+		body      string
+		contains  string
+		procedure string
+	}{
+		{name: "evolution start", method: http.MethodPost, path: "/api/council/evolution/start", contains: `"Continuous learning started"`, procedure: `"procedure":"council.evolution.start"`},
+		{name: "evolution stop", method: http.MethodPost, path: "/api/council/evolution/stop", contains: `"Continuous learning stopped"`, procedure: `"procedure":"council.evolution.stop"`},
+		{name: "evolution optimize", method: http.MethodPost, path: "/api/council/evolution/optimize", contains: `"success":true`, procedure: `"procedure":"council.evolution.optimize"`},
+		{name: "evolution evolve", method: http.MethodPost, path: "/api/council/evolution/evolve", body: `{"description":"Improve routing heuristics"}`, contains: `"sessionId":"evolve-1"`, procedure: `"procedure":"council.evolution.evolve"`},
+		{name: "evolution test", method: http.MethodGet, path: "/api/council/evolution/test", contains: `"passed":true`, procedure: `"procedure":"council.evolution.test"`},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var body io.Reader
+			if tc.body != "" {
+				body = strings.NewReader(tc.body)
+			}
+			request := httptest.NewRequest(tc.method, tc.path, body)
+			if tc.body != "" {
+				request.Header.Set("content-type", "application/json")
+			}
+			recorder := httptest.NewRecorder()
+			server.Handler().ServeHTTP(recorder, request)
+			if recorder.Code != http.StatusOK {
+				t.Fatalf("expected status 200, got %d with body %s", recorder.Code, recorder.Body.String())
+			}
+			if !strings.Contains(recorder.Body.String(), tc.contains) {
+				t.Fatalf("expected response to contain %s, got %s", tc.contains, recorder.Body.String())
+			}
+			if !strings.Contains(recorder.Body.String(), tc.procedure) {
+				t.Fatalf("expected bridge metadata %s, got %s", tc.procedure, recorder.Body.String())
+			}
+		})
+	}
+}
+
+func TestCouncilFineTuneBridgeRoutes(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("content-type", "application/json")
+		switch r.URL.Path {
+		case "/trpc/council.fineTune.createDataset":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"name":"dataset-1"`) {
+				t.Fatalf("expected council.fineTune.createDataset payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"id": "dataset-1", "name": "dataset-1"}}}})
+		case "/trpc/council.fineTune.listDatasets":
+			body, _ := io.ReadAll(r.Body)
+			if len(body) > 0 && !strings.Contains(string(body), `"taskType":"code"`) {
+				t.Fatalf("expected council.fineTune.listDatasets payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": []any{map[string]any{"id": "dataset-1"}}}}})
+		case "/trpc/council.fineTune.getDataset":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"id":"dataset-1"`) {
+				t.Fatalf("expected council.fineTune.getDataset payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"id": "dataset-1"}}}})
+		case "/trpc/council.fineTune.createJob":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"datasetId":"dataset-1"`) {
+				t.Fatalf("expected council.fineTune.createJob payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"id": "job-1"}}}})
+		case "/trpc/council.fineTune.listJobs":
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": []any{map[string]any{"id": "job-1"}}}}})
+		case "/trpc/council.fineTune.startJob":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"id":"job-1"`) {
+				t.Fatalf("expected council.fineTune.startJob payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"id": "job-1", "status": "running"}}}})
+		case "/trpc/council.fineTune.registerModel":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"name":"model-1"`) {
+				t.Fatalf("expected council.fineTune.registerModel payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"id": "model-1"}}}})
+		case "/trpc/council.fineTune.listModels":
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": []any{map[string]any{"id": "model-1"}}}}})
+		case "/trpc/council.fineTune.deployModel":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"id":"model-1"`) {
+				t.Fatalf("expected council.fineTune.deployModel payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"id": "model-1", "deploymentStatus": "active"}}}})
+		case "/trpc/council.fineTune.chat":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"id":"model-1"`) {
+				t.Fatalf("expected council.fineTune.chat payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"response": "hello from model"}}}})
+		case "/trpc/council.fineTune.stats":
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"datasets": 1, "jobs": 1, "models": 1}}}})
+		default:
+			t.Fatalf("unexpected upstream path %s", r.URL.Path)
+		}
+	}))
+	defer upstream.Close()
+
+	t.Setenv("BORG_TRPC_UPSTREAM", upstream.URL+"/trpc")
+
+	cfg := config.Default()
+	cfg.MainConfigDir = t.TempDir()
+	server := New(cfg, stubDetector{})
+
+	cases := []struct {
+		name      string
+		method    string
+		path      string
+		body      string
+		contains  string
+		procedure string
+	}{
+		{name: "finetune create dataset", method: http.MethodPost, path: "/api/council/fine-tune/datasets", body: `{"name":"dataset-1","format":"alpaca"}`, contains: `"dataset-1"`, procedure: `"procedure":"council.fineTune.createDataset"`},
+		{name: "finetune list datasets", method: http.MethodGet, path: "/api/council/fine-tune/datasets?taskType=code", contains: `"dataset-1"`, procedure: `"procedure":"council.fineTune.listDatasets"`},
+		{name: "finetune get dataset", method: http.MethodGet, path: "/api/council/fine-tune/datasets/get?id=dataset-1", contains: `"dataset-1"`, procedure: `"procedure":"council.fineTune.getDataset"`},
+		{name: "finetune create job", method: http.MethodPost, path: "/api/council/fine-tune/jobs", body: `{"baseModel":"gpt-4.1","datasetId":"dataset-1"}`, contains: `"job-1"`, procedure: `"procedure":"council.fineTune.createJob"`},
+		{name: "finetune list jobs", method: http.MethodGet, path: "/api/council/fine-tune/jobs", contains: `"job-1"`, procedure: `"procedure":"council.fineTune.listJobs"`},
+		{name: "finetune start job", method: http.MethodPost, path: "/api/council/fine-tune/jobs/start", body: `{"id":"job-1"}`, contains: `"running"`, procedure: `"procedure":"council.fineTune.startJob"`},
+		{name: "finetune register model", method: http.MethodPost, path: "/api/council/fine-tune/models", body: `{"name":"model-1","provider":"openai","providerModelId":"ft:model-1"}`, contains: `"model-1"`, procedure: `"procedure":"council.fineTune.registerModel"`},
+		{name: "finetune list models", method: http.MethodGet, path: "/api/council/fine-tune/models", contains: `"model-1"`, procedure: `"procedure":"council.fineTune.listModels"`},
+		{name: "finetune deploy model", method: http.MethodPost, path: "/api/council/fine-tune/models/deploy", body: `{"id":"model-1"}`, contains: `"active"`, procedure: `"procedure":"council.fineTune.deployModel"`},
+		{name: "finetune chat", method: http.MethodPost, path: "/api/council/fine-tune/chat", body: `{"id":"model-1","messages":[{"role":"user","content":"hello"}]}`, contains: `"hello from model"`, procedure: `"procedure":"council.fineTune.chat"`},
+		{name: "finetune stats", method: http.MethodGet, path: "/api/council/fine-tune/stats", contains: `"datasets":1`, procedure: `"procedure":"council.fineTune.stats"`},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var body io.Reader
+			if tc.body != "" {
+				body = strings.NewReader(tc.body)
+			}
+			request := httptest.NewRequest(tc.method, tc.path, body)
+			if tc.body != "" {
+				request.Header.Set("content-type", "application/json")
+			}
+			recorder := httptest.NewRecorder()
+			server.Handler().ServeHTTP(recorder, request)
+			if recorder.Code != http.StatusOK {
+				t.Fatalf("expected status 200, got %d with body %s", recorder.Code, recorder.Body.String())
+			}
+			if !strings.Contains(recorder.Body.String(), tc.contains) {
+				t.Fatalf("expected response to contain %s, got %s", tc.contains, recorder.Body.String())
+			}
+			if !strings.Contains(recorder.Body.String(), tc.procedure) {
+				t.Fatalf("expected bridge metadata %s, got %s", tc.procedure, recorder.Body.String())
+			}
+		})
+	}
+}
+
+func TestCouncilRotationBridgeRoutes(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("content-type", "application/json")
+		switch r.URL.Path {
+		case "/trpc/council.rotation.list":
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": []any{map[string]any{"id": "rotation-1"}}}}})
+		case "/trpc/council.rotation.get":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"roomId":"rotation-1"`) {
+				t.Fatalf("expected council.rotation.get payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"id": "rotation-1", "mode": "plan"}}}})
+		case "/trpc/council.rotation.create":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"title":"Autopilot trio"`) {
+				t.Fatalf("expected council.rotation.create payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"id": "rotation-1", "mode": "plan"}}}})
+		case "/trpc/council.rotation.addParticipant":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"id":"qwen"`) {
+				t.Fatalf("expected council.rotation.addParticipant payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"id": "rotation-1", "participantOrder": []any{"claude", "gpt", "qwen"}}}}})
+		case "/trpc/council.rotation.postMessage":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"content":"Plan first"`) {
+				t.Fatalf("expected council.rotation.postMessage payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"id": "msg-1", "content": "Plan first"}}}})
+		case "/trpc/council.rotation.setAgreement":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"agrees":true`) {
+				t.Fatalf("expected council.rotation.setAgreement payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"id": "rotation-1", "status": "active"}}}})
+		case "/trpc/council.rotation.advanceTurn":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"summary":"Planning complete"`) {
+				t.Fatalf("expected council.rotation.advanceTurn payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"id": "rotation-1", "currentCycleNumber": 1}}}})
+		case "/trpc/council.rotation.configureSupervisor":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"completionCriteria":"Wait for tests"`) {
+				t.Fatalf("expected council.rotation.configureSupervisor payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"id": "rotation-1", "supervisor": map[string]any{"status": "active"}}}}})
+		case "/trpc/council.rotation.runSupervisorCheck":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"roomId":"rotation-1"`) {
+				t.Fatalf("expected council.rotation.runSupervisorCheck payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"id": "rotation-1", "supervisor": map[string]any{"status": "satisfied"}}}}})
+		case "/trpc/council.rotation.updateSharedContext":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"sharedContext":"Shared task context"`) {
+				t.Fatalf("expected council.rotation.updateSharedContext payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"id": "rotation-1", "sharedContext": "Shared task context"}}}})
+		case "/trpc/council.rotation.pause":
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"id": "rotation-1", "status": "paused"}}}})
+		case "/trpc/council.rotation.resume":
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"id": "rotation-1", "status": "active"}}}})
+		case "/trpc/council.rotation.startExecution":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"checkpoint":"Ready to code"`) {
+				t.Fatalf("expected council.rotation.startExecution payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"id": "rotation-1", "mode": "execute"}}}})
+		case "/trpc/council.rotation.complete":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"summary":"Done"`) {
+				t.Fatalf("expected council.rotation.complete payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"id": "rotation-1", "status": "completed"}}}})
+		default:
+			t.Fatalf("unexpected upstream path %s", r.URL.Path)
+		}
+	}))
+	defer upstream.Close()
+
+	t.Setenv("BORG_TRPC_UPSTREAM", upstream.URL+"/trpc")
+
+	cfg := config.Default()
+	cfg.MainConfigDir = t.TempDir()
+	server := New(cfg, stubDetector{})
+
+	cases := []struct {
+		name      string
+		method    string
+		path      string
+		body      string
+		contains  string
+		procedure string
+	}{
+		{name: "rotation list", method: http.MethodGet, path: "/api/council/rotation", contains: `"rotation-1"`, procedure: `"procedure":"council.rotation.list"`},
+		{name: "rotation get", method: http.MethodGet, path: "/api/council/rotation/get?roomId=rotation-1", contains: `"mode":"plan"`, procedure: `"procedure":"council.rotation.get"`},
+		{name: "rotation create", method: http.MethodPost, path: "/api/council/rotation/create", body: `{"title":"Autopilot trio","objective":"Debate then code","participants":[{"id":"claude","name":"Claude","provider":"anthropic","model":"claude-sonnet-4.6"},{"id":"gpt","name":"GPT","provider":"openai","model":"gpt-5.4"}]}`, contains: `"rotation-1"`, procedure: `"procedure":"council.rotation.create"`},
+		{name: "rotation add participant", method: http.MethodPost, path: "/api/council/rotation/add-participant", body: `{"roomId":"rotation-1","participant":{"id":"qwen","name":"Qwen","provider":"local","model":"qwen2.5-coder"}}`, contains: `"qwen"`, procedure: `"procedure":"council.rotation.addParticipant"`},
+		{name: "rotation post message", method: http.MethodPost, path: "/api/council/rotation/post-message", body: `{"roomId":"rotation-1","participantId":"claude","content":"Plan first"}`, contains: `"Plan first"`, procedure: `"procedure":"council.rotation.postMessage"`},
+		{name: "rotation set agreement", method: http.MethodPost, path: "/api/council/rotation/set-agreement", body: `{"roomId":"rotation-1","participantId":"claude","agrees":true}`, contains: `"status":"active"`, procedure: `"procedure":"council.rotation.setAgreement"`},
+		{name: "rotation advance turn", method: http.MethodPost, path: "/api/council/rotation/advance-turn", body: `{"roomId":"rotation-1","summary":"Planning complete"}`, contains: `"currentCycleNumber":1`, procedure: `"procedure":"council.rotation.advanceTurn"`},
+		{name: "rotation configure supervisor", method: http.MethodPost, path: "/api/council/rotation/configure-supervisor", body: `{"roomId":"rotation-1","supervisor":{"name":"Local Qwen supervisor","provider":"local","model":"qwen2.5-coder","completionCriteria":"Wait for tests","evaluationMode":"after_turn","completionAction":"complete"}}`, contains: `"status":"active"`, procedure: `"procedure":"council.rotation.configureSupervisor"`},
+		{name: "rotation run supervisor check", method: http.MethodPost, path: "/api/council/rotation/run-supervisor-check", body: `{"roomId":"rotation-1"}`, contains: `"status":"satisfied"`, procedure: `"procedure":"council.rotation.runSupervisorCheck"`},
+		{name: "rotation update context", method: http.MethodPost, path: "/api/council/rotation/update-shared-context", body: `{"roomId":"rotation-1","sharedContext":"Shared task context"}`, contains: `"Shared task context"`, procedure: `"procedure":"council.rotation.updateSharedContext"`},
+		{name: "rotation pause", method: http.MethodPost, path: "/api/council/rotation/pause", body: `{"roomId":"rotation-1"}`, contains: `"status":"paused"`, procedure: `"procedure":"council.rotation.pause"`},
+		{name: "rotation resume", method: http.MethodPost, path: "/api/council/rotation/resume", body: `{"roomId":"rotation-1"}`, contains: `"status":"active"`, procedure: `"procedure":"council.rotation.resume"`},
+		{name: "rotation start execution", method: http.MethodPost, path: "/api/council/rotation/start-execution", body: `{"roomId":"rotation-1","checkpoint":"Ready to code"}`, contains: `"mode":"execute"`, procedure: `"procedure":"council.rotation.startExecution"`},
+		{name: "rotation complete", method: http.MethodPost, path: "/api/council/rotation/complete", body: `{"roomId":"rotation-1","summary":"Done"}`, contains: `"status":"completed"`, procedure: `"procedure":"council.rotation.complete"`},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var body io.Reader
+			if tc.body != "" {
+				body = strings.NewReader(tc.body)
+			}
+			request := httptest.NewRequest(tc.method, tc.path, body)
+			if tc.body != "" {
+				request.Header.Set("content-type", "application/json")
+			}
+			recorder := httptest.NewRecorder()
+			server.Handler().ServeHTTP(recorder, request)
+			if recorder.Code != http.StatusOK {
+				t.Fatalf("expected status 200, got %d with body %s", recorder.Code, recorder.Body.String())
+			}
+			if !strings.Contains(recorder.Body.String(), tc.contains) {
+				t.Fatalf("expected response to contain %s, got %s", tc.contains, recorder.Body.String())
+			}
+			if !strings.Contains(recorder.Body.String(), tc.procedure) {
+				t.Fatalf("expected bridge metadata %s, got %s", tc.procedure, recorder.Body.String())
+			}
+		})
+	}
+}
+
+func TestSwarmBridgeRoutes(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("content-type", "application/json")
+		switch r.URL.Path {
+		case "/trpc/swarm.startSwarm":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"masterPrompt":"Implement feature"`) {
+				t.Fatalf("expected swarm.startSwarm payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"missionId": "mission-1", "taskCount": 3}}}})
+		case "/trpc/swarm.resumeMission":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"missionId":"mission-1"`) {
+				t.Fatalf("expected swarm.resumeMission payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"success": true}}}})
+		case "/trpc/swarm.approveTask":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"taskId":"task-1"`) {
+				t.Fatalf("expected swarm.approveTask payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"success": true}}}})
+		case "/trpc/swarm.decomposeTask":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"taskId":"task-1"`) {
+				t.Fatalf("expected swarm.decomposeTask payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"success": true, "subMissionId": "sub-1"}}}})
+		case "/trpc/swarm.updateTaskPriority":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"priority":5`) {
+				t.Fatalf("expected swarm.updateTaskPriority payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"success": true}}}})
+		case "/trpc/swarm.executeDebate":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"topic":"Best implementation path"`) {
+				t.Fatalf("expected swarm.executeDebate payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"winner": "claude", "roundsCompleted": 3}}}})
+		case "/trpc/swarm.seekConsensus":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"prompt":"Agree on plan"`) {
+				t.Fatalf("expected swarm.seekConsensus payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"agreed": true, "agreementPercentage": 100}}}})
+		case "/trpc/swarm.getMissionHistory":
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": []any{map[string]any{"id": "mission-1"}}}}})
+		case "/trpc/swarm.getMissionRiskSummary":
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"missionCount": 1, "averageRisk": 10}}}})
+		case "/trpc/swarm.getMissionRiskRows":
+			body, _ := io.ReadAll(r.Body)
+			if len(body) > 0 && !strings.Contains(string(body), `"statusFilter":"active"`) {
+				t.Fatalf("expected swarm.getMissionRiskRows payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": []any{map[string]any{"missionRiskScore": 10}}}}})
+		case "/trpc/swarm.getMissionRiskFacets":
+			body, _ := io.ReadAll(r.Body)
+			if len(body) > 0 && !strings.Contains(string(body), `"minRisk":10`) {
+				t.Fatalf("expected swarm.getMissionRiskFacets payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"bands": map[string]any{"low": 1}}}}})
+		case "/trpc/swarm.getMeshCapabilities":
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"node-1": []any{"debate", "consensus"}}}}})
+		case "/trpc/swarm.sendDirectMessage":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"targetNodeId":"node-1"`) {
+				t.Fatalf("expected swarm.sendDirectMessage payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"success": true}}}})
+		default:
+			t.Fatalf("unexpected upstream path %s", r.URL.Path)
+		}
+	}))
+	defer upstream.Close()
+
+	t.Setenv("BORG_TRPC_UPSTREAM", upstream.URL+"/trpc")
+
+	cfg := config.Default()
+	cfg.MainConfigDir = t.TempDir()
+	server := New(cfg, stubDetector{})
+
+	cases := []struct {
+		name      string
+		method    string
+		path      string
+		body      string
+		contains  string
+		procedure string
+	}{
+		{name: "swarm start", method: http.MethodPost, path: "/api/swarm/start", body: `{"masterPrompt":"Implement feature","maxConcurrency":3}`, contains: `"missionId":"mission-1"`, procedure: `"procedure":"swarm.startSwarm"`},
+		{name: "swarm resume", method: http.MethodPost, path: "/api/swarm/resume", body: `{"missionId":"mission-1"}`, contains: `"success":true`, procedure: `"procedure":"swarm.resumeMission"`},
+		{name: "swarm approve task", method: http.MethodPost, path: "/api/swarm/approve-task", body: `{"missionId":"mission-1","taskId":"task-1","approved":true}`, contains: `"success":true`, procedure: `"procedure":"swarm.approveTask"`},
+		{name: "swarm decompose task", method: http.MethodPost, path: "/api/swarm/decompose-task", body: `{"missionId":"mission-1","taskId":"task-1"}`, contains: `"subMissionId":"sub-1"`, procedure: `"procedure":"swarm.decomposeTask"`},
+		{name: "swarm update priority", method: http.MethodPost, path: "/api/swarm/update-task-priority", body: `{"missionId":"mission-1","taskId":"task-1","priority":5}`, contains: `"success":true`, procedure: `"procedure":"swarm.updateTaskPriority"`},
+		{name: "swarm debate", method: http.MethodPost, path: "/api/swarm/debate", body: `{"topic":"Best implementation path","proponentModel":"claude","opponentModel":"gpt","judgeModel":"gemini"}`, contains: `"winner":"claude"`, procedure: `"procedure":"swarm.executeDebate"`},
+		{name: "swarm consensus", method: http.MethodPost, path: "/api/swarm/consensus", body: `{"prompt":"Agree on plan","models":["claude","gpt","gemini"]}`, contains: `"agreed":true`, procedure: `"procedure":"swarm.seekConsensus"`},
+		{name: "swarm missions", method: http.MethodGet, path: "/api/swarm/missions", contains: `"mission-1"`, procedure: `"procedure":"swarm.getMissionHistory"`},
+		{name: "swarm risk summary", method: http.MethodGet, path: "/api/swarm/risk/summary", contains: `"averageRisk":10`, procedure: `"procedure":"swarm.getMissionRiskSummary"`},
+		{name: "swarm risk rows", method: http.MethodGet, path: "/api/swarm/risk/rows?statusFilter=active&limit=10", contains: `"missionRiskScore":10`, procedure: `"procedure":"swarm.getMissionRiskRows"`},
+		{name: "swarm risk facets", method: http.MethodGet, path: "/api/swarm/risk/facets?minRisk=10", contains: `"low":1`, procedure: `"procedure":"swarm.getMissionRiskFacets"`},
+		{name: "swarm mesh capabilities", method: http.MethodGet, path: "/api/swarm/mesh-capabilities", contains: `"debate"`, procedure: `"procedure":"swarm.getMeshCapabilities"`},
+		{name: "swarm direct message", method: http.MethodPost, path: "/api/swarm/direct-message", body: `{"targetNodeId":"node-1","payload":{"hello":"world"}}`, contains: `"success":true`, procedure: `"procedure":"swarm.sendDirectMessage"`},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var body io.Reader
+			if tc.body != "" {
+				body = strings.NewReader(tc.body)
+			}
+			request := httptest.NewRequest(tc.method, tc.path, body)
+			if tc.body != "" {
+				request.Header.Set("content-type", "application/json")
+			}
+			recorder := httptest.NewRecorder()
+			server.Handler().ServeHTTP(recorder, request)
+			if recorder.Code != http.StatusOK {
+				t.Fatalf("expected status 200, got %d with body %s", recorder.Code, recorder.Body.String())
+			}
+			if !strings.Contains(recorder.Body.String(), tc.contains) {
+				t.Fatalf("expected response to contain %s, got %s", tc.contains, recorder.Body.String())
+			}
+			if !strings.Contains(recorder.Body.String(), tc.procedure) {
+				t.Fatalf("expected bridge metadata %s, got %s", tc.procedure, recorder.Body.String())
+			}
+		})
+	}
+}
+
+func TestBillingBridgeRoutes(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("content-type", "application/json")
+		switch r.URL.Path {
+		case "/trpc/billing.getStatus":
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"usage": map[string]any{"currentMonth": 12.5}}}}})
+		case "/trpc/billing.getProviderQuotas":
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": []any{map[string]any{"provider": "openai", "remaining": 100}}}}})
+		case "/trpc/billing.getCostHistory":
+			body, _ := io.ReadAll(r.Body)
+			if len(body) > 0 && !strings.Contains(string(body), `"days":7`) {
+				t.Fatalf("expected billing.getCostHistory payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"history": []any{map[string]any{"date": "2026-03-31", "cost": 12.5}}}}}})
+		case "/trpc/billing.getModelPricing":
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"models": []any{map[string]any{"id": "gpt-5.4"}}}}}})
+		case "/trpc/billing.getFallbackChain":
+			body, _ := io.ReadAll(r.Body)
+			if len(body) > 0 && !strings.Contains(string(body), `"taskType":"coding"`) {
+				t.Fatalf("expected billing.getFallbackChain payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"chain": []any{map[string]any{"provider": "openai"}}}}}})
+		case "/trpc/billing.getTaskRoutingRules":
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"defaultStrategy": "best"}}}})
+		case "/trpc/billing.setRoutingStrategy":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"strategy":"round-robin"`) {
+				t.Fatalf("expected billing.setRoutingStrategy payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"ok": true, "strategy": "round-robin"}}}})
+		case "/trpc/billing.setTaskRoutingRule":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"taskType":"coding"`) {
+				t.Fatalf("expected billing.setTaskRoutingRule payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"ok": true, "taskType": "coding"}}}})
+		case "/trpc/billing.getDepletedModels":
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": []any{"gpt-4.1"}}}})
+		case "/trpc/billing.getFallbackHistory":
+			body, _ := io.ReadAll(r.Body)
+			if len(body) > 0 && !strings.Contains(string(body), `"limit":10`) {
+				t.Fatalf("expected billing.getFallbackHistory payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": []any{map[string]any{"selectedProvider": "openai"}}}}})
+		case "/trpc/billing.clearFallbackHistory":
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"ok": true}}}})
+		default:
+			t.Fatalf("unexpected upstream path %s", r.URL.Path)
+		}
+	}))
+	defer upstream.Close()
+
+	t.Setenv("BORG_TRPC_UPSTREAM", upstream.URL+"/trpc")
+
+	cfg := config.Default()
+	cfg.MainConfigDir = t.TempDir()
+	server := New(cfg, stubDetector{})
+
+	cases := []struct {
+		name      string
+		method    string
+		path      string
+		body      string
+		contains  string
+		procedure string
+	}{
+		{name: "billing status", method: http.MethodGet, path: "/api/billing/status", contains: `"currentMonth":12.5`, procedure: `"procedure":"billing.getStatus"`},
+		{name: "billing quotas", method: http.MethodGet, path: "/api/billing/provider-quotas", contains: `"remaining":100`, procedure: `"procedure":"billing.getProviderQuotas"`},
+		{name: "billing cost history", method: http.MethodGet, path: "/api/billing/cost-history?days=7", contains: `"date":"2026-03-31"`, procedure: `"procedure":"billing.getCostHistory"`},
+		{name: "billing model pricing", method: http.MethodGet, path: "/api/billing/model-pricing", contains: `"gpt-5.4"`, procedure: `"procedure":"billing.getModelPricing"`},
+		{name: "billing fallback chain", method: http.MethodGet, path: "/api/billing/fallback-chain?taskType=coding", contains: `"provider":"openai"`, procedure: `"procedure":"billing.getFallbackChain"`},
+		{name: "billing task routing rules", method: http.MethodGet, path: "/api/billing/task-routing-rules", contains: `"defaultStrategy":"best"`, procedure: `"procedure":"billing.getTaskRoutingRules"`},
+		{name: "billing set routing strategy", method: http.MethodPost, path: "/api/billing/routing-strategy", body: `{"strategy":"round-robin"}`, contains: `"strategy":"round-robin"`, procedure: `"procedure":"billing.setRoutingStrategy"`},
+		{name: "billing set task routing rule", method: http.MethodPost, path: "/api/billing/task-routing-rule", body: `{"taskType":"coding","strategy":"best"}`, contains: `"taskType":"coding"`, procedure: `"procedure":"billing.setTaskRoutingRule"`},
+		{name: "billing depleted models", method: http.MethodGet, path: "/api/billing/depleted-models", contains: `"gpt-4.1"`, procedure: `"procedure":"billing.getDepletedModels"`},
+		{name: "billing fallback history", method: http.MethodGet, path: "/api/billing/fallback-history?limit=10", contains: `"selectedProvider":"openai"`, procedure: `"procedure":"billing.getFallbackHistory"`},
+		{name: "billing clear fallback history", method: http.MethodPost, path: "/api/billing/fallback-history/clear", contains: `"ok":true`, procedure: `"procedure":"billing.clearFallbackHistory"`},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var body io.Reader
+			if tc.body != "" {
+				body = strings.NewReader(tc.body)
+			}
+			request := httptest.NewRequest(tc.method, tc.path, body)
+			if tc.body != "" {
+				request.Header.Set("content-type", "application/json")
+			}
+			recorder := httptest.NewRecorder()
+			server.Handler().ServeHTTP(recorder, request)
+			if recorder.Code != http.StatusOK {
+				t.Fatalf("expected status 200, got %d with body %s", recorder.Code, recorder.Body.String())
+			}
+			if !strings.Contains(recorder.Body.String(), tc.contains) {
+				t.Fatalf("expected response to contain %s, got %s", tc.contains, recorder.Body.String())
+			}
+			if !strings.Contains(recorder.Body.String(), tc.procedure) {
+				t.Fatalf("expected bridge metadata %s, got %s", tc.procedure, recorder.Body.String())
+			}
+		})
+	}
+}
+
+func TestBrowserBridgeRoutes(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("content-type", "application/json")
+		switch r.URL.Path {
+		case "/trpc/browser.status":
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"available": true, "pageCount": 1}}}})
+		case "/trpc/browser.closePage":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"pageId":"page-1"`) {
+				t.Fatalf("expected browser.closePage payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"success": true}}}})
+		case "/trpc/browser.closeAll":
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"success": true}}}})
+		case "/trpc/browser.searchHistory":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"query":"hypercode"`) {
+				t.Fatalf("expected browser.searchHistory payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"items": []any{map[string]any{"title": "HyperCode"}}}}}})
+		case "/trpc/browser.scrapePage":
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"title": "HyperCode Docs", "content": "hello"}}}})
+		case "/trpc/browser.screenshot":
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"message": "Screenshot captured."}}}})
+		case "/trpc/browser.debug":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"action":"command"`) {
+				t.Fatalf("expected browser.debug payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"raw": "{\"ok\":true}"}}}})
+		case "/trpc/browser.proxyFetch":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"url":"https://example.com"`) {
+				t.Fatalf("expected browser.proxyFetch payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"data": map[string]any{"status": 200}}}}})
+		default:
+			t.Fatalf("unexpected upstream path %s", r.URL.Path)
+		}
+	}))
+	defer upstream.Close()
+
+	t.Setenv("BORG_TRPC_UPSTREAM", upstream.URL+"/trpc")
+
+	cfg := config.Default()
+	cfg.MainConfigDir = t.TempDir()
+	server := New(cfg, stubDetector{})
+
+	cases := []struct {
+		name      string
+		method    string
+		path      string
+		body      string
+		contains  string
+		procedure string
+	}{
+		{name: "browser status", method: http.MethodGet, path: "/api/browser/status", contains: `"pageCount":1`, procedure: `"procedure":"browser.status"`},
+		{name: "browser close page", method: http.MethodPost, path: "/api/browser/close-page", body: `{"pageId":"page-1"}`, contains: `"success":true`, procedure: `"procedure":"browser.closePage"`},
+		{name: "browser close all", method: http.MethodPost, path: "/api/browser/close-all", contains: `"success":true`, procedure: `"procedure":"browser.closeAll"`},
+		{name: "browser search history", method: http.MethodGet, path: "/api/browser/search-history?query=hypercode&maxResults=5", contains: `"HyperCode"`, procedure: `"procedure":"browser.searchHistory"`},
+		{name: "browser scrape", method: http.MethodGet, path: "/api/browser/scrape", contains: `"HyperCode Docs"`, procedure: `"procedure":"browser.scrapePage"`},
+		{name: "browser screenshot", method: http.MethodPost, path: "/api/browser/screenshot", contains: `"Screenshot captured."`, procedure: `"procedure":"browser.screenshot"`},
+		{name: "browser debug", method: http.MethodPost, path: "/api/browser/debug", body: `{"action":"command","method":"Page.reload"}`, contains: `"{\"ok\":true}"`, procedure: `"procedure":"browser.debug"`},
+		{name: "browser proxy fetch", method: http.MethodPost, path: "/api/browser/proxy-fetch", body: `{"url":"https://example.com","method":"GET","headers":{}}`, contains: `"status":200`, procedure: `"procedure":"browser.proxyFetch"`},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var body io.Reader
+			if tc.body != "" {
+				body = strings.NewReader(tc.body)
+			}
+			request := httptest.NewRequest(tc.method, tc.path, body)
+			if tc.body != "" {
+				request.Header.Set("content-type", "application/json")
+			}
+			recorder := httptest.NewRecorder()
+			server.Handler().ServeHTTP(recorder, request)
+			if recorder.Code != http.StatusOK {
+				t.Fatalf("expected status 200, got %d with body %s", recorder.Code, recorder.Body.String())
+			}
+			if !strings.Contains(recorder.Body.String(), tc.contains) {
+				t.Fatalf("expected response to contain %s, got %s", tc.contains, recorder.Body.String())
+			}
+			if !strings.Contains(recorder.Body.String(), tc.procedure) {
+				t.Fatalf("expected bridge metadata %s, got %s", tc.procedure, recorder.Body.String())
+			}
+		})
+	}
+}
+
+func TestSquadBridgeRoutes(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("content-type", "application/json")
+		switch r.URL.Path {
+		case "/trpc/squad.list":
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": []any{
+				map[string]any{"branch": "feature/alpha", "goal": "Ship alpha"},
+			}}}})
+		case "/trpc/squad.spawn":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"branch":"feature/alpha"`) || !strings.Contains(string(body), `"goal":"Ship alpha"`) {
+				t.Fatalf("expected squad.spawn payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"branch": "feature/alpha", "status": "spawned"}}}})
+		case "/trpc/squad.kill":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"branch":"feature/alpha"`) {
+				t.Fatalf("expected squad.kill payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": true}}})
+		case "/trpc/squad.chat":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"branch":"feature/alpha"`) || !strings.Contains(string(body), `"message":"Status?"`) {
+				t.Fatalf("expected squad.chat payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": "On it"}}})
+		case "/trpc/squad.toggleIndexer":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"enabled":true`) {
+				t.Fatalf("expected squad.toggleIndexer payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": true}}})
+		case "/trpc/squad.getIndexerStatus":
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"running": true, "indexing": false}}}})
+		default:
+			t.Fatalf("unexpected upstream path %s", r.URL.Path)
+		}
+	}))
+	defer upstream.Close()
+
+	t.Setenv("BORG_TRPC_UPSTREAM", upstream.URL+"/trpc")
+
+	cfg := config.Default()
+	cfg.MainConfigDir = t.TempDir()
+	server := New(cfg, stubDetector{})
+
+	cases := []struct {
+		name      string
+		method    string
+		path      string
+		body      string
+		contains  string
+		procedure string
+	}{
+		{name: "squad list", method: http.MethodGet, path: "/api/squad", contains: `"feature/alpha"`, procedure: `"procedure":"squad.list"`},
+		{name: "squad spawn", method: http.MethodPost, path: "/api/squad/spawn", body: `{"branch":"feature/alpha","goal":"Ship alpha"}`, contains: `"status":"spawned"`, procedure: `"procedure":"squad.spawn"`},
+		{name: "squad kill", method: http.MethodPost, path: "/api/squad/kill", body: `{"branch":"feature/alpha"}`, contains: `"data":true`, procedure: `"procedure":"squad.kill"`},
+		{name: "squad chat", method: http.MethodPost, path: "/api/squad/chat", body: `{"branch":"feature/alpha","message":"Status?"}`, contains: `"On it"`, procedure: `"procedure":"squad.chat"`},
+		{name: "squad toggle indexer", method: http.MethodPost, path: "/api/squad/indexer/toggle", body: `{"enabled":true}`, contains: `"data":true`, procedure: `"procedure":"squad.toggleIndexer"`},
+		{name: "squad indexer status", method: http.MethodGet, path: "/api/squad/indexer/status", contains: `"running":true`, procedure: `"procedure":"squad.getIndexerStatus"`},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var body io.Reader
+			if tc.body != "" {
+				body = strings.NewReader(tc.body)
+			}
+			request := httptest.NewRequest(tc.method, tc.path, body)
+			if tc.body != "" {
+				request.Header.Set("content-type", "application/json")
+			}
+			recorder := httptest.NewRecorder()
+			server.Handler().ServeHTTP(recorder, request)
+			if recorder.Code != http.StatusOK {
+				t.Fatalf("expected status 200, got %d with body %s", recorder.Code, recorder.Body.String())
+			}
+			if !strings.Contains(recorder.Body.String(), tc.contains) {
+				t.Fatalf("expected response to contain %s, got %s", tc.contains, recorder.Body.String())
+			}
+			if !strings.Contains(recorder.Body.String(), tc.procedure) {
+				t.Fatalf("expected bridge metadata %s, got %s", tc.procedure, recorder.Body.String())
+			}
+		})
+	}
+}
+
+func TestSupervisorBridgeRoutes(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("content-type", "application/json")
+		switch r.URL.Path {
+		case "/trpc/supervisor.decompose":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"goal":"Ship the supervisor lane"`) {
+				t.Fatalf("expected supervisor.decompose payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"steps": []any{"plan", "build", "verify"}}}}})
+		case "/trpc/supervisor.supervise":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"goal":"Ship the supervisor lane"`) || !strings.Contains(string(body), `"maxSteps":5`) {
+				t.Fatalf("expected supervisor.supervise payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"success": true, "taskId": "sup-1"}}}})
+		case "/trpc/supervisor.status":
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"isActive": true, "queueDepth": 1}}}})
+		case "/trpc/supervisor.listTasks":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"limit":10`) || !strings.Contains(string(body), `"status":"active"`) {
+				t.Fatalf("expected supervisor.listTasks payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": []any{
+				map[string]any{"id": "sup-1", "status": "active"},
+			}}}})
+		case "/trpc/supervisor.cancel":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"taskId":"sup-1"`) {
+				t.Fatalf("expected supervisor.cancel payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"success": true, "taskId": "sup-1"}}}})
+		default:
+			t.Fatalf("unexpected upstream path %s", r.URL.Path)
+		}
+	}))
+	defer upstream.Close()
+
+	t.Setenv("BORG_TRPC_UPSTREAM", upstream.URL+"/trpc")
+
+	cfg := config.Default()
+	cfg.MainConfigDir = t.TempDir()
+	server := New(cfg, stubDetector{})
+
+	cases := []struct {
+		name      string
+		method    string
+		path      string
+		body      string
+		contains  string
+		procedure string
+	}{
+		{name: "supervisor decompose", method: http.MethodPost, path: "/api/supervisor/decompose", body: `{"goal":"Ship the supervisor lane"}`, contains: `"plan"`, procedure: `"procedure":"supervisor.decompose"`},
+		{name: "supervisor supervise", method: http.MethodPost, path: "/api/supervisor/supervise", body: `{"goal":"Ship the supervisor lane","maxSteps":5}`, contains: `"taskId":"sup-1"`, procedure: `"procedure":"supervisor.supervise"`},
+		{name: "supervisor status", method: http.MethodGet, path: "/api/supervisor/status", contains: `"queueDepth":1`, procedure: `"procedure":"supervisor.status"`},
+		{name: "supervisor tasks", method: http.MethodGet, path: "/api/supervisor/tasks?limit=10&status=active", contains: `"status":"active"`, procedure: `"procedure":"supervisor.listTasks"`},
+		{name: "supervisor cancel", method: http.MethodPost, path: "/api/supervisor/cancel", body: `{"taskId":"sup-1"}`, contains: `"success":true`, procedure: `"procedure":"supervisor.cancel"`},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var body io.Reader
+			if tc.body != "" {
+				body = strings.NewReader(tc.body)
+			}
+			request := httptest.NewRequest(tc.method, tc.path, body)
+			if tc.body != "" {
+				request.Header.Set("content-type", "application/json")
+			}
+			recorder := httptest.NewRecorder()
+			server.Handler().ServeHTTP(recorder, request)
+			if recorder.Code != http.StatusOK {
+				t.Fatalf("expected status 200, got %d with body %s", recorder.Code, recorder.Body.String())
+			}
+			if !strings.Contains(recorder.Body.String(), tc.contains) {
+				t.Fatalf("expected response to contain %s, got %s", tc.contains, recorder.Body.String())
+			}
+			if !strings.Contains(recorder.Body.String(), tc.procedure) {
+				t.Fatalf("expected bridge metadata %s, got %s", tc.procedure, recorder.Body.String())
+			}
+		})
+	}
+}
+
 func TestConfigStatusEndpoint(t *testing.T) {
 	workspaceRoot := t.TempDir()
 	cfg := config.Default()
@@ -1640,14 +2926,23 @@ func TestProviderStatusEndpoint(t *testing.T) {
 	if len(payload.Data) != 8 {
 		t.Fatalf("expected 8 provider statuses, got %d", len(payload.Data))
 	}
-	if payload.Data[0].Provider != "openai" || payload.Data[0].AuthMethod != "api_key" {
-		t.Fatalf("expected openai provider first, got %+v", payload.Data[0])
+	statusByProvider := make(map[string]providers.Status, len(payload.Data))
+	for _, status := range payload.Data {
+		statusByProvider[status.Provider] = status
 	}
-	if !payload.Data[0].Configured || !payload.Data[0].Authenticated || payload.Data[0].EnvVar != "OPENAI_API_KEY" {
-		t.Fatalf("expected configured openai provider, got %+v", payload.Data[0])
+	openAIStatus, ok := statusByProvider["openai"]
+	if !ok {
+		t.Fatalf("expected openai provider in %+v", payload.Data)
 	}
-	if payload.Data[3].Provider != "google-oauth" || payload.Data[3].AuthMethod != "oauth" {
-		t.Fatalf("expected google-oauth provider in payload, got %+v", payload.Data[3])
+	if openAIStatus.AuthMethod != "api_key" || !openAIStatus.Configured || !openAIStatus.Authenticated || openAIStatus.EnvVar != "OPENAI_API_KEY" {
+		t.Fatalf("expected configured openai provider, got %+v", openAIStatus)
+	}
+	googleOAuthStatus, ok := statusByProvider["google-oauth"]
+	if !ok {
+		t.Fatalf("expected google-oauth provider in %+v", payload.Data)
+	}
+	if googleOAuthStatus.AuthMethod != "oauth" || googleOAuthStatus.EnvVar != "GOOGLE_OAUTH_ACCESS_TOKEN" {
+		t.Fatalf("expected google-oauth provider details, got %+v", googleOAuthStatus)
 	}
 }
 
@@ -1663,8 +2958,37 @@ func TestProviderCatalogEndpoint(t *testing.T) {
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("expected status 200, got %d", recorder.Code)
 	}
-	if !strings.Contains(recorder.Body.String(), "\"defaultModel\":\"gpt-4o\"") {
-		t.Fatalf("expected OpenAI default model in payload, got %s", recorder.Body.String())
+
+	var payload struct {
+		Success bool                     `json:"success"`
+		Data    []providers.CatalogEntry `json:"data"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("expected JSON payload, got decode error: %v", err)
+	}
+	if !payload.Success {
+		t.Fatalf("expected success payload, got %s", recorder.Body.String())
+	}
+
+	catalogByProvider := make(map[string]providers.CatalogEntry, len(payload.Data))
+	for _, entry := range payload.Data {
+		catalogByProvider[entry.Provider] = entry
+	}
+
+	openAIEntry, ok := catalogByProvider["openai"]
+	if !ok {
+		t.Fatalf("expected openai catalog entry in %+v", payload.Data)
+	}
+	if openAIEntry.DefaultModel != "gpt-4o" || !openAIEntry.Configured || !openAIEntry.Authenticated {
+		t.Fatalf("expected configured openai catalog entry, got %+v", openAIEntry)
+	}
+
+	googleOAuthEntry, ok := catalogByProvider["google-oauth"]
+	if !ok {
+		t.Fatalf("expected google-oauth catalog entry in %+v", payload.Data)
+	}
+	if googleOAuthEntry.AuthMethod != "oauth" || googleOAuthEntry.DefaultModel != "google-oauth/gemini" {
+		t.Fatalf("expected google-oauth catalog details, got %+v", googleOAuthEntry)
 	}
 }
 
@@ -1689,8 +3013,28 @@ func TestProviderSummaryEndpoint(t *testing.T) {
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("expected status 200, got %d", recorder.Code)
 	}
-	if !strings.Contains(recorder.Body.String(), "\"configuredCount\":2") {
-		t.Fatalf("expected configured provider count in payload, got %s", recorder.Body.String())
+
+	var payload struct {
+		Success bool              `json:"success"`
+		Data    providers.Summary `json:"data"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("expected JSON payload, got decode error: %v", err)
+	}
+	if !payload.Success {
+		t.Fatalf("expected success payload, got %s", recorder.Body.String())
+	}
+	if payload.Data.ProviderCount != 9 {
+		t.Fatalf("expected 9 provider catalog entries, got %+v", payload.Data)
+	}
+	if payload.Data.ConfiguredCount != 2 || payload.Data.AuthenticatedCount != 2 {
+		t.Fatalf("expected 2 configured/authenticated providers, got %+v", payload.Data)
+	}
+	if payload.Data.ExecutableCount != 6 {
+		t.Fatalf("expected 6 executable providers, got %+v", payload.Data)
+	}
+	if len(payload.Data.ByAuthMethod) == 0 || len(payload.Data.ByPreferredTask) == 0 {
+		t.Fatalf("expected provider summary buckets, got %+v", payload.Data)
 	}
 }
 
@@ -1707,11 +3051,46 @@ func TestRoutingSummaryEndpoint(t *testing.T) {
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("expected status 200, got %d", recorder.Code)
 	}
-	if !strings.Contains(recorder.Body.String(), "\"coding\"") {
-		t.Fatalf("expected coding task summary in payload, got %s", recorder.Body.String())
+
+	var payload struct {
+		Success bool                     `json:"success"`
+		Data    providers.RoutingSummary `json:"data"`
 	}
-	if !strings.Contains(recorder.Body.String(), "\"best\"") {
-		t.Fatalf("expected strategy data in payload, got %s", recorder.Body.String())
+	if err := json.Unmarshal(recorder.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("expected JSON payload, got decode error: %v", err)
+	}
+	if !payload.Success {
+		t.Fatalf("expected success payload, got %s", recorder.Body.String())
+	}
+	if payload.Data.DefaultStrategy != "best" {
+		t.Fatalf("expected best default routing strategy, got %+v", payload.Data)
+	}
+	if len(payload.Data.Tasks) != 6 {
+		t.Fatalf("expected 6 routing task summaries, got %+v", payload.Data.Tasks)
+	}
+
+	tasksByType := make(map[string]providers.RoutingTaskSummary, len(payload.Data.Tasks))
+	for _, task := range payload.Data.Tasks {
+		tasksByType[task.TaskType] = task
+	}
+
+	codingTask, ok := tasksByType["coding"]
+	if !ok {
+		t.Fatalf("expected coding task in %+v", payload.Data.Tasks)
+	}
+	if codingTask.Strategy != "cheapest" || len(codingTask.Candidates) == 0 || codingTask.Candidates[0].Provider != "google" || !codingTask.Candidates[0].Configured {
+		t.Fatalf("expected google to lead coding routing, got %+v", codingTask)
+	}
+
+	planningTask, ok := tasksByType["planning"]
+	if !ok {
+		t.Fatalf("expected planning task in %+v", payload.Data.Tasks)
+	}
+	if planningTask.Strategy != "best" || len(planningTask.Candidates) == 0 || planningTask.Candidates[0].Provider != "anthropic" || !planningTask.Candidates[0].Configured {
+		t.Fatalf("expected anthropic to lead planning routing, got %+v", planningTask)
+	}
+	if len(payload.Data.Limitations) == 0 {
+		t.Fatalf("expected routing limitations, got %+v", payload.Data)
 	}
 }
 
@@ -1812,6 +3191,141 @@ func TestSupervisorSessionBridgeRoutes(t *testing.T) {
 					},
 				},
 			})
+		case "/trpc/session.logs":
+			body, err := io.ReadAll(r.Body)
+			if err != nil {
+				t.Fatalf("failed to read logs request body: %v", err)
+			}
+			if !strings.Contains(string(body), `"id":"sess_bridge_1"`) || !strings.Contains(string(body), `"limit":25`) {
+				t.Fatalf("expected session logs request payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"result": map[string]any{
+					"data": map[string]any{
+						"json": []map[string]any{
+							{"stream": "stdout", "message": "bridge ok"},
+						},
+					},
+				},
+			})
+		case "/trpc/session.executeShell":
+			body, err := io.ReadAll(r.Body)
+			if err != nil {
+				t.Fatalf("failed to read executeShell request body: %v", err)
+			}
+			if !strings.Contains(string(body), `"id":"sess_bridge_1"`) || !strings.Contains(string(body), `"command":"pwd"`) {
+				t.Fatalf("expected executeShell payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"result": map[string]any{
+					"data": map[string]any{
+						"json": map[string]any{
+							"command":   "pwd",
+							"cwd":       "C:\\workspace\\borg",
+							"output":    "C:\\workspace\\borg",
+							"exitCode":  0,
+							"succeeded": true,
+						},
+					},
+				},
+			})
+		case "/trpc/session.attachInfo":
+			body, err := io.ReadAll(r.Body)
+			if err != nil {
+				t.Fatalf("failed to read attachInfo request body: %v", err)
+			}
+			if !strings.Contains(string(body), `"id":"sess_bridge_1"`) {
+				t.Fatalf("expected attachInfo payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"result": map[string]any{
+					"data": map[string]any{
+						"json": map[string]any{
+							"attachReadiness":       "ready",
+							"attachReadinessReason": "running-with-pid",
+							"pid":                   4321,
+							"status":                "running",
+						},
+					},
+				},
+			})
+		case "/trpc/session.health":
+			body, err := io.ReadAll(r.Body)
+			if err != nil {
+				t.Fatalf("failed to read health request body: %v", err)
+			}
+			if !strings.Contains(string(body), `"id":"sess_bridge_1"`) {
+				t.Fatalf("expected health payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"result": map[string]any{
+					"data": map[string]any{
+						"json": map[string]any{
+							"status":      "healthy",
+							"isReachable": true,
+						},
+					},
+				},
+			})
+		case "/trpc/session.getState":
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"result": map[string]any{
+					"data": map[string]any{
+						"json": map[string]any{
+							"isAutoDriveActive": true,
+							"activeGoal":        "ship go parity",
+						},
+					},
+				},
+			})
+		case "/trpc/session.updateState":
+			body, err := io.ReadAll(r.Body)
+			if err != nil {
+				t.Fatalf("failed to read updateState request body: %v", err)
+			}
+			if !strings.Contains(string(body), `"activeGoal":"ship go parity"`) || !strings.Contains(string(body), `"lastObjective":"bridge session ops"`) {
+				t.Fatalf("expected updateState payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"result": map[string]any{
+					"data": map[string]any{
+						"json": map[string]any{
+							"success":            true,
+							"toolAdvertisements": []string{"Use session logs"},
+						},
+					},
+				},
+			})
+		case "/trpc/session.clear":
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"result": map[string]any{
+					"data": map[string]any{
+						"json": map[string]any{
+							"success": true,
+						},
+					},
+				},
+			})
+		case "/trpc/session.heartbeat":
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"result": map[string]any{
+					"data": map[string]any{
+						"json": map[string]any{
+							"alive": true,
+						},
+					},
+				},
+			})
+		case "/trpc/session.restore":
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"result": map[string]any{
+					"data": map[string]any{
+						"json": map[string]any{
+							"restoredCount": 1,
+						},
+					},
+				},
+			})
 		default:
 			t.Fatalf("unexpected upstream path %s", r.URL.Path)
 		}
@@ -1843,6 +3357,98 @@ func TestSupervisorSessionBridgeRoutes(t *testing.T) {
 	}
 	if !strings.Contains(stopRecorder.Body.String(), "\"procedure\":\"session.stop\"") {
 		t.Fatalf("expected bridge metadata in stop payload, got %s", stopRecorder.Body.String())
+	}
+
+	logsRequest := httptest.NewRequest(http.MethodGet, "/api/sessions/supervisor/logs?id=sess_bridge_1&limit=25", nil)
+	logsRecorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(logsRecorder, logsRequest)
+	if logsRecorder.Code != http.StatusOK {
+		t.Fatalf("expected status 200 from logs bridge, got %d", logsRecorder.Code)
+	}
+	if !strings.Contains(logsRecorder.Body.String(), "\"bridge ok\"") || !strings.Contains(logsRecorder.Body.String(), "\"procedure\":\"session.logs\"") {
+		t.Fatalf("expected logs bridge payload, got %s", logsRecorder.Body.String())
+	}
+
+	executeRequest := httptest.NewRequest(http.MethodPost, "/api/sessions/supervisor/execute-shell", strings.NewReader(`{"id":"sess_bridge_1","command":"pwd"}`))
+	executeRequest.Header.Set("content-type", "application/json")
+	executeRecorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(executeRecorder, executeRequest)
+	if executeRecorder.Code != http.StatusOK {
+		t.Fatalf("expected status 200 from execute-shell bridge, got %d", executeRecorder.Code)
+	}
+	if !strings.Contains(executeRecorder.Body.String(), "\"procedure\":\"session.executeShell\"") || !strings.Contains(executeRecorder.Body.String(), "\"succeeded\":true") {
+		t.Fatalf("expected execute-shell bridge payload, got %s", executeRecorder.Body.String())
+	}
+
+	attachInfoRequest := httptest.NewRequest(http.MethodGet, "/api/sessions/supervisor/attach-info?id=sess_bridge_1", nil)
+	attachInfoRecorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(attachInfoRecorder, attachInfoRequest)
+	if attachInfoRecorder.Code != http.StatusOK {
+		t.Fatalf("expected status 200 from attach-info bridge, got %d", attachInfoRecorder.Code)
+	}
+	if !strings.Contains(attachInfoRecorder.Body.String(), "\"attachReadiness\":\"ready\"") || !strings.Contains(attachInfoRecorder.Body.String(), "\"procedure\":\"session.attachInfo\"") {
+		t.Fatalf("expected attach-info bridge payload, got %s", attachInfoRecorder.Body.String())
+	}
+
+	healthRequest := httptest.NewRequest(http.MethodGet, "/api/sessions/supervisor/health?id=sess_bridge_1", nil)
+	healthRecorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(healthRecorder, healthRequest)
+	if healthRecorder.Code != http.StatusOK {
+		t.Fatalf("expected status 200 from health bridge, got %d", healthRecorder.Code)
+	}
+	if !strings.Contains(healthRecorder.Body.String(), "\"status\":\"healthy\"") || !strings.Contains(healthRecorder.Body.String(), "\"procedure\":\"session.health\"") {
+		t.Fatalf("expected health bridge payload, got %s", healthRecorder.Body.String())
+	}
+
+	stateRequest := httptest.NewRequest(http.MethodGet, "/api/sessions/supervisor/state", nil)
+	stateRecorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(stateRecorder, stateRequest)
+	if stateRecorder.Code != http.StatusOK {
+		t.Fatalf("expected status 200 from state bridge, got %d", stateRecorder.Code)
+	}
+	if !strings.Contains(stateRecorder.Body.String(), "\"activeGoal\":\"ship go parity\"") || !strings.Contains(stateRecorder.Body.String(), "\"procedure\":\"session.getState\"") {
+		t.Fatalf("expected state bridge payload, got %s", stateRecorder.Body.String())
+	}
+
+	updateStateRequest := httptest.NewRequest(http.MethodPost, "/api/sessions/supervisor/update-state", strings.NewReader(`{"activeGoal":"ship go parity","lastObjective":"bridge session ops"}`))
+	updateStateRequest.Header.Set("content-type", "application/json")
+	updateStateRecorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(updateStateRecorder, updateStateRequest)
+	if updateStateRecorder.Code != http.StatusOK {
+		t.Fatalf("expected status 200 from update-state bridge, got %d", updateStateRecorder.Code)
+	}
+	if !strings.Contains(updateStateRecorder.Body.String(), "\"toolAdvertisements\"") || !strings.Contains(updateStateRecorder.Body.String(), "\"procedure\":\"session.updateState\"") {
+		t.Fatalf("expected update-state bridge payload, got %s", updateStateRecorder.Body.String())
+	}
+
+	clearRequest := httptest.NewRequest(http.MethodPost, "/api/sessions/supervisor/clear", nil)
+	clearRecorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(clearRecorder, clearRequest)
+	if clearRecorder.Code != http.StatusOK {
+		t.Fatalf("expected status 200 from clear bridge, got %d", clearRecorder.Code)
+	}
+	if !strings.Contains(clearRecorder.Body.String(), "\"procedure\":\"session.clear\"") {
+		t.Fatalf("expected clear bridge payload, got %s", clearRecorder.Body.String())
+	}
+
+	heartbeatRequest := httptest.NewRequest(http.MethodPost, "/api/sessions/supervisor/heartbeat", nil)
+	heartbeatRecorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(heartbeatRecorder, heartbeatRequest)
+	if heartbeatRecorder.Code != http.StatusOK {
+		t.Fatalf("expected status 200 from heartbeat bridge, got %d", heartbeatRecorder.Code)
+	}
+	if !strings.Contains(heartbeatRecorder.Body.String(), "\"procedure\":\"session.heartbeat\"") || !strings.Contains(heartbeatRecorder.Body.String(), "\"alive\":true") {
+		t.Fatalf("expected heartbeat bridge payload, got %s", heartbeatRecorder.Body.String())
+	}
+
+	restoreRequest := httptest.NewRequest(http.MethodPost, "/api/sessions/supervisor/restore", nil)
+	restoreRecorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(restoreRecorder, restoreRequest)
+	if restoreRecorder.Code != http.StatusOK {
+		t.Fatalf("expected status 200 from restore bridge, got %d", restoreRecorder.Code)
+	}
+	if !strings.Contains(restoreRecorder.Body.String(), "\"procedure\":\"session.restore\"") || !strings.Contains(restoreRecorder.Body.String(), "\"restoredCount\":1") {
+		t.Fatalf("expected restore bridge payload, got %s", restoreRecorder.Body.String())
 	}
 }
 
@@ -1886,12 +3492,17 @@ func TestMCPBridgeRoutes(t *testing.T) {
 				t.Fatalf("failed to read callTool body: %v", err)
 			}
 			bodyText := string(body)
-			if !strings.Contains(bodyText, `"name":"search_tools"`) && !strings.Contains(bodyText, `"name":"list_all_tools"`) {
+			if !strings.Contains(bodyText, `"name":"search_tools"`) && !strings.Contains(bodyText, `"name":"list_all_tools"`) && !strings.Contains(bodyText, `"name":"auto_call_tool"`) {
 				t.Fatalf("expected supported tool name in bridged callTool body, got %s", bodyText)
 			}
 			contentText := "done"
 			if strings.Contains(bodyText, `"name":"list_all_tools"`) {
 				contentText = "list_all_tools"
+			} else if strings.Contains(bodyText, `"name":"auto_call_tool"`) {
+				if !strings.Contains(bodyText, `"objective":"find the right tool"`) || !strings.Contains(bodyText, `"context":"repo: borg"`) {
+					t.Fatalf("expected auto_call_tool payload, got %s", bodyText)
+				}
+				contentText = "auto_call_tool"
 			}
 			_ = json.NewEncoder(w).Encode(map[string]any{
 				"result": map[string]any{
@@ -2088,6 +3699,60 @@ func TestMCPBridgeRoutes(t *testing.T) {
 					},
 				},
 			})
+		case "/trpc/mcp.setLifecycleModes":
+			body, err := io.ReadAll(r.Body)
+			if err != nil {
+				t.Fatalf("failed to read setLifecycleModes body: %v", err)
+			}
+			if !strings.Contains(string(body), `"lazySessionMode":true`) || !strings.Contains(string(body), `"singleActiveServerMode":false`) {
+				t.Fatalf("expected lifecycle mode payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"result": map[string]any{
+					"data": map[string]any{
+						"json": map[string]any{
+							"ok": true,
+							"lifecycle": map[string]any{
+								"lazySessionMode":        true,
+								"singleActiveServerMode": false,
+							},
+						},
+					},
+				},
+			})
+		case "/trpc/mcp.addServer":
+			body, err := io.ReadAll(r.Body)
+			if err != nil {
+				t.Fatalf("failed to read addServer body: %v", err)
+			}
+			if !strings.Contains(string(body), `"name":"runtime-core"`) || !strings.Contains(string(body), `"command":"node"`) {
+				t.Fatalf("expected addServer payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"result": map[string]any{
+					"data": map[string]any{
+						"json": map[string]any{
+							"success": true,
+							"name":    "runtime-core",
+						},
+					},
+				},
+			})
+		case "/trpc/mcp.removeServer":
+			body, err := io.ReadAll(r.Body)
+			if err != nil {
+				t.Fatalf("failed to read removeServer body: %v", err)
+			}
+			if !strings.Contains(string(body), `"name":"runtime-core"`) {
+				t.Fatalf("expected removeServer payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"result": map[string]any{
+					"data": map[string]any{
+						"json": map[string]any{"success": true},
+					},
+				},
+			})
 		case "/trpc/mcp.getJsoncEditor":
 			_ = json.NewEncoder(w).Encode(map[string]any{
 				"result": map[string]any{
@@ -2212,6 +3877,7 @@ func TestMCPBridgeRoutes(t *testing.T) {
 		{name: "list tools", method: http.MethodGet, path: "/api/mcp/tools", contains: "\"search_tools\"", procedure: "\"procedure\":\"mcp.listTools\""},
 		{name: "search tools", method: http.MethodGet, path: "/api/mcp/tools/search?query=search&profile=repo-coding", contains: "\"alwaysShow\":true", procedure: "\"procedure\":\"mcp.searchTools\""},
 		{name: "call tool", method: http.MethodPost, path: "/api/mcp/tools/call", body: `{"name":"search_tools","args":{"query":"borg"}}`, contains: "\"ok\":true", procedure: "\"procedure\":\"mcp.callTool\""},
+		{name: "auto call tool", method: http.MethodPost, path: "/api/mcp/tools/auto-call", body: `{"objective":"find the right tool","context":"repo: borg"}`, contains: "\"auto_call_tool\"", procedure: "\"procedure\":\"mcp.callTool\""},
 		{name: "tool advertisements", method: http.MethodGet, path: "/api/mcp/tool-ads?goal=ship&objective=find%20tool&limit=6", contains: "\"list_all_tools\"", procedure: "\"procedure\":\"mcp.callTool\""},
 		{name: "get preferences", method: http.MethodGet, path: "/api/mcp/preferences", contains: "\"importantTools\":[\"search_tools\"]", procedure: "\"procedure\":\"mcp.getToolPreferences\""},
 		{name: "set preferences", method: http.MethodPost, path: "/api/mcp/preferences", body: `{"importantTools":["search_tools"]}`, contains: "\"ok\":true", procedure: "\"procedure\":\"mcp.setToolPreferences\""},
@@ -2226,6 +3892,9 @@ func TestMCPBridgeRoutes(t *testing.T) {
 		{name: "working set evictions", method: http.MethodGet, path: "/api/mcp/working-set/evictions", contains: "\"tier\":\"loaded\"", procedure: "\"procedure\":\"mcp.getWorkingSetEvictionHistory\""},
 		{name: "clear working set evictions", method: http.MethodPost, path: "/api/mcp/working-set/evictions/clear", body: `null`, contains: "\"message\":\"cleared\"", procedure: "\"procedure\":\"mcp.clearWorkingSetEvictionHistory\""},
 		{name: "server test", method: http.MethodPost, path: "/api/mcp/server-test", body: `{"targetKind":"router","operation":"tools/list"}`, contains: "\"latencyMs\":5", procedure: "\"procedure\":\"mcp.runServerTest\""},
+		{name: "set lifecycle modes", method: http.MethodPost, path: "/api/mcp/lifecycle-modes", body: `{"lazySessionMode":true,"singleActiveServerMode":false}`, contains: "\"lazySessionMode\":true", procedure: "\"procedure\":\"mcp.setLifecycleModes\""},
+		{name: "add runtime server", method: http.MethodPost, path: "/api/mcp/runtime-servers/add", body: `{"name":"runtime-core","command":"node","args":["server.js"],"env":{"MODE":"test"}}`, contains: "\"name\":\"runtime-core\"", procedure: "\"procedure\":\"mcp.addServer\""},
+		{name: "remove runtime server", method: http.MethodPost, path: "/api/mcp/runtime-servers/remove", body: `{"name":"runtime-core"}`, contains: "\"success\":true", procedure: "\"procedure\":\"mcp.removeServer\""},
 		{name: "get jsonc config", method: http.MethodGet, path: "/api/mcp/config/jsonc", contains: "\"content\":\"// Borg MCP configuration\"", procedure: "\"procedure\":\"mcp.getJsoncEditor\""},
 		{name: "save jsonc config", method: http.MethodPost, path: "/api/mcp/config/jsonc", body: `{"content":"{}"}`, contains: "\"ok\":true", procedure: "\"procedure\":\"mcp.saveJsoncEditor\""},
 		{name: "runtime servers", method: http.MethodGet, path: "/api/mcp/servers/runtime", contains: "\"runtimeConnected\":true", procedure: "\"procedure\":\"mcp.listServers\""},
@@ -2415,6 +4084,78 @@ func TestMemoryBridgeRoutes(t *testing.T) {
 				t.Fatalf("expected memory.searchAgentMemory payload, got %s", string(body))
 			}
 			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": []map[string]any{{"id": "mem-1", "content": "memory result"}}}}})
+		case "/trpc/memory.saveContext":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"source":"docs"`) || !strings.Contains(string(body), `"url":"https://example.com"`) {
+				t.Fatalf("expected memory.saveContext payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"success": true, "id": "ctx-2"}}}})
+		case "/trpc/memory.addFact":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"content":"remember this"`) {
+				t.Fatalf("expected memory.addFact payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"success": true}}}})
+		case "/trpc/memory.recordObservation":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"content":"Observation"`) {
+				t.Fatalf("expected memory.recordObservation payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"success": true, "memory": map[string]any{"id": "obs-1"}}}}})
+		case "/trpc/memory.captureUserPrompt":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"content":"Need help"`) {
+				t.Fatalf("expected memory.captureUserPrompt payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"success": true, "memory": map[string]any{"id": "prompt-1"}}}}})
+		case "/trpc/memory.getRecentObservations":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"limit":5`) {
+				t.Fatalf("expected memory.getRecentObservations payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": []map[string]any{{"id": "obs-1", "content": "Observation"}}}}})
+		case "/trpc/memory.searchObservations":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"query":"signal"`) {
+				t.Fatalf("expected memory.searchObservations payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": []map[string]any{{"id": "obs-2", "content": "signal"}}}}})
+		case "/trpc/memory.getRecentUserPrompts":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"limit":4`) {
+				t.Fatalf("expected memory.getRecentUserPrompts payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": []map[string]any{{"id": "prompt-1", "content": "Need help"}}}}})
+		case "/trpc/memory.searchUserPrompts":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"query":"help"`) {
+				t.Fatalf("expected memory.searchUserPrompts payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": []map[string]any{{"id": "prompt-2", "content": "help"}}}}})
+		case "/trpc/memory.searchMemoryPivot":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"pivotMemoryId":"mem-1"`) {
+				t.Fatalf("expected memory.searchMemoryPivot payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": []map[string]any{{"id": "pivot-1", "score": 0.9}}}}})
+		case "/trpc/memory.getMemoryTimelineWindow":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"centerMemoryId":"mem-1"`) {
+				t.Fatalf("expected memory.getMemoryTimelineWindow payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": []map[string]any{{"id": "timeline-1"}}}}})
+		case "/trpc/memory.getCrossSessionMemoryLinks":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"memoryId":"mem-1"`) {
+				t.Fatalf("expected memory.getCrossSessionMemoryLinks payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": []map[string]any{{"sessionId": "sess-2", "memoryId": "mem-9"}}}}})
+		case "/trpc/memory.captureSessionSummary":
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), `"sessionId":"sess-1"`) {
+				t.Fatalf("expected memory.captureSessionSummary payload, got %s", string(body))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"success": true, "memory": map[string]any{"id": "summary-1"}}}}})
 		case "/trpc/memory.getSessionBootstrap":
 			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"activeGoal": "ship parity", "memories": []any{}}}}})
 		case "/trpc/memory.getToolContext":
@@ -2439,6 +4180,8 @@ func TestMemoryBridgeRoutes(t *testing.T) {
 			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"imported": 2}}}})
 		case "/trpc/memory.convertMemories":
 			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"data": "---", "toFormat": "markdown"}}}})
+		case "/trpc/memory.getSectionedMemoryStatus":
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"data": map[string]any{"json": map[string]any{"available": true, "sections": []any{}}}}})
 		default:
 			t.Fatalf("unexpected upstream path %s", r.URL.Path)
 		}
@@ -2461,14 +4204,27 @@ func TestMemoryBridgeRoutes(t *testing.T) {
 	}{
 		{name: "memory search", method: http.MethodGet, path: "/api/memory/search?query=bootstrap&limit=3", contains: "\"Bootstrap Context\"", procedure: "\"procedure\":\"memory.query\""},
 		{name: "memory contexts", method: http.MethodGet, path: "/api/memory/contexts", contains: "\"ctx-1\"", procedure: "\"procedure\":\"memory.listContexts\""},
+		{name: "memory save context", method: http.MethodPost, path: "/api/memory/context/save", body: `{"source":"docs","url":"https://example.com","content":"hello world"}`, contains: "\"id\":\"ctx-2\"", procedure: "\"procedure\":\"memory.saveContext\""},
 		{name: "memory get context", method: http.MethodGet, path: "/api/memory/context/get?id=ctx-1", contains: "\"content\":\"hello\"", procedure: "\"procedure\":\"memory.getContext\""},
 		{name: "memory delete context", method: http.MethodPost, path: "/api/memory/context/delete", body: `{"id":"ctx-1"}`, contains: "\"success\":true", procedure: "\"procedure\":\"memory.deleteContext\""},
 		{name: "memory agent stats", method: http.MethodGet, path: "/api/memory/agent-stats", contains: "\"total\":6", procedure: "\"procedure\":\"memory.getAgentStats\""},
 		{name: "memory agent search", method: http.MethodGet, path: "/api/memory/agent-search?query=memory&type=working&limit=5", contains: "\"memory result\"", procedure: "\"procedure\":\"memory.searchAgentMemory\""},
+		{name: "memory add fact", method: http.MethodPost, path: "/api/memory/facts/add", body: `{"content":"remember this","type":"working"}`, contains: "\"success\":true", procedure: "\"procedure\":\"memory.addFact\""},
+		{name: "memory record observation", method: http.MethodPost, path: "/api/memory/observations/record", body: `{"content":"Observation","type":"fact","namespace":"ops"}`, contains: "\"obs-1\"", procedure: "\"procedure\":\"memory.recordObservation\""},
+		{name: "memory recent observations", method: http.MethodGet, path: "/api/memory/observations/recent?limit=5&namespace=ops&type=fact", contains: "\"Observation\"", procedure: "\"procedure\":\"memory.getRecentObservations\""},
+		{name: "memory search observations", method: http.MethodGet, path: "/api/memory/observations/search?query=signal&limit=5&namespace=ops&type=fact", contains: "\"signal\"", procedure: "\"procedure\":\"memory.searchObservations\""},
+		{name: "memory capture prompt", method: http.MethodPost, path: "/api/memory/user-prompts/capture", body: `{"content":"Need help","role":"user"}`, contains: "\"prompt-1\"", procedure: "\"procedure\":\"memory.captureUserPrompt\""},
+		{name: "memory recent prompts", method: http.MethodGet, path: "/api/memory/user-prompts/recent?limit=4&role=user", contains: "\"Need help\"", procedure: "\"procedure\":\"memory.getRecentUserPrompts\""},
+		{name: "memory search prompts", method: http.MethodGet, path: "/api/memory/user-prompts/search?query=help&limit=4&role=user", contains: "\"help\"", procedure: "\"procedure\":\"memory.searchUserPrompts\""},
+		{name: "memory pivot search", method: http.MethodPost, path: "/api/memory/pivot/search", body: `{"pivotMemoryId":"mem-1","limit":5}`, contains: "\"pivot-1\"", procedure: "\"procedure\":\"memory.searchMemoryPivot\""},
+		{name: "memory timeline window", method: http.MethodPost, path: "/api/memory/timeline/window", body: `{"centerMemoryId":"mem-1","before":2,"after":2}`, contains: "\"timeline-1\"", procedure: "\"procedure\":\"memory.getMemoryTimelineWindow\""},
+		{name: "memory cross session links", method: http.MethodPost, path: "/api/memory/cross-session-links", body: `{"memoryId":"mem-1","limit":5}`, contains: "\"sess-2\"", procedure: "\"procedure\":\"memory.getCrossSessionMemoryLinks\""},
 		{name: "memory session bootstrap", method: http.MethodGet, path: "/api/memory/session-bootstrap?activeGoal=ship%20parity", contains: "\"activeGoal\":\"ship parity\"", procedure: "\"procedure\":\"memory.getSessionBootstrap\""},
 		{name: "memory tool context", method: http.MethodGet, path: "/api/memory/tool-context?toolName=search_tools", contains: "\"toolName\":\"search_tools\"", procedure: "\"procedure\":\"memory.getToolContext\""},
+		{name: "capture session summary", method: http.MethodPost, path: "/api/memory/session-summaries/capture", body: `{"sessionId":"sess-1","status":"stopped"}`, contains: "\"summary-1\"", procedure: "\"procedure\":\"memory.captureSessionSummary\""},
 		{name: "recent session summaries", method: http.MethodGet, path: "/api/memory/session-summaries/recent?limit=5", contains: "\"sessionId\":\"sess-1\"", procedure: "\"procedure\":\"memory.getRecentSessionSummaries\""},
 		{name: "search session summaries", method: http.MethodGet, path: "/api/memory/session-summaries/search?query=recent&limit=5", contains: "\"summary\":\"recent\"", procedure: "\"procedure\":\"memory.searchSessionSummaries\""},
+		{name: "memory sectioned status", method: http.MethodGet, path: "/api/memory/sectioned-status", contains: "\"available\":true", procedure: "\"procedure\":\"memory.getSectionedMemoryStatus\""},
 		{name: "memory interchange formats", method: http.MethodGet, path: "/api/memory/interchange-formats", contains: "\"markdown\"", procedure: "\"procedure\":\"memory.listInterchangeFormats\""},
 		{name: "memory export", method: http.MethodGet, path: "/api/memory/export?userId=default&format=json", contains: "\"format\":\"json\"", procedure: "\"procedure\":\"memory.exportMemories\""},
 		{name: "memory import", method: http.MethodPost, path: "/api/memory/import", body: `{"userId":"default","format":"json","data":"{}"}`, contains: "\"imported\":2", procedure: "\"procedure\":\"memory.importMemories\""},
@@ -4330,6 +6086,9 @@ func TestImportSourcesEndpoint(t *testing.T) {
 	if payload.Data[0].EstimatedSize <= 0 {
 		t.Fatalf("expected positive estimated size, got %+v", payload.Data[0])
 	}
+	if payload.Data[0].LastModifiedAt == "" {
+		t.Fatalf("expected last modified timestamp, got %+v", payload.Data[0])
+	}
 }
 
 func TestImportRootsEndpoint(t *testing.T) {
@@ -4341,6 +6100,10 @@ func TestImportRootsEndpoint(t *testing.T) {
 	claudeRoot := filepath.Join(tempDir, ".claude")
 	if err := os.MkdirAll(claudeRoot, 0o755); err != nil {
 		t.Fatalf("failed to create claude root: %v", err)
+	}
+	homeChatGPTRoot := filepath.Join(homeDir, "ChatGPT")
+	if err := os.MkdirAll(homeChatGPTRoot, 0o755); err != nil {
+		t.Fatalf("failed to create home ChatGPT root: %v", err)
 	}
 
 	t.Setenv("HOME", homeDir)
@@ -4366,17 +6129,47 @@ func TestImportRootsEndpoint(t *testing.T) {
 	if !payload.Success {
 		t.Fatalf("expected success payload, got %s", recorder.Body.String())
 	}
-	if len(payload.Data) == 0 {
-		t.Fatalf("expected at least one import root, got 0")
+	if len(payload.Data) != 12 {
+		t.Fatalf("expected 12 import roots, got %+v", payload.Data)
 	}
-	if payload.Data[0].SourceTool != "claude-code" {
-		t.Fatalf("expected first root to be claude-code, got %+v", payload.Data[0])
+
+	rootsByKey := make(map[string]sessionimport.RootStatus, len(payload.Data))
+	for _, root := range payload.Data {
+		rootsByKey[root.SourceTool+"\n"+root.RootPath] = root
 	}
-	if payload.Data[0].RootPath != claudeRoot {
-		t.Fatalf("expected claude root path %s, got %s", claudeRoot, payload.Data[0].RootPath)
+
+	claudeStatus, ok := rootsByKey["claude-code\n"+claudeRoot]
+	if !ok {
+		t.Fatalf("expected claude-code workspace root %s in %+v", claudeRoot, payload.Data)
 	}
-	if !payload.Data[0].Exists {
-		t.Fatalf("expected claude root to exist, got %+v", payload.Data[0])
+	if !claudeStatus.Exists {
+		t.Fatalf("expected claude root to exist, got %+v", claudeStatus)
+	}
+
+	homeChatGPTStatus, ok := rootsByKey["openai\n"+homeChatGPTRoot]
+	if !ok {
+		t.Fatalf("expected openai home ChatGPT root %s in %+v", homeChatGPTRoot, payload.Data)
+	}
+	if !homeChatGPTStatus.Exists {
+		t.Fatalf("expected home ChatGPT root to exist, got %+v", homeChatGPTStatus)
+	}
+
+	copilotRoot := filepath.Join(tempDir, ".copilot", "session-state")
+	copilotStatus, ok := rootsByKey["copilot-cli\n"+copilotRoot]
+	if !ok {
+		t.Fatalf("expected copilot-cli root %s in %+v", copilotRoot, payload.Data)
+	}
+	if copilotStatus.Exists {
+		t.Fatalf("expected copilot root to be absent in this fixture, got %+v", copilotStatus)
+	}
+
+	documentsOpenAIRoot := filepath.Join(homeDir, "Documents", "OpenAI")
+	documentsOpenAIStatus, ok := rootsByKey["openai\n"+documentsOpenAIRoot]
+	if !ok {
+		t.Fatalf("expected documents OpenAI root %s in %+v", documentsOpenAIRoot, payload.Data)
+	}
+	if documentsOpenAIStatus.Exists {
+		t.Fatalf("expected documents OpenAI root to be absent in this fixture, got %+v", documentsOpenAIStatus)
 	}
 }
 
@@ -4402,6 +6195,41 @@ func TestImportValidateEndpoint(t *testing.T) {
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("expected status 200, got %d", recorder.Code)
 	}
+
+	var payload struct {
+		Success bool                           `json:"success"`
+		Data    sessionimport.ValidationResult `json:"data"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("expected JSON payload, got decode error: %v", err)
+	}
+	if !payload.Success {
+		t.Fatalf("expected success payload, got %s", recorder.Body.String())
+	}
+	if !payload.Data.Valid {
+		t.Fatalf("expected validated import candidate, got %+v", payload.Data)
+	}
+	if payload.Data.SourceTool != "claude-code" {
+		t.Fatalf("expected claude-code source tool, got %+v", payload.Data)
+	}
+	if payload.Data.SourceType != "session" {
+		t.Fatalf("expected session source type, got %+v", payload.Data)
+	}
+	if payload.Data.Format != "jsonl" {
+		t.Fatalf("expected jsonl format, got %+v", payload.Data)
+	}
+	if payload.Data.SourcePath != targetPath {
+		t.Fatalf("expected source path %s, got %s", targetPath, payload.Data.SourcePath)
+	}
+	if payload.Data.EstimatedSize <= 0 {
+		t.Fatalf("expected positive estimated size, got %+v", payload.Data)
+	}
+	if len(payload.Data.DetectedModels) != 0 {
+		t.Fatalf("expected no detected model hints for simple fixture, got %+v", payload.Data)
+	}
+	if len(payload.Data.Errors) != 0 {
+		t.Fatalf("expected no validation errors, got %+v", payload.Data)
+	}
 }
 
 func TestImportCandidatesAndManifestEndpoints(t *testing.T) {
@@ -4423,19 +6251,98 @@ func TestImportCandidatesAndManifestEndpoints(t *testing.T) {
 
 	server := New(cfg, stubDetector{})
 
-	for _, endpoint := range []string{"/api/import/candidates", "/api/import/manifest", "/api/import/summary"} {
-		request := httptest.NewRequest(http.MethodGet, endpoint, nil)
+	t.Run("candidates", func(t *testing.T) {
+		request := httptest.NewRequest(http.MethodGet, "/api/import/candidates", nil)
 		recorder := httptest.NewRecorder()
-
 		server.Handler().ServeHTTP(recorder, request)
 
 		if recorder.Code != http.StatusOK {
-			t.Fatalf("expected status 200 for %s, got %d", endpoint, recorder.Code)
+			t.Fatalf("expected status 200 for candidates, got %d", recorder.Code)
 		}
-		if !strings.Contains(recorder.Body.String(), "\"success\":true") {
-			t.Fatalf("expected success payload for %s, got %s", endpoint, recorder.Body.String())
+
+		var payload struct {
+			Success bool                             `json:"success"`
+			Data    []sessionimport.ValidationResult `json:"data"`
 		}
-	}
+		if err := json.Unmarshal(recorder.Body.Bytes(), &payload); err != nil {
+			t.Fatalf("expected JSON payload, got decode error: %v", err)
+		}
+		if !payload.Success {
+			t.Fatalf("expected success payload, got %s", recorder.Body.String())
+		}
+		if len(payload.Data) != 1 {
+			t.Fatalf("expected one validated import candidate, got %+v", payload.Data)
+		}
+		if !payload.Data[0].Valid || payload.Data[0].SourceTool != "claude-code" || payload.Data[0].Format != "jsonl" {
+			t.Fatalf("expected validated claude-code jsonl candidate, got %+v", payload.Data[0])
+		}
+		if len(payload.Data[0].DetectedModels) != 1 || payload.Data[0].DetectedModels[0] != "gpt-5" {
+			t.Fatalf("expected gpt-5 model hint, got %+v", payload.Data[0])
+		}
+	})
+
+	t.Run("manifest", func(t *testing.T) {
+		request := httptest.NewRequest(http.MethodGet, "/api/import/manifest", nil)
+		recorder := httptest.NewRecorder()
+		server.Handler().ServeHTTP(recorder, request)
+
+		if recorder.Code != http.StatusOK {
+			t.Fatalf("expected status 200 for manifest, got %d", recorder.Code)
+		}
+
+		var payload struct {
+			Success bool                   `json:"success"`
+			Data    sessionimport.Manifest `json:"data"`
+		}
+		if err := json.Unmarshal(recorder.Body.Bytes(), &payload); err != nil {
+			t.Fatalf("expected JSON payload, got decode error: %v", err)
+		}
+		if !payload.Success {
+			t.Fatalf("expected success payload, got %s", recorder.Body.String())
+		}
+		if payload.Data.Count != 1 || len(payload.Data.Candidates) != 1 {
+			t.Fatalf("expected single-candidate manifest, got %+v", payload.Data)
+		}
+		if payload.Data.GeneratedAt == "" {
+			t.Fatalf("expected manifest generated timestamp, got %+v", payload.Data)
+		}
+		if payload.Data.Candidates[0].SourcePath != targetPath {
+			t.Fatalf("expected manifest source path %s, got %+v", targetPath, payload.Data.Candidates[0])
+		}
+	})
+
+	t.Run("summary", func(t *testing.T) {
+		request := httptest.NewRequest(http.MethodGet, "/api/import/summary", nil)
+		recorder := httptest.NewRecorder()
+		server.Handler().ServeHTTP(recorder, request)
+
+		if recorder.Code != http.StatusOK {
+			t.Fatalf("expected status 200 for summary, got %d", recorder.Code)
+		}
+
+		var payload struct {
+			Success bool                  `json:"success"`
+			Data    sessionimport.Summary `json:"data"`
+		}
+		if err := json.Unmarshal(recorder.Body.Bytes(), &payload); err != nil {
+			t.Fatalf("expected JSON payload, got decode error: %v", err)
+		}
+		if !payload.Success {
+			t.Fatalf("expected success payload, got %s", recorder.Body.String())
+		}
+		if payload.Data.Count != 1 || payload.Data.ValidCount != 1 || payload.Data.InvalidCount != 0 {
+			t.Fatalf("expected single valid summary bucket, got %+v", payload.Data)
+		}
+		if payload.Data.TotalEstimatedSize <= 0 {
+			t.Fatalf("expected positive estimated size, got %+v", payload.Data)
+		}
+		if len(payload.Data.BySourceTool) != 1 || payload.Data.BySourceTool[0].Key != "claude-code" {
+			t.Fatalf("expected claude-code source-tool summary, got %+v", payload.Data.BySourceTool)
+		}
+		if len(payload.Data.ByModelHint) != 1 || payload.Data.ByModelHint[0].Key != "gpt-5" {
+			t.Fatalf("expected gpt-5 model-hint summary, got %+v", payload.Data.ByModelHint)
+		}
+	})
 }
 
 func TestMemoryStatusEndpoint(t *testing.T) {
@@ -4692,17 +6599,17 @@ func demo() {
 	if len(payload.Data.Sessions.ByModelHint) < 1 {
 		t.Fatalf("expected runtime session model-hint breakdown, got %+v", payload.Data.Sessions.ByModelHint)
 	}
-	if payload.Data.ImportRoots.Count < 1 {
-		t.Fatalf("expected at least one import root, got %d", payload.Data.ImportRoots.Count)
+	if payload.Data.ImportRoots.Count != 12 {
+		t.Fatalf("expected 12 import roots, got %d", payload.Data.ImportRoots.Count)
 	}
-	if payload.Data.ImportRoots.ExistingCount < 1 {
-		t.Fatalf("expected at least one existing import root, got %d", payload.Data.ImportRoots.ExistingCount)
+	if payload.Data.ImportRoots.ExistingCount != 1 {
+		t.Fatalf("expected 1 existing import root, got %d", payload.Data.ImportRoots.ExistingCount)
 	}
-	if payload.Data.ImportSources.Count < 1 {
-		t.Fatalf("expected at least one import source candidate, got %d", payload.Data.ImportSources.Count)
+	if payload.Data.ImportSources.Count != 1 {
+		t.Fatalf("expected 1 import source candidate, got %d", payload.Data.ImportSources.Count)
 	}
-	if payload.Data.ImportSources.ValidCount < 1 {
-		t.Fatalf("expected at least one valid import source, got %d", payload.Data.ImportSources.ValidCount)
+	if payload.Data.ImportSources.ValidCount != 1 {
+		t.Fatalf("expected 1 valid import source, got %d", payload.Data.ImportSources.ValidCount)
 	}
 	if payload.Data.ImportSources.InvalidCount != 0 {
 		t.Fatalf("expected zero invalid import sources, got %d", payload.Data.ImportSources.InvalidCount)
@@ -4719,7 +6626,11 @@ func demo() {
 	if len(payload.Data.ImportSources.ByModelHint) < 1 {
 		t.Fatalf("expected runtime import model-hint buckets, got %+v", payload.Data.ImportSources.ByModelHint)
 	}
-	if !strings.Contains(payload.Data.ImportSources.Candidates[0].SourcePath, ".claude") {
-		t.Fatalf("expected claude source path, got %q", payload.Data.ImportSources.Candidates[0].SourcePath)
+	if len(payload.Data.ImportSources.Candidates) != 1 {
+		t.Fatalf("expected a single import source candidate payload, got %+v", payload.Data.ImportSources.Candidates)
+	}
+	candidate := payload.Data.ImportSources.Candidates[0]
+	if candidate.SourceTool != "claude-code" || candidate.SessionFormat != "jsonl" || candidate.SourcePath != claudePath {
+		t.Fatalf("expected claude-code jsonl import candidate at %s, got %+v", claudePath, candidate)
 	}
 }

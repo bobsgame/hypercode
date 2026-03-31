@@ -2,6 +2,8 @@ package httpapi
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -155,6 +157,38 @@ type ImportedInstructionsSummary struct {
 	Available  bool   `json:"available"`
 	ModifiedAt string `json:"modifiedAt,omitempty"`
 	Size       int64  `json:"size,omitempty"`
+}
+
+type ImportedSessionMemory struct {
+	ID                string         `json:"id"`
+	ImportedSessionID string         `json:"importedSessionId"`
+	Kind              string         `json:"kind"`
+	Content           string         `json:"content"`
+	Tags              []string       `json:"tags"`
+	Source            string         `json:"source"`
+	Metadata          map[string]any `json:"metadata"`
+	CreatedAt         int64          `json:"createdAt"`
+}
+
+type ImportedSessionRecord struct {
+	ID                string                  `json:"id"`
+	SourceTool        string                  `json:"sourceTool"`
+	SourcePath        string                  `json:"sourcePath"`
+	ExternalSessionID *string                 `json:"externalSessionId"`
+	Title             *string                 `json:"title"`
+	SessionFormat     string                  `json:"sessionFormat"`
+	Transcript        string                  `json:"transcript"`
+	Excerpt           *string                 `json:"excerpt"`
+	WorkingDirectory  *string                 `json:"workingDirectory"`
+	TranscriptHash    string                  `json:"transcriptHash"`
+	NormalizedSession map[string]any          `json:"normalizedSession"`
+	Metadata          map[string]any          `json:"metadata"`
+	DiscoveredAt      int64                   `json:"discoveredAt"`
+	ImportedAt        int64                   `json:"importedAt"`
+	LastModifiedAt    *int64                  `json:"lastModifiedAt"`
+	CreatedAt         int64                   `json:"createdAt"`
+	UpdatedAt         int64                   `json:"updatedAt"`
+	ParsedMemories    []ImportedSessionMemory `json:"parsedMemories"`
 }
 
 type ImportRootsSummary struct {
@@ -1458,19 +1492,62 @@ func (s *Server) handleSupervisorSessionRestart(w http.ResponseWriter, r *http.R
 
 func (s *Server) handleImportedSessionList(w http.ResponseWriter, r *http.Request) {
 	limit := strings.TrimSpace(r.URL.Query().Get("limit"))
-	if limit == "" {
-		s.handleTRPCBridgeCall(w, r, http.MethodGet, "session.importedList", map[string]any{"limit": 50})
-		return
+	parsedLimit := 50
+	var err error
+	if limit != "" {
+		parsedLimit, err = strconv.Atoi(limit)
+		if err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]any{
+				"success": false,
+				"error":   "invalid limit query parameter",
+			})
+			return
+		}
 	}
-	parsedLimit, err := strconv.Atoi(limit)
-	if err != nil {
+	if parsedLimit <= 0 {
 		writeJSON(w, http.StatusBadRequest, map[string]any{
 			"success": false,
 			"error":   "invalid limit query parameter",
 		})
 		return
 	}
-	s.handleTRPCBridgeCall(w, r, http.MethodGet, "session.importedList", map[string]any{"limit": parsedLimit})
+
+	var importedSessions []ImportedSessionRecord
+	upstreamBase, bridgeErr := s.callUpstreamJSON(r.Context(), "session.importedList", map[string]any{"limit": parsedLimit}, &importedSessions)
+	if bridgeErr == nil {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"data":    importedSessions,
+			"bridge": map[string]any{
+				"upstreamBase": upstreamBase,
+				"procedure":    "session.importedList",
+			},
+		})
+		return
+	}
+
+	candidates, scanErr := s.scanValidatedImportSources()
+	if scanErr != nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{
+			"success": false,
+			"error":   bridgeErr.Error(),
+			"detail":  scanErr.Error(),
+		})
+		return
+	}
+	fallbackSessions := s.importedSessionFallbackRecords(candidates)
+	if parsedLimit < len(fallbackSessions) {
+		fallbackSessions = fallbackSessions[:parsedLimit]
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"data":    fallbackSessions,
+		"bridge": map[string]any{
+			"fallback":  "go-sessionimport",
+			"procedure": "session.importedList",
+			"reason":    bridgeErr.Error(),
+		},
+	})
 }
 
 func (s *Server) handleImportedSessionGet(w http.ResponseWriter, r *http.Request) {
@@ -1482,7 +1559,55 @@ func (s *Server) handleImportedSessionGet(w http.ResponseWriter, r *http.Request
 		})
 		return
 	}
-	s.handleTRPCBridgeCall(w, r, http.MethodGet, "session.importedGet", map[string]any{"id": importedID})
+
+	var importedSession *ImportedSessionRecord
+	upstreamBase, bridgeErr := s.callUpstreamJSON(r.Context(), "session.importedGet", map[string]any{"id": importedID}, &importedSession)
+	if bridgeErr == nil {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"data":    importedSession,
+			"bridge": map[string]any{
+				"upstreamBase": upstreamBase,
+				"procedure":    "session.importedGet",
+			},
+		})
+		return
+	}
+
+	candidates, scanErr := s.scanValidatedImportSources()
+	if scanErr != nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{
+			"success": false,
+			"error":   bridgeErr.Error(),
+			"detail":  scanErr.Error(),
+		})
+		return
+	}
+	for _, record := range s.importedSessionFallbackRecords(candidates) {
+		if record.ID != importedID {
+			continue
+		}
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"data":    record,
+			"bridge": map[string]any{
+				"fallback":  "go-sessionimport",
+				"procedure": "session.importedGet",
+				"reason":    bridgeErr.Error(),
+			},
+		})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"data":    nil,
+		"bridge": map[string]any{
+			"fallback":  "go-sessionimport",
+			"procedure": "session.importedGet",
+			"reason":    bridgeErr.Error(),
+		},
+	})
 }
 
 func (s *Server) handleImportedSessionScan(w http.ResponseWriter, r *http.Request) {
@@ -4011,6 +4136,118 @@ func (s *Server) scanValidatedImportSources() ([]sessionimport.ValidationResult,
 
 	scanner := sessionimport.NewScanner(s.cfg.WorkspaceRoot, homeDir, 50)
 	return scanner.ScanValidated()
+}
+
+func (s *Server) importedSessionFallbackRecords(candidates []sessionimport.ValidationResult) []ImportedSessionRecord {
+	records := make([]ImportedSessionRecord, 0, len(candidates))
+	for _, candidate := range candidates {
+		records = append(records, importedSessionFallbackRecord(candidate))
+	}
+	sort.Slice(records, func(i, j int) bool {
+		return records[i].ID < records[j].ID
+	})
+	return records
+}
+
+func importedSessionFallbackRecord(candidate sessionimport.ValidationResult) ImportedSessionRecord {
+	transcriptHash := stableHash(candidate.SourceTool + "\n" + candidate.SourcePath + "\n" + candidate.Format)
+	id := "import-" + transcriptHash[:16]
+	transcript := fallbackTranscript(candidate)
+	excerptText := transcript
+	if len(excerptText) > 240 {
+		excerptText = excerptText[:240]
+	}
+	titleText := filepath.Base(candidate.SourcePath)
+	lastModified := parseFallbackUnixMillis(candidate.LastModifiedAt)
+	discoveredAt := time.Now().UTC().UnixMilli()
+	if lastModified != nil {
+		discoveredAt = *lastModified
+	}
+
+	var excerpt *string
+	if strings.TrimSpace(excerptText) != "" {
+		excerpt = &excerptText
+	}
+	var title *string
+	if strings.TrimSpace(titleText) != "" {
+		title = &titleText
+	}
+
+	normalized := map[string]any{
+		"sourceType":     candidate.SourceType,
+		"detectedModels": candidate.DetectedModels,
+		"valid":          candidate.Valid,
+	}
+	if len(candidate.Errors) > 0 {
+		normalized["errors"] = candidate.Errors
+	}
+
+	metadata := map[string]any{
+		"fallback":       "go-sessionimport",
+		"estimatedSize":  candidate.EstimatedSize,
+		"sourceType":     candidate.SourceType,
+		"detectedModels": candidate.DetectedModels,
+		"valid":          candidate.Valid,
+	}
+	if len(candidate.Errors) > 0 {
+		metadata["errors"] = candidate.Errors
+	}
+
+	return ImportedSessionRecord{
+		ID:                id,
+		SourceTool:        candidate.SourceTool,
+		SourcePath:        candidate.SourcePath,
+		ExternalSessionID: nil,
+		Title:             title,
+		SessionFormat:     candidate.Format,
+		Transcript:        transcript,
+		Excerpt:           excerpt,
+		WorkingDirectory:  nil,
+		TranscriptHash:    transcriptHash,
+		NormalizedSession: normalized,
+		Metadata:          metadata,
+		DiscoveredAt:      discoveredAt,
+		ImportedAt:        discoveredAt,
+		LastModifiedAt:    lastModified,
+		CreatedAt:         discoveredAt,
+		UpdatedAt:         discoveredAt,
+		ParsedMemories:    []ImportedSessionMemory{},
+	}
+}
+
+func fallbackTranscript(candidate sessionimport.ValidationResult) string {
+	lines := []string{
+		"Go fallback imported session summary",
+		"sourceTool: " + candidate.SourceTool,
+		"sourcePath: " + candidate.SourcePath,
+		"sourceType: " + candidate.SourceType,
+		"sessionFormat: " + candidate.Format,
+	}
+	if len(candidate.DetectedModels) > 0 {
+		lines = append(lines, "detectedModels: "+strings.Join(candidate.DetectedModels, ", "))
+	}
+	if len(candidate.Errors) > 0 {
+		lines = append(lines, "errors: "+strings.Join(candidate.Errors, "; "))
+	}
+	return strings.Join(lines, "\n")
+}
+
+func parseFallbackUnixMillis(value string) *int64 {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return nil
+	}
+	parsed, err := time.Parse(time.RFC3339, trimmed)
+	if err != nil {
+		return nil
+	}
+	millis := parsed.UTC().UnixMilli()
+	return &millis
+}
+
+func stableHash(value string) string {
+	sum := sha256.Sum256([]byte(value))
+	return hex.EncodeToString(sum[:])
 }
 
 func (s *Server) importRoots() []sessionimport.RootStatus {

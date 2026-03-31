@@ -4203,6 +4203,84 @@ func TestImportedSessionScanFallsBackToGoScanner(t *testing.T) {
 	}
 }
 
+func TestImportedSessionListFallsBackToGoScanner(t *testing.T) {
+	workspaceRoot := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(workspaceRoot, ".claude"), 0o755); err != nil {
+		t.Fatalf("failed to create claude root: %v", err)
+	}
+	sessionPath := filepath.Join(workspaceRoot, ".claude", "session.jsonl")
+	if err := os.WriteFile(sessionPath, []byte("{\"model\":\"claude\"}\n"), 0o644); err != nil {
+		t.Fatalf("failed to seed claude session: %v", err)
+	}
+
+	t.Setenv("BORG_TRPC_UPSTREAM", "http://127.0.0.1:1/trpc")
+
+	cfg := config.Default()
+	cfg.WorkspaceRoot = workspaceRoot
+	cfg.MainConfigDir = t.TempDir()
+	server := New(cfg, stubDetector{})
+
+	request := httptest.NewRequest(http.MethodGet, "/api/sessions/imported/list?limit=5", nil)
+	recorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected fallback status 200, got %d with body %s", recorder.Code, recorder.Body.String())
+	}
+	if !strings.Contains(recorder.Body.String(), `"fallback":"go-sessionimport"`) {
+		t.Fatalf("expected go-sessionimport fallback metadata, got %s", recorder.Body.String())
+	}
+	if !strings.Contains(recorder.Body.String(), `"sourceTool":"`) {
+		t.Fatalf("expected at least one fallback sourceTool entry, got %s", recorder.Body.String())
+	}
+	if !strings.Contains(recorder.Body.String(), `"parsedMemories":[]`) {
+		t.Fatalf("expected empty parsed memories in fallback entry, got %s", recorder.Body.String())
+	}
+}
+
+func TestImportedSessionGetFallsBackToGoScanner(t *testing.T) {
+	workspaceRoot := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(workspaceRoot, ".claude"), 0o755); err != nil {
+		t.Fatalf("failed to create claude root: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(workspaceRoot, ".claude", "session.jsonl"), []byte("{\"model\":\"claude\"}\n"), 0o644); err != nil {
+		t.Fatalf("failed to seed claude session: %v", err)
+	}
+
+	t.Setenv("BORG_TRPC_UPSTREAM", "http://127.0.0.1:1/trpc")
+
+	cfg := config.Default()
+	cfg.WorkspaceRoot = workspaceRoot
+	cfg.MainConfigDir = t.TempDir()
+	server := New(cfg, stubDetector{})
+
+	candidates, err := server.scanValidatedImportSources()
+	if err != nil {
+		t.Fatalf("failed to scan validated import sources: %v", err)
+	}
+	records := server.importedSessionFallbackRecords(candidates)
+	if len(records) == 0 {
+		t.Fatalf("expected at least one fallback imported session record")
+	}
+
+	request := httptest.NewRequest(http.MethodGet, "/api/sessions/imported/get?id="+records[0].ID, nil)
+	recorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected fallback status 200, got %d with body %s", recorder.Code, recorder.Body.String())
+	}
+	if !strings.Contains(recorder.Body.String(), `"fallback":"go-sessionimport"`) {
+		t.Fatalf("expected go-sessionimport fallback metadata, got %s", recorder.Body.String())
+	}
+	if !strings.Contains(recorder.Body.String(), `"id":"`+records[0].ID+`"`) {
+		t.Fatalf("expected fallback imported session id %s, got %s", records[0].ID, recorder.Body.String())
+	}
+	if !strings.Contains(recorder.Body.String(), `"sourceTool":"`+records[0].SourceTool+`"`) {
+		t.Fatalf("expected sourceTool %s in fallback entry, got %s", records[0].SourceTool, recorder.Body.String())
+	}
+}
+
 func TestMemoryBridgeRoutes(t *testing.T) {
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("content-type", "application/json")

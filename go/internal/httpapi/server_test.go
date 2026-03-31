@@ -4134,6 +4134,51 @@ var AutoCallTool = struct{
 	}
 }
 
+func TestMCPSearchToolsFallsBackToLocalInventory(t *testing.T) {
+	workspaceRoot := t.TempDir()
+	toolsDir := filepath.Join(workspaceRoot, "submodules", "hypercode", "tools")
+	if err := os.MkdirAll(toolsDir, 0o755); err != nil {
+		t.Fatalf("failed to create hypercode tools dir: %v", err)
+	}
+	toolSource := `package tools
+
+var SearchTools = struct{
+	Name string
+}{
+	Name: "search_tools",
+}
+`
+	if err := os.WriteFile(filepath.Join(toolsDir, "search.go"), []byte(toolSource), 0o644); err != nil {
+		t.Fatalf("failed to write hypercode tool source: %v", err)
+	}
+
+	t.Setenv("BORG_TRPC_UPSTREAM", "http://127.0.0.1:1/trpc")
+
+	cfg := config.Default()
+	cfg.WorkspaceRoot = workspaceRoot
+	cfg.MainConfigDir = t.TempDir()
+	server := New(cfg, stubDetector{tools: []controlplane.Tool{
+		{Type: "go", Name: "Go", Command: "go", Available: true},
+	}})
+
+	request := httptest.NewRequest(http.MethodGet, "/api/mcp/tools/search?query=search", nil)
+	recorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected fallback status 200, got %d with body %s", recorder.Code, recorder.Body.String())
+	}
+	if !strings.Contains(recorder.Body.String(), `"fallback":"go-local-mcp"`) {
+		t.Fatalf("expected go-local-mcp fallback metadata, got %s", recorder.Body.String())
+	}
+	if !strings.Contains(recorder.Body.String(), `"procedure":"mcp.searchTools"`) {
+		t.Fatalf("expected searchTools procedure metadata, got %s", recorder.Body.String())
+	}
+	if !strings.Contains(recorder.Body.String(), `"name":"search_tools"`) {
+		t.Fatalf("expected local source-backed search result, got %s", recorder.Body.String())
+	}
+}
+
 func TestImportedSessionBridgeRoutes(t *testing.T) {
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("content-type", "application/json")

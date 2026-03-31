@@ -1946,7 +1946,40 @@ func (s *Server) handleMCPSearchTools(w http.ResponseWriter, r *http.Request) {
 	if profile != "" {
 		payload["profile"] = profile
 	}
-	s.handleTRPCBridgeCall(w, r, http.MethodGet, "mcp.searchTools", payload)
+
+	var results []map[string]any
+	upstreamBase, err := s.callUpstreamJSON(r.Context(), "mcp.searchTools", payload, &results)
+	if err == nil {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"data":    results,
+			"bridge": map[string]any{
+				"upstreamBase": upstreamBase,
+				"procedure":    "mcp.searchTools",
+			},
+		})
+		return
+	}
+
+	_, summary, fallbackErr := s.localMCPSummary(r.Context())
+	if fallbackErr != nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{
+			"success": false,
+			"error":   err.Error(),
+			"detail":  fallbackErr.Error(),
+		})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"data":    fallbackSearchMCPTools(summary.InstalledHarnesses, query),
+		"bridge": map[string]any{
+			"fallback":  "go-local-mcp",
+			"procedure": "mcp.searchTools",
+			"reason":    err.Error(),
+		},
+	})
 }
 
 func (s *Server) handleMCPCallTool(w http.ResponseWriter, r *http.Request) {
@@ -4331,6 +4364,67 @@ func fallbackMCPTools(definitions []harnesses.Definition) []map[string]any {
 		return leftServer < rightServer
 	})
 	return tools
+}
+
+func fallbackSearchMCPTools(definitions []harnesses.Definition, query string) []map[string]any {
+	allTools := fallbackMCPTools(definitions)
+	terms := strings.Fields(strings.ToLower(query))
+	if len(terms) == 0 {
+		if len(allTools) > 8 {
+			return allTools[:8]
+		}
+		return allTools
+	}
+
+	type rankedTool struct {
+		tool  map[string]any
+		score int
+	}
+	ranked := make([]rankedTool, 0, len(allTools))
+	for _, tool := range allTools {
+		name, _ := tool["name"].(string)
+		server, _ := tool["server"].(string)
+		haystack := strings.ToLower(name + " " + server)
+		score := 0
+		for _, term := range terms {
+			if term == "" {
+				continue
+			}
+			if strings.Contains(haystack, term) {
+				score++
+			}
+		}
+		if score == 0 {
+			continue
+		}
+		ranked = append(ranked, rankedTool{
+			tool:  tool,
+			score: score,
+		})
+	}
+
+	sort.Slice(ranked, func(i, j int) bool {
+		if ranked[i].score == ranked[j].score {
+			leftName, _ := ranked[i].tool["name"].(string)
+			rightName, _ := ranked[j].tool["name"].(string)
+			return leftName < rightName
+		}
+		return ranked[i].score > ranked[j].score
+	})
+
+	results := make([]map[string]any, 0, len(ranked))
+	for _, item := range ranked {
+		name, _ := item.tool["name"].(string)
+		server, _ := item.tool["server"].(string)
+		results = append(results, map[string]any{
+			"name":        name,
+			"server":      server,
+			"alwaysShow":  false,
+			"matchReason": "Matched local source-backed tool inventory.",
+			"score":       item.score,
+		})
+	}
+	return results
 }
 
 func (s *Server) handleRuntimeLocks(w http.ResponseWriter, _ *http.Request) {

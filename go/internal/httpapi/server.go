@@ -1696,7 +1696,37 @@ func (s *Server) handleImportedSessionScan(w http.ResponseWriter, r *http.Reques
 }
 
 func (s *Server) handleImportedSessionInstructionDocs(w http.ResponseWriter, r *http.Request) {
-	s.handleTRPCBridgeCall(w, r, http.MethodGet, "session.importedInstructionDocs", nil)
+	if r.Method != http.MethodGet {
+		writeJSON(w, http.StatusMethodNotAllowed, map[string]any{
+			"success": false,
+			"error":   "method not allowed",
+		})
+		return
+	}
+
+	var docs []map[string]any
+	upstreamBase, err := s.callUpstreamJSON(r.Context(), "session.importedInstructionDocs", nil, &docs)
+	if err == nil {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"data":    docs,
+			"bridge": map[string]any{
+				"upstreamBase": upstreamBase,
+				"procedure":    "session.importedInstructionDocs",
+			},
+		})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"data":    []map[string]any{},
+		"bridge": map[string]any{
+			"fallback":  "go-sessionimport",
+			"procedure": "session.importedInstructionDocs",
+			"reason":    err.Error(),
+		},
+	})
 }
 
 func (s *Server) handleMCPStatus(w http.ResponseWriter, r *http.Request) {

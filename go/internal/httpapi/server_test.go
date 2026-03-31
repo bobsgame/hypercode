@@ -4281,6 +4281,29 @@ func TestImportedSessionGetFallsBackToGoScanner(t *testing.T) {
 	}
 }
 
+func TestImportedInstructionDocsFallsBackToEmptyList(t *testing.T) {
+	t.Setenv("BORG_TRPC_UPSTREAM", "http://127.0.0.1:1/trpc")
+
+	cfg := config.Default()
+	cfg.WorkspaceRoot = t.TempDir()
+	cfg.MainConfigDir = t.TempDir()
+	server := New(cfg, stubDetector{})
+
+	request := httptest.NewRequest(http.MethodGet, "/api/sessions/imported/instruction-docs", nil)
+	recorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected fallback status 200, got %d with body %s", recorder.Code, recorder.Body.String())
+	}
+	if !strings.Contains(recorder.Body.String(), `"fallback":"go-sessionimport"`) {
+		t.Fatalf("expected go-sessionimport fallback metadata, got %s", recorder.Body.String())
+	}
+	if !strings.Contains(recorder.Body.String(), `"data":[]`) {
+		t.Fatalf("expected empty instruction doc fallback list, got %s", recorder.Body.String())
+	}
+}
+
 func TestMemoryBridgeRoutes(t *testing.T) {
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("content-type", "application/json")

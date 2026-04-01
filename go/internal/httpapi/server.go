@@ -6813,7 +6813,39 @@ func (s *Server) handleCatalogGet(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]any{"success": false, "error": "missing uuid query parameter"})
 		return
 	}
-	s.handleTRPCBridgeCall(w, r, http.MethodGet, "catalog.get", map[string]any{"uuid": uuid})
+	var result any
+	upstreamBase, err := s.callUpstreamJSON(r.Context(), "catalog.get", map[string]any{"uuid": uuid}, &result)
+	if err == nil {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"data":    result,
+			"bridge": map[string]any{
+				"upstreamBase": upstreamBase,
+				"procedure":    "catalog.get",
+			},
+		})
+		return
+	}
+
+	payload, fallbackErr := s.localCatalogGet(uuid)
+	if fallbackErr != nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{
+			"success": false,
+			"error":   fallbackErr.Error(),
+			"detail":  fallbackErr.Error(),
+		})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"data":    payload,
+		"bridge": map[string]any{
+			"fallback":  "go-local-published-catalog-db",
+			"procedure": "catalog.get",
+			"reason":    "upstream unavailable; using local metamcp published catalog records",
+		},
+	})
 }
 
 func (s *Server) handleCatalogRuns(w http.ResponseWriter, r *http.Request) {
@@ -9238,6 +9270,38 @@ func (s *Server) localOAuthSessionByServer(serverUUID string) (any, error) {
 	}, nil
 }
 
+func (s *Server) localCatalogGet(uuid string) (any, error) {
+	db, err := sql.Open("sqlite", s.localMetaMCPDBPath())
+	if err != nil {
+		return nil, err
+	}
+	defer db.Close()
+
+	server, err := localPublishedCatalogServer(db, uuid)
+	if err != nil {
+		return nil, err
+	}
+	latestRun, err := localPublishedCatalogLatestRun(db, uuid)
+	if err != nil {
+		return nil, err
+	}
+	activeRecipe, err := localPublishedCatalogActiveRecipe(db, uuid)
+	if err != nil {
+		return nil, err
+	}
+	sources, err := localPublishedCatalogSources(db, uuid)
+	if err != nil {
+		return nil, err
+	}
+
+	return map[string]any{
+		"server":       server,
+		"latestRun":    latestRun,
+		"activeRecipe": activeRecipe,
+		"sources":      sources,
+	}, nil
+}
+
 func unixTimestampToRFC3339(value int64) string {
 	if value <= 0 {
 		return time.Unix(0, 0).UTC().Format(time.RFC3339)
@@ -9288,6 +9352,213 @@ func jsonObjectOrNil(raw string) any {
 		return nil
 	}
 	return value
+}
+
+func localPublishedCatalogServer(db *sql.DB, uuid string) (any, error) {
+	var (
+		serverUUID     string
+		canonicalID    string
+		displayName    string
+		description    sql.NullString
+		author         sql.NullString
+		repositoryURL  sql.NullString
+		homepageURL    sql.NullString
+		iconURL        sql.NullString
+		transport      string
+		installMethod  string
+		authModel      string
+		status         string
+		confidence     int64
+		tagsRaw        string
+		categoriesRaw  string
+		stars          sql.NullInt64
+		lastSeenAt     sql.NullInt64
+		lastVerifiedAt sql.NullInt64
+		createdAtRaw   int64
+		updatedAtRaw   int64
+	)
+
+	row := db.QueryRow(`
+		SELECT uuid, canonical_id, display_name, description, author, repository_url, homepage_url, icon_url,
+		       transport, install_method, auth_model, status, confidence, tags, categories, stars,
+		       last_seen_at, last_verified_at, created_at, updated_at
+		FROM published_mcp_servers
+		WHERE uuid = ?
+		LIMIT 1
+	`, uuid)
+	if err := row.Scan(
+		&serverUUID, &canonicalID, &displayName, &description, &author, &repositoryURL, &homepageURL, &iconURL,
+		&transport, &installMethod, &authModel, &status, &confidence, &tagsRaw, &categoriesRaw, &stars,
+		&lastSeenAt, &lastVerifiedAt, &createdAtRaw, &updatedAtRaw,
+	); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	return map[string]any{
+		"uuid":             serverUUID,
+		"canonical_id":     canonicalID,
+		"display_name":     displayName,
+		"description":      nullStringToAny(description),
+		"author":           nullStringToAny(author),
+		"repository_url":   nullStringToAny(repositoryURL),
+		"homepage_url":     nullStringToAny(homepageURL),
+		"icon_url":         nullStringToAny(iconURL),
+		"transport":        transport,
+		"install_method":   installMethod,
+		"auth_model":       authModel,
+		"status":           status,
+		"confidence":       confidence,
+		"tags":             jsonArrayOrEmpty(tagsRaw),
+		"categories":       jsonArrayOrEmpty(categoriesRaw),
+		"stars":            nullInt64ToAny(stars),
+		"last_seen_at":     nullTimestampToAny(lastSeenAt),
+		"last_verified_at": nullTimestampToAny(lastVerifiedAt),
+		"created_at":       unixTimestampToRFC3339(createdAtRaw),
+		"updated_at":       unixTimestampToRFC3339(updatedAtRaw),
+	}, nil
+}
+
+func localPublishedCatalogLatestRun(db *sql.DB, serverUUID string) (any, error) {
+	var (
+		uuid          string
+		runServerUUID string
+		runMode       string
+		startedAtRaw  int64
+		finishedAt    sql.NullInt64
+		outcome       string
+		failureClass  sql.NullString
+		toolCount     sql.NullInt64
+		findingsRaw   sql.NullString
+		performedBy   string
+		createdAtRaw  int64
+	)
+
+	row := db.QueryRow(`
+		SELECT uuid, server_uuid, run_mode, started_at, finished_at, outcome, failure_class, tool_count,
+		       findings_summary, performed_by, created_at
+		FROM published_mcp_validation_runs
+		WHERE server_uuid = ?
+		ORDER BY created_at DESC
+		LIMIT 1
+	`, serverUUID)
+	if err := row.Scan(
+		&uuid, &runServerUUID, &runMode, &startedAtRaw, &finishedAt, &outcome, &failureClass, &toolCount,
+		&findingsRaw, &performedBy, &createdAtRaw,
+	); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	var findings any
+	if findingsRaw.Valid {
+		findings = jsonObjectOrNil(findingsRaw.String)
+	}
+
+	return map[string]any{
+		"uuid":             uuid,
+		"server_uuid":      runServerUUID,
+		"run_mode":         runMode,
+		"started_at":       unixTimestampToRFC3339(startedAtRaw),
+		"finished_at":      nullTimestampToAny(finishedAt),
+		"outcome":          outcome,
+		"failure_class":    nullStringToAny(failureClass),
+		"tool_count":       nullInt64ToAny(toolCount),
+		"findings_summary": findings,
+		"performed_by":     performedBy,
+		"created_at":       unixTimestampToRFC3339(createdAtRaw),
+	}, nil
+}
+
+func localPublishedCatalogActiveRecipe(db *sql.DB, serverUUID string) (any, error) {
+	var (
+		uuid             string
+		recipeServerUUID string
+		recipeVersion    int64
+		templateRaw      string
+		requiredSecrets  string
+		requiredEnvRaw   string
+		confidence       int64
+		explanation      sql.NullString
+		isActive         bool
+		generatedBy      string
+		createdAtRaw     int64
+		updatedAtRaw     int64
+	)
+
+	row := db.QueryRow(`
+		SELECT uuid, server_uuid, recipe_version, template, required_secrets, required_env, confidence,
+		       explanation, is_active, generated_by, created_at, updated_at
+		FROM published_mcp_config_recipes
+		WHERE server_uuid = ? AND is_active = 1
+		ORDER BY recipe_version DESC
+		LIMIT 1
+	`, serverUUID)
+	if err := row.Scan(
+		&uuid, &recipeServerUUID, &recipeVersion, &templateRaw, &requiredSecrets, &requiredEnvRaw, &confidence,
+		&explanation, &isActive, &generatedBy, &createdAtRaw, &updatedAtRaw,
+	); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	return map[string]any{
+		"uuid":             uuid,
+		"server_uuid":      recipeServerUUID,
+		"recipe_version":   recipeVersion,
+		"template":         jsonObjectOrEmpty(templateRaw),
+		"required_secrets": jsonArrayOrEmpty(requiredSecrets),
+		"required_env":     jsonObjectOrEmpty(requiredEnvRaw),
+		"confidence":       confidence,
+		"explanation":      nullStringToAny(explanation),
+		"is_active":        isActive,
+		"generated_by":     generatedBy,
+		"created_at":       unixTimestampToRFC3339(createdAtRaw),
+		"updated_at":       unixTimestampToRFC3339(updatedAtRaw),
+	}, nil
+}
+
+func localPublishedCatalogSources(db *sql.DB, serverUUID string) ([]map[string]any, error) {
+	rows, err := db.Query(`
+		SELECT uuid, source_name, source_url, first_seen_at, last_seen_at
+		FROM published_mcp_server_sources
+		WHERE server_uuid = ?
+	`, serverUUID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	sources := []map[string]any{}
+	for rows.Next() {
+		var (
+			uuid        string
+			sourceName  string
+			sourceURL   sql.NullString
+			firstSeenAt int64
+			lastSeenAt  int64
+		)
+		if err := rows.Scan(&uuid, &sourceName, &sourceURL, &firstSeenAt, &lastSeenAt); err != nil {
+			return nil, err
+		}
+		sources = append(sources, map[string]any{
+			"uuid":          uuid,
+			"source_name":   sourceName,
+			"source_url":    nullStringToAny(sourceURL),
+			"first_seen_at": unixTimestampToRFC3339(firstSeenAt),
+			"last_seen_at":  unixTimestampToRFC3339(lastSeenAt),
+		})
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return sources, nil
 }
 
 func (s *Server) localServerHealth(serverUUID string) map[string]any {

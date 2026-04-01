@@ -6211,6 +6211,136 @@ func TestOAuthSessionGetByServerFallsBackToLocalDB(t *testing.T) {
 	}
 }
 
+func TestCatalogGetFallsBackToLocalDB(t *testing.T) {
+	t.Setenv("BORG_TRPC_UPSTREAM", "http://127.0.0.1:1/trpc")
+
+	workspace := t.TempDir()
+	dbPath := filepath.Join(workspace, "metamcp.db")
+	db, err := sql.Open("sqlite", dbPath)
+	if err != nil {
+		t.Fatalf("failed to open sqlite db: %v", err)
+	}
+	defer db.Close()
+
+	if _, err := db.Exec(`
+		CREATE TABLE published_mcp_servers (
+			uuid TEXT PRIMARY KEY,
+			canonical_id TEXT NOT NULL UNIQUE,
+			display_name TEXT NOT NULL,
+			description TEXT,
+			author TEXT,
+			repository_url TEXT,
+			homepage_url TEXT,
+			icon_url TEXT,
+			transport TEXT NOT NULL DEFAULT 'unknown',
+			install_method TEXT NOT NULL DEFAULT 'unknown',
+			auth_model TEXT NOT NULL DEFAULT 'unknown',
+			status TEXT NOT NULL DEFAULT 'discovered',
+			confidence INTEGER NOT NULL DEFAULT 0,
+			tags TEXT NOT NULL DEFAULT '[]',
+			categories TEXT NOT NULL DEFAULT '[]',
+			stars INTEGER,
+			last_seen_at INTEGER,
+			last_verified_at INTEGER,
+			created_at INTEGER NOT NULL,
+			updated_at INTEGER NOT NULL
+		);
+		CREATE TABLE published_mcp_server_sources (
+			uuid TEXT PRIMARY KEY,
+			server_uuid TEXT NOT NULL,
+			source_name TEXT NOT NULL,
+			source_url TEXT,
+			raw_payload TEXT,
+			first_seen_at INTEGER NOT NULL,
+			last_seen_at INTEGER NOT NULL
+		);
+		CREATE TABLE published_mcp_config_recipes (
+			uuid TEXT PRIMARY KEY,
+			server_uuid TEXT NOT NULL,
+			recipe_version INTEGER NOT NULL DEFAULT 1,
+			template TEXT NOT NULL,
+			required_secrets TEXT NOT NULL DEFAULT '[]',
+			required_env TEXT NOT NULL DEFAULT '{}',
+			confidence INTEGER NOT NULL DEFAULT 0,
+			explanation TEXT,
+			is_active INTEGER NOT NULL DEFAULT 1,
+			generated_by TEXT NOT NULL DEFAULT 'Configurator',
+			created_at INTEGER NOT NULL,
+			updated_at INTEGER NOT NULL
+		);
+		CREATE TABLE published_mcp_validation_runs (
+			uuid TEXT PRIMARY KEY,
+			server_uuid TEXT NOT NULL,
+			run_mode TEXT NOT NULL,
+			started_at INTEGER NOT NULL,
+			finished_at INTEGER,
+			outcome TEXT NOT NULL DEFAULT 'pending',
+			failure_class TEXT,
+			tool_count INTEGER,
+			findings_summary TEXT,
+			performed_by TEXT NOT NULL DEFAULT 'Verifier',
+			created_at INTEGER NOT NULL
+		);
+		INSERT INTO published_mcp_servers (
+			uuid, canonical_id, display_name, description, author, repository_url, homepage_url, icon_url,
+			transport, install_method, auth_model, status, confidence, tags, categories, stars,
+			last_seen_at, last_verified_at, created_at, updated_at
+		) VALUES (
+			'catalog-1', 'registry/catalog-1', 'Catalog One', 'Great server', 'Hyper', 'https://github.com/example/repo',
+			'https://example.com', 'https://example.com/icon.png', 'STDIO', 'npm', 'oauth', 'validated', 88,
+			'["mcp","catalog"]', '["devtools"]', 123, 1711958400, 1711958460, 1711958300, 1711958520
+		);
+		INSERT INTO published_mcp_server_sources (
+			uuid, server_uuid, source_name, source_url, raw_payload, first_seen_at, last_seen_at
+		) VALUES (
+			'source-1', 'catalog-1', 'smithery', 'https://smithery.ai/server', '{}', 1711958300, 1711958460
+		);
+		INSERT INTO published_mcp_config_recipes (
+			uuid, server_uuid, recipe_version, template, required_secrets, required_env, confidence, explanation, is_active, generated_by, created_at, updated_at
+		) VALUES (
+			'recipe-1', 'catalog-1', 2, '{"command":"npx","args":["server"]}', '["API_KEY"]', '{"MODE":"prod"}', 90, 'validated recipe', 1, 'Configurator', 1711958300, 1711958460
+		);
+		INSERT INTO published_mcp_validation_runs (
+			uuid, server_uuid, run_mode, started_at, finished_at, outcome, failure_class, tool_count, findings_summary, performed_by, created_at
+		) VALUES (
+			'run-1', 'catalog-1', 'tools_list', 1711958300, 1711958460, 'passed', NULL, 12, '{"summary":"ok"}', 'Verifier', 1711958460
+		);
+	`); err != nil {
+		t.Fatalf("failed to seed sqlite db: %v", err)
+	}
+
+	cfg := config.Default()
+	cfg.WorkspaceRoot = workspace
+	cfg.ConfigDir = t.TempDir()
+	cfg.MainConfigDir = t.TempDir()
+	server := New(cfg, stubDetector{})
+
+	recorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/api/catalog/get?uuid=catalog-1", nil))
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d with body %s", recorder.Code, recorder.Body.String())
+	}
+
+	for _, needle := range []string{
+		`"fallback":"go-local-published-catalog-db"`,
+		`"procedure":"catalog.get"`,
+		`using local metamcp published catalog records`,
+		`"uuid":"catalog-1"`,
+		`"display_name":"Catalog One"`,
+		`"latestRun":{"created_at":`,
+		`"uuid":"run-1"`,
+		`"activeRecipe":{"confidence":90`,
+		`"uuid":"recipe-1"`,
+		`"sources":[{"first_seen_at":`,
+		`"uuid":"source-1"`,
+	} {
+		if !strings.Contains(recorder.Body.String(), needle) {
+			t.Fatalf("expected catalog get fallback to contain %s, got %s", needle, recorder.Body.String())
+		}
+	}
+}
+
 func TestInfrastructureStatusFallsBackToLocalProbe(t *testing.T) {
 	workspaceRoot := t.TempDir()
 	userProfile := t.TempDir()

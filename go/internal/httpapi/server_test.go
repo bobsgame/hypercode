@@ -3264,6 +3264,52 @@ func TestBillingReadEndpointsFallBackToLocalProviderPreview(t *testing.T) {
 	}
 }
 
+func TestBillingPreviewEndpointsFallBackToLocalProviderPreview(t *testing.T) {
+	t.Setenv("BORG_TRPC_UPSTREAM", "http://127.0.0.1:1/trpc")
+	t.Setenv("OPENAI_API_KEY", "openai")
+
+	server := New(config.Default(), stubDetector{})
+
+	costHistoryRecorder := httptest.NewRecorder()
+	costHistoryRequest := httptest.NewRequest(http.MethodGet, "/api/billing/cost-history?days=7", nil)
+	server.Handler().ServeHTTP(costHistoryRecorder, costHistoryRequest)
+
+	if costHistoryRecorder.Code != http.StatusOK {
+		t.Fatalf("expected local cost history 200, got %d with body %s", costHistoryRecorder.Code, costHistoryRecorder.Body.String())
+	}
+	if !strings.Contains(costHistoryRecorder.Body.String(), `"fallback":"go-local-provider-routing"`) || !strings.Contains(costHistoryRecorder.Body.String(), `"history"`) {
+		t.Fatalf("expected local cost history preview payload, got %s", costHistoryRecorder.Body.String())
+	}
+	if !strings.Contains(costHistoryRecorder.Body.String(), `"cost":0`) || !strings.Contains(costHistoryRecorder.Body.String(), `"requests":0`) {
+		t.Fatalf("expected zeroed local cost history preview, got %s", costHistoryRecorder.Body.String())
+	}
+
+	modelPricingRecorder := httptest.NewRecorder()
+	modelPricingRequest := httptest.NewRequest(http.MethodGet, "/api/billing/model-pricing", nil)
+	server.Handler().ServeHTTP(modelPricingRecorder, modelPricingRequest)
+
+	if modelPricingRecorder.Code != http.StatusOK {
+		t.Fatalf("expected local model pricing 200, got %d with body %s", modelPricingRecorder.Code, modelPricingRecorder.Body.String())
+	}
+	if !strings.Contains(modelPricingRecorder.Body.String(), `"fallback":"go-local-provider-routing"`) || !strings.Contains(modelPricingRecorder.Body.String(), `"models"`) {
+		t.Fatalf("expected local model pricing preview payload, got %s", modelPricingRecorder.Body.String())
+	}
+	if !strings.Contains(modelPricingRecorder.Body.String(), `"provider":"openai"`) || !strings.Contains(modelPricingRecorder.Body.String(), `"id":"gpt-4o"`) {
+		t.Fatalf("expected catalog-backed local model pricing preview, got %s", modelPricingRecorder.Body.String())
+	}
+
+	fallbackHistoryRecorder := httptest.NewRecorder()
+	fallbackHistoryRequest := httptest.NewRequest(http.MethodGet, "/api/billing/fallback-history?limit=10", nil)
+	server.Handler().ServeHTTP(fallbackHistoryRecorder, fallbackHistoryRequest)
+
+	if fallbackHistoryRecorder.Code != http.StatusOK {
+		t.Fatalf("expected local fallback history 200, got %d with body %s", fallbackHistoryRecorder.Code, fallbackHistoryRecorder.Body.String())
+	}
+	if !strings.Contains(fallbackHistoryRecorder.Body.String(), `"fallback":"go-local-provider-routing"`) || !strings.Contains(fallbackHistoryRecorder.Body.String(), `"data":[]`) {
+		t.Fatalf("expected empty local fallback history preview, got %s", fallbackHistoryRecorder.Body.String())
+	}
+}
+
 func TestBrowserBridgeRoutes(t *testing.T) {
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("content-type", "application/json")

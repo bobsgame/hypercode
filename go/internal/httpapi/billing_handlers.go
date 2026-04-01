@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/borghq/hypercode-go/internal/providers"
 )
@@ -62,20 +63,67 @@ func (s *Server) handleBillingProviderQuotas(w http.ResponseWriter, r *http.Requ
 
 func (s *Server) handleBillingCostHistory(w http.ResponseWriter, r *http.Request) {
 	days := strings.TrimSpace(r.URL.Query().Get("days"))
+	var payload any
 	if days == "" {
-		s.handleTRPCBridgeCall(w, r, http.MethodGet, "billing.getCostHistory", nil)
+		payload = nil
+	} else {
+		parsed, err := strconv.Atoi(days)
+		if err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]any{"success": false, "error": "invalid days query parameter"})
+			return
+		}
+		payload = map[string]any{"days": parsed}
+	}
+
+	var result map[string]any
+	upstreamBase, err := s.callUpstreamJSON(r.Context(), "billing.getCostHistory", payload, &result)
+	if err == nil {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"data":    result,
+			"bridge": map[string]any{
+				"upstreamBase": upstreamBase,
+				"procedure":    "billing.getCostHistory",
+			},
+		})
 		return
 	}
-	parsed, err := strconv.Atoi(days)
-	if err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]any{"success": false, "error": "invalid days query parameter"})
-		return
-	}
-	s.handleTRPCBridgeCall(w, r, http.MethodGet, "billing.getCostHistory", map[string]any{"days": parsed})
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"data":    buildLocalBillingCostHistoryResponse(),
+		"bridge": map[string]any{
+			"fallback":  "go-local-provider-routing",
+			"procedure": "billing.getCostHistory",
+			"reason":    "upstream unavailable; using local provider cost history preview",
+		},
+	})
 }
 
 func (s *Server) handleBillingModelPricing(w http.ResponseWriter, r *http.Request) {
-	s.handleTRPCBridgeCall(w, r, http.MethodGet, "billing.getModelPricing", nil)
+	var result map[string]any
+	upstreamBase, err := s.callUpstreamJSON(r.Context(), "billing.getModelPricing", nil, &result)
+	if err == nil {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"data":    result,
+			"bridge": map[string]any{
+				"upstreamBase": upstreamBase,
+				"procedure":    "billing.getModelPricing",
+			},
+		})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"data":    buildLocalBillingModelPricingResponse(),
+		"bridge": map[string]any{
+			"fallback":  "go-local-provider-routing",
+			"procedure": "billing.getModelPricing",
+			"reason":    "upstream unavailable; using local provider model pricing preview",
+		},
+	})
 }
 
 func (s *Server) handleBillingFallbackChain(w http.ResponseWriter, r *http.Request) {
@@ -172,16 +220,41 @@ func (s *Server) handleBillingDepletedModels(w http.ResponseWriter, r *http.Requ
 
 func (s *Server) handleBillingFallbackHistory(w http.ResponseWriter, r *http.Request) {
 	limit := strings.TrimSpace(r.URL.Query().Get("limit"))
+	var payload any
 	if limit == "" {
-		s.handleTRPCBridgeCall(w, r, http.MethodGet, "billing.getFallbackHistory", nil)
+		payload = nil
+	} else {
+		parsed, err := strconv.Atoi(limit)
+		if err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]any{"success": false, "error": "invalid limit query parameter"})
+			return
+		}
+		payload = map[string]any{"limit": parsed}
+	}
+
+	var result []map[string]any
+	upstreamBase, err := s.callUpstreamJSON(r.Context(), "billing.getFallbackHistory", payload, &result)
+	if err == nil {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"data":    result,
+			"bridge": map[string]any{
+				"upstreamBase": upstreamBase,
+				"procedure":    "billing.getFallbackHistory",
+			},
+		})
 		return
 	}
-	parsed, err := strconv.Atoi(limit)
-	if err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]any{"success": false, "error": "invalid limit query parameter"})
-		return
-	}
-	s.handleTRPCBridgeCall(w, r, http.MethodGet, "billing.getFallbackHistory", map[string]any{"limit": parsed})
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"data":    []map[string]any{},
+		"bridge": map[string]any{
+			"fallback":  "go-local-provider-routing",
+			"procedure": "billing.getFallbackHistory",
+			"reason":    "upstream unavailable; local provider routing preview has no fallback history",
+		},
+	})
 }
 
 func (s *Server) handleBillingClearFallbackHistory(w http.ResponseWriter, r *http.Request) {
@@ -341,4 +414,36 @@ func buildLocalProviderQuotasResponse() []map[string]any {
 		})
 	}
 	return quotas
+}
+
+func buildLocalBillingCostHistoryResponse() map[string]any {
+	today := time.Now().UTC().Format("2006-01-02")
+	return map[string]any{
+		"history": []map[string]any{
+			{
+				"date":     today,
+				"cost":     0,
+				"requests": 0,
+			},
+		},
+	}
+}
+
+func buildLocalBillingModelPricingResponse() map[string]any {
+	statuses := providers.Snapshot()
+	entries := providers.Catalog(statuses)
+	models := make([]map[string]any, 0, len(entries))
+	for _, entry := range entries {
+		models = append(models, map[string]any{
+			"id":               entry.DefaultModel,
+			"provider":         entry.Provider,
+			"name":             entry.Name,
+			"inputPricePer1k":  nil,
+			"outputPricePer1k": nil,
+			"contextWindow":    nil,
+			"tier":             "standard",
+			"recommended":      entry.Configured || entry.Authenticated,
+		})
+	}
+	return map[string]any{"models": models}
 }

@@ -3271,7 +3271,7 @@ func (s *Server) handleMemorySearch(w http.ResponseWriter, r *http.Request) {
 		"bridge": map[string]any{
 			"fallback":  "go-local-memory",
 			"procedure": "memory.query",
-			"reason":    err.Error(),
+			"reason":    "upstream unavailable; local memory fallback has no full-text memory query index",
 		},
 	})
 }
@@ -6484,7 +6484,7 @@ func (s *Server) handleReadOnlyMemoryBodyFallback(w http.ResponseWriter, r *http
 		"bridge": map[string]any{
 			"fallback":  "go-local-memory",
 			"procedure": procedure,
-			"reason":    err.Error(),
+			"reason":    "upstream unavailable; local memory fallback has no persisted body results for " + procedure,
 		},
 	})
 }

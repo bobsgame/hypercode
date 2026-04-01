@@ -756,7 +756,7 @@ func TestReadOnlyMemoryRoutesFallBackLocally(t *testing.T) {
 		method      string
 		containsAny []string
 	}{
-		{path: "/api/memory/search?query=bootstrap&limit=3", method: http.MethodGet, containsAny: []string{`"fallback":"go-local-memory"`, `"data":[]`}},
+		{path: "/api/memory/search?query=bootstrap&limit=3", method: http.MethodGet, containsAny: []string{`"fallback":"go-local-memory"`, `local memory fallback has no full-text memory query index`}},
 		{path: "/api/memory/context/get?id=ctx-missing", method: http.MethodGet, containsAny: []string{`"fallback":"go-local-memory"`, `local memory context fallback has no persisted context body`}},
 		{path: "/api/memory/agent-search?query=memory&type=working&limit=5", method: http.MethodGet, containsAny: []string{`"fallback":"go-local-memory"`, `local memory fallback has no agent search index`}},
 		{path: "/api/memory/observations/recent?limit=5&namespace=ops&type=fact", method: http.MethodGet, containsAny: []string{`"fallback":"go-local-memory"`, `local memory fallback has no recent observations index`}},
@@ -803,9 +803,9 @@ func TestMemoryServiceBackedMutationsFallBackLocally(t *testing.T) {
 		{path: "/api/memory/facts/add", body: `{"content":"remember this","type":"working"}`, containsAny: []string{`"fallback":"go-local-memory"`, `local memory fallback cannot persist facts`}},
 		{path: "/api/memory/observations/record", body: `{"content":"Observation","type":"fact","namespace":"ops"}`, containsAny: []string{`"fallback":"go-local-memory"`, `local memory fallback cannot persist observations`}},
 		{path: "/api/memory/user-prompts/capture", body: `{"content":"Need help","role":"user"}`, containsAny: []string{`"fallback":"go-local-memory"`, `local memory fallback cannot persist user prompts`}},
-		{path: "/api/memory/pivot/search", body: `{"pivotMemoryId":"mem-1","limit":5}`, containsAny: []string{`"fallback":"go-local-memory"`, `"data":[]`}},
-		{path: "/api/memory/timeline/window", body: `{"centerMemoryId":"mem-1","before":2,"after":2}`, containsAny: []string{`"fallback":"go-local-memory"`, `"data":[]`}},
-		{path: "/api/memory/cross-session-links", body: `{"memoryId":"mem-1","limit":5}`, containsAny: []string{`"fallback":"go-local-memory"`, `"data":[]`}},
+		{path: "/api/memory/pivot/search", body: `{"pivotMemoryId":"mem-1","limit":5}`, containsAny: []string{`"fallback":"go-local-memory"`, `local memory fallback has no persisted body results for memory.searchMemoryPivot`}},
+		{path: "/api/memory/timeline/window", body: `{"centerMemoryId":"mem-1","before":2,"after":2}`, containsAny: []string{`"fallback":"go-local-memory"`, `local memory fallback has no persisted body results for memory.getMemoryTimelineWindow`}},
+		{path: "/api/memory/cross-session-links", body: `{"memoryId":"mem-1","limit":5}`, containsAny: []string{`"fallback":"go-local-memory"`, `local memory fallback has no persisted body results for memory.getCrossSessionMemoryLinks`}},
 		{path: "/api/memory/session-summaries/capture", body: `{"sessionId":"sess-1","status":"stopped"}`, containsAny: []string{`"fallback":"go-local-memory"`, `local memory fallback cannot persist session summaries`}},
 	}
 

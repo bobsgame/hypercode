@@ -61,6 +61,13 @@ export interface ImportedSessionRecord {
     parsedMemories: ImportedSessionMemoryRecord[];
 }
 
+export interface ImportedSessionMaintenanceStats {
+    totalSessions: number;
+    inlineTranscriptCount: number;
+    archivedTranscriptCount: number;
+    missingRetentionSummaryCount: number;
+}
+
 type ImportedSessionRow = Record<string, unknown> & {
     transcript_archive_path?: string | null;
     transcript_metadata_archive_path?: string | null;
@@ -466,6 +473,24 @@ export class ImportedSessionStore {
         `).all(limit) as ImportedSessionRow[];
 
         return rows.map((row) => this.mapSessionRow(row, this.listParsedMemories(String(row.uuid))));
+    }
+
+    getMaintenanceStats(): ImportedSessionMaintenanceStats {
+        const row = sqliteInstance.prepare(`
+            SELECT
+                COUNT(*) AS totalSessions,
+                SUM(CASE WHEN LENGTH(transcript) > 0 THEN 1 ELSE 0 END) AS inlineTranscriptCount,
+                SUM(CASE WHEN transcript_archive_path IS NOT NULL AND transcript_archive_path != '' THEN 1 ELSE 0 END) AS archivedTranscriptCount,
+                SUM(CASE WHEN json_extract(metadata, '$.retentionSummary') IS NULL THEN 1 ELSE 0 END) AS missingRetentionSummaryCount
+            FROM imported_sessions
+        `).get() as Record<string, unknown> | undefined;
+
+        return {
+            totalSessions: Number(row?.totalSessions ?? 0),
+            inlineTranscriptCount: Number(row?.inlineTranscriptCount ?? 0),
+            archivedTranscriptCount: Number(row?.archivedTranscriptCount ?? 0),
+            missingRetentionSummaryCount: Number(row?.missingRetentionSummaryCount ?? 0),
+        };
     }
 
     listParsedMemories(importedSessionId: string): ImportedSessionMemoryRecord[] {

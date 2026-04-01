@@ -4,6 +4,7 @@ let mockSessionImportService: {
     scanAndImport: ReturnType<typeof vi.fn>;
     listImportedSessions: ReturnType<typeof vi.fn>;
     getImportedSession: ReturnType<typeof vi.fn>;
+    getImportedMaintenanceStats?: ReturnType<typeof vi.fn>;
     listInstructionDocs?: ReturnType<typeof vi.fn>;
 } | undefined;
 
@@ -103,6 +104,12 @@ describe('sessionRouter imported-session procedures', () => {
 
         await expect(caller.importedList({ limit: 10 })).resolves.toEqual([]);
         await expect(caller.importedGet({ id: 'missing' })).resolves.toBeNull();
+        await expect(caller.importedMaintenanceStats()).resolves.toEqual({
+            totalSessions: 0,
+            inlineTranscriptCount: 0,
+            archivedTranscriptCount: 0,
+            missingRetentionSummaryCount: 0,
+        });
         await expect(caller.importedInstructionDocs()).resolves.toEqual([]);
         await expect(caller.importedScan({ force: true })).resolves.toEqual({
             discoveredCount: 0,
@@ -149,5 +156,28 @@ describe('sessionRouter imported-session procedures', () => {
         expect(scanResult).toEqual(scanSummary);
         expect(mockSessionImportService.listInstructionDocs).toHaveBeenCalledTimes(1);
         expect(docsResult).toEqual(instructionDocs);
+    });
+
+    it('returns imported maintenance stats through the session import runtime', async () => {
+        const stats = {
+            totalSessions: 12,
+            inlineTranscriptCount: 3,
+            archivedTranscriptCount: 9,
+            missingRetentionSummaryCount: 2,
+        };
+
+        mockSessionImportService = {
+            scanAndImport: vi.fn(),
+            listImportedSessions: vi.fn(() => []),
+            getImportedSession: vi.fn(() => null),
+            getImportedMaintenanceStats: vi.fn(() => stats),
+            listInstructionDocs: vi.fn(async () => []),
+        };
+
+        const caller = createCaller();
+        const result = await caller.importedMaintenanceStats();
+
+        expect(mockSessionImportService.getImportedMaintenanceStats).toHaveBeenCalledTimes(1);
+        expect(result).toEqual(stats);
     });
 });

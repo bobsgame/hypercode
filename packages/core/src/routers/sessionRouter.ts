@@ -72,6 +72,13 @@ const sessionImportSummarySchema = z.object({
     tools: z.array(z.string()),
 });
 
+const importedMaintenanceStatsSchema = z.object({
+    totalSessions: z.number(),
+    inlineTranscriptCount: z.number(),
+    archivedTranscriptCount: z.number(),
+    missingRetentionSummaryCount: z.number(),
+});
+
 const supervisedSessionSnapshotSchema = z.object({
     id: z.string(),
     name: z.string(),
@@ -225,6 +232,20 @@ export const sessionRouter = t.router({
 
     importedInstructionDocs: publicProcedure.output(z.array(importedInstructionDocSchema)).query(async () => {
         return await getSessionImportService()?.listInstructionDocs?.() as z.infer<typeof importedInstructionDocSchema>[] ?? [];
+    }),
+
+    importedMaintenanceStats: publicProcedure.output(importedMaintenanceStatsSchema).query(() => {
+        const service = getSessionImportService();
+        if (!service?.getImportedMaintenanceStats) {
+            return {
+                totalSessions: 0,
+                inlineTranscriptCount: 0,
+                archivedTranscriptCount: 0,
+                missingRetentionSummaryCount: 0,
+            };
+        }
+
+        return service.getImportedMaintenanceStats() as z.infer<typeof importedMaintenanceStatsSchema>;
     }),
 
     create: publicProcedure.input(z.object({

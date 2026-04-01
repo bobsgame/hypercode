@@ -174,6 +174,7 @@ export type SessionImportServiceRuntime = {
     scanAndImport: (options?: { force?: boolean }) => Promise<unknown>;
     listImportedSessions: (limit?: number) => unknown[];
     getImportedSession: (id: string) => unknown | null;
+    getImportedMaintenanceStats?: () => unknown;
     listInstructionDocs?: () => Promise<unknown[]>;
 };
 

@@ -14,6 +14,7 @@ import {
     type ImportedSessionMemoryInput,
     type ImportedSessionMemoryKind,
     type ImportedSessionMemorySource,
+    type ImportedSessionMaintenanceStats,
     type ImportedSessionRecord,
 } from './ImportedSessionStore.js';
 
@@ -871,6 +872,10 @@ export class SessionImportService {
 
     public listImportedSessions(limit: number = 50): ImportedSessionRecord[] {
         return this.store.listImportedSessions(limit);
+    }
+
+    public getImportedMaintenanceStats(): ImportedSessionMaintenanceStats {
+        return this.store.getMaintenanceStats();
     }
 
     public getImportedSession(id: string): ImportedSessionRecord | null {

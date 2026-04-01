@@ -288,6 +288,80 @@ describe('ImportedSessionStore', () => {
         });
     });
 
+    it('reports maintenance stats for inline, archived, and missing-retention sessions', async () => {
+        const { ImportedSessionStore } = await import('./ImportedSessionStore.js') as ImportedSessionStoreModule;
+        const archiveRoot = await createTempRoot();
+        const store = new ImportedSessionStore(archiveRoot);
+
+        const archived = store.upsertSession(createSessionInput(
+            'hash-stats-archived',
+            'User: keep durable defaults.\nAssistant: archive the rest.',
+            'Keep durable defaults.',
+        ));
+
+        sqliteForTest.prepare(`
+            INSERT INTO imported_sessions (
+                uuid,
+                source_tool,
+                source_path,
+                external_session_id,
+                title,
+                session_format,
+                transcript,
+                excerpt,
+                working_directory,
+                transcript_hash,
+                normalized_session,
+                metadata,
+                transcript_archive_path,
+                transcript_metadata_archive_path,
+                transcript_archive_format,
+                transcript_stored_bytes,
+                discovered_at,
+                imported_at,
+                last_modified_at,
+                created_at,
+                updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(
+            'inline-session',
+            'antigravity',
+            'C:\\temp\\inline.jsonl',
+            'inline-ext',
+            'Inline import',
+            'jsonl',
+            'User: keep this inline for migration stats.',
+            'User: keep this inline for migration stats.',
+            'C:\\temp',
+            'inline-hash',
+            JSON.stringify({ sourceTool: 'antigravity', transcriptHash: 'inline-hash' }),
+            JSON.stringify({ legacy: true }),
+            null,
+            null,
+            null,
+            null,
+            1_700_000_000_000,
+            1_700_000_000_100,
+            1_700_000_000_050,
+            1_700_000_000_100,
+            1_700_000_000_100,
+        );
+
+        sqliteForTest.prepare('UPDATE imported_sessions SET metadata = ? WHERE uuid = ?').run(
+            JSON.stringify({ antigravityImportSurface: 'experimental' }),
+            archived.id,
+        );
+
+        const stats = store.getMaintenanceStats();
+
+        expect(stats).toEqual({
+            totalSessions: 2,
+            inlineTranscriptCount: 1,
+            archivedTranscriptCount: 1,
+            missingRetentionSummaryCount: 2,
+        });
+    });
+
     it('backfills retention summaries for legacy archived sessions', async () => {
         const { ImportedSessionStore } = await import('./ImportedSessionStore.js') as ImportedSessionStoreModule;
         const archiveRoot = await createTempRoot();

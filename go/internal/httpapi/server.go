@@ -1,11 +1,14 @@
 package httpapi
 
 import (
+	"bytes"
+	"compress/gzip"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"io"
 	"io/fs"
 	"net/http"
 	"os"
@@ -198,6 +201,23 @@ type ImportedSessionMaintenanceStats struct {
 	InlineTranscriptCount        int `json:"inlineTranscriptCount"`
 	ArchivedTranscriptCount      int `json:"archivedTranscriptCount"`
 	MissingRetentionSummaryCount int `json:"missingRetentionSummaryCount"`
+}
+
+type importedSessionArchiveSidecar struct {
+	SessionID               string         `json:"sessionId"`
+	SourceTool              string         `json:"sourceTool"`
+	SourcePath              string         `json:"sourcePath"`
+	SessionFormat           string         `json:"sessionFormat"`
+	TranscriptHash          string         `json:"transcriptHash"`
+	Title                   *string        `json:"title"`
+	WorkingDirectory        *string        `json:"workingDirectory"`
+	TranscriptLength        int            `json:"transcriptLength"`
+	Excerpt                 *string        `json:"excerpt"`
+	DurableMemoryCount      int            `json:"durableMemoryCount"`
+	DurableInstructionCount int            `json:"durableInstructionCount"`
+	MemoryTags              []string       `json:"memoryTags"`
+	RetentionSummary        map[string]any `json:"retentionSummary"`
+	ArchivedAt              int64          `json:"archivedAt"`
 }
 
 type ImportRootsSummary struct {
@@ -1541,6 +1561,22 @@ func (s *Server) handleImportedSessionList(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	if archivedRecords, archiveErr := s.loadArchivedImportedSessionRecords(); archiveErr == nil && len(archivedRecords) > 0 {
+		if parsedLimit < len(archivedRecords) {
+			archivedRecords = archivedRecords[:parsedLimit]
+		}
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"data":    archivedRecords,
+			"bridge": map[string]any{
+				"fallback":  "go-sessionimport",
+				"procedure": "session.importedList",
+				"reason":    bridgeErr.Error(),
+			},
+		})
+		return
+	}
+
 	candidates, scanErr := s.scanValidatedImportSources()
 	if scanErr != nil {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]any{
@@ -1587,6 +1623,24 @@ func (s *Server) handleImportedSessionGet(w http.ResponseWriter, r *http.Request
 			},
 		})
 		return
+	}
+
+	if archivedRecords, archiveErr := s.loadArchivedImportedSessionRecords(); archiveErr == nil && len(archivedRecords) > 0 {
+		for _, record := range archivedRecords {
+			if record.ID != importedID {
+				continue
+			}
+			writeJSON(w, http.StatusOK, map[string]any{
+				"success": true,
+				"data":    record,
+				"bridge": map[string]any{
+					"fallback":  "go-sessionimport",
+					"procedure": "session.importedGet",
+					"reason":    bridgeErr.Error(),
+				},
+			})
+			return
+		}
 	}
 
 	candidates, scanErr := s.scanValidatedImportSources()
@@ -1659,6 +1713,20 @@ func (s *Server) handleImportedSessionScan(w http.ResponseWriter, r *http.Reques
 			"bridge": map[string]any{
 				"upstreamBase": upstreamBase,
 				"procedure":    "session.importedScan",
+			},
+		})
+		return
+	}
+
+	if archivedRecords, archiveErr := s.loadArchivedImportedSessionRecords(); archiveErr == nil && len(archivedRecords) > 0 {
+		fallbackStats := archivedImportedSessionMaintenanceStats(archivedRecords)
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"data":    fallbackStats,
+			"bridge": map[string]any{
+				"fallback":  "go-sessionimport",
+				"procedure": "session.importedMaintenanceStats",
+				"reason":    err.Error(),
 			},
 		})
 		return
@@ -1762,6 +1830,20 @@ func (s *Server) handleImportedSessionMaintenanceStats(w http.ResponseWriter, r 
 			"bridge": map[string]any{
 				"upstreamBase": upstreamBase,
 				"procedure":    "session.importedMaintenanceStats",
+			},
+		})
+		return
+	}
+
+	if archivedRecords, archiveErr := s.loadArchivedImportedSessionRecords(); archiveErr == nil && len(archivedRecords) > 0 {
+		fallbackStats := archivedImportedSessionMaintenanceStats(archivedRecords)
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"data":    fallbackStats,
+			"bridge": map[string]any{
+				"fallback":  "go-sessionimport",
+				"procedure": "session.importedMaintenanceStats",
+				"reason":    err.Error(),
 			},
 		})
 		return
@@ -7480,6 +7562,174 @@ func (s *Server) scanValidatedImportSources() ([]sessionimport.ValidationResult,
 
 	scanner := sessionimport.NewScanner(s.cfg.WorkspaceRoot, homeDir, 50)
 	return scanner.ScanValidated()
+}
+
+func (s *Server) importedSessionsArchiveRoot() string {
+	return filepath.Join(s.cfg.WorkspaceRoot, ".hypercode", "imported_sessions", "archive")
+}
+
+func readGzipJSON(filePath string, target any) error {
+	payload, err := os.ReadFile(filePath)
+	if err != nil {
+		return err
+	}
+	reader, err := gzip.NewReader(bytes.NewReader(payload))
+	if err != nil {
+		return err
+	}
+	defer reader.Close()
+
+	return json.NewDecoder(reader).Decode(target)
+}
+
+func readGzipText(filePath string) (string, error) {
+	payload, err := os.ReadFile(filePath)
+	if err != nil {
+		return "", err
+	}
+	reader, err := gzip.NewReader(bytes.NewReader(payload))
+	if err != nil {
+		return "", err
+	}
+	defer reader.Close()
+
+	decoded, err := io.ReadAll(reader)
+	if err != nil {
+		return "", err
+	}
+	return string(decoded), nil
+}
+
+func archivedImportedSessionRecord(sidecar importedSessionArchiveSidecar, metadataPath string) (ImportedSessionRecord, error) {
+	transcriptPath := strings.TrimSuffix(metadataPath, ".meta.json.gz") + ".txt.gz"
+	transcript, err := readGzipText(transcriptPath)
+	if err != nil {
+		return ImportedSessionRecord{}, err
+	}
+
+	sessionID := strings.TrimSpace(sidecar.SessionID)
+	if sessionID == "" {
+		sessionID = "import-" + stableHash(metadataPath)[:16]
+	}
+	transcriptHash := strings.TrimSpace(sidecar.TranscriptHash)
+	if transcriptHash == "" {
+		transcriptHash = stableHash(sidecar.SourceTool + "\n" + sidecar.SourcePath + "\n" + sidecar.SessionFormat)
+	}
+
+	title := sidecar.Title
+	if title == nil || strings.TrimSpace(*title) == "" {
+		titleText := filepath.Base(sidecar.SourcePath)
+		if strings.TrimSpace(titleText) != "" {
+			title = &titleText
+		}
+	}
+
+	excerpt := sidecar.Excerpt
+	if excerpt == nil && strings.TrimSpace(transcript) != "" {
+		excerptText := transcript
+		if len(excerptText) > 240 {
+			excerptText = excerptText[:240]
+		}
+		excerpt = &excerptText
+	}
+
+	importedAt := sidecar.ArchivedAt
+	if importedAt <= 0 {
+		if stat, statErr := os.Stat(metadataPath); statErr == nil {
+			importedAt = stat.ModTime().UTC().UnixMilli()
+		} else {
+			importedAt = time.Now().UTC().UnixMilli()
+		}
+	}
+
+	normalized := map[string]any{
+		"archiveFormat": "gzip-text-v1",
+	}
+	metadata := map[string]any{
+		"archiveFormat":           "gzip-text-v1",
+		"durableMemoryCount":      sidecar.DurableMemoryCount,
+		"durableInstructionCount": sidecar.DurableInstructionCount,
+		"memoryTags":              sidecar.MemoryTags,
+	}
+	if sidecar.RetentionSummary != nil {
+		metadata["retentionSummary"] = sidecar.RetentionSummary
+	}
+
+	return ImportedSessionRecord{
+		ID:                sessionID,
+		SourceTool:        sidecar.SourceTool,
+		SourcePath:        sidecar.SourcePath,
+		ExternalSessionID: nil,
+		Title:             title,
+		SessionFormat:     sidecar.SessionFormat,
+		Transcript:        transcript,
+		Excerpt:           excerpt,
+		WorkingDirectory:  sidecar.WorkingDirectory,
+		TranscriptHash:    transcriptHash,
+		NormalizedSession: normalized,
+		Metadata:          metadata,
+		DiscoveredAt:      importedAt,
+		ImportedAt:        importedAt,
+		LastModifiedAt:    &importedAt,
+		CreatedAt:         importedAt,
+		UpdatedAt:         importedAt,
+		ParsedMemories:    []ImportedSessionMemory{},
+	}, nil
+}
+
+func (s *Server) loadArchivedImportedSessionRecords() ([]ImportedSessionRecord, error) {
+	archiveRoot := s.importedSessionsArchiveRoot()
+	if _, err := os.Stat(archiveRoot); err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	records := make([]ImportedSessionRecord, 0, 32)
+	err := filepath.WalkDir(archiveRoot, func(path string, entry fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if entry.IsDir() || !strings.HasSuffix(strings.ToLower(path), ".meta.json.gz") {
+			return nil
+		}
+
+		var sidecar importedSessionArchiveSidecar
+		if err := readGzipJSON(path, &sidecar); err != nil {
+			return nil
+		}
+		record, err := archivedImportedSessionRecord(sidecar, path)
+		if err != nil {
+			return nil
+		}
+		records = append(records, record)
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	sort.Slice(records, func(i, j int) bool {
+		if records[i].ImportedAt == records[j].ImportedAt {
+			return records[i].ID < records[j].ID
+		}
+		return records[i].ImportedAt > records[j].ImportedAt
+	})
+	return records, nil
+}
+
+func archivedImportedSessionMaintenanceStats(records []ImportedSessionRecord) ImportedSessionMaintenanceStats {
+	stats := ImportedSessionMaintenanceStats{
+		TotalSessions:           len(records),
+		ArchivedTranscriptCount: len(records),
+	}
+	for _, record := range records {
+		if _, ok := record.Metadata["retentionSummary"]; !ok {
+			stats.MissingRetentionSummaryCount++
+		}
+	}
+	return stats
 }
 
 func (s *Server) importedSessionFallbackRecords(candidates []sessionimport.ValidationResult) []ImportedSessionRecord {

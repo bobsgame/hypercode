@@ -149,6 +149,10 @@ func (s *Server) importedSessionMaintenanceStats(ctx context.Context) ImportedSe
 		return stats
 	}
 
+	if archivedRecords, err := s.loadArchivedImportedSessionRecords(); err == nil && len(archivedRecords) > 0 {
+		return archivedImportedSessionMaintenanceStats(archivedRecords)
+	}
+
 	candidates, err := s.scanValidatedImportSources()
 	if err != nil {
 		return ImportedSessionMaintenanceStats{}

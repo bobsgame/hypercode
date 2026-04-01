@@ -1,6 +1,8 @@
 package httpapi
 
 import (
+	"bytes"
+	"compress/gzip"
 	"context"
 	"encoding/json"
 	"io"
@@ -5421,6 +5423,85 @@ func TestImportedSessionListFallsBackToGoScanner(t *testing.T) {
 	}
 }
 
+func writeGzipFile(t *testing.T, path string, contents []byte) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("failed to create gzip parent dir: %v", err)
+	}
+	var buf bytes.Buffer
+	writer := gzip.NewWriter(&buf)
+	if _, err := writer.Write(contents); err != nil {
+		t.Fatalf("failed to write gzip contents: %v", err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatalf("failed to close gzip writer: %v", err)
+	}
+	if err := os.WriteFile(path, buf.Bytes(), 0o644); err != nil {
+		t.Fatalf("failed to persist gzip file: %v", err)
+	}
+}
+
+func seedArchivedImportedSession(t *testing.T, workspaceRoot string) string {
+	t.Helper()
+	archiveDir := filepath.Join(workspaceRoot, ".hypercode", "imported_sessions", "archive", "ab", "cd")
+	transcriptHash := "abcd1234ef567890abcd1234ef567890"
+	sessionID := "imp-archived-1"
+	metadataPath := filepath.Join(archiveDir, transcriptHash+".meta.json.gz")
+	transcriptPath := filepath.Join(archiveDir, transcriptHash+".txt.gz")
+
+	writeGzipFile(t, transcriptPath, []byte("Archived imported transcript\nimportant context"))
+	sidecar := map[string]any{
+		"sessionId":               sessionID,
+		"sourceTool":              "claude-code",
+		"sourcePath":              filepath.Join(workspaceRoot, ".claude", "session.jsonl"),
+		"sessionFormat":           "jsonl",
+		"transcriptHash":          transcriptHash,
+		"title":                   "Archived Session",
+		"workingDirectory":        workspaceRoot,
+		"transcriptLength":        43,
+		"excerpt":                 "Archived imported transcript",
+		"durableMemoryCount":      2,
+		"durableInstructionCount": 1,
+		"memoryTags":              []string{"go", "archive"},
+		"retentionSummary": map[string]any{
+			"archiveDisposition": "archive_only",
+		},
+		"archivedAt": int64(1711933200000),
+	}
+	payload, err := json.Marshal(sidecar)
+	if err != nil {
+		t.Fatalf("failed to marshal sidecar: %v", err)
+	}
+	writeGzipFile(t, metadataPath, payload)
+	return sessionID
+}
+
+func TestImportedSessionListFallsBackToArchivedRecords(t *testing.T) {
+	workspaceRoot := t.TempDir()
+	sessionID := seedArchivedImportedSession(t, workspaceRoot)
+
+	t.Setenv("BORG_TRPC_UPSTREAM", "http://127.0.0.1:1/trpc")
+
+	cfg := config.Default()
+	cfg.WorkspaceRoot = workspaceRoot
+	cfg.MainConfigDir = t.TempDir()
+	server := New(cfg, stubDetector{})
+
+	request := httptest.NewRequest(http.MethodGet, "/api/sessions/imported/list?limit=5", nil)
+	recorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected fallback status 200, got %d with body %s", recorder.Code, recorder.Body.String())
+	}
+	if !strings.Contains(recorder.Body.String(), `"id":"`+sessionID+`"`) {
+		t.Fatalf("expected archived imported session id %s, got %s", sessionID, recorder.Body.String())
+	}
+	if !strings.Contains(recorder.Body.String(), `"archiveFormat":"gzip-text-v1"`) {
+		t.Fatalf("expected archived metadata marker, got %s", recorder.Body.String())
+	}
+}
+
 func TestImportedSessionGetFallsBackToGoScanner(t *testing.T) {
 	workspaceRoot := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(workspaceRoot, ".claude"), 0o755); err != nil {
@@ -5461,6 +5542,32 @@ func TestImportedSessionGetFallsBackToGoScanner(t *testing.T) {
 	}
 	if !strings.Contains(recorder.Body.String(), `"sourceTool":"`+records[0].SourceTool+`"`) {
 		t.Fatalf("expected sourceTool %s in fallback entry, got %s", records[0].SourceTool, recorder.Body.String())
+	}
+}
+
+func TestImportedSessionGetFallsBackToArchivedRecords(t *testing.T) {
+	workspaceRoot := t.TempDir()
+	sessionID := seedArchivedImportedSession(t, workspaceRoot)
+
+	t.Setenv("BORG_TRPC_UPSTREAM", "http://127.0.0.1:1/trpc")
+
+	cfg := config.Default()
+	cfg.WorkspaceRoot = workspaceRoot
+	cfg.MainConfigDir = t.TempDir()
+	server := New(cfg, stubDetector{})
+
+	request := httptest.NewRequest(http.MethodGet, "/api/sessions/imported/get?id="+sessionID, nil)
+	recorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected fallback status 200, got %d with body %s", recorder.Code, recorder.Body.String())
+	}
+	if !strings.Contains(recorder.Body.String(), `"id":"`+sessionID+`"`) {
+		t.Fatalf("expected archived imported session id %s, got %s", sessionID, recorder.Body.String())
+	}
+	if !strings.Contains(recorder.Body.String(), `Archived imported transcript`) {
+		t.Fatalf("expected archived transcript contents, got %s", recorder.Body.String())
 	}
 }
 
@@ -5522,6 +5629,35 @@ func TestImportedSessionMaintenanceStatsFallsBackToGoScanner(t *testing.T) {
 	}
 	if !strings.Contains(recorder.Body.String(), `"missingRetentionSummaryCount":1`) {
 		t.Fatalf("expected missing retention fallback count, got %s", recorder.Body.String())
+	}
+}
+
+func TestImportedSessionMaintenanceStatsFallsBackToArchivedRecords(t *testing.T) {
+	workspaceRoot := t.TempDir()
+	seedArchivedImportedSession(t, workspaceRoot)
+
+	t.Setenv("BORG_TRPC_UPSTREAM", "http://127.0.0.1:1/trpc")
+
+	cfg := config.Default()
+	cfg.WorkspaceRoot = workspaceRoot
+	cfg.MainConfigDir = t.TempDir()
+	server := New(cfg, stubDetector{})
+
+	request := httptest.NewRequest(http.MethodGet, "/api/sessions/imported/maintenance-stats", nil)
+	recorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected fallback status 200, got %d with body %s", recorder.Code, recorder.Body.String())
+	}
+	if !strings.Contains(recorder.Body.String(), `"archivedTranscriptCount":1`) {
+		t.Fatalf("expected archived transcript fallback count, got %s", recorder.Body.String())
+	}
+	if !strings.Contains(recorder.Body.String(), `"inlineTranscriptCount":0`) {
+		t.Fatalf("expected zero inline transcript fallback count, got %s", recorder.Body.String())
+	}
+	if !strings.Contains(recorder.Body.String(), `"missingRetentionSummaryCount":0`) {
+		t.Fatalf("expected retention summary to be present, got %s", recorder.Body.String())
 	}
 }
 

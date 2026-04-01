@@ -6185,6 +6185,75 @@ func TestSubmoduleReadEndpointsFallBackLocally(t *testing.T) {
 	}
 }
 
+func TestKnowledgeReadEndpointsFallBackLocally(t *testing.T) {
+	workspaceRoot := t.TempDir()
+	memoryDir := filepath.Join(workspaceRoot, ".hypercode", "memory")
+	if err := os.MkdirAll(memoryDir, 0o755); err != nil {
+		t.Fatalf("failed to create memory dir: %v", err)
+	}
+	contexts := `[
+  {"id":"ctx-1"},
+  {"id":"ctx-2"},
+  {"id":"ctx-3"}
+]`
+	if err := os.WriteFile(filepath.Join(memoryDir, "contexts.json"), []byte(contexts), 0o644); err != nil {
+		t.Fatalf("failed to write contexts.json: %v", err)
+	}
+
+	knowledgeDir := filepath.Join(workspaceRoot, "knowledge")
+	if err := os.MkdirAll(knowledgeDir, 0o755); err != nil {
+		t.Fatalf("failed to create knowledge dir: %v", err)
+	}
+	resources := `{
+  "lastUpdated": "2026-04-01",
+  "categories": [{"name":"MCP","count":2}]
+}`
+	if err := os.WriteFile(filepath.Join(knowledgeDir, "resources.json"), []byte(resources), 0o644); err != nil {
+		t.Fatalf("failed to write resources.json: %v", err)
+	}
+
+	t.Setenv("BORG_TRPC_UPSTREAM", "http://127.0.0.1:1/trpc")
+
+	cfg := config.Default()
+	cfg.WorkspaceRoot = workspaceRoot
+	server := New(cfg, stubDetector{})
+
+	statsRecorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(statsRecorder, httptest.NewRequest(http.MethodGet, "/api/knowledge/stats", nil))
+	if statsRecorder.Code != http.StatusOK {
+		t.Fatalf("expected knowledge stats 200, got %d with body %s", statsRecorder.Code, statsRecorder.Body.String())
+	}
+
+	for _, needle := range []string{
+		`"fallback":"go-local-knowledge"`,
+		`"procedure":"knowledge.getStats"`,
+		`using local memory context count for knowledge stats`,
+		`"count":3`,
+	} {
+		if !strings.Contains(statsRecorder.Body.String(), needle) {
+			t.Fatalf("expected knowledge stats response to contain %s, got %s", needle, statsRecorder.Body.String())
+		}
+	}
+
+	resourcesRecorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(resourcesRecorder, httptest.NewRequest(http.MethodGet, "/api/knowledge/resources", nil))
+	if resourcesRecorder.Code != http.StatusOK {
+		t.Fatalf("expected knowledge resources 200, got %d with body %s", resourcesRecorder.Code, resourcesRecorder.Body.String())
+	}
+
+	for _, needle := range []string{
+		`"fallback":"go-local-knowledge"`,
+		`"procedure":"knowledge.getResources"`,
+		`using local knowledge resources file`,
+		`"lastUpdated":"2026-04-01"`,
+		`"name":"MCP"`,
+	} {
+		if !strings.Contains(resourcesRecorder.Body.String(), needle) {
+			t.Fatalf("expected knowledge resources response to contain %s, got %s", needle, resourcesRecorder.Body.String())
+		}
+	}
+}
+
 func TestMCPSearchToolsFallsBackToLocalInventory(t *testing.T) {
 	workspaceRoot := t.TempDir()
 	toolsDir := filepath.Join(workspaceRoot, "submodules", "hypercode", "tools")

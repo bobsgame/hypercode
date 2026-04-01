@@ -1374,9 +1374,9 @@ func (s *Server) handleAPIIndex(w http.ResponseWriter, _ *http.Request) {
 				{Path: "/api/plan/rollback", Category: "ui", Description: "Rollback a plan checkpoint through the TypeScript plan router."},
 				{Path: "/api/plan/clear", Category: "ui", Description: "Clear plan sandbox state through the TypeScript plan router."},
 				{Path: "/api/knowledge/graph", Category: "knowledge", Description: "Read the knowledge graph through the TypeScript knowledge router."},
-				{Path: "/api/knowledge/stats", Category: "knowledge", Description: "Read knowledge stats through the TypeScript knowledge router."},
+				{Path: "/api/knowledge/stats", Category: "knowledge", Description: "Read knowledge stats through the TypeScript knowledge router, with a local Go memory-context fallback when the router is unavailable."},
 				{Path: "/api/knowledge/ingest", Category: "knowledge", Description: "Ingest a knowledge URL through the TypeScript knowledge router."},
-				{Path: "/api/knowledge/resources", Category: "knowledge", Description: "Read knowledge resources through the TypeScript knowledge router."},
+				{Path: "/api/knowledge/resources", Category: "knowledge", Description: "Read knowledge resources through the TypeScript knowledge router, with a local Go resources.json fallback when the router is unavailable."},
 				{Path: "/api/rag/file", Category: "knowledge", Description: "Ingest a file into RAG through the TypeScript RAG router."},
 				{Path: "/api/rag/text", Category: "knowledge", Description: "Ingest text into RAG through the TypeScript RAG router."},
 				{Path: "/api/directory", Category: "knowledge", Description: "List unified directory items through the TypeScript unified directory router."},
@@ -6718,7 +6718,29 @@ func (s *Server) handleKnowledgeGraph(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleKnowledgeStats(w http.ResponseWriter, r *http.Request) {
-	s.handleTRPCBridgeCall(w, r, http.MethodGet, "knowledge.getStats", nil)
+	var result any
+	upstreamBase, err := s.callUpstreamJSON(r.Context(), "knowledge.getStats", nil, &result)
+	if err == nil {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"data":    result,
+			"bridge": map[string]any{
+				"upstreamBase": upstreamBase,
+				"procedure":    "knowledge.getStats",
+			},
+		})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"data":    s.localKnowledgeStats(),
+		"bridge": map[string]any{
+			"fallback":  "go-local-knowledge",
+			"procedure": "knowledge.getStats",
+			"reason":    "upstream unavailable; using local memory context count for knowledge stats",
+		},
+	})
 }
 
 func (s *Server) handleKnowledgeIngest(w http.ResponseWriter, r *http.Request) {
@@ -6726,7 +6748,29 @@ func (s *Server) handleKnowledgeIngest(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleKnowledgeResources(w http.ResponseWriter, r *http.Request) {
-	s.handleTRPCBridgeCall(w, r, http.MethodGet, "knowledge.getResources", nil)
+	var result any
+	upstreamBase, err := s.callUpstreamJSON(r.Context(), "knowledge.getResources", nil, &result)
+	if err == nil {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"data":    result,
+			"bridge": map[string]any{
+				"upstreamBase": upstreamBase,
+				"procedure":    "knowledge.getResources",
+			},
+		})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"data":    localKnowledgeResources(s.cfg.WorkspaceRoot),
+		"bridge": map[string]any{
+			"fallback":  "go-local-knowledge",
+			"procedure": "knowledge.getResources",
+			"reason":    "upstream unavailable; using local knowledge resources file",
+		},
+	})
 }
 
 func (s *Server) handleRAGIngestFile(w http.ResponseWriter, r *http.Request) {
@@ -7597,6 +7641,34 @@ func localSubmoduleCapabilities(workspaceRoot string, submodulePath string) map[
 		result["startCommand"] = startCommand
 	}
 	return result
+}
+
+func (s *Server) localKnowledgeStats() map[string]any {
+	contexts, err := s.localMemoryContexts()
+	if err != nil {
+		return map[string]any{"count": 0}
+	}
+	return map[string]any{"count": len(contexts)}
+}
+
+func localKnowledgeResources(workspaceRoot string) any {
+	resourcePath := filepath.Join(workspaceRoot, "knowledge", "resources.json")
+	raw, err := os.ReadFile(resourcePath)
+	if err != nil {
+		return map[string]any{
+			"lastUpdated": "Never",
+			"categories":  []any{},
+		}
+	}
+
+	var parsed any
+	if err := json.Unmarshal(raw, &parsed); err != nil {
+		return map[string]any{
+			"lastUpdated": "Never",
+			"categories":  []any{},
+		}
+	}
+	return parsed
 }
 
 func localSubmoduleCapabilitiesValues(workspaceRoot string, submodulePath string) ([]string, string) {

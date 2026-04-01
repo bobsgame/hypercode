@@ -6560,13 +6560,23 @@ func (s *Server) handlePoliciesList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	policies, fallbackErr := s.localPolicies()
+	if fallbackErr != nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{
+			"success": false,
+			"error":   fallbackErr.Error(),
+			"detail":  fallbackErr.Error(),
+		})
+		return
+	}
+
 	writeJSON(w, http.StatusOK, map[string]any{
 		"success": true,
-		"data":    []map[string]any{},
+		"data":    policies,
 		"bridge": map[string]any{
-			"fallback":  "go-local-governance",
+			"fallback":  "go-local-policy-db",
 			"procedure": "policies.list",
-			"reason":    "upstream unavailable; using local empty policy list",
+			"reason":    "upstream unavailable; using local metamcp policy records",
 		},
 	})
 }
@@ -8707,6 +8717,58 @@ func (s *Server) localPolicy(uuid string) (any, error) {
 		"createdAt":   unixTimestampToRFC3339(createdAtRaw),
 		"updatedAt":   unixTimestampToRFC3339(updatedAtRaw),
 	}, nil
+}
+
+func (s *Server) localPolicies() ([]map[string]any, error) {
+	db, err := sql.Open("sqlite", s.localMetaMCPDBPath())
+	if err != nil {
+		return nil, err
+	}
+	defer db.Close()
+
+	rows, err := db.Query(`
+		SELECT uuid, name, description, rules, created_at, updated_at
+		FROM policies
+		ORDER BY created_at DESC
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	results := make([]map[string]any, 0)
+	for rows.Next() {
+		var (
+			policyUUID   string
+			name         string
+			description  sql.NullString
+			rulesRaw     string
+			createdAtRaw int64
+			updatedAtRaw int64
+		)
+		if err := rows.Scan(&policyUUID, &name, &description, &rulesRaw, &createdAtRaw, &updatedAtRaw); err != nil {
+			return nil, err
+		}
+
+		var rules any
+		if err := json.Unmarshal([]byte(rulesRaw), &rules); err != nil {
+			rules = map[string]any{}
+		}
+
+		results = append(results, map[string]any{
+			"uuid":        policyUUID,
+			"name":        name,
+			"description": nullStringToAny(description),
+			"rules":       rules,
+			"createdAt":   unixTimestampToRFC3339(createdAtRaw),
+			"updatedAt":   unixTimestampToRFC3339(updatedAtRaw),
+		})
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return results, nil
 }
 
 func (s *Server) localSecrets() ([]map[string]any, error) {

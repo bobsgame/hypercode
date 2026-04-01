@@ -3517,7 +3517,7 @@ func (s *Server) handleMemoryRecentObservations(w http.ResponseWriter, r *http.R
 		"bridge": map[string]any{
 			"fallback":  "go-local-memory",
 			"procedure": "memory.getRecentObservations",
-			"reason":    err.Error(),
+			"reason":    "upstream unavailable; local memory fallback has no recent observations index",
 		},
 	})
 }
@@ -3563,7 +3563,7 @@ func (s *Server) handleMemorySearchObservations(w http.ResponseWriter, r *http.R
 		"bridge": map[string]any{
 			"fallback":  "go-local-memory",
 			"procedure": "memory.searchObservations",
-			"reason":    err.Error(),
+			"reason":    "upstream unavailable; local memory fallback has no observation search index",
 		},
 	})
 }
@@ -3580,7 +3580,7 @@ func (s *Server) handleMemoryCaptureUserPrompt(w http.ResponseWriter, r *http.Re
 		writeJSON(w, http.StatusOK, map[string]any{"success": true, "data": result, "bridge": map[string]any{"upstreamBase": upstreamBase, "procedure": "memory.captureUserPrompt"}})
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"success": true, "data": map[string]any{"success": false}, "bridge": map[string]any{"fallback": "go-local-memory", "procedure": "memory.captureUserPrompt", "reason": err.Error()}})
+	writeJSON(w, http.StatusOK, map[string]any{"success": true, "data": map[string]any{"success": false}, "bridge": map[string]any{"fallback": "go-local-memory", "procedure": "memory.captureUserPrompt", "reason": "upstream unavailable; local memory fallback cannot persist user prompts"}})
 }
 
 func (s *Server) handleMemoryRecentUserPrompts(w http.ResponseWriter, r *http.Request) {
@@ -3613,7 +3613,7 @@ func (s *Server) handleMemoryRecentUserPrompts(w http.ResponseWriter, r *http.Re
 		"bridge": map[string]any{
 			"fallback":  "go-local-memory",
 			"procedure": "memory.getRecentUserPrompts",
-			"reason":    err.Error(),
+			"reason":    "upstream unavailable; local memory fallback has no recent prompt index",
 		},
 	})
 }
@@ -3656,7 +3656,7 @@ func (s *Server) handleMemorySearchUserPrompts(w http.ResponseWriter, r *http.Re
 		"bridge": map[string]any{
 			"fallback":  "go-local-memory",
 			"procedure": "memory.searchUserPrompts",
-			"reason":    err.Error(),
+			"reason":    "upstream unavailable; local memory fallback has no prompt search index",
 		},
 	})
 }
@@ -3722,7 +3722,7 @@ func (s *Server) handleMemorySessionBootstrap(w http.ResponseWriter, r *http.Req
 		"bridge": map[string]any{
 			"fallback":  "go-local-memory",
 			"procedure": "memory.getSessionBootstrap",
-			"reason":    err.Error(),
+			"reason":    "upstream unavailable; using local empty session bootstrap",
 		},
 	})
 }
@@ -3778,7 +3778,7 @@ func (s *Server) handleMemoryToolContext(w http.ResponseWriter, r *http.Request)
 		"bridge": map[string]any{
 			"fallback":  "go-local-memory",
 			"procedure": "memory.getToolContext",
-			"reason":    err.Error(),
+			"reason":    "upstream unavailable; using local empty tool context",
 		},
 	})
 }
@@ -3795,7 +3795,7 @@ func (s *Server) handleMemoryCaptureSessionSummary(w http.ResponseWriter, r *htt
 		writeJSON(w, http.StatusOK, map[string]any{"success": true, "data": result, "bridge": map[string]any{"upstreamBase": upstreamBase, "procedure": "memory.captureSessionSummary"}})
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"success": true, "data": map[string]any{"success": false}, "bridge": map[string]any{"fallback": "go-local-memory", "procedure": "memory.captureSessionSummary", "reason": err.Error()}})
+	writeJSON(w, http.StatusOK, map[string]any{"success": true, "data": map[string]any{"success": false}, "bridge": map[string]any{"fallback": "go-local-memory", "procedure": "memory.captureSessionSummary", "reason": "upstream unavailable; local memory fallback cannot persist session summaries"}})
 }
 
 func (s *Server) handleMemoryRecentSessionSummaries(w http.ResponseWriter, r *http.Request) {
@@ -3825,7 +3825,7 @@ func (s *Server) handleMemoryRecentSessionSummaries(w http.ResponseWriter, r *ht
 		"bridge": map[string]any{
 			"fallback":  "go-local-memory",
 			"procedure": "memory.getRecentSessionSummaries",
-			"reason":    err.Error(),
+			"reason":    "upstream unavailable; local memory fallback has no recent session summary index",
 		},
 	})
 }
@@ -3865,7 +3865,7 @@ func (s *Server) handleMemorySearchSessionSummaries(w http.ResponseWriter, r *ht
 		"bridge": map[string]any{
 			"fallback":  "go-local-memory",
 			"procedure": "memory.searchSessionSummaries",
-			"reason":    err.Error(),
+			"reason":    "upstream unavailable; local memory fallback has no session summary search index",
 		},
 	})
 }
@@ -3887,7 +3887,7 @@ func (s *Server) handleMemorySectionedStatus(w http.ResponseWriter, r *http.Requ
 
 	status, fallbackErr := memorystore.ReadStatus(s.cfg.WorkspaceRoot)
 	if fallbackErr != nil {
-		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"success": false, "error": err.Error(), "detail": fallbackErr.Error()})
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"success": false, "error": fallbackErr.Error(), "detail": fallbackErr.Error()})
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
@@ -3900,7 +3900,7 @@ func (s *Server) handleMemorySectionedStatus(w http.ResponseWriter, r *http.Requ
 		"bridge": map[string]any{
 			"fallback":  "go-local-memory",
 			"procedure": "memory.getSectionedMemoryStatus",
-			"reason":    err.Error(),
+			"reason":    "upstream unavailable; using local sectioned memory status",
 		},
 	})
 }
@@ -3926,7 +3926,7 @@ func (s *Server) handleMemoryInterchangeFormats(w http.ResponseWriter, r *http.R
 		"bridge": map[string]any{
 			"fallback":  "go-local-memory",
 			"procedure": "memory.listInterchangeFormats",
-			"reason":    err.Error(),
+			"reason":    "upstream unavailable; using local memory interchange formats",
 		},
 	})
 }

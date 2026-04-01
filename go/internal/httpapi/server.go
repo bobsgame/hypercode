@@ -1170,7 +1170,7 @@ func (s *Server) handleAPIIndex(w http.ResponseWriter, _ *http.Request) {
 				{Path: "/api/tools/detect-cli-harnesses", Category: "control", Description: "Read CLI harness detection through the TypeScript tools router, with a local Go runtime fallback when the router is unavailable."},
 				{Path: "/api/tools/detect-execution-environment", Category: "control", Description: "Read execution-environment diagnostics through the TypeScript tools router, with a local Go runtime fallback when the router is unavailable."},
 				{Path: "/api/tools/detect-install-surfaces", Category: "control", Description: "Read install-surface artifact detection through the TypeScript tools router, with a local Go filesystem fallback when the router is unavailable."},
-				{Path: "/api/tools/get", Category: "control", Description: "Read a specific tool definition, with a local source-backed Go inventory fallback when the TypeScript tools router is unavailable."},
+				{Path: "/api/tools/get", Category: "control", Description: "Read a specific tool definition, with a local metamcp.db tool inventory fallback when the TypeScript tools router is unavailable."},
 				{Path: "/api/tools/create", Category: "control", Description: "Create a tool through the TypeScript control plane."},
 				{Path: "/api/tools/upsert-batch", Category: "control", Description: "Upsert a batch of tools through the TypeScript control plane."},
 				{Path: "/api/tools/delete", Category: "control", Description: "Delete a tool through the TypeScript control plane."},
@@ -5372,23 +5372,22 @@ func (s *Server) handleToolsList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, summary, fallbackErr := s.localMCPSummary(r.Context())
+	tools, fallbackErr := s.localDBTools()
 	if fallbackErr != nil {
-		writeJSON(w, http.StatusServiceUnavailable, map[string]any{
+		writeJSON(w, http.StatusInternalServerError, map[string]any{
 			"success": false,
 			"error":   fallbackErr.Error(),
-			"detail":  fallbackErr.Error(),
 		})
 		return
 	}
 
 	writeJSON(w, http.StatusOK, map[string]any{
 		"success": true,
-		"data":    fallbackControlTools(summary.InstalledHarnesses),
+		"data":    tools,
 		"bridge": map[string]any{
-			"fallback":  "go-local-tools",
+			"fallback":  "go-local-tool-db",
 			"procedure": "tools.list",
-			"reason":    "upstream unavailable; using local source-backed tool inventory",
+			"reason":    "upstream unavailable; using local tools from metamcp.db",
 		},
 	})
 }
@@ -5414,32 +5413,22 @@ func (s *Server) handleToolsByServer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, summary, fallbackErr := s.localMCPSummary(r.Context())
+	filtered, fallbackErr := s.localDBToolsByServer(serverID)
 	if fallbackErr != nil {
-		writeJSON(w, http.StatusServiceUnavailable, map[string]any{
+		writeJSON(w, http.StatusInternalServerError, map[string]any{
 			"success": false,
 			"error":   fallbackErr.Error(),
-			"detail":  fallbackErr.Error(),
 		})
 		return
-	}
-
-	filtered := make([]map[string]any, 0)
-	for _, tool := range fallbackControlTools(summary.InstalledHarnesses) {
-		serverName, _ := tool["server"].(string)
-		serverUUID, _ := tool["mcpServerUuid"].(string)
-		if serverID == serverName || serverID == serverUUID {
-			filtered = append(filtered, tool)
-		}
 	}
 
 	writeJSON(w, http.StatusOK, map[string]any{
 		"success": true,
 		"data":    filtered,
 		"bridge": map[string]any{
-			"fallback":  "go-local-tools",
+			"fallback":  "go-local-tool-db",
 			"procedure": "tools.listByServer",
-			"reason":    "upstream unavailable; filtering local source-backed tool inventory by server",
+			"reason":    "upstream unavailable; filtering local tools from metamcp.db by server",
 		},
 	})
 }
@@ -5470,28 +5459,26 @@ func (s *Server) handleToolsSearch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, summary, fallbackErr := s.localMCPSummary(r.Context())
-	if fallbackErr != nil {
-		writeJSON(w, http.StatusServiceUnavailable, map[string]any{
-			"success": false,
-			"error":   fallbackErr.Error(),
-			"detail":  fallbackErr.Error(),
-		})
-		return
-	}
-
 	limit := 30
 	if rawLimit, ok := payload["limit"].(int); ok && rawLimit > 0 {
 		limit = rawLimit
 	}
-	results := fallbackControlToolSearch(summary.InstalledHarnesses, query, limit)
+	results, fallbackErr := s.localDBToolSearch(query, limit)
+	if fallbackErr != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]any{
+			"success": false,
+			"error":   fallbackErr.Error(),
+		})
+		return
+	}
+
 	writeJSON(w, http.StatusOK, map[string]any{
 		"success": true,
 		"data":    results,
 		"bridge": map[string]any{
-			"fallback":  "go-local-tools",
+			"fallback":  "go-local-tool-db",
 			"procedure": "tools.search",
-			"reason":    "upstream unavailable; searching local source-backed tool inventory",
+			"reason":    "upstream unavailable; searching local tools from metamcp.db",
 		},
 	})
 }
@@ -5616,33 +5603,22 @@ func (s *Server) handleToolsGet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, summary, fallbackErr := s.localMCPSummary(r.Context())
+	fallbackTool, fallbackErr := s.localDBTool(uuid)
 	if fallbackErr != nil {
-		writeJSON(w, http.StatusServiceUnavailable, map[string]any{
+		writeJSON(w, http.StatusInternalServerError, map[string]any{
 			"success": false,
 			"error":   fallbackErr.Error(),
-			"detail":  fallbackErr.Error(),
 		})
 		return
-	}
-
-	var fallbackTool any
-	for _, tool := range fallbackControlTools(summary.InstalledHarnesses) {
-		toolUUID, _ := tool["uuid"].(string)
-		toolName, _ := tool["name"].(string)
-		if uuid == toolUUID || uuid == toolName {
-			fallbackTool = tool
-			break
-		}
 	}
 
 	writeJSON(w, http.StatusOK, map[string]any{
 		"success": true,
 		"data":    fallbackTool,
 		"bridge": map[string]any{
-			"fallback":  "go-local-tools",
+			"fallback":  "go-local-tool-db",
 			"procedure": "tools.get",
-			"reason":    "upstream unavailable; using local source-backed tool inventory",
+			"reason":    "upstream unavailable; using local tool from metamcp.db",
 		},
 	})
 }
@@ -12195,6 +12171,134 @@ func (s *Server) localToolAlias(name string) (any, error) {
 		"description":  nullStringToAny(description),
 		"createdAt":    createdAt * 1000,
 	}, nil
+}
+
+type localDBToolScanner interface {
+	Scan(dest ...any) error
+}
+
+func scanLocalDBTool(scanner localDBToolScanner) (map[string]any, error) {
+	var (
+		uuid          string
+		name          string
+		description   sql.NullString
+		toolSchemaRaw string
+		isDeferred    bool
+		alwaysOn      bool
+		serverUUID    string
+		serverName    sql.NullString
+	)
+	if err := scanner.Scan(&uuid, &name, &description, &toolSchemaRaw, &isDeferred, &alwaysOn, &serverUUID, &serverName); err != nil {
+		return nil, err
+	}
+
+	inputSchema := jsonObjectOrEmpty(toolSchemaRaw)
+	schemaParamCount := 0
+	if inputSchemaMap, ok := inputSchema.(map[string]any); ok {
+		if properties, ok := inputSchemaMap["properties"].(map[string]any); ok {
+			schemaParamCount = len(properties)
+		}
+	}
+
+	server := "unknown"
+	if serverName.Valid && strings.TrimSpace(serverName.String) != "" {
+		server = serverName.String
+	}
+
+	return map[string]any{
+		"uuid":             name,
+		"name":             name,
+		"description":      nullStringToAny(description),
+		"server":           server,
+		"inputSchema":      inputSchema,
+		"isDeferred":       isDeferred,
+		"schemaParamCount": schemaParamCount,
+		"mcpServerUuid":    serverUUID,
+		"always_on":        alwaysOn,
+	}, nil
+}
+
+func (s *Server) localDBTools() ([]map[string]any, error) {
+	db, err := sql.Open("sqlite", s.localMetaMCPDBPath())
+	if err != nil {
+		return nil, err
+	}
+	defer db.Close()
+
+	rows, err := db.Query(`
+		SELECT t.uuid, t.name, t.description, t.tool_schema, t.is_deferred, t.always_on, t.mcp_server_uuid, s.name
+		FROM tools t
+		LEFT JOIN mcp_servers s ON s.uuid = t.mcp_server_uuid
+		ORDER BY t.name
+	`)
+	if err != nil {
+		if strings.Contains(strings.ToLower(err.Error()), "no such table") {
+			return []map[string]any{}, nil
+		}
+		return nil, err
+	}
+	defer rows.Close()
+
+	tools := make([]map[string]any, 0)
+	for rows.Next() {
+		tool, err := scanLocalDBTool(rows)
+		if err != nil {
+			return nil, err
+		}
+		tools = append(tools, tool)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return tools, nil
+}
+
+func (s *Server) localDBToolsByServer(serverID string) ([]map[string]any, error) {
+	tools, err := s.localDBTools()
+	if err != nil {
+		return nil, err
+	}
+	filtered := make([]map[string]any, 0)
+	for _, tool := range tools {
+		if stringValue(tool["mcpServerUuid"]) == serverID || stringValue(tool["server"]) == serverID {
+			filtered = append(filtered, tool)
+		}
+	}
+	return filtered, nil
+}
+
+func (s *Server) localDBToolSearch(query string, limit int) ([]map[string]any, error) {
+	tools, err := s.localDBTools()
+	if err != nil {
+		return nil, err
+	}
+	queryLower := strings.ToLower(strings.TrimSpace(query))
+	results := make([]map[string]any, 0)
+	for _, tool := range tools {
+		name := strings.ToLower(stringValue(tool["name"]))
+		description := strings.ToLower(stringValue(tool["description"]))
+		server := strings.ToLower(stringValue(tool["server"]))
+		if strings.Contains(name, queryLower) || strings.Contains(description, queryLower) || strings.Contains(server, queryLower) {
+			results = append(results, tool)
+			if limit > 0 && len(results) >= limit {
+				break
+			}
+		}
+	}
+	return results, nil
+}
+
+func (s *Server) localDBTool(uuid string) (any, error) {
+	tools, err := s.localDBTools()
+	if err != nil {
+		return nil, err
+	}
+	for _, tool := range tools {
+		if stringValue(tool["uuid"]) == uuid || stringValue(tool["name"]) == uuid {
+			return tool, nil
+		}
+	}
+	return nil, nil
 }
 
 func (s *Server) localShellQueryHistory(query string, limit int) ([]map[string]any, error) {

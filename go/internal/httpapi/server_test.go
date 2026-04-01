@@ -5368,29 +5368,36 @@ var AutoCallTool = struct{
 	}
 }
 
-func TestToolsReadEndpointsFallBackToLocalInventory(t *testing.T) {
+func TestToolsReadEndpointsFallBackToLocalDB(t *testing.T) {
 	workspaceRoot := t.TempDir()
-	toolsDir := filepath.Join(workspaceRoot, "submodules", "hypercode", "tools")
-	if err := os.MkdirAll(toolsDir, 0o755); err != nil {
-		t.Fatalf("failed to create hypercode tools dir: %v", err)
+	dbPath := filepath.Join(workspaceRoot, "metamcp.db")
+	db, err := sql.Open("sqlite", dbPath)
+	if err != nil {
+		t.Fatalf("failed to open sqlite db: %v", err)
 	}
-
-	toolSource := `package tools
-
-var SearchTool = struct{
-	Name string
-}{
-	Name: "search_tools",
-}
-
-var ReadTool = struct{
-	Name string
-}{
-	Name: "read_file",
-}
-`
-	if err := os.WriteFile(filepath.Join(toolsDir, "registry.go"), []byte(toolSource), 0o644); err != nil {
-		t.Fatalf("failed to write hypercode tool source: %v", err)
+	defer db.Close()
+	if _, err := db.Exec(`
+		CREATE TABLE mcp_servers (
+			uuid TEXT PRIMARY KEY,
+			name TEXT NOT NULL
+		);
+		CREATE TABLE tools (
+			uuid TEXT PRIMARY KEY,
+			name TEXT NOT NULL,
+			description TEXT,
+			tool_schema TEXT NOT NULL,
+			is_deferred INTEGER NOT NULL DEFAULT 0,
+			always_on INTEGER NOT NULL DEFAULT 0,
+			created_at INTEGER NOT NULL,
+			updated_at INTEGER NOT NULL,
+			mcp_server_uuid TEXT NOT NULL
+		);
+		INSERT INTO mcp_servers (uuid, name) VALUES ('srv-1', 'hypercode');
+		INSERT INTO tools (uuid, name, description, tool_schema, is_deferred, always_on, created_at, updated_at, mcp_server_uuid) VALUES
+			('tool-1', 'search_tools', 'Search tools', '{"type":"object","properties":{"query":{"type":"string"}}}', 0, 1, 1711958400, 1711958460, 'srv-1'),
+			('tool-2', 'read_file', 'Read files', '{"type":"object","properties":{"path":{"type":"string"}}}', 0, 0, 1711958401, 1711958461, 'srv-1');
+	`); err != nil {
+		t.Fatalf("failed to seed sqlite db: %v", err)
 	}
 
 	t.Setenv("BORG_TRPC_UPSTREAM", "http://127.0.0.1:1/trpc")
@@ -5403,26 +5410,26 @@ var ReadTool = struct{
 
 	listRecorder := httptest.NewRecorder()
 	server.Handler().ServeHTTP(listRecorder, httptest.NewRequest(http.MethodGet, "/api/tools", nil))
-	if listRecorder.Code != http.StatusOK || !strings.Contains(listRecorder.Body.String(), `"fallback":"go-local-tools"`) || !strings.Contains(listRecorder.Body.String(), `"name":"search_tools"`) {
-		t.Fatalf("expected local tools list fallback, got %d %s", listRecorder.Code, listRecorder.Body.String())
+	if listRecorder.Code != http.StatusOK || !strings.Contains(listRecorder.Body.String(), `"fallback":"go-local-tool-db"`) || !strings.Contains(listRecorder.Body.String(), `"name":"search_tools"`) {
+		t.Fatalf("expected local tools DB list fallback, got %d %s", listRecorder.Code, listRecorder.Body.String())
 	}
 
 	byServerRecorder := httptest.NewRecorder()
-	server.Handler().ServeHTTP(byServerRecorder, httptest.NewRequest(http.MethodGet, "/api/tools/by-server?mcpServerUuid=hypercode", nil))
-	if byServerRecorder.Code != http.StatusOK || !strings.Contains(byServerRecorder.Body.String(), `"fallback":"go-local-tools"`) || !strings.Contains(byServerRecorder.Body.String(), `"server":"hypercode"`) {
-		t.Fatalf("expected local tools by-server fallback, got %d %s", byServerRecorder.Code, byServerRecorder.Body.String())
+	server.Handler().ServeHTTP(byServerRecorder, httptest.NewRequest(http.MethodGet, "/api/tools/by-server?mcpServerUuid=srv-1", nil))
+	if byServerRecorder.Code != http.StatusOK || !strings.Contains(byServerRecorder.Body.String(), `"fallback":"go-local-tool-db"`) || !strings.Contains(byServerRecorder.Body.String(), `"server":"hypercode"`) {
+		t.Fatalf("expected local tools DB by-server fallback, got %d %s", byServerRecorder.Code, byServerRecorder.Body.String())
 	}
 
 	searchRecorder := httptest.NewRecorder()
 	server.Handler().ServeHTTP(searchRecorder, httptest.NewRequest(http.MethodGet, "/api/tools/search?query=search&limit=5", nil))
-	if searchRecorder.Code != http.StatusOK || !strings.Contains(searchRecorder.Body.String(), `"fallback":"go-local-tools"`) || !strings.Contains(searchRecorder.Body.String(), `"name":"search_tools"`) {
-		t.Fatalf("expected local tools search fallback, got %d %s", searchRecorder.Code, searchRecorder.Body.String())
+	if searchRecorder.Code != http.StatusOK || !strings.Contains(searchRecorder.Body.String(), `"fallback":"go-local-tool-db"`) || !strings.Contains(searchRecorder.Body.String(), `"name":"search_tools"`) {
+		t.Fatalf("expected local tools DB search fallback, got %d %s", searchRecorder.Code, searchRecorder.Body.String())
 	}
 
 	getRecorder := httptest.NewRecorder()
 	server.Handler().ServeHTTP(getRecorder, httptest.NewRequest(http.MethodGet, "/api/tools/get?uuid=search_tools", nil))
-	if getRecorder.Code != http.StatusOK || !strings.Contains(getRecorder.Body.String(), `"fallback":"go-local-tools"`) || !strings.Contains(getRecorder.Body.String(), `"uuid":"search_tools"`) {
-		t.Fatalf("expected local tools get fallback, got %d %s", getRecorder.Code, getRecorder.Body.String())
+	if getRecorder.Code != http.StatusOK || !strings.Contains(getRecorder.Body.String(), `"fallback":"go-local-tool-db"`) || !strings.Contains(getRecorder.Body.String(), `"uuid":"search_tools"`) {
+		t.Fatalf("expected local tools DB get fallback, got %d %s", getRecorder.Code, getRecorder.Body.String())
 	}
 }
 

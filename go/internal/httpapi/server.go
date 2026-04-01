@@ -1354,12 +1354,12 @@ func (s *Server) handleAPIIndex(w http.ResponseWriter, _ *http.Request) {
 				{Path: "/api/code-mode/enable", Category: "ui", Description: "Enable Code Mode through the TypeScript code mode router."},
 				{Path: "/api/code-mode/disable", Category: "ui", Description: "Disable Code Mode through the TypeScript code mode router."},
 				{Path: "/api/code-mode/execute", Category: "ui", Description: "Execute Code Mode code through the TypeScript code mode router."},
-				{Path: "/api/submodules", Category: "ui", Description: "List submodules through the TypeScript submodule router."},
+				{Path: "/api/submodules", Category: "ui", Description: "List submodules through the TypeScript submodule router, with a local Go .gitmodules fallback when the router is unavailable."},
 				{Path: "/api/submodules/update-all", Category: "ui", Description: "Update all submodules through the TypeScript submodule router."},
 				{Path: "/api/submodules/install-dependencies", Category: "ui", Description: "Install submodule dependencies through the TypeScript submodule router."},
 				{Path: "/api/submodules/build", Category: "ui", Description: "Build a submodule through the TypeScript submodule router."},
 				{Path: "/api/submodules/enable", Category: "ui", Description: "Enable a submodule through the TypeScript submodule router."},
-				{Path: "/api/submodules/capabilities", Category: "ui", Description: "Read submodule capabilities through the TypeScript submodule router."},
+				{Path: "/api/submodules/capabilities", Category: "ui", Description: "Read submodule capabilities through the TypeScript submodule router, with a local Go filesystem fallback when the router is unavailable."},
 				{Path: "/api/suggestions", Category: "ui", Description: "List suggestions through the TypeScript suggestions router, with a local empty-state fallback when suggestions are unavailable."},
 				{Path: "/api/suggestions/resolve", Category: "ui", Description: "Resolve a suggestion through the TypeScript suggestions router."},
 				{Path: "/api/suggestions/clear", Category: "ui", Description: "Clear suggestions through the TypeScript suggestions router."},
@@ -6553,7 +6553,29 @@ func (s *Server) handleCodeModeExecute(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleSubmoduleList(w http.ResponseWriter, r *http.Request) {
-	s.handleTRPCBridgeCall(w, r, http.MethodGet, "submodule.list", nil)
+	var result any
+	upstreamBase, err := s.callUpstreamJSON(r.Context(), "submodule.list", nil, &result)
+	if err == nil {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"data":    result,
+			"bridge": map[string]any{
+				"upstreamBase": upstreamBase,
+				"procedure":    "submodule.list",
+			},
+		})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"data":    localSubmoduleList(s.cfg.WorkspaceRoot),
+		"bridge": map[string]any{
+			"fallback":  "go-local-submodules",
+			"procedure": "submodule.list",
+			"reason":    "upstream unavailable; using local .gitmodules submodule fallback",
+		},
+	})
 }
 
 func (s *Server) handleSubmoduleUpdateAll(w http.ResponseWriter, r *http.Request) {
@@ -6578,7 +6600,30 @@ func (s *Server) handleSubmoduleCapabilities(w http.ResponseWriter, r *http.Requ
 		writeJSON(w, http.StatusBadRequest, map[string]any{"success": false, "error": "missing path query parameter"})
 		return
 	}
-	s.handleTRPCBridgeCall(w, r, http.MethodGet, "submodule.detectCapabilities", map[string]any{"path": pathValue})
+	payload := map[string]any{"path": pathValue}
+	var result any
+	upstreamBase, err := s.callUpstreamJSON(r.Context(), "submodule.detectCapabilities", payload, &result)
+	if err == nil {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"data":    result,
+			"bridge": map[string]any{
+				"upstreamBase": upstreamBase,
+				"procedure":    "submodule.detectCapabilities",
+			},
+		})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"data":    localSubmoduleCapabilities(s.cfg.WorkspaceRoot, pathValue),
+		"bridge": map[string]any{
+			"fallback":  "go-local-submodules",
+			"procedure": "submodule.detectCapabilities",
+			"reason":    "upstream unavailable; using local submodule capability fallback",
+		},
+	})
 }
 
 func (s *Server) handleSuggestionsList(w http.ResponseWriter, r *http.Request) {
@@ -7516,6 +7561,149 @@ func localGitLog(workspaceRoot string, limit int) []map[string]any {
 		})
 	}
 	return results
+}
+
+func localSubmoduleList(workspaceRoot string) []map[string]any {
+	modules := localGitModules(workspaceRoot)
+	results := make([]map[string]any, 0, len(modules))
+	for _, module := range modules {
+		modulePath, _ := module["path"].(string)
+		name, _ := module["name"].(string)
+		url, _ := module["url"].(string)
+		caps, startCommand := localSubmoduleCapabilitiesValues(workspaceRoot, modulePath)
+		fullPath := filepath.Join(workspaceRoot, filepath.FromSlash(modulePath))
+		results = append(results, map[string]any{
+			"name":         coalesceSubmoduleName(name, modulePath),
+			"path":         modulePath,
+			"commit":       "HEAD",
+			"branch":       "HEAD",
+			"status":       submoduleStatusFromPath(fullPath),
+			"url":          emptyStringToNilAny(url),
+			"capabilities": caps,
+			"isInstalled":  fileExists(filepath.Join(fullPath, "node_modules")) || fileExists(filepath.Join(fullPath, ".venv")),
+			"isBuilt":      submoduleBuildExists(fullPath),
+			"startCommand": emptyStringToNilAny(startCommand),
+		})
+	}
+	return results
+}
+
+func localSubmoduleCapabilities(workspaceRoot string, submodulePath string) map[string]any {
+	caps, startCommand := localSubmoduleCapabilitiesValues(workspaceRoot, submodulePath)
+	result := map[string]any{
+		"caps": caps,
+	}
+	if strings.TrimSpace(startCommand) != "" {
+		result["startCommand"] = startCommand
+	}
+	return result
+}
+
+func localSubmoduleCapabilitiesValues(workspaceRoot string, submodulePath string) ([]string, string) {
+	fullPath := filepath.Join(workspaceRoot, filepath.FromSlash(submodulePath))
+	caps := []string{}
+	startCommand := ""
+
+	packageJSONPath := filepath.Join(fullPath, "package.json")
+	if raw, err := os.ReadFile(packageJSONPath); err == nil {
+		var parsed map[string]any
+		if json.Unmarshal(raw, &parsed) == nil {
+			if keywords, ok := parsed["keywords"].([]any); ok {
+				for _, rawKeyword := range keywords {
+					keyword, _ := rawKeyword.(string)
+					if keyword == "mcp-server" {
+						caps = append(caps, "mcp-server")
+						break
+					}
+				}
+			}
+			if dependencies, ok := parsed["dependencies"].(map[string]any); ok {
+				if _, exists := dependencies["@modelcontextprotocol/sdk"]; exists {
+					caps = appendIfMissing(caps, "mcp-sdk")
+				}
+			}
+			if scripts, ok := parsed["scripts"].(map[string]any); ok {
+				if _, exists := scripts["build"]; exists {
+					caps = appendIfMissing(caps, "build")
+				}
+				if _, exists := scripts["start"]; exists {
+					startCommand = "npm start"
+				}
+			}
+			if startCommand == "" {
+				if binValue, ok := parsed["bin"]; ok {
+					switch typed := binValue.(type) {
+					case string:
+						if strings.TrimSpace(typed) != "" {
+							startCommand = "node " + typed
+						}
+					case map[string]any:
+						for _, value := range typed {
+							if entry, ok := value.(string); ok && strings.TrimSpace(entry) != "" {
+								startCommand = "node " + entry
+								break
+							}
+						}
+					}
+				}
+			}
+			if startCommand == "" {
+				if mainEntry, ok := parsed["main"].(string); ok && strings.TrimSpace(mainEntry) != "" {
+					startCommand = "node " + mainEntry
+				}
+			}
+		}
+	}
+
+	requirementsPath := filepath.Join(fullPath, "requirements.txt")
+	if fileExists(requirementsPath) {
+		caps = appendIfMissing(caps, "python")
+		if startCommand == "" {
+			if fileExists(filepath.Join(fullPath, "main.py")) {
+				startCommand = "python main.py"
+			} else if fileExists(filepath.Join(fullPath, "app.py")) {
+				startCommand = "python app.py"
+			}
+		}
+	}
+
+	return caps, startCommand
+}
+
+func appendIfMissing(values []string, value string) []string {
+	for _, existing := range values {
+		if existing == value {
+			return values
+		}
+	}
+	return append(values, value)
+}
+
+func submoduleStatusFromPath(fullPath string) string {
+	if !fileExists(fullPath) {
+		return "missing"
+	}
+	return "clean"
+}
+
+func submoduleBuildExists(fullPath string) bool {
+	for _, candidate := range []string{"dist", "build", "out"} {
+		if fileExists(filepath.Join(fullPath, candidate)) {
+			return true
+		}
+	}
+	return false
+}
+
+func coalesceSubmoduleName(name string, modulePath string) string {
+	if strings.TrimSpace(name) != "" {
+		return name
+	}
+	parts := strings.Split(strings.ReplaceAll(modulePath, "\\", "/"), "/")
+	if len(parts) == 0 {
+		return modulePath
+	}
+	return parts[len(parts)-1]
 }
 
 func localProjectContext(workspaceRoot string) string {

@@ -6101,6 +6101,90 @@ func TestGitLogFallsBackLocally(t *testing.T) {
 	}
 }
 
+func TestSubmoduleReadEndpointsFallBackLocally(t *testing.T) {
+	workspaceRoot := t.TempDir()
+	gitmodules := `[submodule "submodules/hypercode"]
+	path = submodules/hypercode
+	url = https://github.com/example/hypercode.git
+`
+	if err := os.WriteFile(filepath.Join(workspaceRoot, ".gitmodules"), []byte(gitmodules), 0o644); err != nil {
+		t.Fatalf("failed to write .gitmodules: %v", err)
+	}
+
+	hypercodePath := filepath.Join(workspaceRoot, "submodules", "hypercode")
+	if err := os.MkdirAll(filepath.Join(hypercodePath, "dist"), 0o755); err != nil {
+		t.Fatalf("failed to create submodule dist dir: %v", err)
+	}
+	packageJSON := `{
+  "keywords": ["mcp-server"],
+  "dependencies": {"@modelcontextprotocol/sdk": "^1.0.0"},
+  "scripts": {"build": "tsc", "start": "node index.js"}
+}`
+	if err := os.WriteFile(filepath.Join(hypercodePath, "package.json"), []byte(packageJSON), 0o644); err != nil {
+		t.Fatalf("failed to write package.json: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(hypercodePath, "node_modules"), 0o755); err != nil {
+		t.Fatalf("failed to create node_modules dir: %v", err)
+	}
+
+	pythonPath := filepath.Join(workspaceRoot, "submodules", "python-tool")
+	if err := os.MkdirAll(filepath.Join(pythonPath, ".venv"), 0o755); err != nil {
+		t.Fatalf("failed to create python venv dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(pythonPath, "requirements.txt"), []byte("requests\n"), 0o644); err != nil {
+		t.Fatalf("failed to write requirements.txt: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(pythonPath, "main.py"), []byte("print('ok')\n"), 0o644); err != nil {
+		t.Fatalf("failed to write main.py: %v", err)
+	}
+
+	t.Setenv("BORG_TRPC_UPSTREAM", "http://127.0.0.1:1/trpc")
+
+	cfg := config.Default()
+	cfg.WorkspaceRoot = workspaceRoot
+	server := New(cfg, stubDetector{})
+
+	listRecorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(listRecorder, httptest.NewRequest(http.MethodGet, "/api/submodules", nil))
+	if listRecorder.Code != http.StatusOK {
+		t.Fatalf("expected submodule list 200, got %d with body %s", listRecorder.Code, listRecorder.Body.String())
+	}
+
+	for _, needle := range []string{
+		`"fallback":"go-local-submodules"`,
+		`"procedure":"submodule.list"`,
+		`using local .gitmodules submodule fallback`,
+		`"path":"submodules/hypercode"`,
+		`"status":"clean"`,
+		`"capabilities":["mcp-server","mcp-sdk","build"]`,
+		`"isInstalled":true`,
+		`"isBuilt":true`,
+		`"startCommand":"npm start"`,
+	} {
+		if !strings.Contains(listRecorder.Body.String(), needle) {
+			t.Fatalf("expected submodule list response to contain %s, got %s", needle, listRecorder.Body.String())
+		}
+	}
+
+	capabilitiesRecorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(capabilitiesRecorder, httptest.NewRequest(http.MethodGet, "/api/submodules/capabilities?path=submodules%2Fpython-tool", nil))
+	if capabilitiesRecorder.Code != http.StatusOK {
+		t.Fatalf("expected submodule capabilities 200, got %d with body %s", capabilitiesRecorder.Code, capabilitiesRecorder.Body.String())
+	}
+
+	for _, needle := range []string{
+		`"fallback":"go-local-submodules"`,
+		`"procedure":"submodule.detectCapabilities"`,
+		`using local submodule capability fallback`,
+		`"caps":["python"]`,
+		`"startCommand":"python main.py"`,
+	} {
+		if !strings.Contains(capabilitiesRecorder.Body.String(), needle) {
+			t.Fatalf("expected submodule capabilities response to contain %s, got %s", needle, capabilitiesRecorder.Body.String())
+		}
+	}
+}
+
 func TestMCPSearchToolsFallsBackToLocalInventory(t *testing.T) {
 	workspaceRoot := t.TempDir()
 	toolsDir := filepath.Join(workspaceRoot, "submodules", "hypercode", "tools")

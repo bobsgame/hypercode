@@ -784,12 +784,13 @@ func TestMCPToolAdvertisementsReportSnapshotFailure(t *testing.T) {
 	}
 }
 
-func TestMemoryToolContextFallsBackToLocalPrompt(t *testing.T) {
+func TestMemoryToolContextFallsBackToPersistedPrompt(t *testing.T) {
 	t.Setenv("BORG_TRPC_UPSTREAM", "http://127.0.0.1:1/trpc")
 	cfg := config.Default()
 	cfg.WorkspaceRoot = t.TempDir()
 	cfg.ConfigDir = t.TempDir()
 	cfg.MainConfigDir = t.TempDir()
+	seedPersistedAgentMemories(t, cfg.WorkspaceRoot)
 	server := New(cfg, stubDetector{})
 
 	recorder := httptest.NewRecorder()
@@ -799,17 +800,22 @@ func TestMemoryToolContextFallsBackToLocalPrompt(t *testing.T) {
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("expected fallback memory tool context 200, got %d with body %s", recorder.Code, recorder.Body.String())
 	}
-	if !strings.Contains(recorder.Body.String(), `"fallback":"go-local-memory"`) || !strings.Contains(recorder.Body.String(), `No relevant prior memory was found.`) {
-		t.Fatalf("expected local memory tool context fallback, got %s", recorder.Body.String())
+	body := recorder.Body.String()
+	if !strings.Contains(body, `"fallback":"go-local-memory"`) ||
+		!strings.Contains(body, `using local persisted tool context`) ||
+		!strings.Contains(body, `"matchedPaths":["go/internal/httpapi/server.go"]`) ||
+		!strings.Contains(body, `Potentially relevant observations:`) {
+		t.Fatalf("expected persisted local memory tool context fallback, got %s", body)
 	}
 }
 
-func TestMemorySessionBootstrapFallsBackToLocalPrompt(t *testing.T) {
+func TestMemorySessionBootstrapFallsBackToPersistedPrompt(t *testing.T) {
 	t.Setenv("BORG_TRPC_UPSTREAM", "http://127.0.0.1:1/trpc")
 	cfg := config.Default()
 	cfg.WorkspaceRoot = t.TempDir()
 	cfg.ConfigDir = t.TempDir()
 	cfg.MainConfigDir = t.TempDir()
+	seedPersistedAgentMemories(t, cfg.WorkspaceRoot)
 	server := New(cfg, stubDetector{})
 
 	recorder := httptest.NewRecorder()
@@ -819,8 +825,41 @@ func TestMemorySessionBootstrapFallsBackToLocalPrompt(t *testing.T) {
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("expected fallback session bootstrap 200, got %d with body %s", recorder.Code, recorder.Body.String())
 	}
-	if !strings.Contains(recorder.Body.String(), `"fallback":"go-local-memory"`) || !strings.Contains(recorder.Body.String(), `Memory bootstrap:`) {
-		t.Fatalf("expected local session bootstrap fallback, got %s", recorder.Body.String())
+	body := recorder.Body.String()
+	if !strings.Contains(body, `"fallback":"go-local-memory"`) ||
+		!strings.Contains(body, `using local persisted session bootstrap`) ||
+		!strings.Contains(body, `"summaryCount":1`) ||
+		!strings.Contains(body, `"observationCount":2`) ||
+		!strings.Contains(body, `Recent session summaries:`) {
+		t.Fatalf("expected persisted local session bootstrap fallback, got %s", body)
+	}
+}
+
+func TestMemoryRecentRoutesFallBackToPersistedData(t *testing.T) {
+	t.Setenv("BORG_TRPC_UPSTREAM", "http://127.0.0.1:1/trpc")
+	cfg := config.Default()
+	cfg.WorkspaceRoot = t.TempDir()
+	cfg.ConfigDir = t.TempDir()
+	cfg.MainConfigDir = t.TempDir()
+	seedPersistedAgentMemories(t, cfg.WorkspaceRoot)
+	server := New(cfg, stubDetector{})
+
+	observationRecorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(observationRecorder, httptest.NewRequest(http.MethodGet, "/api/memory/observations/recent?limit=5&namespace=project&type=fix", nil))
+	if observationRecorder.Code != http.StatusOK || !strings.Contains(observationRecorder.Body.String(), `"content":"Updated search_tools fallback to read persisted memory"`) || !strings.Contains(observationRecorder.Body.String(), `using local persisted recent observations`) {
+		t.Fatalf("expected persisted recent observations fallback, got %d %s", observationRecorder.Code, observationRecorder.Body.String())
+	}
+
+	promptRecorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(promptRecorder, httptest.NewRequest(http.MethodGet, "/api/memory/user-prompts/recent?limit=4&role=prompt", nil))
+	if promptRecorder.Code != http.StatusOK || !strings.Contains(promptRecorder.Body.String(), `"content":"Need help with Go parity"`) || !strings.Contains(promptRecorder.Body.String(), `using local persisted recent user prompts`) {
+		t.Fatalf("expected persisted recent prompts fallback, got %d %s", promptRecorder.Code, promptRecorder.Body.String())
+	}
+
+	summaryRecorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(summaryRecorder, httptest.NewRequest(http.MethodGet, "/api/memory/session-summaries/recent?limit=5", nil))
+	if summaryRecorder.Code != http.StatusOK || !strings.Contains(summaryRecorder.Body.String(), `"sessionId":"sess-1"`) || !strings.Contains(summaryRecorder.Body.String(), `using local persisted recent session summaries`) {
+		t.Fatalf("expected persisted recent session summaries fallback, got %d %s", summaryRecorder.Code, summaryRecorder.Body.String())
 	}
 }
 
@@ -1061,11 +1100,8 @@ func TestReadOnlyMemoryRoutesFallBackLocally(t *testing.T) {
 		{path: "/api/memory/search?query=bootstrap&limit=3", method: http.MethodGet, containsAny: []string{`"fallback":"go-local-memory"`, `local memory fallback has no full-text memory query index`}},
 		{path: "/api/memory/context/get?id=ctx-missing", method: http.MethodGet, containsAny: []string{`"fallback":"go-local-memory"`, `local memory context fallback has no persisted context body`}},
 		{path: "/api/memory/agent-search?query=memory&type=working&limit=5", method: http.MethodGet, containsAny: []string{`"fallback":"go-local-memory"`, `local memory fallback has no agent search index`}},
-		{path: "/api/memory/observations/recent?limit=5&namespace=ops&type=fact", method: http.MethodGet, containsAny: []string{`"fallback":"go-local-memory"`, `local memory fallback has no recent observations index`}},
 		{path: "/api/memory/observations/search?query=signal&limit=5&namespace=ops&type=fact", method: http.MethodGet, containsAny: []string{`"fallback":"go-local-memory"`, `local memory fallback has no observation search index`}},
-		{path: "/api/memory/user-prompts/recent?limit=4&role=user", method: http.MethodGet, containsAny: []string{`"fallback":"go-local-memory"`, `local memory fallback has no recent prompt index`}},
 		{path: "/api/memory/user-prompts/search?query=help&limit=4&role=user", method: http.MethodGet, containsAny: []string{`"fallback":"go-local-memory"`, `local memory fallback has no prompt search index`}},
-		{path: "/api/memory/session-summaries/recent?limit=5", method: http.MethodGet, containsAny: []string{`"fallback":"go-local-memory"`, `local memory fallback has no recent session summary index`}},
 		{path: "/api/memory/session-summaries/search?query=recent&limit=5", method: http.MethodGet, containsAny: []string{`"fallback":"go-local-memory"`, `local memory fallback has no session summary search index`}},
 	}
 
@@ -1085,6 +1121,124 @@ func TestReadOnlyMemoryRoutesFallBackLocally(t *testing.T) {
 		if !matched {
 			t.Fatalf("%s %s: expected response to contain one of %v, got %s", tc.method, tc.path, tc.containsAny, recorder.Body.String())
 		}
+	}
+}
+
+func seedPersistedAgentMemories(t *testing.T, workspaceRoot string) {
+	t.Helper()
+	agentMemoryDir := filepath.Join(workspaceRoot, ".hypercode", "agent_memory")
+	if err := os.MkdirAll(agentMemoryDir, 0o755); err != nil {
+		t.Fatalf("mkdir agent memory dir: %v", err)
+	}
+
+	now := time.Now().UTC()
+	memories := map[string]any{
+		"version": 1,
+		"memories": []map[string]any{
+			{
+				"id":        "obs-fix-1",
+				"type":      "working",
+				"namespace": "project",
+				"content":   "Updated search_tools fallback to read persisted memory",
+				"metadata": map[string]any{
+					"structuredObservation": map[string]any{
+						"type":          "fix",
+						"title":         "search_tools: persisted memory fallback",
+						"narrative":     "Updated search_tools fallback to read persisted memory",
+						"toolName":      "search_tools",
+						"contentHash":   "obs-fix",
+						"recordedAt":    float64(now.Add(-2 * time.Minute).UnixMilli()),
+						"concepts":      []string{"search", "tools", "memory"},
+						"filesRead":     []string{"go/internal/httpapi/server.go"},
+						"filesModified": []string{"go/internal/httpapi/server.go"},
+					},
+				},
+				"createdAt":   now.Add(-2 * time.Minute).Format(time.RFC3339Nano),
+				"accessedAt":  now.Add(-90 * time.Second).Format(time.RFC3339Nano),
+				"accessCount": 2,
+			},
+			{
+				"id":        "obs-discovery-1",
+				"type":      "working",
+				"namespace": "project",
+				"content":   "Inspected MemoryManager provider storage boundaries",
+				"metadata": map[string]any{
+					"structuredObservation": map[string]any{
+						"type":        "discovery",
+						"title":       "Mapped provider-backed context limits",
+						"narrative":   "Confirmed getContext remains provider-backed",
+						"toolName":    "view",
+						"contentHash": "obs-discovery",
+						"recordedAt":  float64(now.Add(-4 * time.Minute).UnixMilli()),
+						"concepts":    []string{"memory", "provider", "context"},
+						"filesRead":   []string{"packages/core/src/services/MemoryManager.ts"},
+					},
+				},
+				"createdAt":   now.Add(-4 * time.Minute).Format(time.RFC3339Nano),
+				"accessedAt":  now.Add(-3 * time.Minute).Format(time.RFC3339Nano),
+				"accessCount": 1,
+			},
+			{
+				"id":        "prompt-1",
+				"type":      "long_term",
+				"namespace": "project",
+				"content":   "Need help with Go parity",
+				"metadata": map[string]any{
+					"structuredUserPrompt": map[string]any{
+						"role":         "prompt",
+						"content":      "Need help with Go parity",
+						"contentHash":  "prompt-1",
+						"promptNumber": 1,
+						"recordedAt":   float64(now.Add(-90 * time.Second).UnixMilli()),
+					},
+				},
+				"createdAt":   now.Add(-90 * time.Second).Format(time.RFC3339Nano),
+				"accessedAt":  now.Add(-60 * time.Second).Format(time.RFC3339Nano),
+				"accessCount": 1,
+			},
+			{
+				"id":        "summary-1",
+				"type":      "long_term",
+				"namespace": "project",
+				"content":   "search_tools parity session ended with status completed.",
+				"metadata": map[string]any{
+					"structuredSessionSummary": map[string]any{
+						"sessionId":     "sess-1",
+						"name":          "search_tools parity session",
+						"cliType":       "hypercode",
+						"status":        "completed",
+						"activeGoal":    "ship parity",
+						"lastObjective": "surface jit tool context",
+						"contentHash":   "summary-1",
+						"recordedAt":    float64(now.Add(-30 * time.Second).UnixMilli()),
+						"stoppedAt":     float64(now.Add(-30 * time.Second).UnixMilli()),
+						"logTail":       []string{"completed fallback parity"},
+					},
+				},
+				"createdAt":   now.Add(-30 * time.Second).Format(time.RFC3339Nano),
+				"accessedAt":  now.Add(-20 * time.Second).Format(time.RFC3339Nano),
+				"accessCount": 3,
+			},
+			{
+				"id":          "expired-session",
+				"type":        "session",
+				"namespace":   "agent",
+				"content":     "expired memory",
+				"metadata":    map[string]any{},
+				"createdAt":   now.Add(-2 * time.Hour).Format(time.RFC3339Nano),
+				"accessedAt":  now.Add(-90 * time.Minute).Format(time.RFC3339Nano),
+				"accessCount": 0,
+				"ttl":         1000,
+			},
+		},
+	}
+
+	raw, err := json.Marshal(memories)
+	if err != nil {
+		t.Fatalf("marshal persisted memories: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(agentMemoryDir, "memories.json"), raw, 0o644); err != nil {
+		t.Fatalf("write persisted memories: %v", err)
 	}
 }
 

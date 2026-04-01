@@ -3561,15 +3561,21 @@ func (s *Server) handleMemoryRecordObservation(w http.ResponseWriter, r *http.Re
 
 func (s *Server) handleMemoryRecentObservations(w http.ResponseWriter, r *http.Request) {
 	payload := map[string]any{"limit": 10}
-	if limit := strings.TrimSpace(r.URL.Query().Get("limit")); limit != "" {
-		if parsed, err := strconv.Atoi(limit); err == nil {
+	limit := 10
+	if limitParam := strings.TrimSpace(r.URL.Query().Get("limit")); limitParam != "" {
+		if parsed, err := strconv.Atoi(limitParam); err == nil {
 			payload["limit"] = parsed
+			if parsed > 0 {
+				limit = parsed
+			}
 		}
 	}
-	if namespace := strings.TrimSpace(r.URL.Query().Get("namespace")); namespace != "" {
+	namespace := strings.TrimSpace(r.URL.Query().Get("namespace"))
+	if namespace != "" {
 		payload["namespace"] = namespace
 	}
-	if observationType := strings.TrimSpace(r.URL.Query().Get("type")); observationType != "" {
+	observationType := strings.TrimSpace(r.URL.Query().Get("type"))
+	if observationType != "" {
 		payload["type"] = observationType
 	}
 	var result any
@@ -3586,13 +3592,18 @@ func (s *Server) handleMemoryRecentObservations(w http.ResponseWriter, r *http.R
 		return
 	}
 
+	records, localErr := s.localRecentObservations(limit, namespace, observationType)
+	if localErr != nil {
+		records = []map[string]any{}
+	}
+
 	writeJSON(w, http.StatusOK, map[string]any{
 		"success": true,
-		"data":    []map[string]any{},
+		"data":    records,
 		"bridge": map[string]any{
 			"fallback":  "go-local-memory",
 			"procedure": "memory.getRecentObservations",
-			"reason":    "upstream unavailable; local memory fallback has no recent observations index",
+			"reason":    "upstream unavailable; using local persisted recent observations",
 		},
 	})
 }
@@ -3660,12 +3671,17 @@ func (s *Server) handleMemoryCaptureUserPrompt(w http.ResponseWriter, r *http.Re
 
 func (s *Server) handleMemoryRecentUserPrompts(w http.ResponseWriter, r *http.Request) {
 	payload := map[string]any{"limit": 10}
-	if limit := strings.TrimSpace(r.URL.Query().Get("limit")); limit != "" {
-		if parsed, err := strconv.Atoi(limit); err == nil {
+	limit := 10
+	if limitParam := strings.TrimSpace(r.URL.Query().Get("limit")); limitParam != "" {
+		if parsed, err := strconv.Atoi(limitParam); err == nil {
 			payload["limit"] = parsed
+			if parsed > 0 {
+				limit = parsed
+			}
 		}
 	}
-	if role := strings.TrimSpace(r.URL.Query().Get("role")); role != "" {
+	role := strings.TrimSpace(r.URL.Query().Get("role"))
+	if role != "" {
 		payload["role"] = role
 	}
 	var result any
@@ -3682,13 +3698,18 @@ func (s *Server) handleMemoryRecentUserPrompts(w http.ResponseWriter, r *http.Re
 		return
 	}
 
+	records, localErr := s.localRecentUserPrompts(limit, role)
+	if localErr != nil {
+		records = []map[string]any{}
+	}
+
 	writeJSON(w, http.StatusOK, map[string]any{
 		"success": true,
-		"data":    []map[string]any{},
+		"data":    records,
 		"bridge": map[string]any{
 			"fallback":  "go-local-memory",
 			"procedure": "memory.getRecentUserPrompts",
-			"reason":    "upstream unavailable; local memory fallback has no recent prompt index",
+			"reason":    "upstream unavailable; using local persisted recent user prompts",
 		},
 	})
 }
@@ -3773,18 +3794,9 @@ func (s *Server) handleMemorySessionBootstrap(w http.ResponseWriter, r *http.Req
 
 	activeGoal, _ := payload["activeGoal"].(string)
 	lastObjective, _ := payload["lastObjective"].(string)
-	promptParts := make([]string, 0, 3)
-	promptParts = append(promptParts, "Memory bootstrap:")
-	if strings.TrimSpace(activeGoal) != "" {
-		promptParts = append(promptParts, "Current goal: "+activeGoal)
-	}
-	if strings.TrimSpace(lastObjective) != "" {
-		promptParts = append(promptParts, "Last objective: "+lastObjective)
-	}
-	promptParts = append(promptParts, "No relevant prior memory was found.")
-	writeJSON(w, http.StatusOK, map[string]any{
-		"success": true,
-		"data": map[string]any{
+	data, localErr := s.localSessionBootstrapPayload(activeGoal, lastObjective)
+	if localErr != nil {
+		data = map[string]any{
 			"activeGoal":             activeGoal,
 			"lastObjective":          lastObjective,
 			"goal":                   activeGoal,
@@ -3792,12 +3804,16 @@ func (s *Server) handleMemorySessionBootstrap(w http.ResponseWriter, r *http.Req
 			"summaryCount":           0,
 			"observationCount":       0,
 			"toolAdvertisementCount": 0,
-			"prompt":                 strings.Join(promptParts, "\n"),
-		},
+			"prompt":                 strings.Join(localBootstrapLines(activeGoal, lastObjective, nil, nil), "\n"),
+		}
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"data":    data,
 		"bridge": map[string]any{
 			"fallback":  "go-local-memory",
 			"procedure": "memory.getSessionBootstrap",
-			"reason":    "upstream unavailable; using local empty session bootstrap",
+			"reason":    "upstream unavailable; using local persisted session bootstrap",
 		},
 	})
 }
@@ -3833,27 +3849,26 @@ func (s *Server) handleMemoryToolContext(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	query := toolName
-	if lastObjective, _ := payload["lastObjective"].(string); strings.TrimSpace(lastObjective) != "" {
-		query = strings.TrimSpace(strings.Join([]string{toolName, lastObjective}, " "))
-	}
-	if activeGoal, _ := payload["activeGoal"].(string); strings.TrimSpace(activeGoal) != "" {
-		query = strings.TrimSpace(strings.Join([]string{query, activeGoal}, " "))
-	}
-	writeJSON(w, http.StatusOK, map[string]any{
-		"success": true,
-		"data": map[string]any{
+	activeGoal, _ := payload["activeGoal"].(string)
+	lastObjective, _ := payload["lastObjective"].(string)
+	data, localErr := s.localToolContextPayload(toolName, activeGoal, lastObjective)
+	if localErr != nil {
+		data = map[string]any{
 			"toolName":         toolName,
-			"query":            query,
+			"query":            toolName,
 			"matchedPaths":     []string{},
 			"observationCount": 0,
 			"summaryCount":     0,
-			"prompt":           "JIT tool context for " + toolName + ":\nNo relevant prior memory was found.",
-		},
+			"prompt":           strings.Join(localToolContextLines(toolName, toolName, activeGoal, lastObjective, nil, nil, nil), "\n"),
+		}
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"data":    data,
 		"bridge": map[string]any{
 			"fallback":  "go-local-memory",
 			"procedure": "memory.getToolContext",
-			"reason":    "upstream unavailable; using local empty tool context",
+			"reason":    "upstream unavailable; using local persisted tool context",
 		},
 	})
 }
@@ -3875,9 +3890,13 @@ func (s *Server) handleMemoryCaptureSessionSummary(w http.ResponseWriter, r *htt
 
 func (s *Server) handleMemoryRecentSessionSummaries(w http.ResponseWriter, r *http.Request) {
 	payload := map[string]any{"limit": 10}
-	if limit := strings.TrimSpace(r.URL.Query().Get("limit")); limit != "" {
-		if parsed, err := strconv.Atoi(limit); err == nil {
+	limit := 10
+	if limitParam := strings.TrimSpace(r.URL.Query().Get("limit")); limitParam != "" {
+		if parsed, err := strconv.Atoi(limitParam); err == nil {
 			payload["limit"] = parsed
+			if parsed > 0 {
+				limit = parsed
+			}
 		}
 	}
 	var result any
@@ -3894,13 +3913,18 @@ func (s *Server) handleMemoryRecentSessionSummaries(w http.ResponseWriter, r *ht
 		return
 	}
 
+	records, localErr := s.localRecentSessionSummaries(limit)
+	if localErr != nil {
+		records = []map[string]any{}
+	}
+
 	writeJSON(w, http.StatusOK, map[string]any{
 		"success": true,
-		"data":    []map[string]any{},
+		"data":    records,
 		"bridge": map[string]any{
 			"fallback":  "go-local-memory",
 			"procedure": "memory.getRecentSessionSummaries",
-			"reason":    "upstream unavailable; local memory fallback has no recent session summary index",
+			"reason":    "upstream unavailable; using local persisted recent session summaries",
 		},
 	})
 }
@@ -13946,11 +13970,15 @@ type localAgentMemorySnapshot struct {
 }
 
 type localAgentMemoryRecord struct {
-	Type      string         `json:"type"`
-	Namespace string         `json:"namespace"`
-	Metadata  map[string]any `json:"metadata"`
-	CreatedAt string         `json:"createdAt"`
-	TTL       *float64       `json:"ttl"`
+	ID          string         `json:"id"`
+	Content     string         `json:"content"`
+	Type        string         `json:"type"`
+	Namespace   string         `json:"namespace"`
+	Metadata    map[string]any `json:"metadata"`
+	CreatedAt   string         `json:"createdAt"`
+	AccessedAt  string         `json:"accessedAt"`
+	AccessCount int            `json:"accessCount"`
+	TTL         *float64       `json:"ttl"`
 }
 
 func localAgentMemoryZeroStats() map[string]any {
@@ -13978,39 +14006,14 @@ func localAgentMemoryZeroStats() map[string]any {
 }
 
 func (s *Server) localAgentMemoryStats() (map[string]any, error) {
-	memoriesPath := filepath.Join(s.cfg.WorkspaceRoot, ".hypercode", "agent_memory", "memories.json")
-	raw, err := os.ReadFile(memoriesPath)
+	records, err := s.localAgentMemories()
 	if err != nil {
-		if os.IsNotExist(err) {
-			return localAgentMemoryZeroStats(), nil
-		}
 		return nil, err
 	}
-
-	trimmed := strings.TrimSpace(string(raw))
-	if trimmed == "" {
-		return localAgentMemoryZeroStats(), nil
-	}
-
-	var snapshot localAgentMemorySnapshot
-	if err := json.Unmarshal(raw, &snapshot); err != nil {
-		return nil, err
-	}
-
 	stats := localAgentMemoryZeroStats()
 	observationHashes := map[string]struct{}{}
-	now := time.Now()
 
-	for _, memory := range snapshot.Memories {
-		if memory.Type == "session" && memory.TTL != nil && memory.CreatedAt != "" {
-			createdAt, err := time.Parse(time.RFC3339Nano, memory.CreatedAt)
-			if err == nil {
-				if now.Sub(createdAt) > time.Duration(*memory.TTL)*time.Millisecond {
-					continue
-				}
-			}
-		}
-
+	for _, memory := range records {
 		stats["totalCount"] = stats["totalCount"].(int) + 1
 
 		switch memory.Type {
@@ -14063,6 +14066,612 @@ func (s *Server) localAgentMemoryStats() (map[string]any, error) {
 
 	stats["uniqueObservationCount"] = len(observationHashes)
 	return stats, nil
+}
+
+func (s *Server) localAgentMemories() ([]localAgentMemoryRecord, error) {
+	memoriesPath := filepath.Join(s.cfg.WorkspaceRoot, ".hypercode", "agent_memory", "memories.json")
+	raw, err := os.ReadFile(memoriesPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return []localAgentMemoryRecord{}, nil
+		}
+		return nil, err
+	}
+
+	trimmed := strings.TrimSpace(string(raw))
+	if trimmed == "" {
+		return []localAgentMemoryRecord{}, nil
+	}
+
+	var snapshot localAgentMemorySnapshot
+	if err := json.Unmarshal(raw, &snapshot); err != nil {
+		return nil, err
+	}
+
+	now := time.Now()
+	records := make([]localAgentMemoryRecord, 0, len(snapshot.Memories))
+	for _, memory := range snapshot.Memories {
+		if memory.Type == "session" && memory.TTL != nil {
+			createdAt, ok := localAgentMemoryTime(memory.CreatedAt)
+			if ok && now.Sub(createdAt) > time.Duration(*memory.TTL)*time.Millisecond {
+				continue
+			}
+		}
+		if memory.Metadata == nil {
+			memory.Metadata = map[string]any{}
+		}
+		records = append(records, memory)
+	}
+	return records, nil
+}
+
+func (s *Server) localRecentObservations(limit int, namespace, observationType string) ([]map[string]any, error) {
+	records, err := s.localAgentMemories()
+	if err != nil {
+		return nil, err
+	}
+
+	filtered := make([]localAgentMemoryRecord, 0)
+	for _, record := range records {
+		observation, ok := localStructuredObservation(record.Metadata)
+		if !ok {
+			continue
+		}
+		if namespace != "" && record.Namespace != namespace {
+			continue
+		}
+		if observationType != "" && stringValue(observation["type"]) != observationType {
+			continue
+		}
+		filtered = append(filtered, record)
+	}
+
+	sort.Slice(filtered, func(i, j int) bool {
+		return localAgentMemorySortTime(filtered[i]).After(localAgentMemorySortTime(filtered[j]))
+	})
+
+	if limit <= 0 || limit > len(filtered) {
+		limit = len(filtered)
+	}
+	results := make([]map[string]any, 0, limit)
+	for _, record := range filtered[:limit] {
+		results = append(results, localAgentMemoryMap(record))
+	}
+	return results, nil
+}
+
+func (s *Server) localRecentUserPrompts(limit int, role string) ([]map[string]any, error) {
+	records, err := s.localAgentMemories()
+	if err != nil {
+		return nil, err
+	}
+
+	filtered := make([]localAgentMemoryRecord, 0)
+	for _, record := range records {
+		prompt, ok := localStructuredUserPrompt(record.Metadata)
+		if !ok {
+			continue
+		}
+		if record.Type != "long_term" || record.Namespace != "project" {
+			continue
+		}
+		if role != "" && stringValue(prompt["role"]) != role {
+			continue
+		}
+		filtered = append(filtered, record)
+	}
+
+	sort.Slice(filtered, func(i, j int) bool {
+		return localAgentMemorySortTime(filtered[i]).After(localAgentMemorySortTime(filtered[j]))
+	})
+
+	if limit <= 0 || limit > len(filtered) {
+		limit = len(filtered)
+	}
+	results := make([]map[string]any, 0, limit)
+	for _, record := range filtered[:limit] {
+		results = append(results, localAgentMemoryMap(record))
+	}
+	return results, nil
+}
+
+func (s *Server) localRecentSessionSummaries(limit int) ([]map[string]any, error) {
+	records, err := s.localAgentMemories()
+	if err != nil {
+		return nil, err
+	}
+
+	filtered := make([]localAgentMemoryRecord, 0)
+	for _, record := range records {
+		if _, ok := localStructuredSessionSummary(record.Metadata); !ok {
+			continue
+		}
+		if record.Type != "long_term" {
+			continue
+		}
+		filtered = append(filtered, record)
+	}
+
+	sort.Slice(filtered, func(i, j int) bool {
+		return localAgentMemorySortTime(filtered[i]).After(localAgentMemorySortTime(filtered[j]))
+	})
+
+	if limit <= 0 || limit > len(filtered) {
+		limit = len(filtered)
+	}
+	results := make([]map[string]any, 0, limit)
+	for _, record := range filtered[:limit] {
+		results = append(results, localAgentMemoryMap(record))
+	}
+	return results, nil
+}
+
+func (s *Server) localSessionBootstrapPayload(activeGoal, lastObjective string) (map[string]any, error) {
+	summaries, err := s.localRecentSessionSummaries(3)
+	if err != nil {
+		return nil, err
+	}
+	observations, err := s.localRecentObservations(5, "", "")
+	if err != nil {
+		return nil, err
+	}
+
+	summaryContents := make([]string, 0, len(summaries))
+	for _, summary := range summaries {
+		summaryContents = append(summaryContents, stringValue(summary["content"]))
+	}
+
+	observationLines := make([]map[string]any, 0, len(observations))
+	for _, observation := range observations {
+		metadata, _ := observation["metadata"].(map[string]any)
+		structured, _ := localStructuredObservation(metadata)
+		observationLines = append(observationLines, map[string]any{
+			"title":     stringValue(structured["title"]),
+			"narrative": stringValue(structured["narrative"]),
+			"type":      stringValue(structured["type"]),
+			"toolName":  stringValue(structured["toolName"]),
+			"content":   stringValue(observation["content"]),
+		})
+	}
+
+	return map[string]any{
+		"activeGoal":             nullableString(activeGoal),
+		"lastObjective":          nullableString(lastObjective),
+		"goal":                   nullableString(activeGoal),
+		"objective":              nullableString(lastObjective),
+		"summaryCount":           len(summaryContents),
+		"observationCount":       len(observationLines),
+		"toolAdvertisementCount": 0,
+		"prompt":                 strings.Join(localBootstrapLines(activeGoal, lastObjective, summaryContents, observationLines), "\n"),
+	}, nil
+}
+
+func (s *Server) localToolContextPayload(toolName, activeGoal, lastObjective string) (map[string]any, error) {
+	records, err := s.localAgentMemories()
+	if err != nil {
+		return nil, err
+	}
+
+	observations := make([]map[string]any, 0)
+	summaries := make([]map[string]any, 0)
+	for _, record := range records {
+		if structured, ok := localStructuredObservation(record.Metadata); ok {
+			observations = append(observations, map[string]any{
+				"title":         stringValue(structured["title"]),
+				"narrative":     stringValue(structured["narrative"]),
+				"content":       record.Content,
+				"type":          stringValue(structured["type"]),
+				"toolName":      stringValue(structured["toolName"]),
+				"concepts":      stringArray(structured["concepts"]),
+				"filesRead":     stringArray(structured["filesRead"]),
+				"filesModified": stringArray(structured["filesModified"]),
+				"recordedAt":    localNumericValue(structured["recordedAt"]),
+			})
+		}
+		if structured, ok := localStructuredSessionSummary(record.Metadata); ok {
+			recordedAt := localNumericValue(structured["stoppedAt"])
+			if recordedAt <= 0 {
+				recordedAt = localTimeToMillis(localAgentMemorySortTime(record))
+			}
+			summaries = append(summaries, map[string]any{
+				"content":    record.Content,
+				"cliType":    stringValue(structured["cliType"]),
+				"status":     stringValue(structured["status"]),
+				"sessionId":  stringValue(structured["sessionId"]),
+				"recordedAt": recordedAt,
+			})
+		}
+	}
+
+	query, tokens := localToolContextQuery(toolName)
+	matchedObservations := localMatchedToolObservations(observations, toolName, tokens)
+	matchedSummaries := localMatchedToolSummaries(summaries, tokens)
+	fallbackSummaries := matchedSummaries
+	if len(fallbackSummaries) == 0 && len(summaries) > 0 {
+		sorted := append([]map[string]any{}, summaries...)
+		sort.Slice(sorted, func(i, j int) bool {
+			return localNumericValue(sorted[i]["recordedAt"]) > localNumericValue(sorted[j]["recordedAt"])
+		})
+		fallbackSummaries = sorted[:1]
+	}
+
+	matchedPaths := localUniqueStrings(nil,
+		func() []string {
+			paths := make([]string, 0)
+			for _, observation := range matchedObservations {
+				paths = append(paths, stringArray(observation["filesRead"])...)
+				paths = append(paths, stringArray(observation["filesModified"])...)
+			}
+			return paths
+		}()...,
+	)
+
+	return map[string]any{
+		"toolName":         localTrimLine(toolName, 120),
+		"query":            query,
+		"matchedPaths":     matchedPaths,
+		"observationCount": len(matchedObservations),
+		"summaryCount":     len(fallbackSummaries),
+		"prompt":           strings.Join(localToolContextLines(toolName, query, activeGoal, lastObjective, matchedPaths, matchedObservations, fallbackSummaries), "\n"),
+	}, nil
+}
+
+func localAgentMemoryMap(record localAgentMemoryRecord) map[string]any {
+	data := map[string]any{
+		"id":          record.ID,
+		"content":     record.Content,
+		"type":        record.Type,
+		"namespace":   record.Namespace,
+		"metadata":    cloneMap(record.Metadata),
+		"createdAt":   record.CreatedAt,
+		"accessedAt":  nullableString(record.AccessedAt),
+		"accessCount": record.AccessCount,
+	}
+	if record.TTL != nil {
+		data["ttl"] = *record.TTL
+	}
+	return data
+}
+
+func localStructuredObservation(metadata map[string]any) (map[string]any, bool) {
+	value, ok := metadata["structuredObservation"].(map[string]any)
+	if !ok || strings.TrimSpace(stringValue(value["title"])) == "" || strings.TrimSpace(stringValue(value["contentHash"])) == "" {
+		return nil, false
+	}
+	observationType := stringValue(value["type"])
+	switch observationType {
+	case "discovery", "decision", "progress", "warning", "fix":
+	default:
+		return nil, false
+	}
+	return value, true
+}
+
+func localStructuredUserPrompt(metadata map[string]any) (map[string]any, bool) {
+	value, ok := metadata["structuredUserPrompt"].(map[string]any)
+	if !ok || strings.TrimSpace(stringValue(value["content"])) == "" || localNumericValue(value["recordedAt"]) <= 0 {
+		return nil, false
+	}
+	return value, true
+}
+
+func localStructuredSessionSummary(metadata map[string]any) (map[string]any, bool) {
+	value, ok := metadata["structuredSessionSummary"].(map[string]any)
+	if !ok || strings.TrimSpace(stringValue(value["sessionId"])) == "" || strings.TrimSpace(stringValue(value["status"])) == "" {
+		return nil, false
+	}
+	return value, true
+}
+
+func localAgentMemoryTime(value string) (time.Time, bool) {
+	if strings.TrimSpace(value) == "" {
+		return time.Time{}, false
+	}
+	parsed, err := time.Parse(time.RFC3339Nano, value)
+	if err == nil {
+		return parsed, true
+	}
+	parsed, err = time.Parse(time.RFC3339, value)
+	if err == nil {
+		return parsed, true
+	}
+	return time.Time{}, false
+}
+
+func localAgentMemorySortTime(record localAgentMemoryRecord) time.Time {
+	if parsed, ok := localAgentMemoryTime(record.CreatedAt); ok {
+		return parsed
+	}
+	return time.Time{}
+}
+
+func localBootstrapLines(activeGoal, lastObjective string, summaries []string, observations []map[string]any) []string {
+	lines := []string{"Memory bootstrap:"}
+	if strings.TrimSpace(activeGoal) != "" {
+		lines = append(lines, "Current goal: "+localTrimLine(activeGoal, 180))
+	}
+	if strings.TrimSpace(lastObjective) != "" {
+		lines = append(lines, "Last objective: "+localTrimLine(lastObjective, 180))
+	}
+
+	summaryLines := make([]string, 0, minInt(len(summaries), 3))
+	for _, summary := range summaries {
+		summaryLines = append(summaryLines, "- "+localTrimLine(summary, 240))
+		if len(summaryLines) >= 3 {
+			break
+		}
+	}
+	observationLines := make([]string, 0, minInt(len(observations), 5))
+	for _, observation := range observations {
+		title := localTrimLine(stringValue(firstNonEmptyString(
+			stringValue(observation["title"]),
+			stringValue(observation["narrative"]),
+			stringValue(observation["content"]),
+			"Recent observation available",
+		)), 220)
+		tags := strings.Join(localUniqueStrings(nil, localTrimLine(stringValue(observation["type"]), 40), localTrimLine(stringValue(observation["toolName"]), 60)), " · ")
+		if tags != "" {
+			title += " (" + tags + ")"
+		}
+		observationLines = append(observationLines, "- "+title)
+		if len(observationLines) >= 5 {
+			break
+		}
+	}
+
+	if len(summaryLines) > 0 {
+		lines = append(lines, "Recent session summaries:")
+		lines = append(lines, summaryLines...)
+	}
+	if len(observationLines) > 0 {
+		lines = append(lines, "Relevant observations:")
+		lines = append(lines, observationLines...)
+	}
+	return lines
+}
+
+func localToolContextLines(toolName, query, activeGoal, lastObjective string, matchedPaths []string, observations []map[string]any, summaries []map[string]any) []string {
+	lines := []string{"JIT tool context for " + localTrimLine(toolName, 120) + ":"}
+	if strings.TrimSpace(activeGoal) != "" {
+		lines = append(lines, "Current goal: "+localTrimLine(activeGoal, 180))
+	}
+	if strings.TrimSpace(lastObjective) != "" {
+		lines = append(lines, "Last objective: "+localTrimLine(lastObjective, 180))
+	}
+	if strings.TrimSpace(query) != "" {
+		lines = append(lines, "Focus query: "+localTrimLine(query, 240))
+	}
+	if len(matchedPaths) > 0 {
+		names := make([]string, 0, len(matchedPaths))
+		for _, matchedPath := range matchedPaths {
+			names = append(names, localBasenameLike(matchedPath))
+		}
+		lines = append(lines, "Relevant files: "+strings.Join(localUniqueStrings(nil, names...), ", "))
+	}
+	if len(observations) > 0 {
+		lines = append(lines, "Potentially relevant observations:")
+		for _, observation := range observations {
+			title := localTrimLine(stringValue(firstNonEmptyString(stringValue(observation["title"]), stringValue(observation["narrative"]), stringValue(observation["content"]), "Relevant observation")), 160)
+			detail := localTrimLine(stringValue(firstNonEmptyString(stringValue(observation["narrative"]), stringValue(observation["content"]))), 220)
+			tags := strings.Join(localUniqueStrings(nil, stringValue(observation["type"]), stringValue(observation["toolName"])), " · ")
+			line := title
+			if detail != "" && detail != title {
+				line += " — " + detail
+			}
+			if tags != "" {
+				line += " (" + tags + ")"
+			}
+			lines = append(lines, "- "+line)
+		}
+	}
+	if len(summaries) > 0 {
+		lines = append(lines, "Potentially relevant session summaries:")
+		for _, summary := range summaries {
+			lines = append(lines, "- "+localTrimLine(stringValue(firstNonEmptyString(stringValue(summary["content"]), "Relevant prior session summary")), 240))
+		}
+	}
+	if len(observations) == 0 && len(summaries) == 0 {
+		lines = append(lines, "No strongly relevant prior memory was found for this tool call.")
+	} else {
+		lines = append(lines, "Use only the parts that still match the current intent; ignore stale context.")
+	}
+	return lines
+}
+
+func localToolContextQuery(toolName string) (string, []string) {
+	query := localTrimLine(toolName, 240)
+	return query, localTokenize(query)
+}
+
+func localMatchedToolObservations(observations []map[string]any, toolName string, tokens []string) []map[string]any {
+	type scoredObservation struct {
+		observation map[string]any
+		score       int
+		recordedAt  float64
+	}
+
+	scored := make([]scoredObservation, 0)
+	for _, observation := range observations {
+		score := 0
+		if stringValue(observation["toolName"]) == toolName {
+			score += 8
+		} else if strings.Contains(strings.ToLower(stringValue(observation["toolName"])), strings.ToLower(toolName)) && strings.TrimSpace(toolName) != "" {
+			score += 4
+		}
+		score += localScoreText(strings.Join(append(localUniqueStrings(nil,
+			stringValue(observation["title"]),
+			stringValue(observation["narrative"]),
+			stringValue(observation["content"]),
+		), stringArray(observation["concepts"])...), " "), tokens)
+		if score > 0 {
+			scored = append(scored, scoredObservation{
+				observation: observation,
+				score:       score,
+				recordedAt:  localNumericValue(observation["recordedAt"]),
+			})
+		}
+	}
+
+	sort.Slice(scored, func(i, j int) bool {
+		if scored[i].score == scored[j].score {
+			return scored[i].recordedAt > scored[j].recordedAt
+		}
+		return scored[i].score > scored[j].score
+	})
+
+	limit := minInt(len(scored), 4)
+	results := make([]map[string]any, 0, limit)
+	for _, item := range scored[:limit] {
+		results = append(results, item.observation)
+	}
+	return results
+}
+
+func localMatchedToolSummaries(summaries []map[string]any, tokens []string) []map[string]any {
+	type scoredSummary struct {
+		summary    map[string]any
+		score      int
+		recordedAt float64
+	}
+
+	scored := make([]scoredSummary, 0)
+	for _, summary := range summaries {
+		score := localScoreText(strings.Join(localUniqueStrings(nil,
+			stringValue(summary["content"]),
+			stringValue(summary["cliType"]),
+			stringValue(summary["status"]),
+		), " "), tokens)
+		if score > 0 {
+			scored = append(scored, scoredSummary{
+				summary:    summary,
+				score:      score,
+				recordedAt: localNumericValue(summary["recordedAt"]),
+			})
+		}
+	}
+
+	sort.Slice(scored, func(i, j int) bool {
+		if scored[i].score == scored[j].score {
+			return scored[i].recordedAt > scored[j].recordedAt
+		}
+		return scored[i].score > scored[j].score
+	})
+
+	limit := minInt(len(scored), 2)
+	results := make([]map[string]any, 0, limit)
+	for _, item := range scored[:limit] {
+		results = append(results, item.summary)
+	}
+	return results
+}
+
+func localScoreText(text string, tokens []string) int {
+	lowered := strings.ToLower(text)
+	score := 0
+	for _, token := range tokens {
+		if token != "" && strings.Contains(lowered, token) {
+			score += 2
+		}
+	}
+	return score
+}
+
+func localTokenize(value string) []string {
+	parts := strings.FieldsFunc(strings.ToLower(value), func(r rune) bool {
+		return (r < 'a' || r > 'z') && (r < '0' || r > '9')
+	})
+	filtered := make([]string, 0, len(parts))
+	for _, part := range parts {
+		switch part {
+		case "", "tool", "with", "from", "that", "this", "into", "using", "args":
+			continue
+		}
+		if len(part) >= 3 {
+			filtered = append(filtered, part)
+		}
+	}
+	return localUniqueStrings(nil, filtered...)
+}
+
+func localUniqueStrings(seed []string, values ...string) []string {
+	seen := make(map[string]struct{})
+	normalized := make([]string, 0, len(seed)+len(values))
+	for _, value := range seed {
+		trimmed := strings.TrimSpace(value)
+		if trimmed == "" {
+			continue
+		}
+		key := strings.ToLower(trimmed)
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		normalized = append(normalized, trimmed)
+	}
+	for _, value := range values {
+		trimmed := strings.TrimSpace(value)
+		if trimmed == "" {
+			continue
+		}
+		key := strings.ToLower(trimmed)
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		normalized = append(normalized, trimmed)
+	}
+	return normalized
+}
+
+func localTrimLine(value string, maxLength int) string {
+	normalized := strings.Join(strings.Fields(value), " ")
+	if maxLength > 0 && len(normalized) > maxLength {
+		return normalized[:maxLength]
+	}
+	return normalized
+}
+
+func localBasenameLike(filePath string) string {
+	normalized := strings.ReplaceAll(strings.TrimSpace(filePath), "\\", "/")
+	if normalized == "" {
+		return ""
+	}
+	parts := strings.Split(normalized, "/")
+	return parts[len(parts)-1]
+}
+
+func localNumericValue(value any) float64 {
+	switch typed := value.(type) {
+	case float64:
+		return typed
+	case float32:
+		return float64(typed)
+	case int:
+		return float64(typed)
+	case int64:
+		return float64(typed)
+	case int32:
+		return float64(typed)
+	case json.Number:
+		parsed, _ := typed.Float64()
+		return parsed
+	default:
+		return 0
+	}
+}
+
+func localTimeToMillis(value time.Time) float64 {
+	if value.IsZero() {
+		return 0
+	}
+	return float64(value.UnixMilli())
+}
+
+func minInt(left, right int) int {
+	if left < right {
+		return left
+	}
+	return right
 }
 
 func (s *Server) localMemoryExport(userID, format string) (string, error) {

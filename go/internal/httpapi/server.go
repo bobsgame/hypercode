@@ -6531,13 +6531,22 @@ func (s *Server) handleAPIKeysList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	apiKeys, fallbackErr := s.localAPIKeys()
+	if fallbackErr != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]any{
+			"success": false,
+			"error":   fallbackErr.Error(),
+		})
+		return
+	}
+
 	writeJSON(w, http.StatusOK, map[string]any{
 		"success": true,
-		"data":    []map[string]any{},
+		"data":    apiKeys,
 		"bridge": map[string]any{
 			"fallback":  "go-local-operator",
 			"procedure": "apiKeys.list",
-			"reason":    "upstream unavailable; using local empty API key list",
+			"reason":    "upstream unavailable; using local metamcp workspace API key metadata",
 		},
 	})
 }
@@ -9786,6 +9795,57 @@ func (s *Server) localSecrets() ([]map[string]any, error) {
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
+	return results, nil
+}
+
+func (s *Server) localAPIKeys() ([]map[string]any, error) {
+	db, err := sql.Open("sqlite", s.localMetaMCPDBPath())
+	if err != nil {
+		return nil, err
+	}
+	defer db.Close()
+
+	rows, err := db.Query(`
+		SELECT uuid, name, key, created_at, is_active, user_id
+		FROM api_keys
+		WHERE user_id IS NULL
+		ORDER BY created_at DESC
+	`)
+	if err != nil {
+		if strings.Contains(err.Error(), "no such table: api_keys") {
+			return []map[string]any{}, nil
+		}
+		return nil, err
+	}
+	defer rows.Close()
+
+	results := make([]map[string]any, 0)
+	for rows.Next() {
+		var (
+			keyUUID      string
+			name         string
+			keyValue     string
+			createdAtRaw int64
+			isActive     bool
+			userID       sql.NullString
+		)
+		if err := rows.Scan(&keyUUID, &name, &keyValue, &createdAtRaw, &isActive, &userID); err != nil {
+			return nil, err
+		}
+
+		results = append(results, map[string]any{
+			"uuid":       keyUUID,
+			"name":       name,
+			"key":        keyValue,
+			"created_at": unixTimestampToRFC3339(createdAtRaw),
+			"is_active":  isActive,
+			"user_id":    nullStringToAny(userID),
+		})
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
 	return results, nil
 }
 

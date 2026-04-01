@@ -5684,6 +5684,14 @@ func TestOperatorListEndpointsFallBackToEmptyState(t *testing.T) {
 	}
 	defer db.Close()
 	if _, err := db.Exec(`
+		CREATE TABLE api_keys (
+			uuid TEXT PRIMARY KEY,
+			name TEXT NOT NULL,
+			key TEXT NOT NULL UNIQUE,
+			user_id TEXT,
+			created_at INTEGER NOT NULL,
+			is_active INTEGER NOT NULL DEFAULT 1
+		);
 		CREATE TABLE tool_sets (
 			uuid TEXT PRIMARY KEY,
 			name TEXT NOT NULL,
@@ -5698,6 +5706,8 @@ func TestOperatorListEndpointsFallBackToEmptyState(t *testing.T) {
 			tool_uuid TEXT NOT NULL,
 			created_at INTEGER NOT NULL
 		);
+		INSERT INTO api_keys (uuid, name, key, user_id, created_at, is_active)
+		VALUES ('key-local-1', 'Primary', 'sk_local_123456', NULL, 1711958399, 1);
 		INSERT INTO tool_sets (uuid, name, description, created_at, updated_at, user_id)
 		VALUES ('toolset-local-1', 'Core local tools', 'Local DB-backed set', 1711958400, 1711958460, NULL);
 		INSERT INTO tool_set_items (uuid, tool_set_uuid, tool_uuid, created_at)
@@ -5733,8 +5743,9 @@ func TestOperatorListEndpointsFallBackToEmptyState(t *testing.T) {
 			contains: []string{
 				`"fallback":"go-local-operator"`,
 				`"procedure":"apiKeys.list"`,
-				`using local empty API key list`,
-				`"data":[]`,
+				`using local metamcp workspace API key metadata`,
+				`"key-local-1"`,
+				`"Primary"`,
 			},
 		},
 		{

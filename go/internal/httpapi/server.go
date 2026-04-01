@@ -1025,7 +1025,7 @@ func (s *Server) handleAPIIndex(w http.ResponseWriter, _ *http.Request) {
 				{Path: "/api/agent-memory/by-namespace", Category: "memory", Description: "Bridge to TypeScript agent-memory entries for a specific namespace."},
 				{Path: "/api/agent-memory/delete", Category: "memory", Description: "Delete a TypeScript agent-memory entry by id."},
 				{Path: "/api/agent-memory/clear-session", Category: "memory", Description: "Clear session-tier agent memory through the TypeScript control plane."},
-				{Path: "/api/agent-memory/export", Category: "memory", Description: "Bridge to TypeScript agent-memory export."},
+				{Path: "/api/agent-memory/export", Category: "memory", Description: "Bridge to TypeScript agent-memory export, with an explicit empty export fallback when agent memory is unavailable."},
 				{Path: "/api/agent-memory/handoff", Category: "memory", Description: "Create an agent-memory handoff artifact through the TypeScript control plane."},
 				{Path: "/api/agent-memory/pickup", Category: "memory", Description: "Restore an agent-memory handoff artifact through the TypeScript control plane."},
 				{Path: "/api/agent-memory/stats", Category: "memory", Description: "Bridge to TypeScript agent-memory counts by tier, with an explicit zero-state fallback when agent memory is unavailable."},
@@ -4039,7 +4039,33 @@ func (s *Server) handleAgentMemoryClearSession(w http.ResponseWriter, r *http.Re
 }
 
 func (s *Server) handleAgentMemoryExport(w http.ResponseWriter, r *http.Request) {
-	s.handleTRPCBridgeCall(w, r, http.MethodGet, "agentMemory.export", nil)
+	var result any
+	upstreamBase, err := s.callUpstreamJSON(r.Context(), "agentMemory.export", nil, &result)
+	if err == nil {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"data":    result,
+			"bridge": map[string]any{
+				"upstreamBase": upstreamBase,
+				"procedure":    "agentMemory.export",
+			},
+		})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"data": map[string]any{
+			"session":   []any{},
+			"working":   []any{},
+			"long_term": []any{},
+		},
+		"bridge": map[string]any{
+			"fallback":  "go-local-agent-memory",
+			"procedure": "agentMemory.export",
+			"reason":    "upstream unavailable; local agent memory runtime is not initialized",
+		},
+	})
 }
 
 func (s *Server) handleAgentMemoryHandoff(w http.ResponseWriter, r *http.Request) {

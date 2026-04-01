@@ -6020,6 +6020,34 @@ func TestAgentMemoryStatsFallsBackToZeroState(t *testing.T) {
 	}
 }
 
+func TestAgentMemoryExportFallsBackToEmptyBuckets(t *testing.T) {
+	t.Setenv("BORG_TRPC_UPSTREAM", "http://127.0.0.1:1/trpc")
+
+	cfg := config.Default()
+	cfg.WorkspaceRoot = t.TempDir()
+	cfg.MainConfigDir = t.TempDir()
+	server := New(cfg, stubDetector{})
+
+	recorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/api/agent-memory/export", nil))
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected agent memory export 200, got %d with body %s", recorder.Code, recorder.Body.String())
+	}
+
+	for _, needle := range []string{
+		`"fallback":"go-local-agent-memory"`,
+		`"procedure":"agentMemory.export"`,
+		`local agent memory runtime is not initialized`,
+		`"session":[]`,
+		`"working":[]`,
+		`"long_term":[]`,
+	} {
+		if !strings.Contains(recorder.Body.String(), needle) {
+			t.Fatalf("expected agent memory export fallback to contain %s, got %s", needle, recorder.Body.String())
+		}
+	}
+}
+
 func TestToolsRuntimeDetectionFallsBackLocally(t *testing.T) {
 	workspaceRoot := t.TempDir()
 	mainConfigDir := filepath.Join(workspaceRoot, ".hypercode")

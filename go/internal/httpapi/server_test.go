@@ -6048,6 +6048,47 @@ func TestAgentMemoryExportFallsBackToEmptyBuckets(t *testing.T) {
 	}
 }
 
+func TestAgentMemoryReadRoutesFallBackToEmptyResults(t *testing.T) {
+	t.Setenv("BORG_TRPC_UPSTREAM", "http://127.0.0.1:1/trpc")
+
+	cfg := config.Default()
+	cfg.WorkspaceRoot = t.TempDir()
+	cfg.MainConfigDir = t.TempDir()
+	server := New(cfg, stubDetector{})
+
+	cases := []struct {
+		name      string
+		path      string
+		procedure string
+	}{
+		{name: "search", path: "/api/agent-memory/search?query=hello", procedure: "agentMemory.search"},
+		{name: "recent", path: "/api/agent-memory/recent?limit=5", procedure: "agentMemory.getRecent"},
+		{name: "by_type", path: "/api/agent-memory/by-type?type=session", procedure: "agentMemory.getByType"},
+		{name: "by_namespace", path: "/api/agent-memory/by-namespace?namespace=project", procedure: "agentMemory.getByNamespace"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			recorder := httptest.NewRecorder()
+			server.Handler().ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, tc.path, nil))
+			if recorder.Code != http.StatusOK {
+				t.Fatalf("expected %s 200, got %d with body %s", tc.name, recorder.Code, recorder.Body.String())
+			}
+
+			for _, needle := range []string{
+				`"fallback":"go-local-agent-memory"`,
+				`"procedure":"` + tc.procedure + `"`,
+				`local agent memory runtime is not initialized`,
+				`"data":[]`,
+			} {
+				if !strings.Contains(recorder.Body.String(), needle) {
+					t.Fatalf("expected %s fallback to contain %s, got %s", tc.name, needle, recorder.Body.String())
+				}
+			}
+		})
+	}
+}
+
 func TestToolsRuntimeDetectionFallsBackLocally(t *testing.T) {
 	workspaceRoot := t.TempDir()
 	mainConfigDir := filepath.Join(workspaceRoot, ".hypercode")

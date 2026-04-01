@@ -1018,11 +1018,11 @@ func (s *Server) handleAPIIndex(w http.ResponseWriter, _ *http.Request) {
 				{Path: "/api/memory/export", Category: "memory", Description: "Bridge to TypeScript memory export."},
 				{Path: "/api/memory/import", Category: "memory", Description: "Bridge to TypeScript memory import."},
 				{Path: "/api/memory/convert", Category: "memory", Description: "Bridge to TypeScript memory format conversion."},
-				{Path: "/api/agent-memory/search", Category: "memory", Description: "Bridge to TypeScript agent-memory search across namespaces and tiers."},
+				{Path: "/api/agent-memory/search", Category: "memory", Description: "Bridge to TypeScript agent-memory search across namespaces and tiers, with an explicit empty-result fallback when agent memory is unavailable."},
 				{Path: "/api/agent-memory/add", Category: "memory", Description: "Add an agent-memory entry through the TypeScript control plane."},
-				{Path: "/api/agent-memory/recent", Category: "memory", Description: "Bridge to recent TypeScript agent-memory entries."},
-				{Path: "/api/agent-memory/by-type", Category: "memory", Description: "Bridge to TypeScript agent-memory entries for a specific tier."},
-				{Path: "/api/agent-memory/by-namespace", Category: "memory", Description: "Bridge to TypeScript agent-memory entries for a specific namespace."},
+				{Path: "/api/agent-memory/recent", Category: "memory", Description: "Bridge to recent TypeScript agent-memory entries, with an explicit empty-result fallback when agent memory is unavailable."},
+				{Path: "/api/agent-memory/by-type", Category: "memory", Description: "Bridge to TypeScript agent-memory entries for a specific tier, with an explicit empty-result fallback when agent memory is unavailable."},
+				{Path: "/api/agent-memory/by-namespace", Category: "memory", Description: "Bridge to TypeScript agent-memory entries for a specific namespace, with an explicit empty-result fallback when agent memory is unavailable."},
 				{Path: "/api/agent-memory/delete", Category: "memory", Description: "Delete a TypeScript agent-memory entry by id."},
 				{Path: "/api/agent-memory/clear-session", Category: "memory", Description: "Clear session-tier agent memory through the TypeScript control plane."},
 				{Path: "/api/agent-memory/export", Category: "memory", Description: "Bridge to TypeScript agent-memory export, with an explicit empty export fallback when agent memory is unavailable."},
@@ -3986,7 +3986,21 @@ func (s *Server) handleAgentMemorySearch(w http.ResponseWriter, r *http.Request)
 			payload["limit"] = parsed
 		}
 	}
-	s.handleTRPCBridgeCall(w, r, http.MethodGet, "agentMemory.search", payload)
+	var result any
+	upstreamBase, err := s.callUpstreamJSON(r.Context(), "agentMemory.search", payload, &result)
+	if err == nil {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"data":    result,
+			"bridge": map[string]any{
+				"upstreamBase": upstreamBase,
+				"procedure":    "agentMemory.search",
+			},
+		})
+		return
+	}
+
+	s.writeAgentMemoryListFallback(w, "agentMemory.search")
 }
 
 func (s *Server) handleAgentMemoryAdd(w http.ResponseWriter, r *http.Request) {
@@ -4003,7 +4017,21 @@ func (s *Server) handleAgentMemoryRecent(w http.ResponseWriter, r *http.Request)
 			payload["limit"] = parsed
 		}
 	}
-	s.handleTRPCBridgeCall(w, r, http.MethodGet, "agentMemory.getRecent", payload)
+	var result any
+	upstreamBase, err := s.callUpstreamJSON(r.Context(), "agentMemory.getRecent", payload, &result)
+	if err == nil {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"data":    result,
+			"bridge": map[string]any{
+				"upstreamBase": upstreamBase,
+				"procedure":    "agentMemory.getRecent",
+			},
+		})
+		return
+	}
+
+	s.writeAgentMemoryListFallback(w, "agentMemory.getRecent")
 }
 
 func (s *Server) handleAgentMemoryByType(w http.ResponseWriter, r *http.Request) {
@@ -4015,7 +4043,21 @@ func (s *Server) handleAgentMemoryByType(w http.ResponseWriter, r *http.Request)
 		})
 		return
 	}
-	s.handleTRPCBridgeCall(w, r, http.MethodGet, "agentMemory.getByType", map[string]any{"type": memoryType})
+	var result any
+	upstreamBase, err := s.callUpstreamJSON(r.Context(), "agentMemory.getByType", map[string]any{"type": memoryType}, &result)
+	if err == nil {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"data":    result,
+			"bridge": map[string]any{
+				"upstreamBase": upstreamBase,
+				"procedure":    "agentMemory.getByType",
+			},
+		})
+		return
+	}
+
+	s.writeAgentMemoryListFallback(w, "agentMemory.getByType")
 }
 
 func (s *Server) handleAgentMemoryByNamespace(w http.ResponseWriter, r *http.Request) {
@@ -4027,7 +4069,33 @@ func (s *Server) handleAgentMemoryByNamespace(w http.ResponseWriter, r *http.Req
 		})
 		return
 	}
-	s.handleTRPCBridgeCall(w, r, http.MethodGet, "agentMemory.getByNamespace", map[string]any{"namespace": namespace})
+	var result any
+	upstreamBase, err := s.callUpstreamJSON(r.Context(), "agentMemory.getByNamespace", map[string]any{"namespace": namespace}, &result)
+	if err == nil {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"data":    result,
+			"bridge": map[string]any{
+				"upstreamBase": upstreamBase,
+				"procedure":    "agentMemory.getByNamespace",
+			},
+		})
+		return
+	}
+
+	s.writeAgentMemoryListFallback(w, "agentMemory.getByNamespace")
+}
+
+func (s *Server) writeAgentMemoryListFallback(w http.ResponseWriter, procedure string) {
+	writeJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"data":    []any{},
+		"bridge": map[string]any{
+			"fallback":  "go-local-agent-memory",
+			"procedure": procedure,
+			"reason":    "upstream unavailable; local agent memory runtime is not initialized",
+		},
+	})
 }
 
 func (s *Server) handleAgentMemoryDelete(w http.ResponseWriter, r *http.Request) {

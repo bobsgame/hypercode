@@ -5867,6 +5867,64 @@ func TestSecretsListFallsBackToLocalDB(t *testing.T) {
 	}
 }
 
+func TestAPIKeysGetFallsBackToLocalDB(t *testing.T) {
+	t.Setenv("BORG_TRPC_UPSTREAM", "http://127.0.0.1:1/trpc")
+
+	workspace := t.TempDir()
+	dbPath := filepath.Join(workspace, "metamcp.db")
+	db, err := sql.Open("sqlite", dbPath)
+	if err != nil {
+		t.Fatalf("failed to open sqlite db: %v", err)
+	}
+	defer db.Close()
+
+	if _, err := db.Exec(`
+		CREATE TABLE api_keys (
+			uuid TEXT PRIMARY KEY,
+			name TEXT NOT NULL,
+			key TEXT NOT NULL UNIQUE,
+			user_id TEXT,
+			created_at INTEGER NOT NULL,
+			is_active INTEGER NOT NULL DEFAULT 1
+		);
+		INSERT INTO api_keys (uuid, name, key, user_id, created_at, is_active)
+		VALUES
+			('key-1', 'Primary', 'sk_public_123', NULL, 1711958400, 1),
+			('key-2', 'Private', 'sk_private_456', 'system', 1711958500, 1);
+	`); err != nil {
+		t.Fatalf("failed to seed sqlite db: %v", err)
+	}
+
+	cfg := config.Default()
+	cfg.WorkspaceRoot = workspace
+	cfg.ConfigDir = t.TempDir()
+	cfg.MainConfigDir = t.TempDir()
+	server := New(cfg, stubDetector{})
+
+	recorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/api/api-keys/get?uuid=key-1", nil))
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d with body %s", recorder.Code, recorder.Body.String())
+	}
+
+	for _, needle := range []string{
+		`"fallback":"go-local-policy-db"`,
+		`"procedure":"apiKeys.get"`,
+		`using local metamcp api key record`,
+		`"uuid":"key-1"`,
+		`"name":"Primary"`,
+		`"key":"sk_public_123"`,
+	} {
+		if !strings.Contains(recorder.Body.String(), needle) {
+			t.Fatalf("expected api key fallback to contain %s, got %s", needle, recorder.Body.String())
+		}
+	}
+	if strings.Contains(recorder.Body.String(), "key-2") || strings.Contains(recorder.Body.String(), "sk_private_456") {
+		t.Fatalf("expected api key fallback to exclude non-public keys, got %s", recorder.Body.String())
+	}
+}
+
 func TestInfrastructureStatusFallsBackToLocalProbe(t *testing.T) {
 	workspaceRoot := t.TempDir()
 	userProfile := t.TempDir()

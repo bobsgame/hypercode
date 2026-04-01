@@ -6196,7 +6196,39 @@ func (s *Server) handleAPIKeysGet(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]any{"success": false, "error": "missing uuid query parameter"})
 		return
 	}
-	s.handleTRPCBridgeCall(w, r, http.MethodGet, "apiKeys.get", map[string]any{"uuid": uuid})
+	var result any
+	upstreamBase, err := s.callUpstreamJSON(r.Context(), "apiKeys.get", map[string]any{"uuid": uuid}, &result)
+	if err == nil {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"data":    result,
+			"bridge": map[string]any{
+				"upstreamBase": upstreamBase,
+				"procedure":    "apiKeys.get",
+			},
+		})
+		return
+	}
+
+	apiKey, fallbackErr := s.localAPIKey(uuid)
+	if fallbackErr != nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{
+			"success": false,
+			"error":   fallbackErr.Error(),
+			"detail":  fallbackErr.Error(),
+		})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"data":    apiKey,
+		"bridge": map[string]any{
+			"fallback":  "go-local-policy-db",
+			"procedure": "apiKeys.get",
+			"reason":    "upstream unavailable; using local metamcp api key record",
+		},
+	})
 }
 
 func (s *Server) handleAPIKeysCreate(w http.ResponseWriter, r *http.Request) {
@@ -8714,6 +8746,45 @@ func (s *Server) localSecrets() ([]map[string]any, error) {
 		return nil, err
 	}
 	return results, nil
+}
+
+func (s *Server) localAPIKey(uuid string) (any, error) {
+	db, err := sql.Open("sqlite", s.localMetaMCPDBPath())
+	if err != nil {
+		return nil, err
+	}
+	defer db.Close()
+
+	var (
+		keyUUID      string
+		name         string
+		keyValue     string
+		createdAtRaw int64
+		isActive     bool
+		userID       sql.NullString
+	)
+
+	row := db.QueryRow(`
+		SELECT uuid, name, key, created_at, is_active, user_id
+		FROM api_keys
+		WHERE uuid = ? AND user_id IS NULL
+		LIMIT 1
+	`, uuid)
+	if err := row.Scan(&keyUUID, &name, &keyValue, &createdAtRaw, &isActive, &userID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	return map[string]any{
+		"uuid":       keyUUID,
+		"name":       name,
+		"key":        keyValue,
+		"created_at": unixTimestampToRFC3339(createdAtRaw),
+		"is_active":  isActive,
+		"user_id":    nullStringToAny(userID),
+	}, nil
 }
 
 func unixTimestampToRFC3339(value int64) string {

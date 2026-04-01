@@ -1108,8 +1108,8 @@ func (s *Server) handleAPIIndex(w http.ResponseWriter, _ *http.Request) {
 				{Path: "/api/project/context/update", Category: "control", Description: "Update the TypeScript project context document."},
 				{Path: "/api/project/handoffs", Category: "control", Description: "Bridge to TypeScript project handoff metadata, with a local .hypercode/handoffs listing fallback when the TypeScript control plane is unavailable."},
 				{Path: "/api/shell/log", Category: "control", Description: "Log a shell command through the TypeScript shell service."},
-				{Path: "/api/shell/history/query", Category: "control", Description: "Bridge to TypeScript shell history search."},
-				{Path: "/api/shell/history/system", Category: "control", Description: "Bridge to recent TypeScript system shell history."},
+				{Path: "/api/shell/history/query", Category: "control", Description: "Bridge to TypeScript shell history search, with a local .hypercode/shell_history.json fallback when unavailable."},
+				{Path: "/api/shell/history/system", Category: "control", Description: "Bridge to recent TypeScript system shell history, with a local shell history file fallback when unavailable."},
 				{Path: "/api/agent/tool", Category: "agents", Description: "Run a tool through the TypeScript agent router."},
 				{Path: "/api/agent/chat", Category: "agents", Description: "Bridge to the TypeScript agent chat surface."},
 				{Path: "/api/commands/execute", Category: "agents", Description: "Execute a TypeScript command-registry entry."},
@@ -5449,7 +5449,42 @@ func (s *Server) handleShellQueryHistory(w http.ResponseWriter, r *http.Request)
 			payload["limit"] = parsed
 		}
 	}
-	s.handleTRPCBridgeCall(w, r, http.MethodGet, "shell.queryHistory", payload)
+	var result any
+	upstreamBase, err := s.callUpstreamJSON(r.Context(), "shell.queryHistory", payload, &result)
+	if err == nil {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"data":    result,
+			"bridge": map[string]any{
+				"upstreamBase": upstreamBase,
+				"procedure":    "shell.queryHistory",
+			},
+		})
+		return
+	}
+
+	limit := 20
+	if value, ok := payload["limit"].(int); ok && value > 0 {
+		limit = value
+	}
+	results, fallbackErr := s.localShellQueryHistory(query, limit)
+	if fallbackErr != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]any{
+			"success": false,
+			"error":   fallbackErr.Error(),
+		})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"data":    results,
+		"bridge": map[string]any{
+			"fallback":  "go-local-shell",
+			"procedure": "shell.queryHistory",
+			"reason":    "upstream unavailable; using local enriched shell history",
+		},
+	})
 }
 
 func (s *Server) handleShellSystemHistory(w http.ResponseWriter, r *http.Request) {
@@ -5459,7 +5494,42 @@ func (s *Server) handleShellSystemHistory(w http.ResponseWriter, r *http.Request
 			payload["limit"] = parsed
 		}
 	}
-	s.handleTRPCBridgeCall(w, r, http.MethodGet, "shell.getSystemHistory", payload)
+	var result any
+	upstreamBase, err := s.callUpstreamJSON(r.Context(), "shell.getSystemHistory", payload, &result)
+	if err == nil {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"data":    result,
+			"bridge": map[string]any{
+				"upstreamBase": upstreamBase,
+				"procedure":    "shell.getSystemHistory",
+			},
+		})
+		return
+	}
+
+	limit := 50
+	if value, ok := payload["limit"].(int); ok && value > 0 {
+		limit = value
+	}
+	results, fallbackErr := s.localShellSystemHistory(limit)
+	if fallbackErr != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]any{
+			"success": false,
+			"error":   fallbackErr.Error(),
+		})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"data":    results,
+		"bridge": map[string]any{
+			"fallback":  "go-local-shell",
+			"procedure": "shell.getSystemHistory",
+			"reason":    "upstream unavailable; using local shell history file",
+		},
+	})
 }
 
 func (s *Server) handleAgentRunTool(w http.ResponseWriter, r *http.Request) {
@@ -8332,6 +8402,73 @@ func (s *Server) localToolSets() ([]map[string]any, error) {
 	}
 
 	return toolSets, nil
+}
+
+func (s *Server) localShellQueryHistory(query string, limit int) ([]map[string]any, error) {
+	historyPath := filepath.Join(s.cfg.WorkspaceRoot, ".hypercode", "shell_history.json")
+	raw, err := os.ReadFile(historyPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return []map[string]any{}, nil
+		}
+		return nil, err
+	}
+
+	var entries []map[string]any
+	if err := json.Unmarshal(raw, &entries); err != nil {
+		return nil, err
+	}
+
+	query = strings.ToLower(query)
+	filtered := make([]map[string]any, 0, len(entries))
+	for index := len(entries) - 1; index >= 0; index-- {
+		entry := entries[index]
+		command := strings.ToLower(stringValue(entry["command"]))
+		output := strings.ToLower(stringValue(entry["outputSnippet"]))
+		if strings.Contains(command, query) || strings.Contains(output, query) {
+			filtered = append(filtered, cloneMap(entry))
+			if len(filtered) >= limit {
+				break
+			}
+		}
+	}
+
+	return filtered, nil
+}
+
+func (s *Server) localShellSystemHistory(limit int) ([]string, error) {
+	historyPath := shellHistoryPath()
+	raw, err := os.ReadFile(historyPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return []string{}, nil
+		}
+		return nil, err
+	}
+
+	lines := strings.Split(strings.ReplaceAll(string(raw), "\r\n", "\n"), "\n")
+	filtered := make([]string, 0, len(lines))
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line != "" {
+			filtered = append(filtered, line)
+		}
+	}
+	if len(filtered) <= limit {
+		return filtered, nil
+	}
+	return filtered[len(filtered)-limit:], nil
+}
+
+func shellHistoryPath() string {
+	home, err := os.UserHomeDir()
+	if err != nil || strings.TrimSpace(home) == "" {
+		return ".bash_history"
+	}
+	if runtime.GOOS == "windows" {
+		return filepath.Join(home, "AppData", "Roaming", "Microsoft", "Windows", "PowerShell", "PSReadLine", "ConsoleHost_history.txt")
+	}
+	return filepath.Join(home, ".bash_history")
 }
 
 func mustGetwd() string {

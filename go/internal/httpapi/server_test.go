@@ -5396,12 +5396,26 @@ func TestOperatorListEndpointsFallBackToEmptyState(t *testing.T) {
 	t.Setenv("BORG_TRPC_UPSTREAM", "http://127.0.0.1:1/trpc")
 
 	workspaceRoot := t.TempDir()
+	homeDir := t.TempDir()
+	t.Setenv("USERPROFILE", homeDir)
+	t.Setenv("HOME", homeDir)
 	if err := os.MkdirAll(filepath.Join(workspaceRoot, ".hypercode"), 0o755); err != nil {
 		t.Fatalf("failed to create .hypercode dir: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(homeDir, "AppData", "Roaming", "Microsoft", "Windows", "PowerShell", "PSReadLine"), 0o755); err != nil {
+		t.Fatalf("failed to create powershell history dir: %v", err)
 	}
 	configJSON := `{"scripts":[{"uuid":"script-local-1","name":"Deploy local","description":"ship it","code":"echo hi"}],"toolSets":[{"uuid":"toolset-local-1","name":"Core local tools","tools":["search_tools","read_file"]}]}`
 	if err := os.WriteFile(filepath.Join(workspaceRoot, ".hypercode", "config.json"), []byte(configJSON), 0o644); err != nil {
 		t.Fatalf("failed to write local config: %v", err)
+	}
+	historyJSON := `[{"id":"cmd-1","command":"pnpm test","cwd":"C:\\repo","timestamp":1700000000000,"outputSnippet":"tests passed","session":"sess-1"}]`
+	if err := os.WriteFile(filepath.Join(workspaceRoot, ".hypercode", "shell_history.json"), []byte(historyJSON), 0o644); err != nil {
+		t.Fatalf("failed to write shell history: %v", err)
+	}
+	systemHistory := "npm install\r\ngit status\r\npnpm test\r\n"
+	if err := os.WriteFile(filepath.Join(homeDir, "AppData", "Roaming", "Microsoft", "Windows", "PowerShell", "PSReadLine", "ConsoleHost_history.txt"), []byte(systemHistory), 0o644); err != nil {
+		t.Fatalf("failed to write system history: %v", err)
 	}
 
 	cfg := config.Default()
@@ -5467,6 +5481,27 @@ func TestOperatorListEndpointsFallBackToEmptyState(t *testing.T) {
 				`using local tool set from HyperCode config`,
 				`"toolset-local-1"`,
 				`"Core local tools"`,
+			},
+		},
+		{
+			name: "shell query history",
+			path: "/api/shell/history/query?query=pnpm&limit=5",
+			contains: []string{
+				`"fallback":"go-local-shell"`,
+				`"procedure":"shell.queryHistory"`,
+				`using local enriched shell history`,
+				`"pnpm test"`,
+			},
+		},
+		{
+			name: "shell system history",
+			path: "/api/shell/history/system?limit=5",
+			contains: []string{
+				`"fallback":"go-local-shell"`,
+				`"procedure":"shell.getSystemHistory"`,
+				`using local shell history file`,
+				`"git status"`,
+				`"pnpm test"`,
 			},
 		},
 	}

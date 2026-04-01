@@ -3526,6 +3526,43 @@ func TestConfigAlwaysVisibleToolsFallsBackToLocalJSONCPreferences(t *testing.T) 
 	}
 }
 
+func TestSessionExportReadEndpointsFallBackLocally(t *testing.T) {
+	t.Setenv("BORG_TRPC_UPSTREAM", "http://127.0.0.1:1/trpc")
+
+	server := New(config.Default(), stubDetector{})
+
+	detectRecorder := httptest.NewRecorder()
+	detectRequest := httptest.NewRequest(http.MethodPost, "/api/session-export/detect-format", strings.NewReader(`{"data":"{\"version\":\"1.0\",\"sessions\":[]}"}`))
+	detectRequest.Header.Set("content-type", "application/json")
+	server.Handler().ServeHTTP(detectRecorder, detectRequest)
+	if detectRecorder.Code != http.StatusOK {
+		t.Fatalf("expected detect-format fallback 200, got %d with body %s", detectRecorder.Code, detectRecorder.Body.String())
+	}
+	if !strings.Contains(detectRecorder.Body.String(), `"fallback":"go-local-session-export"`) || !strings.Contains(detectRecorder.Body.String(), `"format":"hypercode-export"`) {
+		t.Fatalf("expected local session export format detection, got %s", detectRecorder.Body.String())
+	}
+
+	formatsRecorder := httptest.NewRecorder()
+	formatsRequest := httptest.NewRequest(http.MethodGet, "/api/session-export/formats", nil)
+	server.Handler().ServeHTTP(formatsRecorder, formatsRequest)
+	if formatsRecorder.Code != http.StatusOK {
+		t.Fatalf("expected known-formats fallback 200, got %d with body %s", formatsRecorder.Code, formatsRecorder.Body.String())
+	}
+	if !strings.Contains(formatsRecorder.Body.String(), `"fallback":"go-local-session-export"`) || !strings.Contains(formatsRecorder.Body.String(), `"type":"hypercode"`) || !strings.Contains(formatsRecorder.Body.String(), `"id":"copilot"`) {
+		t.Fatalf("expected local known session export formats, got %s", formatsRecorder.Body.String())
+	}
+
+	historyRecorder := httptest.NewRecorder()
+	historyRequest := httptest.NewRequest(http.MethodGet, "/api/session-export/history", nil)
+	server.Handler().ServeHTTP(historyRecorder, historyRequest)
+	if historyRecorder.Code != http.StatusOK {
+		t.Fatalf("expected export history fallback 200, got %d with body %s", historyRecorder.Code, historyRecorder.Body.String())
+	}
+	if !strings.Contains(historyRecorder.Body.String(), `"fallback":"go-local-session-export"`) || !strings.Contains(historyRecorder.Body.String(), `"data":[]`) {
+		t.Fatalf("expected local empty export history fallback, got %s", historyRecorder.Body.String())
+	}
+}
+
 func TestBrowserBridgeRoutes(t *testing.T) {
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("content-type", "application/json")

@@ -30,6 +30,17 @@ import (
 	"github.com/borghq/hypercode-go/internal/sessionimport"
 )
 
+var sessionExportKnownFormats = []map[string]any{
+	{"id": "claude-code", "type": "claude-code", "paths": []string{".claude", ".claude/sessions"}},
+	{"id": "cursor", "type": "cursor", "paths": []string{".cursor", ".cursor/sessions"}},
+	{"id": "opencode", "type": "opencode", "paths": []string{".docs/ai-logs"}},
+	{"id": "aider", "type": "aider", "paths": []string{".aider.chat.history.md", ".aider.tags.cache"}},
+	{"id": "windsurf", "type": "windsurf", "paths": []string{".windsurf", ".docs/ai-logs"}},
+	{"id": "hypercode", "type": "hypercode", "paths": []string{".hypercode", ".hypercode/sessions"}},
+	{"id": "continue", "type": "continue", "paths": []string{".continue", ".continue/sessions"}},
+	{"id": "copilot", "type": "copilot", "paths": []string{".github/copilot"}},
+}
+
 type Server struct {
 	cfg            config.Config
 	detector       controlplane.ToolProvider
@@ -1318,9 +1329,9 @@ func (s *Server) handleAPIIndex(w http.ResponseWriter, _ *http.Request) {
 				{Path: "/api/pulse/providers", Category: "observability", Description: "Check local provider status, with a local Go provider availability fallback when the TypeScript pulse router is unavailable."},
 				{Path: "/api/session-export/export", Category: "sessions", Description: "Export sessions through the TypeScript session export router."},
 				{Path: "/api/session-export/import", Category: "sessions", Description: "Import sessions through the TypeScript session export router."},
-				{Path: "/api/session-export/detect-format", Category: "sessions", Description: "Detect session export format through the TypeScript session export router."},
-				{Path: "/api/session-export/formats", Category: "sessions", Description: "List known session export formats through the TypeScript session export router."},
-				{Path: "/api/session-export/history", Category: "sessions", Description: "Read session export history through the TypeScript session export router."},
+				{Path: "/api/session-export/detect-format", Category: "sessions", Description: "Detect session export format, with a local Go JSON-shape fallback when the TypeScript session export router is unavailable."},
+				{Path: "/api/session-export/formats", Category: "sessions", Description: "List known session export formats, with a local Go fallback when the TypeScript session export router is unavailable."},
+				{Path: "/api/session-export/history", Category: "sessions", Description: "Read session export history, with a local empty-state fallback when the TypeScript session export router is unavailable."},
 				{Path: "/api/browser/status", Category: "browser", Description: "Read browser status through the TypeScript browser router."},
 				{Path: "/api/browser/close-page", Category: "browser", Description: "Close a browser page through the TypeScript browser router."},
 				{Path: "/api/browser/close-all", Category: "browser", Description: "Close all browser pages through the TypeScript browser router."},
@@ -5470,15 +5481,88 @@ func (s *Server) handleSessionImport(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleSessionExportDetectFormat(w http.ResponseWriter, r *http.Request) {
-	s.handleTRPCBridgeBodyCall(w, r, "sessionExport.detectFormat")
+	var payload map[string]any
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"success": false, "error": "invalid JSON body"})
+		return
+	}
+
+	var result any
+	upstreamBase, err := s.callUpstreamJSON(r.Context(), "sessionExport.detectFormat", payload, &result)
+	if err == nil {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"data":    result,
+			"bridge": map[string]any{
+				"upstreamBase": upstreamBase,
+				"procedure":    "sessionExport.detectFormat",
+			},
+		})
+		return
+	}
+
+	raw, _ := payload["data"].(string)
+	writeJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"data":    localSessionExportFormatDetection(raw),
+		"bridge": map[string]any{
+			"fallback":  "go-local-session-export",
+			"procedure": "sessionExport.detectFormat",
+			"reason":    "upstream unavailable; using local session export format detection",
+		},
+	})
 }
 
 func (s *Server) handleSessionExportKnownFormats(w http.ResponseWriter, r *http.Request) {
-	s.handleTRPCBridgeCall(w, r, http.MethodGet, "sessionExport.knownFormats", nil)
+	var result any
+	upstreamBase, err := s.callUpstreamJSON(r.Context(), "sessionExport.knownFormats", nil, &result)
+	if err == nil {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"data":    result,
+			"bridge": map[string]any{
+				"upstreamBase": upstreamBase,
+				"procedure":    "sessionExport.knownFormats",
+			},
+		})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"data":    sessionExportKnownFormats,
+		"bridge": map[string]any{
+			"fallback":  "go-local-session-export",
+			"procedure": "sessionExport.knownFormats",
+			"reason":    "upstream unavailable; using local known session export formats",
+		},
+	})
 }
 
 func (s *Server) handleSessionExportHistory(w http.ResponseWriter, r *http.Request) {
-	s.handleTRPCBridgeCall(w, r, http.MethodGet, "sessionExport.history", nil)
+	var result any
+	upstreamBase, err := s.callUpstreamJSON(r.Context(), "sessionExport.history", nil, &result)
+	if err == nil {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"data":    result,
+			"bridge": map[string]any{
+				"upstreamBase": upstreamBase,
+				"procedure":    "sessionExport.history",
+			},
+		})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"data":    []map[string]any{},
+		"bridge": map[string]any{
+			"fallback":  "go-local-session-export",
+			"procedure": "sessionExport.history",
+			"reason":    "upstream unavailable; local session export history is empty",
+		},
+	})
 }
 
 func (s *Server) handleBrowserExtensionSaveMemory(w http.ResponseWriter, r *http.Request) {
@@ -7710,6 +7794,60 @@ func normalizeToolNameList(value any) []string {
 		}
 	}
 	return result
+}
+
+func localSessionExportFormatDetection(raw string) map[string]any {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return map[string]any{
+			"format": "invalid",
+			"valid":  false,
+		}
+	}
+
+	var parsed any
+	if err := json.Unmarshal([]byte(trimmed), &parsed); err != nil {
+		return map[string]any{
+			"format": "invalid",
+			"valid":  false,
+		}
+	}
+
+	if record, ok := parsed.(map[string]any); ok {
+		if version, _ := record["version"].(string); version == "1.0" {
+			if sessions, ok := record["sessions"].([]any); ok {
+				_ = sessions
+				return map[string]any{
+					"format": "hypercode-export",
+					"valid":  true,
+				}
+			}
+		}
+		if recordType, _ := record["type"].(string); recordType == "conversation" {
+			if _, ok := record["messages"]; ok {
+				return map[string]any{
+					"format": "claude-code",
+					"valid":  true,
+				}
+			}
+		}
+	}
+
+	if records, ok := parsed.([]any); ok && len(records) > 0 {
+		if first, ok := records[0].(map[string]any); ok {
+			if _, hasID := first["id"]; hasID {
+				return map[string]any{
+					"format": "generic-sessions",
+					"valid":  true,
+				}
+			}
+		}
+	}
+
+	return map[string]any{
+		"format": "unknown",
+		"valid":  true,
+	}
 }
 
 func normalizeAlwaysLoadedTools(value any) []string {

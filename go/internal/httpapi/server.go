@@ -1887,9 +1887,9 @@ func (s *Server) handleImportedSessionMaintenanceStats(w http.ResponseWriter, r 
 
 	fallbackStats := ImportedSessionMaintenanceStats{
 		TotalSessions:                len(candidates),
-		InlineTranscriptCount:        len(candidates),
+		InlineTranscriptCount:        0,
 		ArchivedTranscriptCount:      0,
-		MissingRetentionSummaryCount: len(candidates),
+		MissingRetentionSummaryCount: 0,
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
 		"success": true,
@@ -7774,7 +7774,6 @@ func (s *Server) archivedImportedSessionScanSummary(records []ImportedSessionRec
 			toolsSet[record.SourceTool] = struct{}{}
 		}
 		storedMemoryCount += intNumber(record.Metadata["durableMemoryCount"])
-		storedMemoryCount += intNumber(record.Metadata["durableInstructionCount"])
 	}
 
 	tools := make([]string, 0, len(toolsSet))
@@ -7803,7 +7802,6 @@ func (s *Server) mergedImportedSessionScanSummary(records []ImportedSessionRecor
 			toolsSet[record.SourceTool] = struct{}{}
 		}
 		storedMemoryCount += intNumber(record.Metadata["durableMemoryCount"])
-		storedMemoryCount += intNumber(record.Metadata["durableInstructionCount"])
 	}
 
 	discoveredCount := len(records)

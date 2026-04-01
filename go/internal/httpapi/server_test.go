@@ -5426,8 +5426,8 @@ func TestImportedSessionScanFallsBackToArchivedRecords(t *testing.T) {
 	if !strings.Contains(recorder.Body.String(), `"discoveredCount":2`) {
 		t.Fatalf("expected merged discoveredCount=2, got %s", recorder.Body.String())
 	}
-	if !strings.Contains(recorder.Body.String(), `"storedMemoryCount":3`) {
-		t.Fatalf("expected archived storedMemoryCount=3, got %s", recorder.Body.String())
+	if !strings.Contains(recorder.Body.String(), `"storedMemoryCount":2`) {
+		t.Fatalf("expected archived storedMemoryCount=2, got %s", recorder.Body.String())
 	}
 	if !strings.Contains(recorder.Body.String(), `"copilot-cli"`) {
 		t.Fatalf("expected merged tool list to include discovery candidates, got %s", recorder.Body.String())
@@ -5742,11 +5742,55 @@ func TestImportedSessionMaintenanceStatsFallsBackToGoScanner(t *testing.T) {
 	if !strings.Contains(recorder.Body.String(), `"fallback":"go-sessionimport"`) {
 		t.Fatalf("expected go-sessionimport fallback metadata, got %s", recorder.Body.String())
 	}
-	if !strings.Contains(recorder.Body.String(), `"inlineTranscriptCount":1`) {
-		t.Fatalf("expected inline transcript fallback count, got %s", recorder.Body.String())
+	if !strings.Contains(recorder.Body.String(), `"inlineTranscriptCount":0`) {
+		t.Fatalf("expected scan-only fallback to report zero inline transcripts, got %s", recorder.Body.String())
 	}
-	if !strings.Contains(recorder.Body.String(), `"missingRetentionSummaryCount":1`) {
-		t.Fatalf("expected missing retention fallback count, got %s", recorder.Body.String())
+	if !strings.Contains(recorder.Body.String(), `"missingRetentionSummaryCount":0`) {
+		t.Fatalf("expected scan-only fallback to report zero missing retention summaries, got %s", recorder.Body.String())
+	}
+}
+
+func TestStartupImportedSessionMaintenanceStatsUsesScanOnlySemantics(t *testing.T) {
+	workspaceRoot := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(workspaceRoot, ".claude"), 0o755); err != nil {
+		t.Fatalf("failed to create claude root: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(workspaceRoot, ".claude", "session.jsonl"), []byte("{\"model\":\"claude\"}\n"), 0o644); err != nil {
+		t.Fatalf("failed to seed claude session: %v", err)
+	}
+
+	t.Setenv("BORG_TRPC_UPSTREAM", "http://127.0.0.1:1/trpc")
+	t.Setenv("HOME", workspaceRoot)
+	t.Setenv("USERPROFILE", workspaceRoot)
+	t.Setenv("APPDATA", workspaceRoot)
+	t.Setenv("LOCALAPPDATA", workspaceRoot)
+
+	cfg := config.Default()
+	cfg.WorkspaceRoot = workspaceRoot
+	cfg.ConfigDir = filepath.Join(workspaceRoot, ".hypercode-go")
+	cfg.MainConfigDir = filepath.Join(workspaceRoot, ".hypercode")
+	if err := os.MkdirAll(cfg.ConfigDir, 0o755); err != nil {
+		t.Fatalf("failed to create go config dir: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(workspaceRoot, ".hypercode", "memory"), 0o755); err != nil {
+		t.Fatalf("failed to create memory dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(workspaceRoot, ".hypercode", "memory", "claude_mem.json"), []byte(`{"default":[]}`), 0o644); err != nil {
+		t.Fatalf("failed to seed memory store: %v", err)
+	}
+
+	server := New(cfg, stubDetector{})
+	recorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/api/startup/status", nil))
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected startup status 200, got %d with body %s", recorder.Code, recorder.Body.String())
+	}
+	if !strings.Contains(recorder.Body.String(), `"inlineTranscriptCount":0`) {
+		t.Fatalf("expected startup imported sessions to report zero inline transcripts for scan-only fallback, got %s", recorder.Body.String())
+	}
+	if !strings.Contains(recorder.Body.String(), `"missingRetentionSummaryCount":0`) {
+		t.Fatalf("expected startup imported sessions to report zero missing retention summaries for scan-only fallback, got %s", recorder.Body.String())
 	}
 }
 

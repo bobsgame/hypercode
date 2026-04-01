@@ -160,9 +160,9 @@ func (s *Server) importedSessionMaintenanceStats(ctx context.Context) ImportedSe
 
 	return ImportedSessionMaintenanceStats{
 		TotalSessions:                len(candidates),
-		InlineTranscriptCount:        len(candidates),
+		InlineTranscriptCount:        0,
 		ArchivedTranscriptCount:      0,
-		MissingRetentionSummaryCount: len(candidates),
+		MissingRetentionSummaryCount: 0,
 	}
 }
 

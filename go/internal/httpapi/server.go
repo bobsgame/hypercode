@@ -303,6 +303,13 @@ type importedSessionArchiveSidecar struct {
 	ArchivedAt              int64          `json:"archivedAt"`
 }
 
+type localAuditFilter struct {
+	level   string
+	agentID string
+	action  string
+	limit   int
+}
+
 type ImportRootsSummary struct {
 	Count         int                        `json:"count"`
 	ExistingCount int                        `json:"existingCount"`
@@ -6370,9 +6377,13 @@ func (s *Server) handleAPIKeysValidate(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleAuditList(w http.ResponseWriter, r *http.Request) {
 	payload := map[string]any{}
-	if limit := strings.TrimSpace(r.URL.Query().Get("limit")); limit != "" {
-		if parsed, err := strconv.Atoi(limit); err == nil {
+	limit := 50
+	if rawLimit := strings.TrimSpace(r.URL.Query().Get("limit")); rawLimit != "" {
+		if parsed, err := strconv.Atoi(rawLimit); err == nil {
 			payload["limit"] = parsed
+			if parsed > 0 {
+				limit = parsed
+			}
 		}
 	}
 	var result any
@@ -6389,31 +6400,44 @@ func (s *Server) handleAuditList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	logs, fallbackErr := s.localAuditLogs(localAuditFilter{limit: limit})
+	if fallbackErr != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]any{"success": false, "error": fallbackErr.Error()})
+		return
+	}
+
 	writeJSON(w, http.StatusOK, map[string]any{
 		"success": true,
-		"data":    []map[string]any{},
+		"data":    logs,
 		"bridge": map[string]any{
 			"fallback":  "go-local-audit",
 			"procedure": "audit.list",
-			"reason":    "upstream unavailable; using local empty audit log list",
+			"reason":    "upstream unavailable; using local file-backed audit log list",
 		},
 	})
 }
 
 func (s *Server) handleAuditQuery(w http.ResponseWriter, r *http.Request) {
 	payload := map[string]any{}
+	filter := localAuditFilter{limit: 100}
 	if level := strings.TrimSpace(r.URL.Query().Get("level")); level != "" {
 		payload["level"] = level
+		filter.level = level
 	}
 	if agentID := strings.TrimSpace(r.URL.Query().Get("agentId")); agentID != "" {
 		payload["agentId"] = agentID
+		filter.agentID = agentID
 	}
 	if action := strings.TrimSpace(r.URL.Query().Get("action")); action != "" {
 		payload["action"] = action
+		filter.action = action
 	}
 	if limit := strings.TrimSpace(r.URL.Query().Get("limit")); limit != "" {
 		if parsed, err := strconv.Atoi(limit); err == nil {
 			payload["limit"] = parsed
+			if parsed > 0 {
+				filter.limit = parsed
+			}
 		}
 	}
 	var result any
@@ -6430,13 +6454,19 @@ func (s *Server) handleAuditQuery(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	logs, fallbackErr := s.localAuditLogs(filter)
+	if fallbackErr != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]any{"success": false, "error": fallbackErr.Error()})
+		return
+	}
+
 	writeJSON(w, http.StatusOK, map[string]any{
 		"success": true,
-		"data":    []map[string]any{},
+		"data":    logs,
 		"bridge": map[string]any{
 			"fallback":  "go-local-audit",
 			"procedure": "audit.log",
-			"reason":    "upstream unavailable; using local empty audit query results",
+			"reason":    "upstream unavailable; using local file-backed audit query results",
 		},
 	})
 }
@@ -10426,6 +10456,58 @@ func (s *Server) localWorkflowCanvas(id string) (any, error) {
 		return nil, err
 	}
 	return workflow, nil
+}
+
+func (s *Server) localAuditLogs(filter localAuditFilter) ([]map[string]any, error) {
+	logPath := filepath.Join(s.cfg.WorkspaceRoot, ".hypercode", "audit", "audit-"+time.Now().UTC().Format("2006-01-02")+".jsonl")
+	raw, err := os.ReadFile(logPath)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return []map[string]any{}, nil
+		}
+		return nil, err
+	}
+
+	lines := strings.Split(strings.TrimSpace(string(raw)), "\n")
+	if len(lines) == 1 && strings.TrimSpace(lines[0]) == "" {
+		return []map[string]any{}, nil
+	}
+
+	results := make([]map[string]any, 0, len(lines))
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		var entry map[string]any
+		if err := json.Unmarshal([]byte(line), &entry); err != nil {
+			continue
+		}
+		if filter.level != "" {
+			if level, _ := entry["level"].(string); level != filter.level {
+				continue
+			}
+		}
+		if filter.agentID != "" {
+			if agentID, _ := entry["agentId"].(string); agentID != filter.agentID {
+				continue
+			}
+		}
+		if filter.action != "" {
+			if action, _ := entry["action"].(string); action != filter.action {
+				continue
+			}
+		}
+		results = append(results, entry)
+	}
+
+	if filter.limit <= 0 {
+		filter.limit = 100
+	}
+	if len(results) > filter.limit {
+		results = results[len(results)-filter.limit:]
+	}
+	return results, nil
 }
 
 func unixTimestampToRFC3339(value int64) string {

@@ -5630,10 +5630,28 @@ func TestOperatorListEndpointsFallBackToEmptyState(t *testing.T) {
 	}
 }
 
-func TestAuditReadEndpointsFallBackToEmptyState(t *testing.T) {
+func TestAuditReadEndpointsFallBackToLocalFiles(t *testing.T) {
 	t.Setenv("BORG_TRPC_UPSTREAM", "http://127.0.0.1:1/trpc")
 
-	server := New(config.Default(), stubDetector{})
+	workspaceRoot := t.TempDir()
+	auditDir := filepath.Join(workspaceRoot, ".hypercode", "audit")
+	if err := os.MkdirAll(auditDir, 0o755); err != nil {
+		t.Fatalf("failed to create audit dir: %v", err)
+	}
+	logPath := filepath.Join(auditDir, "audit-"+time.Now().UTC().Format("2006-01-02")+".jsonl")
+	logBody := strings.Join([]string{
+		`{"timestamp":1711980000000,"action":"run","params":{"cmd":"pnpm test"},"level":"info","agentId":"agent-1"}`,
+		`{"timestamp":1711980300000,"action":"build","params":{"cmd":"pnpm build"},"level":"warn","agentId":"agent-2"}`,
+	}, "\n") + "\n"
+	if err := os.WriteFile(logPath, []byte(logBody), 0o644); err != nil {
+		t.Fatalf("failed to write audit log: %v", err)
+	}
+
+	cfg := config.Default()
+	cfg.WorkspaceRoot = workspaceRoot
+	cfg.ConfigDir = t.TempDir()
+	cfg.MainConfigDir = t.TempDir()
+	server := New(cfg, stubDetector{})
 
 	cases := []struct {
 		name     string
@@ -5646,8 +5664,9 @@ func TestAuditReadEndpointsFallBackToEmptyState(t *testing.T) {
 			contains: []string{
 				`"fallback":"go-local-audit"`,
 				`"procedure":"audit.list"`,
-				`using local empty audit log list`,
-				`"data":[]`,
+				`using local file-backed audit log list`,
+				`"action":"run"`,
+				`"action":"build"`,
 			},
 		},
 		{
@@ -5656,8 +5675,9 @@ func TestAuditReadEndpointsFallBackToEmptyState(t *testing.T) {
 			contains: []string{
 				`"fallback":"go-local-audit"`,
 				`"procedure":"audit.log"`,
-				`using local empty audit query results`,
-				`"data":[]`,
+				`using local file-backed audit query results`,
+				`"level":"info"`,
+				`"agentId":"agent-1"`,
 			},
 		},
 	}

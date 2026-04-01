@@ -248,11 +248,11 @@ func (s *Server) handleBillingFallbackHistory(w http.ResponseWriter, r *http.Req
 
 	writeJSON(w, http.StatusOK, map[string]any{
 		"success": true,
-		"data":    []map[string]any{},
+		"data":    s.fallbackBuffer.list(parsedBillingFallbackLimit(limit)),
 		"bridge": map[string]any{
 			"fallback":  "go-local-provider-routing",
 			"procedure": "billing.getFallbackHistory",
-			"reason":    "upstream unavailable; local provider routing preview has no fallback history",
+			"reason":    "upstream unavailable; using local in-memory provider fallback history",
 		},
 	})
 }
@@ -271,16 +271,42 @@ func (s *Server) handleBillingClearFallbackHistory(w http.ResponseWriter, r *htt
 		})
 		return
 	}
+	s.writeLocalFallbackHistoryCleared(w)
+}
 
+func (s *Server) clearLocalFallbackHistory() {
+	if s.fallbackBuffer == nil {
+		return
+	}
+	s.fallbackBuffer.clear()
+}
+
+func (s *Server) writeLocalFallbackHistoryCleared(w http.ResponseWriter) {
+	s.clearLocalFallbackHistory()
 	writeJSON(w, http.StatusOK, map[string]any{
 		"success": true,
 		"data":    map[string]any{"ok": true},
 		"bridge": map[string]any{
 			"fallback":  "go-local-provider-routing",
 			"procedure": "billing.clearFallbackHistory",
-			"reason":    "upstream unavailable; local provider routing preview has no persisted fallback history to clear",
+			"reason":    "upstream unavailable; cleared local in-memory provider fallback history",
 		},
 	})
+}
+
+func parsedBillingFallbackLimit(raw string) int {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return 20
+	}
+	parsed, err := strconv.Atoi(raw)
+	if err != nil || parsed <= 0 {
+		return 20
+	}
+	if parsed > 50 {
+		return 50
+	}
+	return parsed
 }
 
 func buildLocalFallbackChainResponse(taskType string) map[string]any {

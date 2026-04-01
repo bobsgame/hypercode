@@ -3358,6 +3358,15 @@ func TestBillingPreviewEndpointsFallBackToLocalProviderPreview(t *testing.T) {
 	t.Setenv("OPENAI_API_KEY", "openai")
 
 	server := New(config.Default(), stubDetector{})
+	server.fallbackBuffer.append(providerFallbackEvent{
+		RequestedProvider: "anthropic",
+		SelectedProvider:  "openai",
+		SelectedModelID:   "gpt-4o",
+		TaskType:          "coding",
+		Strategy:          "cheapest",
+		Reason:            "TASK_TYPE_CODING",
+		CauseCode:         "fallback_provider",
+	})
 
 	costHistoryRecorder := httptest.NewRecorder()
 	costHistoryRequest := httptest.NewRequest(http.MethodGet, "/api/billing/cost-history?days=7", nil)
@@ -3394,15 +3403,23 @@ func TestBillingPreviewEndpointsFallBackToLocalProviderPreview(t *testing.T) {
 	if fallbackHistoryRecorder.Code != http.StatusOK {
 		t.Fatalf("expected local fallback history 200, got %d with body %s", fallbackHistoryRecorder.Code, fallbackHistoryRecorder.Body.String())
 	}
-	if !strings.Contains(fallbackHistoryRecorder.Body.String(), `"fallback":"go-local-provider-routing"`) || !strings.Contains(fallbackHistoryRecorder.Body.String(), `"data":[]`) {
-		t.Fatalf("expected empty local fallback history preview, got %s", fallbackHistoryRecorder.Body.String())
+	if !strings.Contains(fallbackHistoryRecorder.Body.String(), `"fallback":"go-local-provider-routing"`) || !strings.Contains(fallbackHistoryRecorder.Body.String(), `"selectedProvider":"openai"`) {
+		t.Fatalf("expected local fallback history buffer payload, got %s", fallbackHistoryRecorder.Body.String())
 	}
 }
 
-func TestBillingClearFallbackHistoryFallsBackToLocalNoOp(t *testing.T) {
+func TestBillingClearFallbackHistoryFallsBackToLocalBufferClear(t *testing.T) {
 	t.Setenv("BORG_TRPC_UPSTREAM", "http://127.0.0.1:1/trpc")
 
 	server := New(config.Default(), stubDetector{})
+	server.fallbackBuffer.append(providerFallbackEvent{
+		SelectedProvider: "openai",
+		SelectedModelID:  "gpt-4o",
+		TaskType:         "general",
+		Strategy:         "best",
+		Reason:           "manual-seed",
+		CauseCode:        "fallback_provider",
+	})
 	recorder := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodPost, "/api/billing/fallback-history/clear", nil)
 	server.Handler().ServeHTTP(recorder, request)
@@ -3414,7 +3431,10 @@ func TestBillingClearFallbackHistoryFallsBackToLocalNoOp(t *testing.T) {
 		t.Fatalf("expected local provider-routing clear fallback metadata, got %s", recorder.Body.String())
 	}
 	if !strings.Contains(recorder.Body.String(), `"ok":true`) {
-		t.Fatalf("expected successful local clear fallback history no-op, got %s", recorder.Body.String())
+		t.Fatalf("expected successful local clear fallback history response, got %s", recorder.Body.String())
+	}
+	if events := server.fallbackBuffer.list(10); len(events) != 0 {
+		t.Fatalf("expected local fallback history buffer to be cleared, got %+v", events)
 	}
 }
 

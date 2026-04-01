@@ -23,6 +23,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/borghq/hypercode-go/internal/buildinfo"
@@ -55,6 +56,69 @@ type Server struct {
 	startedAt      time.Time
 	mux            *http.ServeMux
 	lifecycleModes map[string]any
+	fallbackBuffer *providerFallbackBuffer
+}
+
+type providerFallbackEvent struct {
+	ID                int64  `json:"id"`
+	Timestamp         int64  `json:"timestamp"`
+	RequestedProvider string `json:"requestedProvider,omitempty"`
+	SelectedProvider  string `json:"selectedProvider"`
+	SelectedModelID   string `json:"selectedModelId"`
+	TaskType          string `json:"taskType"`
+	Strategy          string `json:"strategy"`
+	Reason            string `json:"reason"`
+	CauseCode         string `json:"causeCode"`
+}
+
+type providerFallbackBuffer struct {
+	mu      sync.Mutex
+	nextID  int64
+	maxSize int
+	events  []providerFallbackEvent
+}
+
+func newProviderFallbackBuffer(maxSize int) *providerFallbackBuffer {
+	return &providerFallbackBuffer{maxSize: maxSize}
+}
+
+func (b *providerFallbackBuffer) append(event providerFallbackEvent) providerFallbackEvent {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	b.nextID++
+	event.ID = b.nextID
+	if event.Timestamp == 0 {
+		event.Timestamp = time.Now().UnixMilli()
+	}
+	b.events = append(b.events, event)
+	if len(b.events) > b.maxSize {
+		b.events = append([]providerFallbackEvent(nil), b.events[len(b.events)-b.maxSize:]...)
+	}
+	return event
+}
+
+func (b *providerFallbackBuffer) list(limit int) []providerFallbackEvent {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	if limit <= 0 {
+		limit = 20
+	}
+	if limit > len(b.events) {
+		limit = len(b.events)
+	}
+	result := make([]providerFallbackEvent, 0, limit)
+	for i := len(b.events) - 1; i >= len(b.events)-limit; i-- {
+		result = append(result, b.events[i])
+	}
+	return result
+}
+
+func (b *providerFallbackBuffer) clear() {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.events = nil
 }
 
 type Session struct {
@@ -286,6 +350,7 @@ func New(cfg config.Config, detector controlplane.ToolProvider) *Server {
 			"lazySessionMode":        false,
 			"singleActiveServerMode": false,
 		},
+		fallbackBuffer: newProviderFallbackBuffer(50),
 	}
 
 	server.registerRoutes()

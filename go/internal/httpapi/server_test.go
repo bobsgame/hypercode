@@ -5914,6 +5914,57 @@ func TestSettingsReadEndpointsFallBackLocally(t *testing.T) {
 	}
 }
 
+func TestServerHealthFallsBackToCachedMCPMetadata(t *testing.T) {
+	workspaceRoot := t.TempDir()
+	mainConfigDir := filepath.Join(workspaceRoot, ".hypercode")
+	if err := os.MkdirAll(mainConfigDir, 0o755); err != nil {
+		t.Fatalf("failed to create config dir: %v", err)
+	}
+	configBody := `{
+  "mcpServers": {
+    "core": {
+      "command": "node",
+      "args": ["server.js"],
+      "_meta": {
+        "uuid": "srv-local-1",
+        "status": "failed",
+        "crashCount": 4,
+        "maxAttempts": 7
+      }
+    }
+  }
+}`
+	if err := os.WriteFile(filepath.Join(mainConfigDir, "mcp.jsonc"), []byte(configBody), 0o644); err != nil {
+		t.Fatalf("failed to write mcp config: %v", err)
+	}
+
+	t.Setenv("BORG_TRPC_UPSTREAM", "http://127.0.0.1:1/trpc")
+
+	cfg := config.Default()
+	cfg.WorkspaceRoot = workspaceRoot
+	cfg.MainConfigDir = mainConfigDir
+	server := New(cfg, stubDetector{})
+
+	recorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/api/server-health/check?serverUuid=srv-local-1", nil))
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected server health 200, got %d with body %s", recorder.Code, recorder.Body.String())
+	}
+
+	for _, needle := range []string{
+		`"fallback":"go-local-server-health"`,
+		`"procedure":"serverHealth.check"`,
+		`using cached local mcp.jsonc server metadata`,
+		`"status":"ERROR"`,
+		`"crashCount":4`,
+		`"maxAttempts":7`,
+	} {
+		if !strings.Contains(recorder.Body.String(), needle) {
+			t.Fatalf("expected server health response to contain %s, got %s", needle, recorder.Body.String())
+		}
+	}
+}
+
 func TestToolsRuntimeDetectionFallsBackLocally(t *testing.T) {
 	workspaceRoot := t.TempDir()
 	mainConfigDir := filepath.Join(workspaceRoot, ".hypercode")

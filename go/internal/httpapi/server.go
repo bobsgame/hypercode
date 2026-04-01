@@ -1077,7 +1077,7 @@ func (s *Server) handleAPIIndex(w http.ResponseWriter, _ *http.Request) {
 				{Path: "/api/logs", Category: "ops", Description: "List observability logs, with an honest empty-state Go fallback when the TypeScript log store is unavailable."},
 				{Path: "/api/logs/summary", Category: "ops", Description: "Read the observability summary rollup, with an honest empty-state Go fallback when the TypeScript log store is unavailable."},
 				{Path: "/api/logs/clear", Category: "ops", Description: "Clear observability logs, with a local no-op fallback when the TypeScript log store is unavailable."},
-				{Path: "/api/server-health/check", Category: "ops", Description: "Bridge to the TypeScript MCP server health state for a specific server UUID."},
+				{Path: "/api/server-health/check", Category: "ops", Description: "Bridge to the TypeScript MCP server health state for a specific server UUID, with a local cached mcp.jsonc metadata fallback when unavailable."},
 				{Path: "/api/server-health/reset", Category: "ops", Description: "Reset the TypeScript MCP server health error state for a specific server UUID."},
 				{Path: "/api/settings", Category: "control", Description: "Bridge to the full TypeScript configuration object, with a local Go .hypercode/config.json fallback when unavailable."},
 				{Path: "/api/settings/update", Category: "control", Description: "Update the TypeScript configuration object with a partial config payload."},
@@ -4653,7 +4653,30 @@ func (s *Server) handleServerHealthCheck(w http.ResponseWriter, r *http.Request)
 		writeJSON(w, http.StatusBadRequest, map[string]any{"success": false, "error": "missing serverUuid query parameter"})
 		return
 	}
-	s.handleTRPCBridgeCall(w, r, http.MethodGet, "serverHealth.check", map[string]any{"serverUuid": serverUUID})
+	payload := map[string]any{"serverUuid": serverUUID}
+	var result any
+	upstreamBase, err := s.callUpstreamJSON(r.Context(), "serverHealth.check", payload, &result)
+	if err == nil {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"data":    result,
+			"bridge": map[string]any{
+				"upstreamBase": upstreamBase,
+				"procedure":    "serverHealth.check",
+			},
+		})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"data":    s.localServerHealth(serverUUID),
+		"bridge": map[string]any{
+			"fallback":  "go-local-server-health",
+			"procedure": "serverHealth.check",
+			"reason":    "upstream unavailable; using cached local mcp.jsonc server metadata",
+		},
+	})
 }
 
 func (s *Server) handleServerHealthReset(w http.ResponseWriter, r *http.Request) {
@@ -7691,6 +7714,45 @@ func localKnowledgeResources(workspaceRoot string) any {
 		}
 	}
 	return parsed
+}
+
+func (s *Server) localServerHealth(serverUUID string) map[string]any {
+	servers, err := s.localConfiguredMCPServers()
+	if err != nil {
+		return map[string]any{
+			"status":      "HEALTHY",
+			"crashCount":  0,
+			"maxAttempts": 0,
+		}
+	}
+
+	for _, server := range servers {
+		uuid, _ := server["uuid"].(string)
+		meta, _ := server["_meta"].(map[string]any)
+		metaUUID, _ := meta["uuid"].(string)
+		requestedUUID := strings.TrimSpace(serverUUID)
+		if strings.TrimSpace(uuid) != requestedUUID && strings.TrimSpace(metaUUID) != requestedUUID {
+			continue
+		}
+		crashCount := intNumber(meta["crashCount"])
+		maxAttempts := intNumber(meta["maxAttempts"])
+		statusValue, _ := meta["status"].(string)
+		status := "HEALTHY"
+		if strings.EqualFold(strings.TrimSpace(statusValue), "failed") || strings.EqualFold(strings.TrimSpace(statusValue), "error") {
+			status = "ERROR"
+		}
+		return map[string]any{
+			"status":      status,
+			"crashCount":  crashCount,
+			"maxAttempts": maxAttempts,
+		}
+	}
+
+	return map[string]any{
+		"status":      "HEALTHY",
+		"crashCount":  0,
+		"maxAttempts": 0,
+	}
 }
 
 func localSubmoduleCapabilitiesValues(workspaceRoot string, submodulePath string) ([]string, string) {

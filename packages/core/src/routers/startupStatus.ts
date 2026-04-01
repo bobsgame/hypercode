@@ -98,6 +98,12 @@ type StartupStatusInput = {
         missingSections: string[];
         lastUpdatedAt: string | null;
     } | null;
+    importedSessions?: {
+        totalSessions: number;
+        inlineTranscriptCount: number;
+        archivedTranscriptCount: number;
+        missingRetentionSummaryCount: number;
+    } | null;
 };
 
 type StartupBlockingReasonCode =
@@ -140,6 +146,7 @@ export async function buildStartupStatusSnapshot(input: StartupStatusInput) {
         inventorySnapshotUpdatedAt,
         executionEnvironment,
         sectionedMemory,
+        importedSessions,
     } = input;
     const mcpServerRuntime = mcpServer as {
         memoryManager?: unknown;
@@ -393,6 +400,12 @@ export async function buildStartupStatusSnapshot(input: StartupStatusInput) {
                 presentDefaultSectionCount: Number(sectionedMemory?.presentDefaultSectionCount ?? 0),
                 missingSections: sectionedMemory?.missingSections ?? [],
                 lastUpdatedAt: sectionedMemory?.lastUpdatedAt ?? null,
+            },
+            importedSessions: {
+                totalSessions: Number(importedSessions?.totalSessions ?? 0),
+                inlineTranscriptCount: Number(importedSessions?.inlineTranscriptCount ?? 0),
+                archivedTranscriptCount: Number(importedSessions?.archivedTranscriptCount ?? 0),
+                missingRetentionSummaryCount: Number(importedSessions?.missingRetentionSummaryCount ?? 0),
             },
             browser: {
                 ready: browserReady,

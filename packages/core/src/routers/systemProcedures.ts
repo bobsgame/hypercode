@@ -10,6 +10,7 @@ import {
     getAgentMemoryService,
     getBrowserService,
     getSessionSupervisor,
+    getSessionImportService,
     getMcpConfigService,
 } from '../lib/trpc-core.js';
 import { mcpServersRepository, toolsRepository } from '../db/repositories/index.js';
@@ -69,7 +70,7 @@ async function getCachedExecutionEnvironment() {
 
 export const systemProcedures = {
     health: publicProcedure.query(() => {
-        return { status: 'running', service: '@borg/core' };
+        return { status: 'running', service: '@hypercode/core' };
     }),
     startupStatus: publicProcedure.query(async () => {
         const mcpServer = getMcpServer();
@@ -77,12 +78,13 @@ export const systemProcedures = {
         const agentMemory = getAgentMemoryService();
         const browserService = getBrowserService();
         const sessionSupervisor = getSessionSupervisor();
+        const sessionImportService = getSessionImportService();
         const mcpConfigService = getMcpConfigService();
 
         const memoryManager = (mcpServer as { memoryManager?: { getPipelineSummary?: () => MemoryPipelineSummary } }).memoryManager;
         const memoryPipelineSummary: MemoryPipelineSummary | null = memoryManager?.getPipelineSummary?.() ?? null;
 
-        const [runtimeServers, sessionCount, browserStatus, persistedServers, persistedTools, executionEnvironment, cachedInventory, sectionedMemoryStoreStatus] = await Promise.all([
+        const [runtimeServers, sessionCount, browserStatus, persistedServers, persistedTools, executionEnvironment, cachedInventory, sectionedMemoryStoreStatus, importedMaintenanceStats] = await Promise.all([
             aggregator?.listServers?.().catch(() => []) ?? [],
             Promise.resolve(sessionSupervisor?.listSessions?.().length ?? 0),
             Promise.resolve(browserService?.getStatus?.() ?? { active: false, pageCount: 0, pageIds: [] }),
@@ -91,6 +93,7 @@ export const systemProcedures = {
             getCachedExecutionEnvironment(),
             getCachedToolInventory().catch(() => ({ servers: [], tools: [], toolCounts: new Map(), source: 'empty' as const, snapshotUpdatedAt: null })),
             readSectionedMemoryStoreStatus(process.cwd(), memoryPipelineSummary).catch(() => null),
+            Promise.resolve(sessionImportService?.getImportedMaintenanceStats?.() ?? null),
         ]);
 
         const liveServerCount = runtimeServers.filter((server) => server.status === 'connected').length;
@@ -153,6 +156,14 @@ export const systemProcedures = {
                     presentDefaultSectionCount: sectionedMemoryStoreStatus.presentDefaultSectionCount,
                     missingSections: sectionedMemoryStoreStatus.missingSections,
                     lastUpdatedAt: sectionedMemoryStoreStatus.lastUpdatedAt,
+                }
+                : null,
+            importedSessions: importedMaintenanceStats
+                ? {
+                    totalSessions: Number((importedMaintenanceStats as { totalSessions?: number }).totalSessions ?? 0),
+                    inlineTranscriptCount: Number((importedMaintenanceStats as { inlineTranscriptCount?: number }).inlineTranscriptCount ?? 0),
+                    archivedTranscriptCount: Number((importedMaintenanceStats as { archivedTranscriptCount?: number }).archivedTranscriptCount ?? 0),
+                    missingRetentionSummaryCount: Number((importedMaintenanceStats as { missingRetentionSummaryCount?: number }).missingRetentionSummaryCount ?? 0),
                 }
                 : null,
         });

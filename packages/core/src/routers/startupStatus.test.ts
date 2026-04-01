@@ -87,6 +87,12 @@ describe('buildStartupStatusSnapshot', () => {
             ready: true,
             enabled: false,
         }));
+        expect(snapshot.checks.importedSessions).toEqual({
+            totalSessions: 0,
+            inlineTranscriptCount: 0,
+            archivedTranscriptCount: 0,
+            missingRetentionSummaryCount: 0,
+        });
     });
 
     it('keeps startup pending when the bridge listener is offline', async () => {
@@ -264,7 +270,7 @@ describe('buildStartupStatusSnapshot', () => {
                     clients: [
                         {
                             clientId: 'client-1',
-                            clientName: 'Borg VS Code Bridge',
+                            clientName: 'HyperCode VS Code Bridge',
                             clientType: 'vscode-extension',
                             version: '1.2.3',
                             platform: 'VS Code 1.99',
@@ -486,6 +492,82 @@ describe('buildStartupStatusSnapshot', () => {
             verifiedToolCount: 5,
             supportsPosixShell: true,
         }));
+    });
+
+    it('includes imported session maintenance stats in the startup snapshot', async () => {
+        const snapshot = await buildStartupStatusSnapshot({
+            mcpServer: {
+                memoryManager: {},
+                isMemoryInitialized: true,
+                getBridgeStatus: () => ({
+                    ready: true,
+                    clientCount: 0,
+                    clients: [],
+                    supportedCapabilities: [],
+                    supportedHookPhases: [],
+                }),
+            },
+            aggregator: {
+                getInitializationStatus: () => ({
+                    inProgress: false,
+                    initialized: true,
+                    connectedClientCount: 0,
+                    configuredServerCount: 0,
+                }),
+            },
+            agentMemory: {},
+            browserService: {},
+            browserStatus: { active: false, pageCount: 0, pageIds: [] },
+            sessionSupervisor: {
+                getRestoreStatus: () => ({
+                    lastRestoreAt: 1_700_000_000_000,
+                    restoredSessionCount: 0,
+                    autoResumeCount: 0,
+                }),
+            },
+            sessionCount: 0,
+            mcpConfigService: {
+                getStatus: () => ({
+                    inProgress: false,
+                    lastCompletedAt: 1_700_000_000_000,
+                    lastSuccessAt: 1_700_000_000_000,
+                    lastServerCount: 0,
+                    lastToolCount: 0,
+                }),
+            },
+            liveServerCount: 0,
+            persistedServerCount: 0,
+            persistedToolCount: 0,
+            persistedAlwaysOnServerCount: 0,
+            persistedAlwaysOnToolCount: 0,
+            executionEnvironment: {
+                ready: true,
+                preferredShellId: 'pwsh',
+                preferredShellLabel: 'PowerShell 7',
+                shellCount: 1,
+                verifiedShellCount: 1,
+                toolCount: 1,
+                verifiedToolCount: 1,
+                harnessCount: 0,
+                verifiedHarnessCount: 0,
+                supportsPowerShell: true,
+                supportsPosixShell: false,
+                notes: ['Prefer PowerShell 7.'],
+            },
+            importedSessions: {
+                totalSessions: 14,
+                inlineTranscriptCount: 2,
+                archivedTranscriptCount: 12,
+                missingRetentionSummaryCount: 3,
+            },
+        });
+
+        expect(snapshot.checks.importedSessions).toEqual({
+            totalSessions: 14,
+            inlineTranscriptCount: 2,
+            archivedTranscriptCount: 12,
+            missingRetentionSummaryCount: 3,
+        });
     });
 
     it('advertises always-on cached tools before the live runtime has connected every server', async () => {
@@ -771,7 +853,7 @@ describe('buildStartupStatusSnapshot', () => {
             },
             sectionedMemory: {
                 enabled: true,
-                storePath: '.borg/sectioned_memory.json',
+                storePath: '.hypercode/sectioned_memory.json',
                 storeExists: false,
                 totalEntries: 0,
                 sectionCount: 0,

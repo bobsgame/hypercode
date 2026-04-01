@@ -716,11 +716,11 @@ func TestMCPEmptyStateRoutesFallBackLocally(t *testing.T) {
 		method      string
 		containsAny []string
 	}{
-		{path: "/api/mcp/traffic", method: http.MethodGet, containsAny: []string{`"fallback":"go-local-mcp"`, `"data":[]`}},
-		{path: "/api/mcp/tool-selection-telemetry", method: http.MethodGet, containsAny: []string{`"fallback":"go-local-mcp"`, `"data":[]`}},
-		{path: "/api/mcp/tool-selection-telemetry/clear", method: http.MethodPost, containsAny: []string{`"ok":true`}},
-		{path: "/api/mcp/working-set", method: http.MethodGet, containsAny: []string{`"maxLoadedTools":0`, `"tools":[]`}},
-		{path: "/api/mcp/working-set/evictions", method: http.MethodGet, containsAny: []string{`"fallback":"go-local-mcp"`, `"data":[]`}},
+		{path: "/api/mcp/traffic", method: http.MethodGet, containsAny: []string{`"fallback":"go-local-mcp"`, `using local empty MCP traffic history`}},
+		{path: "/api/mcp/tool-selection-telemetry", method: http.MethodGet, containsAny: []string{`"fallback":"go-local-mcp"`, `using local empty tool-selection telemetry`}},
+		{path: "/api/mcp/tool-selection-telemetry/clear", method: http.MethodPost, containsAny: []string{`"ok":true`, `clearing local empty tool-selection telemetry`}},
+		{path: "/api/mcp/working-set", method: http.MethodGet, containsAny: []string{`"maxLoadedTools":0`, `using local empty MCP working set`}},
+		{path: "/api/mcp/working-set/evictions", method: http.MethodGet, containsAny: []string{`"fallback":"go-local-mcp"`, `using local empty MCP eviction history`}},
 		{path: "/api/mcp/working-set/evictions/clear", method: http.MethodPost, containsAny: []string{`already empty`, `Cleared 0 eviction history entries.`}},
 	}
 
@@ -877,6 +877,9 @@ func TestMCPServerTestFallsBackToStructuredProbeFailures(t *testing.T) {
 	if routerRecorder.Code != http.StatusOK || !strings.Contains(routerRecorder.Body.String(), `"fallback":"go-local-mcp"`) || !strings.Contains(routerRecorder.Body.String(), `HyperCode MCP router is not initialized.`) {
 		t.Fatalf("expected local router probe fallback response, got %d %s", routerRecorder.Code, routerRecorder.Body.String())
 	}
+	if !strings.Contains(routerRecorder.Body.String(), `simulating router probe failure locally`) {
+		t.Fatalf("expected local router probe fallback reason, got %s", routerRecorder.Body.String())
+	}
 
 	serverReq := httptest.NewRequest(http.MethodPost, "/api/mcp/server-test", strings.NewReader(`{"targetKind":"server","operation":"tools/list"}`))
 	serverReq.Header.Set("content-type", "application/json")
@@ -884,6 +887,9 @@ func TestMCPServerTestFallsBackToStructuredProbeFailures(t *testing.T) {
 	server.Handler().ServeHTTP(serverRecorder, serverReq)
 	if serverRecorder.Code != http.StatusOK || !strings.Contains(serverRecorder.Body.String(), `Downstream probe requires a server name.`) {
 		t.Fatalf("expected downstream validation fallback response, got %d %s", serverRecorder.Code, serverRecorder.Body.String())
+	}
+	if !strings.Contains(serverRecorder.Body.String(), `validating probe request locally`) {
+		t.Fatalf("expected local probe validation fallback reason, got %s", serverRecorder.Body.String())
 	}
 }
 
@@ -4843,6 +4849,9 @@ func TestMCPJsoncEditorFallsBackToLocalFile(t *testing.T) {
 	if !strings.Contains(recorder.Body.String(), `"fallback":"go-local-jsonc"`) {
 		t.Fatalf("expected go-local-jsonc fallback metadata, got %s", recorder.Body.String())
 	}
+	if !strings.Contains(recorder.Body.String(), `using local MCP JSONC editor payload`) {
+		t.Fatalf("expected local MCP JSONC editor fallback reason, got %s", recorder.Body.String())
+	}
 	if !strings.Contains(recorder.Body.String(), `"path":"`) || !strings.Contains(recorder.Body.String(), `"content":"// HyperCode MCP configuration`) {
 		t.Fatalf("expected local editor payload, got %s", recorder.Body.String())
 	}
@@ -4868,6 +4877,9 @@ func TestMCPJsoncEditorSaveFallsBackToLocalWrite(t *testing.T) {
 	}
 	if !strings.Contains(recorder.Body.String(), `"fallback":"go-local-jsonc"`) {
 		t.Fatalf("expected go-local-jsonc fallback metadata, got %s", recorder.Body.String())
+	}
+	if !strings.Contains(recorder.Body.String(), `saving MCP JSONC through local compatibility writer`) {
+		t.Fatalf("expected local MCP JSONC save fallback reason, got %s", recorder.Body.String())
 	}
 	if !strings.Contains(recorder.Body.String(), `"ok":true`) {
 		t.Fatalf("expected ok response, got %s", recorder.Body.String())

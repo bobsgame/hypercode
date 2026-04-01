@@ -2793,7 +2793,7 @@ func (s *Server) handleMCPTraffic(w http.ResponseWriter, r *http.Request) {
 		"bridge": map[string]any{
 			"fallback":  "go-local-mcp",
 			"procedure": "mcp.traffic",
-			"reason":    err.Error(),
+			"reason":    "upstream unavailable; using local empty MCP traffic history",
 		},
 	})
 }
@@ -2819,7 +2819,7 @@ func (s *Server) handleMCPToolSelectionTelemetry(w http.ResponseWriter, r *http.
 		"bridge": map[string]any{
 			"fallback":  "go-local-mcp",
 			"procedure": "mcp.getToolSelectionTelemetry",
-			"reason":    err.Error(),
+			"reason":    "upstream unavailable; using local empty tool-selection telemetry",
 		},
 	})
 }
@@ -2847,7 +2847,7 @@ func (s *Server) handleMCPClearToolSelectionTelemetry(w http.ResponseWriter, r *
 		"bridge": map[string]any{
 			"fallback":  "go-local-mcp",
 			"procedure": "mcp.clearToolSelectionTelemetry",
-			"reason":    err.Error(),
+			"reason":    "upstream unavailable; clearing local empty tool-selection telemetry",
 		},
 	})
 }
@@ -2946,21 +2946,21 @@ func (s *Server) handleMCPServerTest(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]any{
 			"success": true,
 			"data":    buildFailure("Downstream probe requires a server name.", map[string]any{"error": "Downstream probe requires a server name."}),
-			"bridge":  map[string]any{"fallback": "go-local-mcp", "procedure": "mcp.runServerTest", "reason": err.Error()},
+			"bridge":  map[string]any{"fallback": "go-local-mcp", "procedure": "mcp.runServerTest", "reason": "upstream unavailable; validating probe request locally"},
 		})
 		return
 	case operation == "tools/call" && strings.TrimSpace(toolName) == "":
 		writeJSON(w, http.StatusOK, map[string]any{
 			"success": true,
 			"data":    buildFailure("Tool call probe requires a tool name.", map[string]any{"error": "Tool call probe requires a tool name."}),
-			"bridge":  map[string]any{"fallback": "go-local-mcp", "procedure": "mcp.runServerTest", "reason": err.Error()},
+			"bridge":  map[string]any{"fallback": "go-local-mcp", "procedure": "mcp.runServerTest", "reason": "upstream unavailable; validating probe request locally"},
 		})
 		return
 	case targetKind == "router":
 		writeJSON(w, http.StatusOK, map[string]any{
 			"success": true,
 			"data":    buildFailure("HyperCode MCP router is not initialized.", map[string]any{"error": "HyperCode MCP router is not initialized."}),
-			"bridge":  map[string]any{"fallback": "go-local-mcp", "procedure": "mcp.runServerTest", "reason": err.Error()},
+			"bridge":  map[string]any{"fallback": "go-local-mcp", "procedure": "mcp.runServerTest", "reason": "upstream unavailable; simulating router probe failure locally"},
 		})
 		return
 	default:
@@ -2968,7 +2968,7 @@ func (s *Server) handleMCPServerTest(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]any{
 			"success": true,
 			"data":    buildFailure(message, map[string]any{"error": message}),
-			"bridge":  map[string]any{"fallback": "go-local-mcp", "procedure": "mcp.runServerTest", "reason": err.Error()},
+			"bridge":  map[string]any{"fallback": "go-local-mcp", "procedure": "mcp.runServerTest", "reason": "upstream unavailable; simulating downstream probe failure locally"},
 		})
 		return
 	}
@@ -3013,7 +3013,7 @@ func (s *Server) handleMCPSetLifecycleModes(w http.ResponseWriter, r *http.Reque
 		"bridge": map[string]any{
 			"fallback":  "go-local-mcp",
 			"procedure": "mcp.setLifecycleModes",
-			"reason":    err.Error(),
+			"reason":    "upstream unavailable; using local MCP lifecycle mode state",
 		},
 	})
 }
@@ -3065,7 +3065,7 @@ func (s *Server) handleMCPJsoncConfig(w http.ResponseWriter, r *http.Request) {
 		if fallbackErr != nil {
 			writeJSON(w, http.StatusServiceUnavailable, map[string]any{
 				"success": false,
-				"error":   err.Error(),
+				"error":   fallbackErr.Error(),
 				"detail":  fallbackErr.Error(),
 			})
 			return
@@ -3077,7 +3077,7 @@ func (s *Server) handleMCPJsoncConfig(w http.ResponseWriter, r *http.Request) {
 			"bridge": map[string]any{
 				"fallback":  "go-local-jsonc",
 				"procedure": "mcp.getJsoncEditor",
-				"reason":    err.Error(),
+				"reason":    "upstream unavailable; using local MCP JSONC editor payload",
 			},
 		})
 	case http.MethodPost:
@@ -3115,7 +3115,7 @@ func (s *Server) handleMCPJsoncConfig(w http.ResponseWriter, r *http.Request) {
 		if fallbackErr := s.saveLocalMCPJsonc(content); fallbackErr != nil {
 			writeJSON(w, http.StatusServiceUnavailable, map[string]any{
 				"success": false,
-				"error":   err.Error(),
+				"error":   fallbackErr.Error(),
 				"detail":  fallbackErr.Error(),
 			})
 			return
@@ -3129,7 +3129,7 @@ func (s *Server) handleMCPJsoncConfig(w http.ResponseWriter, r *http.Request) {
 			"bridge": map[string]any{
 				"fallback":  "go-local-jsonc",
 				"procedure": "mcp.saveJsoncEditor",
-				"reason":    err.Error(),
+				"reason":    "upstream unavailable; saving MCP JSONC through local compatibility writer",
 			},
 		})
 	default:
@@ -3168,7 +3168,7 @@ func (s *Server) handleMCPWorkingSet(w http.ResponseWriter, r *http.Request) {
 		"bridge": map[string]any{
 			"fallback":  "go-local-mcp",
 			"procedure": "mcp.getWorkingSet",
-			"reason":    err.Error(),
+			"reason":    "upstream unavailable; using local empty MCP working set",
 		},
 	})
 }
@@ -3194,7 +3194,7 @@ func (s *Server) handleMCPWorkingSetEvictions(w http.ResponseWriter, r *http.Req
 		"bridge": map[string]any{
 			"fallback":  "go-local-mcp",
 			"procedure": "mcp.getWorkingSetEvictionHistory",
-			"reason":    err.Error(),
+			"reason":    "upstream unavailable; using local empty MCP eviction history",
 		},
 	})
 }

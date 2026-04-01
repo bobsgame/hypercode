@@ -3470,33 +3470,18 @@ func (s *Server) handleMemoryAgentStats(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	stats, localErr := s.localAgentMemoryStats()
+	if localErr != nil {
+		stats = localAgentMemoryZeroStats()
+	}
+
 	writeJSON(w, http.StatusOK, map[string]any{
 		"success": true,
-		"data": map[string]any{
-			"totalCount":             0,
-			"sessionCount":           0,
-			"workingCount":           0,
-			"longTermCount":          0,
-			"observationCount":       0,
-			"uniqueObservationCount": 0,
-			"promptCount":            0,
-			"sessionSummaryCount":    0,
-			"session":                0,
-			"working":                0,
-			"long_term":              0,
-			"user":                   0,
-			"agent":                  0,
-			"project":                0,
-			"discovery":              0,
-			"decision":               0,
-			"progress":               0,
-			"warning":                0,
-			"fix":                    0,
-		},
+		"data":    stats,
 		"bridge": map[string]any{
 			"fallback":  "go-local-memory",
 			"procedure": "memory.getAgentStats",
-			"reason":    "upstream unavailable; using local zero-state memory agent stats",
+			"reason":    "upstream unavailable; using local persisted memory agent stats",
 		},
 	})
 }
@@ -13954,6 +13939,130 @@ func (s *Server) localMemoryContexts() ([]map[string]any, error) {
 		return nil, err
 	}
 	return contexts, nil
+}
+
+type localAgentMemorySnapshot struct {
+	Memories []localAgentMemoryRecord `json:"memories"`
+}
+
+type localAgentMemoryRecord struct {
+	Type      string         `json:"type"`
+	Namespace string         `json:"namespace"`
+	Metadata  map[string]any `json:"metadata"`
+	CreatedAt string         `json:"createdAt"`
+	TTL       *float64       `json:"ttl"`
+}
+
+func localAgentMemoryZeroStats() map[string]any {
+	return map[string]any{
+		"totalCount":             0,
+		"sessionCount":           0,
+		"workingCount":           0,
+		"longTermCount":          0,
+		"observationCount":       0,
+		"uniqueObservationCount": 0,
+		"promptCount":            0,
+		"sessionSummaryCount":    0,
+		"session":                0,
+		"working":                0,
+		"long_term":              0,
+		"user":                   0,
+		"agent":                  0,
+		"project":                0,
+		"discovery":              0,
+		"decision":               0,
+		"progress":               0,
+		"warning":                0,
+		"fix":                    0,
+	}
+}
+
+func (s *Server) localAgentMemoryStats() (map[string]any, error) {
+	memoriesPath := filepath.Join(s.cfg.WorkspaceRoot, ".hypercode", "agent_memory", "memories.json")
+	raw, err := os.ReadFile(memoriesPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return localAgentMemoryZeroStats(), nil
+		}
+		return nil, err
+	}
+
+	trimmed := strings.TrimSpace(string(raw))
+	if trimmed == "" {
+		return localAgentMemoryZeroStats(), nil
+	}
+
+	var snapshot localAgentMemorySnapshot
+	if err := json.Unmarshal(raw, &snapshot); err != nil {
+		return nil, err
+	}
+
+	stats := localAgentMemoryZeroStats()
+	observationHashes := map[string]struct{}{}
+	now := time.Now()
+
+	for _, memory := range snapshot.Memories {
+		if memory.Type == "session" && memory.TTL != nil && memory.CreatedAt != "" {
+			createdAt, err := time.Parse(time.RFC3339Nano, memory.CreatedAt)
+			if err == nil {
+				if now.Sub(createdAt) > time.Duration(*memory.TTL)*time.Millisecond {
+					continue
+				}
+			}
+		}
+
+		stats["totalCount"] = stats["totalCount"].(int) + 1
+
+		switch memory.Type {
+		case "session":
+			stats["sessionCount"] = stats["sessionCount"].(int) + 1
+			stats["session"] = stats["session"].(int) + 1
+		case "working":
+			stats["workingCount"] = stats["workingCount"].(int) + 1
+			stats["working"] = stats["working"].(int) + 1
+		case "long_term":
+			stats["longTermCount"] = stats["longTermCount"].(int) + 1
+			stats["long_term"] = stats["long_term"].(int) + 1
+		}
+
+		switch memory.Namespace {
+		case "user":
+			stats["user"] = stats["user"].(int) + 1
+		case "agent":
+			stats["agent"] = stats["agent"].(int) + 1
+		case "project":
+			stats["project"] = stats["project"].(int) + 1
+		}
+
+		metadata := memory.Metadata
+		if metadata == nil {
+			continue
+		}
+
+		if observation, ok := metadata["structuredObservation"].(map[string]any); ok {
+			stats["observationCount"] = stats["observationCount"].(int) + 1
+			if observationType, ok := observation["type"].(string); ok {
+				switch observationType {
+				case "discovery", "decision", "progress", "warning", "fix":
+					stats[observationType] = stats[observationType].(int) + 1
+				}
+			}
+			if contentHash, ok := observation["contentHash"].(string); ok && strings.TrimSpace(contentHash) != "" {
+				observationHashes[contentHash] = struct{}{}
+			}
+		}
+
+		if _, ok := metadata["structuredUserPrompt"].(map[string]any); ok {
+			stats["promptCount"] = stats["promptCount"].(int) + 1
+		}
+
+		if _, ok := metadata["structuredSessionSummary"].(map[string]any); ok {
+			stats["sessionSummaryCount"] = stats["sessionSummaryCount"].(int) + 1
+		}
+	}
+
+	stats["uniqueObservationCount"] = len(observationHashes)
+	return stats, nil
 }
 
 func (s *Server) localMemoryExport(userID, format string) (string, error) {

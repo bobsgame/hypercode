@@ -887,12 +887,94 @@ func TestMemoryContextsFallsBackToLocalRegistry(t *testing.T) {
 	}
 }
 
-func TestMemoryAgentStatsFallsBackToZeroState(t *testing.T) {
+func TestMemoryAgentStatsFallsBackToPersistedState(t *testing.T) {
 	t.Setenv("BORG_TRPC_UPSTREAM", "http://127.0.0.1:1/trpc")
 	cfg := config.Default()
 	cfg.WorkspaceRoot = t.TempDir()
 	cfg.ConfigDir = t.TempDir()
 	cfg.MainConfigDir = t.TempDir()
+	agentMemoryDir := filepath.Join(cfg.WorkspaceRoot, ".hypercode", "agent_memory")
+	if err := os.MkdirAll(agentMemoryDir, 0o755); err != nil {
+		t.Fatalf("mkdir agent memory dir: %v", err)
+	}
+	memories := map[string]any{
+		"version": 1,
+		"memories": []map[string]any{
+			{
+				"id":        "session-1",
+				"type":      "session",
+				"namespace": "agent",
+				"content":   "session note",
+				"metadata": map[string]any{
+					"structuredObservation": map[string]any{
+						"type":        "decision",
+						"title":       "Picked approach",
+						"narrative":   "Use persisted fallback",
+						"contentHash": "obs-1",
+						"recordedAt":  1710000000000,
+					},
+				},
+				"createdAt":   time.Now().Add(-5 * time.Minute).UTC().Format(time.RFC3339Nano),
+				"accessedAt":  time.Now().UTC().Format(time.RFC3339Nano),
+				"accessCount": 1,
+				"ttl":         1800000,
+			},
+			{
+				"id":        "working-1",
+				"type":      "working",
+				"namespace": "project",
+				"content":   "working note",
+				"metadata": map[string]any{
+					"structuredObservation": map[string]any{
+						"type":        "fix",
+						"title":       "Patched fallback",
+						"narrative":   "Read from disk",
+						"contentHash": "obs-1",
+						"recordedAt":  1710000001000,
+					},
+					"structuredUserPrompt": map[string]any{
+						"role":        "prompt",
+						"contentHash": "prompt-1",
+					},
+					"structuredSessionSummary": map[string]any{
+						"sessionId":   "sess-1",
+						"contentHash": "summary-1",
+					},
+				},
+				"createdAt":   time.Now().Add(-2 * time.Minute).UTC().Format(time.RFC3339Nano),
+				"accessedAt":  time.Now().UTC().Format(time.RFC3339Nano),
+				"accessCount": 2,
+			},
+			{
+				"id":          "long-1",
+				"type":        "long_term",
+				"namespace":   "user",
+				"content":     "long term note",
+				"metadata":    map[string]any{},
+				"createdAt":   time.Now().Add(-1 * time.Minute).UTC().Format(time.RFC3339Nano),
+				"accessedAt":  time.Now().UTC().Format(time.RFC3339Nano),
+				"accessCount": 3,
+			},
+			{
+				"id":          "expired-session",
+				"type":        "session",
+				"namespace":   "agent",
+				"content":     "expired note",
+				"metadata":    map[string]any{},
+				"createdAt":   time.Now().Add(-2 * time.Hour).UTC().Format(time.RFC3339Nano),
+				"accessedAt":  time.Now().UTC().Format(time.RFC3339Nano),
+				"accessCount": 0,
+				"ttl":         1000,
+			},
+		},
+	}
+	raw, err := json.Marshal(memories)
+	if err != nil {
+		t.Fatalf("marshal persisted memories: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(agentMemoryDir, "memories.json"), raw, 0o644); err != nil {
+		t.Fatalf("write persisted memories: %v", err)
+	}
 	server := New(cfg, stubDetector{})
 
 	recorder := httptest.NewRecorder()
@@ -902,11 +984,24 @@ func TestMemoryAgentStatsFallsBackToZeroState(t *testing.T) {
 		t.Fatalf("expected 200, got %d", recorder.Code)
 	}
 	body := recorder.Body.String()
-	if !strings.Contains(body, `"fallback":"go-local-memory"`) || !strings.Contains(body, `"totalCount":0`) || !strings.Contains(body, `"sessionSummaryCount":0`) {
-		t.Fatalf("expected local zero-state agent stats fallback, got %s", body)
+	if !strings.Contains(body, `"fallback":"go-local-memory"`) ||
+		!strings.Contains(body, `"totalCount":3`) ||
+		!strings.Contains(body, `"sessionCount":1`) ||
+		!strings.Contains(body, `"workingCount":1`) ||
+		!strings.Contains(body, `"longTermCount":1`) ||
+		!strings.Contains(body, `"observationCount":2`) ||
+		!strings.Contains(body, `"uniqueObservationCount":1`) ||
+		!strings.Contains(body, `"promptCount":1`) ||
+		!strings.Contains(body, `"sessionSummaryCount":1`) ||
+		!strings.Contains(body, `"decision":1`) ||
+		!strings.Contains(body, `"fix":1`) ||
+		!strings.Contains(body, `"agent":1`) ||
+		!strings.Contains(body, `"project":1`) ||
+		!strings.Contains(body, `"user":1`) {
+		t.Fatalf("expected local persisted agent stats fallback, got %s", body)
 	}
-	if !strings.Contains(body, `using local zero-state memory agent stats`) {
-		t.Fatalf("expected zero-state agent stats fallback reason, got %s", body)
+	if !strings.Contains(body, `using local persisted memory agent stats`) {
+		t.Fatalf("expected persisted agent stats fallback reason, got %s", body)
 	}
 }
 

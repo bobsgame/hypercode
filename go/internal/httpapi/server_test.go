@@ -4580,6 +4580,7 @@ var AutoCallTool = struct{
 			contains: []string{
 				`"fallback":"go-local-mcp"`,
 				`"procedure":"mcp.getStatus"`,
+				`using local MCP harness summary`,
 				`"sourceBackedHarnessCount":1`,
 			},
 		},
@@ -4588,6 +4589,7 @@ var AutoCallTool = struct{
 			path: "/api/mcp/servers/runtime",
 			contains: []string{
 				`"fallback":"go-local-mcp"`,
+				`using local MCP runtime server summary`,
 				`"name":"hypercode"`,
 				`"toolInventoryStatus":"source-backed"`,
 			},
@@ -4903,6 +4905,9 @@ func TestMCPConfiguredServersFallBackToLocalJsonc(t *testing.T) {
 	if !strings.Contains(listRecorder.Body.String(), `"fallback":"go-local-jsonc"`) {
 		t.Fatalf("expected go-local-jsonc fallback metadata, got %s", listRecorder.Body.String())
 	}
+	if !strings.Contains(listRecorder.Body.String(), `using local configured MCP server definitions`) {
+		t.Fatalf("expected configured server list fallback reason, got %s", listRecorder.Body.String())
+	}
 	if !strings.Contains(listRecorder.Body.String(), `"name":"core"`) || !strings.Contains(listRecorder.Body.String(), `"command":"node"`) {
 		t.Fatalf("expected configured server from local jsonc, got %s", listRecorder.Body.String())
 	}
@@ -4914,6 +4919,9 @@ func TestMCPConfiguredServersFallBackToLocalJsonc(t *testing.T) {
 
 	if getRecorder.Code != http.StatusOK {
 		t.Fatalf("expected fallback get status 200, got %d with body %s", getRecorder.Code, getRecorder.Body.String())
+	}
+	if !strings.Contains(getRecorder.Body.String(), `using local configured MCP server definition`) {
+		t.Fatalf("expected configured server get fallback reason, got %s", getRecorder.Body.String())
 	}
 	if !strings.Contains(getRecorder.Body.String(), `"uuid":"`+expectedUUID+`"`) {
 		t.Fatalf("expected synthetic uuid %s, got %s", expectedUUID, getRecorder.Body.String())

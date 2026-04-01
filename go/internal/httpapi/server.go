@@ -1929,7 +1929,7 @@ func (s *Server) handleMCPStatus(w http.ResponseWriter, r *http.Request) {
 	if fallbackErr != nil {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]any{
 			"success": false,
-			"error":   err.Error(),
+			"error":   fallbackErr.Error(),
 			"detail":  fallbackErr.Error(),
 		})
 		return
@@ -1954,7 +1954,7 @@ func (s *Server) handleMCPStatus(w http.ResponseWriter, r *http.Request) {
 		"bridge": map[string]any{
 			"fallback":  "go-local-mcp",
 			"procedure": "mcp.getStatus",
-			"reason":    err.Error(),
+			"reason":    "upstream unavailable; using local MCP harness summary",
 		},
 	})
 }
@@ -1986,7 +1986,7 @@ func (s *Server) handleMCPRuntimeServers(w http.ResponseWriter, r *http.Request)
 	if fallbackErr != nil {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]any{
 			"success": false,
-			"error":   err.Error(),
+			"error":   fallbackErr.Error(),
 			"detail":  fallbackErr.Error(),
 		})
 		return
@@ -1998,7 +1998,7 @@ func (s *Server) handleMCPRuntimeServers(w http.ResponseWriter, r *http.Request)
 		"bridge": map[string]any{
 			"fallback":  "go-local-mcp",
 			"procedure": "mcp.listServers",
-			"reason":    err.Error(),
+			"reason":    "upstream unavailable; using local MCP runtime server summary",
 		},
 	})
 }
@@ -2030,7 +2030,7 @@ func (s *Server) handleMCPConfiguredServers(w http.ResponseWriter, r *http.Reque
 	if fallbackErr != nil {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]any{
 			"success": false,
-			"error":   err.Error(),
+			"error":   fallbackErr.Error(),
 			"detail":  fallbackErr.Error(),
 		})
 		return
@@ -2042,7 +2042,7 @@ func (s *Server) handleMCPConfiguredServers(w http.ResponseWriter, r *http.Reque
 		"bridge": map[string]any{
 			"fallback":  "go-local-jsonc",
 			"procedure": "mcpServers.list",
-			"reason":    err.Error(),
+			"reason":    "upstream unavailable; using local configured MCP server definitions",
 		},
 	})
 }
@@ -2075,7 +2075,7 @@ func (s *Server) handleMCPConfiguredServerGet(w http.ResponseWriter, r *http.Req
 	if fallbackErr != nil {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]any{
 			"success": false,
-			"error":   err.Error(),
+			"error":   fallbackErr.Error(),
 			"detail":  fallbackErr.Error(),
 		})
 		return
@@ -2088,7 +2088,7 @@ func (s *Server) handleMCPConfiguredServerGet(w http.ResponseWriter, r *http.Req
 				"bridge": map[string]any{
 					"fallback":  "go-local-jsonc",
 					"procedure": "mcpServers.get",
-					"reason":    err.Error(),
+					"reason":    "upstream unavailable; using local configured MCP server definition",
 				},
 			})
 			return
@@ -2101,7 +2101,7 @@ func (s *Server) handleMCPConfiguredServerGet(w http.ResponseWriter, r *http.Req
 		"bridge": map[string]any{
 			"fallback":  "go-local-jsonc",
 			"procedure": "mcpServers.get",
-			"reason":    err.Error(),
+			"reason":    "upstream unavailable; configured MCP server not present in local JSONC fallback",
 		},
 	})
 }

@@ -5864,6 +5864,101 @@ func TestSettingsReadEndpointsFallBackLocally(t *testing.T) {
 	}
 }
 
+func TestToolsRuntimeDetectionFallsBackLocally(t *testing.T) {
+	workspaceRoot := t.TempDir()
+	mainConfigDir := filepath.Join(workspaceRoot, ".hypercode")
+	if err := os.MkdirAll(mainConfigDir, 0o755); err != nil {
+		t.Fatalf("failed to create main config dir: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(workspaceRoot, "apps", "hypercode-extension", "dist-chromium"), 0o755); err != nil {
+		t.Fatalf("failed to create chromium dist: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(workspaceRoot, "packages", "vscode", "dist"), 0o755); err != nil {
+		t.Fatalf("failed to create vscode dist: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(workspaceRoot, "packages", "vscode", "dist", "extension.js"), []byte("console.log('ok')"), 0o644); err != nil {
+		t.Fatalf("failed to write vscode artifact: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(mainConfigDir, "mcp.jsonc"), []byte(`{"mcpServers":{"core":{"command":"node"}}}`), 0o644); err != nil {
+		t.Fatalf("failed to write mcp config: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(workspaceRoot, "apps", "hypercode-extension", "package.json"), []byte(`{"version":"1.2.3"}`), 0o644); err != nil {
+		t.Fatalf("failed to write extension package json: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(workspaceRoot, "apps", "hypercode-extension"), 0o755); err != nil {
+		t.Fatalf("failed to create extension dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(workspaceRoot, "packages", "vscode", "package.json"), []byte(`{"version":"0.9.0"}`), 0o644); err != nil {
+		t.Fatalf("failed to write vscode package json: %v", err)
+	}
+
+	t.Setenv("BORG_TRPC_UPSTREAM", "http://127.0.0.1:1/trpc")
+
+	detector := stubDetector{tools: []controlplane.Tool{
+		{Type: "codex", Name: "Codex CLI", Command: "codex", Available: true, Version: "1.0.0", Path: "C:\\tools\\codex.exe", Capabilities: []string{"chat", "code"}},
+		{Type: "gemini", Name: "Gemini CLI", Command: "gemini", Available: true, Version: "2.0.0", Path: "C:\\tools\\gemini.exe", Capabilities: []string{"chat", "multimodal"}},
+	}}
+
+	cfg := config.Default()
+	cfg.WorkspaceRoot = workspaceRoot
+	cfg.MainConfigDir = mainConfigDir
+	server := New(cfg, detector)
+
+	cliRecorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(cliRecorder, httptest.NewRequest(http.MethodGet, "/api/tools/detect-cli-harnesses", nil))
+	if cliRecorder.Code != http.StatusOK {
+		t.Fatalf("expected cli harness status 200, got %d with body %s", cliRecorder.Code, cliRecorder.Body.String())
+	}
+	for _, needle := range []string{
+		`"fallback":"go-local-tools"`,
+		`"procedure":"tools.detectCliHarnesses"`,
+		`using local Go harness detection`,
+		`"id":"codex"`,
+		`"resolvedPath":"C:\\tools\\codex.exe"`,
+	} {
+		if !strings.Contains(cliRecorder.Body.String(), needle) {
+			t.Fatalf("expected cli harness response to contain %s, got %s", needle, cliRecorder.Body.String())
+		}
+	}
+
+	environmentRecorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(environmentRecorder, httptest.NewRequest(http.MethodGet, "/api/tools/detect-execution-environment", nil))
+	if environmentRecorder.Code != http.StatusOK {
+		t.Fatalf("expected execution environment status 200, got %d with body %s", environmentRecorder.Code, environmentRecorder.Body.String())
+	}
+	for _, needle := range []string{
+		`"fallback":"go-local-tools"`,
+		`"procedure":"tools.detectExecutionEnvironment"`,
+		`using local Go execution environment detection`,
+		`"harnesses":[`,
+		`"tools":[`,
+		`"os":"` + runtime.GOOS + `"`,
+	} {
+		if !strings.Contains(environmentRecorder.Body.String(), needle) {
+			t.Fatalf("expected execution environment response to contain %s, got %s", needle, environmentRecorder.Body.String())
+		}
+	}
+
+	installRecorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(installRecorder, httptest.NewRequest(http.MethodGet, "/api/tools/detect-install-surfaces", nil))
+	if installRecorder.Code != http.StatusOK {
+		t.Fatalf("expected install surfaces status 200, got %d with body %s", installRecorder.Code, installRecorder.Body.String())
+	}
+	for _, needle := range []string{
+		`"fallback":"go-local-tools"`,
+		`"procedure":"tools.detectInstallSurfaces"`,
+		`using local Go install-surface detection`,
+		`"id":"browser-extension-chromium"`,
+		`"id":"vscode-extension"`,
+		`"status":"ready"`,
+		`"status":"partial"`,
+	} {
+		if !strings.Contains(installRecorder.Body.String(), needle) {
+			t.Fatalf("expected install surfaces response to contain %s, got %s", needle, installRecorder.Body.String())
+		}
+	}
+}
+
 func TestMCPSearchToolsFallsBackToLocalInventory(t *testing.T) {
 	workspaceRoot := t.TempDir()
 	toolsDir := filepath.Join(workspaceRoot, "submodules", "hypercode", "tools")

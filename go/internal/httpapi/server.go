@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -1089,9 +1090,9 @@ func (s *Server) handleAPIIndex(w http.ResponseWriter, _ *http.Request) {
 				{Path: "/api/tools/by-server", Category: "control", Description: "List tools filtered by MCP server, with a local source-backed Go inventory fallback when the TypeScript tools router is unavailable."},
 				{Path: "/api/tools/search", Category: "control", Description: "Search tools, with a local source-backed Go inventory fallback when the TypeScript tools router is unavailable."},
 				{Path: "/api/tools/context", Category: "control", Description: "Go-owned tool guidance snapshot combining startup readiness, tool context memory, and related tool advertisements."},
-				{Path: "/api/tools/detect-cli-harnesses", Category: "control", Description: "Bridge to TypeScript CLI harness detection."},
-				{Path: "/api/tools/detect-execution-environment", Category: "control", Description: "Bridge to TypeScript execution-environment detection."},
-				{Path: "/api/tools/detect-install-surfaces", Category: "control", Description: "Bridge to TypeScript install-surface detection."},
+				{Path: "/api/tools/detect-cli-harnesses", Category: "control", Description: "Read CLI harness detection through the TypeScript tools router, with a local Go runtime fallback when the router is unavailable."},
+				{Path: "/api/tools/detect-execution-environment", Category: "control", Description: "Read execution-environment diagnostics through the TypeScript tools router, with a local Go runtime fallback when the router is unavailable."},
+				{Path: "/api/tools/detect-install-surfaces", Category: "control", Description: "Read install-surface artifact detection through the TypeScript tools router, with a local Go filesystem fallback when the router is unavailable."},
 				{Path: "/api/tools/get", Category: "control", Description: "Read a specific tool definition, with a local source-backed Go inventory fallback when the TypeScript tools router is unavailable."},
 				{Path: "/api/tools/create", Category: "control", Description: "Create a tool through the TypeScript control plane."},
 				{Path: "/api/tools/upsert-batch", Category: "control", Description: "Upsert a batch of tools through the TypeScript control plane."},
@@ -4855,15 +4856,102 @@ func (s *Server) handleToolsSearch(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleToolsDetectCLIHarnesses(w http.ResponseWriter, r *http.Request) {
-	s.handleTRPCBridgeCall(w, r, http.MethodGet, "tools.detectCliHarnesses", nil)
+	var result any
+	upstreamBase, err := s.callUpstreamJSON(r.Context(), "tools.detectCliHarnesses", nil, &result)
+	if err == nil {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"data":    result,
+			"bridge": map[string]any{
+				"upstreamBase": upstreamBase,
+				"procedure":    "tools.detectCliHarnesses",
+			},
+		})
+		return
+	}
+
+	data, fallbackErr := s.localDetectedCliHarnesses(r.Context())
+	if fallbackErr != nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{
+			"success": false,
+			"error":   fallbackErr.Error(),
+			"detail":  fallbackErr.Error(),
+		})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"data":    data,
+		"bridge": map[string]any{
+			"fallback":  "go-local-tools",
+			"procedure": "tools.detectCliHarnesses",
+			"reason":    "upstream unavailable; using local Go harness detection",
+		},
+	})
 }
 
 func (s *Server) handleToolsDetectExecutionEnvironment(w http.ResponseWriter, r *http.Request) {
-	s.handleTRPCBridgeCall(w, r, http.MethodGet, "tools.detectExecutionEnvironment", nil)
+	var result any
+	upstreamBase, err := s.callUpstreamJSON(r.Context(), "tools.detectExecutionEnvironment", nil, &result)
+	if err == nil {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"data":    result,
+			"bridge": map[string]any{
+				"upstreamBase": upstreamBase,
+				"procedure":    "tools.detectExecutionEnvironment",
+			},
+		})
+		return
+	}
+
+	data, fallbackErr := s.localExecutionEnvironment(r.Context())
+	if fallbackErr != nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{
+			"success": false,
+			"error":   fallbackErr.Error(),
+			"detail":  fallbackErr.Error(),
+		})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"data":    data,
+		"bridge": map[string]any{
+			"fallback":  "go-local-tools",
+			"procedure": "tools.detectExecutionEnvironment",
+			"reason":    "upstream unavailable; using local Go execution environment detection",
+		},
+	})
 }
 
 func (s *Server) handleToolsDetectInstallSurfaces(w http.ResponseWriter, r *http.Request) {
-	s.handleTRPCBridgeCall(w, r, http.MethodGet, "tools.detectInstallSurfaces", nil)
+	var result any
+	upstreamBase, err := s.callUpstreamJSON(r.Context(), "tools.detectInstallSurfaces", nil, &result)
+	if err == nil {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"data":    result,
+			"bridge": map[string]any{
+				"upstreamBase": upstreamBase,
+				"procedure":    "tools.detectInstallSurfaces",
+			},
+		})
+		return
+	}
+
+	data := s.localInstallSurfaces()
+	writeJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"data":    data,
+		"bridge": map[string]any{
+			"fallback":  "go-local-tools",
+			"procedure": "tools.detectInstallSurfaces",
+			"reason":    "upstream unavailable; using local Go install-surface detection",
+		},
+	})
 }
 
 func (s *Server) handleToolsGet(w http.ResponseWriter, r *http.Request) {
@@ -7555,6 +7643,202 @@ func (s *Server) localMCPSummary(ctx context.Context) ([]controlplane.Tool, CLIS
 	return tools, summary, nil
 }
 
+func (s *Server) localDetectedCliHarnesses(ctx context.Context) ([]map[string]any, error) {
+	tools, err := s.detector.DetectAll(ctx)
+	if err != nil {
+		return nil, err
+	}
+	definitions := harnesses.List(s.cfg.WorkspaceRoot, tools)
+	results := make([]map[string]any, 0, len(definitions))
+	for _, definition := range definitions {
+		command := definition.ID
+		switch definition.ID {
+		case "claude":
+			command = "claude-code"
+		case "factory-droid":
+			command = "droid"
+		case "copilot":
+			command = "github-copilot-cli"
+		}
+		result := map[string]any{
+			"id":             definition.ID,
+			"name":           definitionDescriptionName(definition.ID, definition.Description),
+			"command":        command,
+			"homepage":       harnessHomepage(definition.ID),
+			"docsUrl":        harnessDocsURL(definition.ID),
+			"installHint":    harnessInstallHint(definition.ID),
+			"category":       harnessCategory(definition.ID),
+			"sessionCapable": harnessSessionCapable(definition.ID),
+			"installed":      definition.Installed,
+			"resolvedPath":   nil,
+			"version":        nil,
+			"detectionError": nil,
+		}
+		if definition.ID == "antigravity" {
+			result["detectionError"] = "Manual install surface; no PATH-detectable command is currently modeled for this harness."
+		} else if !definition.Installed {
+			result["detectionError"] = "Command not found on PATH."
+		}
+		for _, tool := range tools {
+			if toolToHarnessID(tool.Type) != definition.ID {
+				continue
+			}
+			if strings.TrimSpace(tool.Path) != "" {
+				result["resolvedPath"] = tool.Path
+			}
+			if strings.TrimSpace(tool.Version) != "" {
+				result["version"] = tool.Version
+			}
+			break
+		}
+		results = append(results, result)
+	}
+	sort.Slice(results, func(i, j int) bool {
+		leftInstalled, _ := results[i]["installed"].(bool)
+		rightInstalled, _ := results[j]["installed"].(bool)
+		if leftInstalled != rightInstalled {
+			return leftInstalled
+		}
+		leftName, _ := results[i]["name"].(string)
+		rightName, _ := results[j]["name"].(string)
+		return leftName < rightName
+	})
+	return results, nil
+}
+
+func (s *Server) localExecutionEnvironment(ctx context.Context) (map[string]any, error) {
+	tools, summary, err := s.localMCPSummary(ctx)
+	if err != nil {
+		return nil, err
+	}
+	harnessesData, err := s.localDetectedCliHarnesses(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	shells := localExecutionShells()
+	preferredShellID := selectPreferredShellID(shells)
+	preferredShellLabel := ""
+	verifiedShellCount := 0
+	supportsPowerShell := false
+	supportsPosixShell := false
+	for index := range shells {
+		if shells[index]["verified"] == true {
+			verifiedShellCount++
+			family, _ := shells[index]["family"].(string)
+			if family == "powershell" {
+				supportsPowerShell = true
+			}
+			if family == "posix" || family == "wsl" {
+				supportsPosixShell = true
+			}
+		}
+		if id, _ := shells[index]["id"].(string); id == preferredShellID {
+			shells[index]["preferred"] = true
+			preferredShellLabel, _ = shells[index]["name"].(string)
+		}
+	}
+
+	verifiedToolCount := 0
+	toolRows := make([]map[string]any, 0, len(tools))
+	for _, tool := range tools {
+		if tool.Available && strings.TrimSpace(tool.Version) != "" && tool.Version != "unknown" {
+			verifiedToolCount++
+		}
+		toolRows = append(toolRows, map[string]any{
+			"id":           tool.Type,
+			"name":         tool.Name,
+			"installed":    tool.Available,
+			"verified":     tool.Available && strings.TrimSpace(tool.Version) != "",
+			"resolvedPath": nullableString(tool.Path),
+			"version":      nullableString(tool.Version),
+			"capabilities": append([]string(nil), tool.Capabilities...),
+			"notes":        toolNotes(tool),
+		})
+	}
+
+	verifiedHarnessCount := 0
+	for _, harness := range harnessesData {
+		installed, _ := harness["installed"].(bool)
+		detectionError, _ := harness["detectionError"].(string)
+		if installed && strings.TrimSpace(detectionError) == "" {
+			verifiedHarnessCount++
+		}
+	}
+
+	notes := []string{}
+	if strings.TrimSpace(preferredShellLabel) != "" {
+		notes = append(notes, "Prefer "+preferredShellLabel+" for default HyperCode shell execution on this host.")
+	}
+	if supportsPosixShell {
+		for _, shell := range shells {
+			verified, _ := shell["verified"].(bool)
+			family, _ := shell["family"].(string)
+			if verified && (family == "posix" || family == "wsl") {
+				name, _ := shell["name"].(string)
+				notes = append(notes, name+" is available for POSIX-style pipelines and Unix-first tooling.")
+				break
+			}
+		}
+	} else if runtime.GOOS == "windows" {
+		notes = append(notes, "No verified POSIX shell detected. Recommendation: Install Cygwin or WSL to ensure 1:1 compatibility with AI model tool training (e.g. bash, grep, sed).")
+	}
+
+	return map[string]any{
+		"os": runtime.GOOS,
+		"summary": map[string]any{
+			"ready":                verifiedShellCount > 0,
+			"preferredShellId":     emptyStringToNilAny(preferredShellID),
+			"preferredShellLabel":  emptyStringToNilAny(preferredShellLabel),
+			"shellCount":           installedShellCount(shells),
+			"verifiedShellCount":   verifiedShellCount,
+			"toolCount":            summary.AvailableToolCount,
+			"verifiedToolCount":    verifiedToolCount,
+			"harnessCount":         summary.InstalledHarnessCount,
+			"verifiedHarnessCount": verifiedHarnessCount,
+			"supportsPowerShell":   supportsPowerShell,
+			"supportsPosixShell":   supportsPosixShell,
+			"notes":                notes,
+		},
+		"shells":    shells,
+		"tools":     toolRows,
+		"harnesses": harnessesData,
+	}, nil
+}
+
+func (s *Server) localInstallSurfaces() []map[string]any {
+	workspaceRoot := s.cfg.WorkspaceRoot
+	chromiumPath := firstExistingRelativePath(workspaceRoot, []string{
+		filepath.Join("apps", "hypercode-extension", "dist-chromium"),
+		filepath.Join("apps", "extension", "dist"),
+		filepath.Join("apps", "hypercode-extension", "dist"),
+	})
+	firefoxBundlePath := firstExistingRelativePath(workspaceRoot, []string{
+		filepath.Join("apps", "hypercode-extension", "dist-firefox"),
+	})
+	firefoxManifestPath := firstExistingRelativePath(workspaceRoot, []string{
+		filepath.Join("apps", "extension", "manifest.firefox.json"),
+	})
+	vscodeBuildPath := firstExistingRelativePath(workspaceRoot, []string{
+		filepath.Join("packages", "vscode", "dist", "extension.js"),
+		filepath.Join("packages", "vscode", "dist"),
+	})
+	mcpConfigPath := firstExistingRelativePath(workspaceRoot, []string{"mcp.jsonc", "mcp.json"})
+
+	return []map[string]any{
+		installSurfaceArtifact("browser-extension-chromium", chromiumPath != "", chromiumPath, chromiumArtifactKind(chromiumPath), map[bool]string{
+			true:  "Unpacked Chromium-compatible browser extension output is available.",
+			false: "Build the browser extension to generate a Chromium/Edge unpacked bundle.",
+		}, packageVersion(workspaceRoot, filepath.Join("apps", "hypercode-extension", "package.json")), workspaceRoot),
+		firefoxInstallSurface(workspaceRoot, firefoxBundlePath, firefoxManifestPath),
+		vscodeInstallSurface(workspaceRoot, vscodeBuildPath),
+		installSurfaceArtifact("mcp-client-sync", mcpConfigPath != "", mcpConfigPath, mcpConfigArtifactKind(mcpConfigPath), map[bool]string{
+			true:  "HyperCode-managed MCP config source is present for dashboard sync and preview flows.",
+			false: "No HyperCode MCP config source file was detected yet.",
+		}, "", workspaceRoot),
+	}
+}
+
 func sourceBackedInstalledHarnesses(definitions []harnesses.Definition) []harnesses.Definition {
 	filtered := make([]harnesses.Definition, 0, len(definitions))
 	for _, definition := range definitions {
@@ -7647,6 +7931,427 @@ func fallbackControlTools(definitions []harnesses.Definition) []map[string]any {
 		return leftServer < rightServer
 	})
 	return tools
+}
+
+func definitionDescriptionName(id string, description string) string {
+	switch id {
+	case "hypercode":
+		return "HyperCode"
+	case "claude":
+		return "Claude Code"
+	case "codex":
+		return "OpenAI Codex CLI"
+	case "gemini":
+		return "Gemini CLI"
+	case "opencode":
+		return "OpenCode"
+	case "cursor":
+		return "Cursor CLI"
+	case "copilot":
+		return "GitHub Copilot CLI"
+	case "factory-droid":
+		return "Factory Droid"
+	case "qwen":
+		return "Qwen Code CLI"
+	case "superai-cli":
+		return "SuperAI CLI"
+	case "codebuff":
+		return "Codebuff"
+	case "codemachine":
+		return "CodeMachine"
+	case "antigravity":
+		return "Antigravity"
+	default:
+		if strings.TrimSpace(description) == "" {
+			return id
+		}
+		return description
+	}
+}
+
+func harnessHomepage(id string) string {
+	switch id {
+	case "hypercode":
+		return "https://github.com/robertpelloni/hypercode"
+	case "aider":
+		return "https://aider.chat/"
+	case "antigravity":
+		return "https://antigravity.google/"
+	case "claude":
+		return "https://www.anthropic.com/claude-code"
+	case "codex":
+		return "https://platform.openai.com/docs/guides/codex"
+	case "gemini":
+		return "https://ai.google.dev/gemini-api/docs/cli"
+	case "opencode":
+		return "https://opencode.ai/"
+	case "cursor":
+		return "https://cursor.com/"
+	case "copilot":
+		return "https://github.com/features/copilot"
+	case "goose":
+		return "https://block.github.io/goose/"
+	case "qwen":
+		return "https://chat.qwen.ai/"
+	case "superai-cli":
+		return "https://superai.dev/"
+	case "codebuff":
+		return "https://codebuff.com/"
+	case "codemachine":
+		return "https://codemachine.dev/"
+	case "factory-droid":
+		return "https://factory.ai/"
+	default:
+		return "#"
+	}
+}
+
+func harnessDocsURL(id string) string {
+	switch id {
+	case "hypercode":
+		return "https://github.com/robertpelloni/hypercode"
+	case "aider":
+		return "https://aider.chat/docs/"
+	case "antigravity":
+		return "https://antigravity.google/docs/home"
+	case "claude":
+		return "https://docs.anthropic.com/en/docs/claude-code/overview"
+	case "codex":
+		return "https://platform.openai.com/docs/guides/codex"
+	case "gemini":
+		return "https://ai.google.dev/gemini-api/docs"
+	case "opencode":
+		return "https://opencode.ai/docs"
+	case "cursor":
+		return "https://cursor.com/docs"
+	case "copilot":
+		return "https://docs.github.com/en/copilot"
+	case "goose":
+		return "https://block.github.io/goose/docs/"
+	case "qwen":
+		return "https://qwen.readthedocs.io/"
+	case "superai-cli":
+		return "https://superai.dev/docs"
+	case "codebuff":
+		return "https://codebuff.com/docs"
+	case "codemachine":
+		return "https://codemachine.dev/docs"
+	case "factory-droid":
+		return "https://factory.ai/docs"
+	default:
+		return "#"
+	}
+}
+
+func harnessInstallHint(id string) string {
+	switch id {
+	case "hypercode":
+		return "Use HyperCode's tracked `submodules/hypercode` checkout or install HyperCode and ensure `hypercode` is on PATH."
+	case "aider":
+		return "pip install aider-chat"
+	case "antigravity":
+		return "Download the Antigravity desktop app from https://antigravity.google/download and launch it directly; HyperCode does not currently detect it as a PATH CLI."
+	case "claude":
+		return "npm install -g @anthropic-ai/claude-code"
+	case "codex":
+		return "Install the Codex CLI binary and make sure `codex` is on PATH."
+	case "gemini":
+		return "Install the Gemini CLI and ensure `gemini` is on PATH."
+	case "opencode":
+		return "Install OpenCode and ensure `opencode` is on PATH."
+	case "cursor":
+		return "Install Cursor and enable its shell command so `cursor` is available on PATH."
+	case "copilot":
+		return "Install GitHub Copilot CLI and ensure `github-copilot-cli` or `gh copilot` is available."
+	case "goose":
+		return "Install Goose and ensure `goose` is on PATH."
+	case "qwen":
+		return "Install the Qwen CLI and ensure `qwen` is on PATH."
+	case "superai-cli":
+		return "npm install -g superai-cli"
+	case "codebuff":
+		return "npm install -g codebuff"
+	case "codemachine":
+		return "npm install -g codemachine"
+	case "factory-droid":
+		return "Install Factory Droid and ensure `droid` is on PATH."
+	default:
+		return "Installation instructions unavailable."
+	}
+}
+
+func harnessCategory(id string) string {
+	switch id {
+	case "cursor", "antigravity":
+		return "editor"
+	default:
+		return "cli"
+	}
+}
+
+func harnessSessionCapable(id string) bool {
+	switch id {
+	case "hypercode", "aider", "claude", "codex", "gemini", "opencode", "superai-cli", "codebuff", "codemachine", "factory-droid":
+		return true
+	default:
+		return false
+	}
+}
+
+func toolToHarnessID(toolType string) string {
+	switch toolType {
+	case "claude-code":
+		return "claude"
+	case "factory-droid":
+		return "factory-droid"
+	case "copilot":
+		return "copilot"
+	default:
+		return toolType
+	}
+}
+
+func localExecutionShells() []map[string]any {
+	isWindows := runtime.GOOS == "windows"
+	gitBashPath := filepath.Join("C:\\", "Program Files", "Git", "bin", "bash.exe")
+	shells := []map[string]any{
+		{
+			"id":           "pwsh",
+			"name":         "PowerShell 7",
+			"family":       "powershell",
+			"installed":    lookupPathExists("pwsh"),
+			"verified":     lookupPathExists("pwsh"),
+			"resolvedPath": lookupPath("pwsh"),
+			"version":      nil,
+			"preferred":    false,
+			"notes":        []string{"Preferred HyperCode shell on Windows for general command execution and structured scripting."},
+		},
+		{
+			"id":           "powershell",
+			"name":         "Windows PowerShell",
+			"family":       "powershell",
+			"installed":    lookupPathExists("powershell"),
+			"verified":     lookupPathExists("powershell"),
+			"resolvedPath": lookupPath("powershell"),
+			"version":      nil,
+			"preferred":    false,
+			"notes":        []string{"Useful legacy fallback when PowerShell 7 is unavailable."},
+		},
+		{
+			"id":           "cmd",
+			"name":         "Command Prompt",
+			"family":       "cmd",
+			"installed":    isWindows,
+			"verified":     isWindows,
+			"resolvedPath": lookupPath("cmd"),
+			"version":      nil,
+			"preferred":    false,
+			"notes":        []string{"Lowest-common-denominator Windows shell for compatibility-only flows."},
+		},
+		{
+			"id":           "git-bash",
+			"name":         "Git Bash",
+			"family":       "posix",
+			"installed":    fileExists(gitBashPath),
+			"verified":     fileExists(gitBashPath),
+			"resolvedPath": nullableExistingPath(gitBashPath),
+			"version":      nil,
+			"preferred":    false,
+			"notes":        []string{"POSIX-friendly shell for lightweight Unix tooling without a full Cygwin install."},
+		},
+		{
+			"id":           "wsl",
+			"name":         "Windows Subsystem for Linux",
+			"family":       "wsl",
+			"installed":    lookupPathExists("wsl"),
+			"verified":     lookupPathExists("wsl"),
+			"resolvedPath": lookupPath("wsl"),
+			"version":      nil,
+			"preferred":    false,
+			"notes":        []string{"Best fit for Linux-native commands when WSL is installed and configured."},
+		},
+	}
+	return shells
+}
+
+func selectPreferredShellID(shells []map[string]any) string {
+	order := []string{"pwsh", "powershell", "cmd", "git-bash", "wsl"}
+	for _, shellID := range order {
+		for _, shell := range shells {
+			id, _ := shell["id"].(string)
+			verified, _ := shell["verified"].(bool)
+			if id == shellID && verified {
+				return shellID
+			}
+		}
+	}
+	return ""
+}
+
+func installedShellCount(shells []map[string]any) int {
+	count := 0
+	for _, shell := range shells {
+		installed, _ := shell["installed"].(bool)
+		if installed {
+			count++
+		}
+	}
+	return count
+}
+
+func toolNotes(tool controlplane.Tool) []string {
+	if tool.Available && strings.TrimSpace(tool.Version) != "" {
+		return []string{}
+	}
+	if tool.Available {
+		return []string{"Binary resolved on PATH, but version verification failed."}
+	}
+	return []string{"Binary not detected on PATH."}
+}
+
+func firstExistingRelativePath(workspaceRoot string, candidates []string) string {
+	for _, candidate := range candidates {
+		if fileExists(filepath.Join(workspaceRoot, candidate)) {
+			return candidate
+		}
+	}
+	return ""
+}
+
+func installSurfaceArtifact(id string, ready bool, artifactPath string, artifactKind string, detail map[bool]string, declaredVersion string, workspaceRoot string) map[string]any {
+	status := "missing"
+	if ready {
+		status = "ready"
+	}
+	return map[string]any{
+		"id":              id,
+		"status":          status,
+		"artifactPath":    emptyStringToNilAny(artifactPath),
+		"artifactKind":    emptyStringToNilAny(artifactKind),
+		"detail":          detail[ready],
+		"declaredVersion": emptyStringToNilAny(declaredVersion),
+		"lastModifiedAt":  lastModifiedAtIfPresent(workspaceRoot, artifactPath),
+	}
+}
+
+func firefoxInstallSurface(workspaceRoot string, bundlePath string, manifestPath string) map[string]any {
+	status := "missing"
+	artifactPath := manifestPath
+	artifactKind := ""
+	detail := "No Firefox-ready browser extension artifact was detected yet."
+	if strings.TrimSpace(bundlePath) != "" {
+		status = "ready"
+		artifactPath = bundlePath
+		artifactKind = "Firefox unpacked bundle"
+		detail = "Firefox-specific browser extension output is available."
+	} else if strings.TrimSpace(manifestPath) != "" {
+		status = "partial"
+		artifactKind = "Firefox manifest source"
+		detail = "Firefox manifest source is present, but no packaged Firefox bundle was detected yet."
+	}
+	return map[string]any{
+		"id":              "browser-extension-firefox",
+		"status":          status,
+		"artifactPath":    emptyStringToNilAny(artifactPath),
+		"artifactKind":    emptyStringToNilAny(artifactKind),
+		"detail":          detail,
+		"declaredVersion": emptyStringToNilAny(packageVersion(workspaceRoot, filepath.Join("apps", "hypercode-extension", "package.json"))),
+		"lastModifiedAt":  lastModifiedAtIfPresent(workspaceRoot, artifactPath),
+	}
+}
+
+func vscodeInstallSurface(workspaceRoot string, buildPath string) map[string]any {
+	status := "missing"
+	artifactKind := ""
+	detail := "Build and package the VS Code extension to generate an installable `.vsix`."
+	if strings.TrimSpace(buildPath) != "" {
+		status = "partial"
+		artifactKind = "Compiled extension output"
+		detail = "VS Code extension is compiled, but no `.vsix` package was detected yet."
+	}
+	return map[string]any{
+		"id":              "vscode-extension",
+		"status":          status,
+		"artifactPath":    emptyStringToNilAny(buildPath),
+		"artifactKind":    emptyStringToNilAny(artifactKind),
+		"detail":          detail,
+		"declaredVersion": emptyStringToNilAny(packageVersion(workspaceRoot, filepath.Join("packages", "vscode", "package.json"))),
+		"lastModifiedAt":  lastModifiedAtIfPresent(workspaceRoot, buildPath),
+	}
+}
+
+func chromiumArtifactKind(path string) string {
+	switch path {
+	case filepath.Join("apps", "hypercode-extension", "dist-chromium"):
+		return "Chromium unpacked bundle"
+	case filepath.Join("apps", "extension", "dist"):
+		return "Legacy extension dist bundle"
+	case filepath.Join("apps", "hypercode-extension", "dist"):
+		return "Generic hypercode-extension dist bundle"
+	default:
+		return ""
+	}
+}
+
+func mcpConfigArtifactKind(path string) string {
+	switch path {
+	case "mcp.jsonc":
+		return "JSONC config source"
+	case "mcp.json":
+		return "JSON config source"
+	default:
+		return ""
+	}
+}
+
+func packageVersion(workspaceRoot string, relativePath string) string {
+	raw, err := os.ReadFile(filepath.Join(workspaceRoot, relativePath))
+	if err != nil {
+		return ""
+	}
+	var parsed struct {
+		Version string `json:"version"`
+	}
+	if err := json.Unmarshal(raw, &parsed); err != nil {
+		return ""
+	}
+	return parsed.Version
+}
+
+func lastModifiedAtIfPresent(workspaceRoot string, relativePath string) any {
+	if strings.TrimSpace(relativePath) == "" {
+		return nil
+	}
+	info, err := os.Stat(filepath.Join(workspaceRoot, relativePath))
+	if err != nil {
+		return nil
+	}
+	return info.ModTime().UTC().Format(time.RFC3339)
+}
+
+func lookupPath(command string) any {
+	path, err := exec.LookPath(command)
+	if err != nil {
+		return nil
+	}
+	return path
+}
+
+func lookupPathExists(command string) bool {
+	_, err := exec.LookPath(command)
+	return err == nil
+}
+
+func nullableExistingPath(path string) any {
+	if !fileExists(path) {
+		return nil
+	}
+	return path
+}
+
+func fileExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
 }
 
 func fallbackSearchMCPTools(definitions []harnesses.Definition, query string) []map[string]any {
@@ -9172,6 +9877,13 @@ func nullableString(value any) any {
 		return nil
 	}
 	return text
+}
+
+func emptyStringToNilAny(value string) any {
+	if strings.TrimSpace(value) == "" {
+		return nil
+	}
+	return value
 }
 
 func stringSlice(value any) []string {

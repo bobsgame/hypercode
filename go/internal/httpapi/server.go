@@ -1335,7 +1335,7 @@ func (s *Server) handleAPIIndex(w http.ResponseWriter, _ *http.Request) {
 				{Path: "/api/session-export/detect-format", Category: "sessions", Description: "Detect session export format, with a local Go JSON-shape fallback when the TypeScript session export router is unavailable."},
 				{Path: "/api/session-export/formats", Category: "sessions", Description: "List known session export formats, with a local Go fallback when the TypeScript session export router is unavailable."},
 				{Path: "/api/session-export/history", Category: "sessions", Description: "Read session export history, with a local empty-state fallback when the TypeScript session export router is unavailable."},
-				{Path: "/api/browser/status", Category: "browser", Description: "Read browser status through the TypeScript browser router."},
+				{Path: "/api/browser/status", Category: "browser", Description: "Read browser status through the TypeScript browser router, with a local explicit-unavailable fallback when the router is unavailable."},
 				{Path: "/api/browser/close-page", Category: "browser", Description: "Close a browser page through the TypeScript browser router."},
 				{Path: "/api/browser/close-all", Category: "browser", Description: "Close all browser pages through the TypeScript browser router."},
 				{Path: "/api/browser/search-history", Category: "browser", Description: "Search browser history through the TypeScript browser router."},

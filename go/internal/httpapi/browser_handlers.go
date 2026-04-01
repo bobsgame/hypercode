@@ -7,7 +7,34 @@ import (
 )
 
 func (s *Server) handleBrowserStatus(w http.ResponseWriter, r *http.Request) {
-	s.handleTRPCBridgeCall(w, r, http.MethodGet, "browser.status", nil)
+	var result any
+	upstreamBase, err := s.callUpstreamJSON(r.Context(), "browser.status", nil, &result)
+	if err == nil {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"data":    result,
+			"bridge": map[string]any{
+				"upstreamBase": upstreamBase,
+				"procedure":    "browser.status",
+			},
+		})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"data": map[string]any{
+			"available": false,
+			"active":    false,
+			"pageCount": 0,
+			"pageIds":   []string{},
+		},
+		"bridge": map[string]any{
+			"fallback":  "go-local-browser",
+			"procedure": "browser.status",
+			"reason":    "upstream unavailable; browser service is not available locally",
+		},
+	})
 }
 
 func (s *Server) handleBrowserClosePage(w http.ResponseWriter, r *http.Request) {

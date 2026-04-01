@@ -3656,6 +3656,35 @@ func TestBrowserBridgeRoutes(t *testing.T) {
 	}
 }
 
+func TestBrowserStatusFallsBackToExplicitUnavailableState(t *testing.T) {
+	t.Setenv("BORG_TRPC_UPSTREAM", "http://127.0.0.1:1/trpc")
+
+	cfg := config.Default()
+	cfg.WorkspaceRoot = t.TempDir()
+	cfg.MainConfigDir = t.TempDir()
+	server := New(cfg, stubDetector{})
+
+	recorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/api/browser/status", nil))
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected browser status 200, got %d with body %s", recorder.Code, recorder.Body.String())
+	}
+
+	for _, needle := range []string{
+		`"fallback":"go-local-browser"`,
+		`"procedure":"browser.status"`,
+		`browser service is not available locally`,
+		`"available":false`,
+		`"active":false`,
+		`"pageCount":0`,
+		`"pageIds":[]`,
+	} {
+		if !strings.Contains(recorder.Body.String(), needle) {
+			t.Fatalf("expected browser status fallback to contain %s, got %s", needle, recorder.Body.String())
+		}
+	}
+}
+
 func TestSquadBridgeRoutes(t *testing.T) {
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("content-type", "application/json")

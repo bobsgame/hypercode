@@ -1032,8 +1032,8 @@ func (s *Server) handleAPIIndex(w http.ResponseWriter, _ *http.Request) {
 				{Path: "/api/agent-memory/stats", Category: "memory", Description: "Bridge to TypeScript agent-memory counts by tier, with an explicit zero-state fallback when agent memory is unavailable."},
 				{Path: "/api/graph", Category: "code", Description: "Bridge to the TypeScript repository graph snapshot."},
 				{Path: "/api/graph/rebuild", Category: "code", Description: "Rebuild the TypeScript repository graph and return the latest snapshot."},
-				{Path: "/api/graph/consumers", Category: "code", Description: "Bridge to repository graph consumers for a given file path."},
-				{Path: "/api/graph/dependencies", Category: "code", Description: "Bridge to repository graph dependencies for a given file path."},
+				{Path: "/api/graph/consumers", Category: "code", Description: "Bridge to repository graph consumers for a given file path, with an explicit empty-state fallback when the repo graph is unavailable."},
+				{Path: "/api/graph/dependencies", Category: "code", Description: "Bridge to repository graph dependencies for a given file path, with an explicit empty-state fallback when the repo graph is unavailable."},
 				{Path: "/api/graph/symbols", Category: "code", Description: "Bridge to the TypeScript symbol graph, with an explicit empty graph fallback when symbol graph data is unavailable."},
 				{Path: "/api/context/list", Category: "code", Description: "Bridge to the current TypeScript context file list, with a local empty-state fallback when the TypeScript context manager is unavailable."},
 				{Path: "/api/context/add", Category: "code", Description: "Add a file to the TypeScript context manager."},
@@ -4228,7 +4228,21 @@ func (s *Server) handleGraphConsumers(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]any{"success": false, "error": "missing filePath query parameter"})
 		return
 	}
-	s.handleTRPCBridgeCall(w, r, http.MethodGet, "graph.getConsumers", map[string]any{"filePath": filePath})
+	var result any
+	upstreamBase, err := s.callUpstreamJSON(r.Context(), "graph.getConsumers", map[string]any{"filePath": filePath}, &result)
+	if err == nil {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"data":    result,
+			"bridge": map[string]any{
+				"upstreamBase": upstreamBase,
+				"procedure":    "graph.getConsumers",
+			},
+		})
+		return
+	}
+
+	s.writeGraphListFallback(w, "graph.getConsumers")
 }
 
 func (s *Server) handleGraphDependencies(w http.ResponseWriter, r *http.Request) {
@@ -4237,7 +4251,33 @@ func (s *Server) handleGraphDependencies(w http.ResponseWriter, r *http.Request)
 		writeJSON(w, http.StatusBadRequest, map[string]any{"success": false, "error": "missing filePath query parameter"})
 		return
 	}
-	s.handleTRPCBridgeCall(w, r, http.MethodGet, "graph.getDependencies", map[string]any{"filePath": filePath})
+	var result any
+	upstreamBase, err := s.callUpstreamJSON(r.Context(), "graph.getDependencies", map[string]any{"filePath": filePath}, &result)
+	if err == nil {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"data":    result,
+			"bridge": map[string]any{
+				"upstreamBase": upstreamBase,
+				"procedure":    "graph.getDependencies",
+			},
+		})
+		return
+	}
+
+	s.writeGraphListFallback(w, "graph.getDependencies")
+}
+
+func (s *Server) writeGraphListFallback(w http.ResponseWriter, procedure string) {
+	writeJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"data":    []string{},
+		"bridge": map[string]any{
+			"fallback":  "go-local-graph",
+			"procedure": procedure,
+			"reason":    "upstream unavailable; repo graph is not initialized",
+		},
+	})
 }
 
 func (s *Server) handleGraphSymbols(w http.ResponseWriter, r *http.Request) {

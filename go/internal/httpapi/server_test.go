@@ -6117,6 +6117,46 @@ func TestGraphSymbolsFallsBackToEmptyGraph(t *testing.T) {
 	}
 }
 
+func TestGraphFileReadsFallBackToEmptyLists(t *testing.T) {
+	t.Setenv("BORG_TRPC_UPSTREAM", "http://127.0.0.1:1/trpc")
+
+	cfg := config.Default()
+	cfg.WorkspaceRoot = t.TempDir()
+	cfg.ConfigDir = t.TempDir()
+	cfg.MainConfigDir = t.TempDir()
+	server := New(cfg, stubDetector{})
+
+	cases := []struct {
+		name      string
+		path      string
+		procedure string
+	}{
+		{name: "consumers", path: "/api/graph/consumers?filePath=src/app.ts", procedure: "graph.getConsumers"},
+		{name: "dependencies", path: "/api/graph/dependencies?filePath=src/app.ts", procedure: "graph.getDependencies"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			recorder := httptest.NewRecorder()
+			server.Handler().ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, tc.path, nil))
+			if recorder.Code != http.StatusOK {
+				t.Fatalf("expected %s 200, got %d with body %s", tc.name, recorder.Code, recorder.Body.String())
+			}
+
+			for _, needle := range []string{
+				`"fallback":"go-local-graph"`,
+				`"procedure":"` + tc.procedure + `"`,
+				`repo graph is not initialized`,
+				`"data":[]`,
+			} {
+				if !strings.Contains(recorder.Body.String(), needle) {
+					t.Fatalf("expected %s fallback to contain %s, got %s", tc.name, needle, recorder.Body.String())
+				}
+			}
+		})
+	}
+}
+
 func TestWorkflowReadRoutesFallBackToEngineZeroState(t *testing.T) {
 	t.Setenv("BORG_TRPC_UPSTREAM", "http://127.0.0.1:1/trpc")
 

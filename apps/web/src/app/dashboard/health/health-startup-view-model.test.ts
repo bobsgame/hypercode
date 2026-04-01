@@ -7,9 +7,9 @@ const readyStartupSnapshot: DashboardStartupStatus = {
     status: 'running',
     ready: true,
     uptime: 120,
-    checks: {
-        mcpAggregator: {
-            ready: true,
+        checks: {
+            mcpAggregator: {
+                ready: true,
             liveReady: true,
             residentReady: true,
             serverCount: 2,
@@ -63,22 +63,28 @@ const readyStartupSnapshot: DashboardStartupStatus = {
             clientCount: 1,
             hasConnectedClients: true,
         },
-        executionEnvironment: {
-            ready: true,
-            preferredShellId: 'pwsh',
-            preferredShellLabel: 'PowerShell',
+            executionEnvironment: {
+                ready: true,
+                preferredShellId: 'pwsh',
+                preferredShellLabel: 'PowerShell',
             shellCount: 1,
             verifiedShellCount: 1,
             toolCount: 5,
             verifiedToolCount: 5,
             harnessCount: 2,
             verifiedHarnessCount: 2,
-            supportsPowerShell: true,
-            supportsPosixShell: false,
-            notes: [],
+                supportsPowerShell: true,
+                supportsPosixShell: false,
+                notes: [],
+            },
+            importedSessions: {
+                totalSessions: 0,
+                inlineTranscriptCount: 0,
+                archivedTranscriptCount: 0,
+                missingRetentionSummaryCount: 0,
+            },
         },
-    },
-};
+    };
 
 describe('health startup view model', () => {
     it('counts extension install artifacts in startup readiness', () => {
@@ -89,7 +95,7 @@ describe('health startup view model', () => {
 
         expect(model.statusCards.startupReadiness).toEqual({
             status: 'Ready',
-            detail: '7/7 checks ready',
+            detail: '8/8 checks ready',
         });
 
         expect(model.startupChecks).toContainEqual({
@@ -123,7 +129,7 @@ describe('health startup view model', () => {
 
         expect(model.statusCards.startupReadiness).toEqual({
             status: 'Warming',
-            detail: '6/7 checks ready',
+            detail: '7/8 checks ready',
         });
     });
 });

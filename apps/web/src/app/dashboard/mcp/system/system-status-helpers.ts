@@ -75,6 +75,12 @@ export interface SystemStartupStatusInput {
             toolCount?: number;
             verifiedToolCount?: number;
         };
+        importedSessions?: {
+            totalSessions?: number;
+            inlineTranscriptCount?: number;
+            archivedTranscriptCount?: number;
+            missingRetentionSummaryCount?: number;
+        };
     };
 }
 
@@ -271,7 +277,7 @@ export function buildSystemStartupNotice(startupStatus: SystemStartupStatusInput
     if (startupStatus?.status === 'degraded') {
         return {
             title: 'Compat fallback active',
-            detail: summary || 'Live startup telemetry is unavailable, so Borg is showing config-backed compatibility state instead of the full core startup contract.',
+            detail: summary || 'Live startup telemetry is unavailable, so HyperCode is showing config-backed compatibility state instead of the full core startup contract.',
             tone: 'warning',
         };
     }
@@ -377,6 +383,45 @@ function getExecutionEnvironmentDetail(startupStatus: SystemStartupStatusInput):
     }
 
     return `${execution?.verifiedShellCount ?? 0}/${execution?.shellCount ?? 0} verified shells`;
+}
+
+function getImportedSessionsDetail(startupStatus: SystemStartupStatusInput): string {
+    const imported = startupStatus.checks?.importedSessions;
+    const totalSessions = Number(imported?.totalSessions ?? 0);
+    const archivedTranscriptCount = Number(imported?.archivedTranscriptCount ?? 0);
+    const inlineTranscriptCount = Number(imported?.inlineTranscriptCount ?? 0);
+    const missingRetentionSummaryCount = Number(imported?.missingRetentionSummaryCount ?? 0);
+
+    if (totalSessions === 0) {
+        return 'No imported sessions have been persisted yet';
+    }
+
+    const parts = [
+        `${archivedTranscriptCount}/${totalSessions} archived`,
+        `${inlineTranscriptCount} inline`,
+    ];
+    if (missingRetentionSummaryCount > 0) {
+        parts.push(`${missingRetentionSummaryCount} missing retention summaries`);
+    } else {
+        parts.push('retention summaries complete');
+    }
+
+    return parts.join(' · ');
+}
+
+function getImportedSessionsStatus(startupStatus: SystemStartupStatusInput): 'Operational' | 'Pending' {
+    const imported = startupStatus.checks?.importedSessions;
+    const totalSessions = Number(imported?.totalSessions ?? 0);
+    const inlineTranscriptCount = Number(imported?.inlineTranscriptCount ?? 0);
+    const missingRetentionSummaryCount = Number(imported?.missingRetentionSummaryCount ?? 0);
+
+    if (totalSessions === 0) {
+        return 'Operational';
+    }
+
+    return inlineTranscriptCount === 0 && missingRetentionSummaryCount === 0
+        ? 'Operational'
+        : 'Pending';
 }
 
 function getMemoryContextDetail(startupStatus: SystemStartupStatusInput): string {
@@ -556,10 +601,10 @@ export function buildSystemComponentHealthRows(
             status: startupTelemetryConnecting ? 'Pending' : (startupStatus?.status === 'running' ? 'Operational' : 'Pending'),
             latency: startupTelemetryConnecting ? 'connecting' : (startupStatus?.ready ? 'ready' : 'warming'),
             detail: startupTelemetryConnecting
-                ? 'Connecting to live startup telemetry from Borg Core.'
+                ? 'Connecting to live startup telemetry from HyperCode Core.'
                 : startupStatus?.ready
                 ? 'Authoritative startup contract is online and reporting readiness.'
-                : 'Waiting for Borg Core startup checks to finish reporting.',
+                : 'Waiting for HyperCode Core startup checks to finish reporting.',
         },
         {
             name: 'Cached MCP inventory',
@@ -583,7 +628,7 @@ export function buildSystemComponentHealthRows(
             latency: browserStatus?.available ? `${browserStatus?.pageCount ?? 0} pages` : '-',
             detail: browserStatus?.available
                 ? 'Browser automation/runtime endpoints are online.'
-                : 'Browser runtime is not currently reachable from Borg.',
+                : 'Browser runtime is not currently reachable from HyperCode.',
         },
         {
             name: 'Extension bridge',
@@ -608,7 +653,7 @@ export function buildSystemComponentHealthRows(
             status: execution?.ready ? 'Operational' : 'Pending',
             latency: `${execution?.verifiedToolCount ?? 0}/${execution?.toolCount ?? 0} tools`,
             detail: execution?.ready
-                ? `${execution?.preferredShellLabel ?? 'Preferred shell'} is available for Borg task execution.`
+                ? `${execution?.preferredShellLabel ?? 'Preferred shell'} is available for HyperCode task execution.`
                 : 'Waiting for shell and tool verification to complete.',
         },
     ];
@@ -657,6 +702,12 @@ export function buildSystemStartupChecks(
                 detail: 'Waiting for the first live startup snapshot from core.',
             },
             {
+                name: 'Imported Sessions',
+                status: 'Pending',
+                latency: 'connecting',
+                detail: 'Waiting for imported-session archive telemetry from core.',
+            },
+            {
                 name: 'Extension Install Artifacts',
                 status: 'Pending',
                 latency: 'detecting',
@@ -674,6 +725,7 @@ export function buildSystemStartupChecks(
     const sessionCount = startupStatus.checks?.sessionSupervisor?.sessionCount ?? 0;
     const bridgeClientCount = extensionBridge?.clientCount ?? 0;
     const execution = startupStatus.checks?.executionEnvironment;
+    const importedSessions = startupStatus.checks?.importedSessions;
     const residentConnectedCount = aggregator?.residentConnectedCount ?? 0;
     const warmingCount = aggregator?.warmingServerCount ?? 0;
     const failedWarmupCount = aggregator?.failedWarmupServerCount ?? 0;
@@ -721,6 +773,12 @@ export function buildSystemStartupChecks(
             status: execution?.ready ? 'Operational' : 'Pending',
             latency: `${execution?.verifiedToolCount ?? 0} tools`,
             detail: getExecutionEnvironmentDetail(startupStatus),
+        },
+        {
+            name: 'Imported Sessions',
+            status: getImportedSessionsStatus(startupStatus),
+            latency: `${Number(importedSessions?.archivedTranscriptCount ?? 0)}/${Number(importedSessions?.totalSessions ?? 0)} archived`,
+            detail: getImportedSessionsDetail(startupStatus),
         },
         {
             name: 'Extension Install Artifacts',

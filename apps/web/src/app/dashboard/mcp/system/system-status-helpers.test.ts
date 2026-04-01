@@ -94,6 +94,13 @@ function createStartupStatus(overrides?: StartupCheckOverrides): DashboardStartu
                 supportsPosixShell: false,
                 ...overrides?.executionEnvironment,
             },
+            importedSessions: {
+                totalSessions: 0,
+                inlineTranscriptCount: 0,
+                archivedTranscriptCount: 0,
+                missingRetentionSummaryCount: 0,
+                ...overrides?.importedSessions,
+            },
         },
     };
 }
@@ -239,6 +246,13 @@ describe('system status startup helpers', () => {
         });
 
         expect(checks[6]).toEqual({
+            name: 'Imported Sessions',
+            status: 'Operational',
+            latency: '0/0 archived',
+            detail: 'No imported sessions have been persisted yet',
+        });
+
+        expect(checks[7]).toEqual({
             name: 'Extension Install Artifacts',
             status: 'Pending',
             latency: 'detecting',
@@ -250,6 +264,13 @@ describe('system status startup helpers', () => {
         const checks = buildSystemStartupChecks(createStartupStatus(), readyBrowserArtifacts);
 
         expect(checks[6]).toEqual({
+            name: 'Imported Sessions',
+            status: 'Operational',
+            latency: '0/0 archived',
+            detail: 'No imported sessions have been persisted yet',
+        });
+
+        expect(checks[7]).toEqual({
             name: 'Extension Install Artifacts',
             status: 'Operational',
             latency: '2/2 ready',
@@ -267,7 +288,7 @@ describe('system status startup helpers', () => {
             },
             startupReadiness: {
                 status: 'Ready',
-                detail: '7/7 checks ready',
+                detail: '8/8 checks ready',
             },
         });
 
@@ -346,7 +367,7 @@ describe('system status startup helpers', () => {
         expect(buildSystemStatusCards(startupStatus, true, readyBrowserArtifacts)).toMatchObject({
             startupReadiness: {
                 status: 'Ready',
-                detail: '7/7 checks ready',
+                detail: '8/8 checks ready',
             },
             cachedInventory: {
                 status: 'Ready',
@@ -377,10 +398,53 @@ describe('system status startup helpers', () => {
         });
 
         expect(buildSystemStartupChecks(startupStatus)).toContainEqual({
+            name: 'Imported Sessions',
+            status: 'Operational',
+            latency: '0/0 archived',
+            detail: 'No imported sessions have been persisted yet',
+        });
+
+        expect(buildSystemStartupChecks(startupStatus)).toContainEqual({
             name: 'Resident MCP Runtime',
             status: 'Operational',
             latency: 'deferred lazy mode · 4 configured',
             detail: '4 configured servers are in deferred lazy mode · downstream binaries launch on first tool call',
+        });
+    });
+
+    it('marks imported sessions pending until transcripts are archived and retention summaries are backfilled', () => {
+        const checks = buildSystemStartupChecks(createStartupStatus({
+            importedSessions: {
+                totalSessions: 5,
+                archivedTranscriptCount: 3,
+                inlineTranscriptCount: 2,
+                missingRetentionSummaryCount: 1,
+            },
+        }));
+
+        expect(checks).toContainEqual({
+            name: 'Imported Sessions',
+            status: 'Pending',
+            latency: '3/5 archived',
+            detail: '3/5 archived · 2 inline · 1 missing retention summaries',
+        });
+    });
+
+    it('marks imported sessions operational once archive compaction and retention summaries are complete', () => {
+        const checks = buildSystemStartupChecks(createStartupStatus({
+            importedSessions: {
+                totalSessions: 4,
+                archivedTranscriptCount: 4,
+                inlineTranscriptCount: 0,
+                missingRetentionSummaryCount: 0,
+            },
+        }));
+
+        expect(checks).toContainEqual({
+            name: 'Imported Sessions',
+            status: 'Operational',
+            latency: '4/4 archived',
+            detail: '4/4 archived · 0 inline · retention summaries complete',
         });
     });
 
@@ -427,7 +491,7 @@ describe('system status startup helpers', () => {
 
         expect(buildSystemStartupNotice(startupStatus)).toEqual({
             title: 'Compat fallback active',
-            detail: 'Live startup telemetry is unavailable, so Borg is showing config-backed compatibility state instead of the full core startup contract.',
+            detail: 'Live startup telemetry is unavailable, so HyperCode is showing config-backed compatibility state instead of the full core startup contract.',
             tone: 'warning',
         });
 
@@ -565,6 +629,12 @@ describe('system status startup helpers', () => {
                 detail: 'Waiting for the first live startup snapshot from core.',
             },
             {
+                name: 'Imported Sessions',
+                status: 'Pending',
+                latency: 'connecting',
+                detail: 'Waiting for imported-session archive telemetry from core.',
+            },
+            {
                 name: 'Extension Install Artifacts',
                 status: 'Pending',
                 latency: 'detecting',
@@ -576,7 +646,7 @@ describe('system status startup helpers', () => {
             name: 'Core API',
             status: 'Pending',
             latency: 'connecting',
-            detail: 'Connecting to live startup telemetry from Borg Core.',
+            detail: 'Connecting to live startup telemetry from HyperCode Core.',
         });
     });
 });

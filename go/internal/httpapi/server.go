@@ -2378,7 +2378,7 @@ func (s *Server) handleMCPTools(w http.ResponseWriter, r *http.Request) {
 	if fallbackErr != nil {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]any{
 			"success": false,
-			"error":   err.Error(),
+			"error":   fallbackErr.Error(),
 			"detail":  fallbackErr.Error(),
 		})
 		return
@@ -2390,7 +2390,7 @@ func (s *Server) handleMCPTools(w http.ResponseWriter, r *http.Request) {
 		"bridge": map[string]any{
 			"fallback":  "go-local-mcp",
 			"procedure": "mcp.listTools",
-			"reason":    err.Error(),
+			"reason":    "upstream unavailable; using local MCP tool inventory",
 		},
 	})
 }
@@ -2423,7 +2423,7 @@ func (s *Server) handleMCPSearchTools(w http.ResponseWriter, r *http.Request) {
 	if fallbackErr != nil {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]any{
 			"success": false,
-			"error":   err.Error(),
+			"error":   fallbackErr.Error(),
 			"detail":  fallbackErr.Error(),
 		})
 		return
@@ -2435,7 +2435,7 @@ func (s *Server) handleMCPSearchTools(w http.ResponseWriter, r *http.Request) {
 		"bridge": map[string]any{
 			"fallback":  "go-local-mcp",
 			"procedure": "mcp.searchTools",
-			"reason":    err.Error(),
+			"reason":    "upstream unavailable; using local MCP tool search results",
 		},
 	})
 }
@@ -2476,7 +2476,7 @@ func (s *Server) handleMCPCallTool(w http.ResponseWriter, r *http.Request) {
 	if fallbackErr != nil {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]any{
 			"success": false,
-			"error":   err.Error(),
+			"error":   fallbackErr.Error(),
 			"detail":  fallbackErr.Error(),
 		})
 		return
@@ -2488,7 +2488,7 @@ func (s *Server) handleMCPCallTool(w http.ResponseWriter, r *http.Request) {
 		"bridge": map[string]any{
 			"fallback":  "go-local-mcp",
 			"procedure": "mcp.callTool",
-			"reason":    err.Error(),
+			"reason":    "upstream unavailable; using local MCP meta-tool execution",
 		},
 	})
 }
@@ -2535,7 +2535,7 @@ func (s *Server) handleMCPAutoCallTool(w http.ResponseWriter, r *http.Request) {
 	if fallbackErr != nil {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]any{
 			"success": false,
-			"error":   err.Error(),
+			"error":   fallbackErr.Error(),
 			"detail":  fallbackErr.Error(),
 		})
 		return
@@ -2547,7 +2547,7 @@ func (s *Server) handleMCPAutoCallTool(w http.ResponseWriter, r *http.Request) {
 		"bridge": map[string]any{
 			"fallback":  "go-local-mcp",
 			"procedure": "mcp.callTool",
-			"reason":    err.Error(),
+			"reason":    "upstream unavailable; using local auto-call meta-tool execution",
 		},
 	})
 }
@@ -2668,7 +2668,7 @@ func (s *Server) handleMCPToolSchema(w http.ResponseWriter, r *http.Request) {
 	if fallbackErr != nil {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]any{
 			"success": false,
-			"error":   err.Error(),
+			"error":   fallbackErr.Error(),
 			"detail":  fallbackErr.Error(),
 		})
 		return
@@ -2680,7 +2680,7 @@ func (s *Server) handleMCPToolSchema(w http.ResponseWriter, r *http.Request) {
 		"bridge": map[string]any{
 			"fallback":  "go-local-mcp",
 			"procedure": "mcp.getToolSchema",
-			"reason":    err.Error(),
+			"reason":    "upstream unavailable; using local MCP tool schema fallback",
 		},
 	})
 }

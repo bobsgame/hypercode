@@ -4599,6 +4599,7 @@ var AutoCallTool = struct{
 			path: "/api/mcp/tools",
 			contains: []string{
 				`"fallback":"go-local-mcp"`,
+				`using local MCP tool inventory`,
 				`"name":"search_tools"`,
 				`"server":"hypercode"`,
 			},
@@ -4663,6 +4664,9 @@ var SearchTools = struct{
 	if !strings.Contains(recorder.Body.String(), `"procedure":"mcp.searchTools"`) {
 		t.Fatalf("expected searchTools procedure metadata, got %s", recorder.Body.String())
 	}
+	if !strings.Contains(recorder.Body.String(), `using local MCP tool search results`) {
+		t.Fatalf("expected local search fallback reason, got %s", recorder.Body.String())
+	}
 	if !strings.Contains(recorder.Body.String(), `"name":"search_tools"`) {
 		t.Fatalf("expected local source-backed search result, got %s", recorder.Body.String())
 	}
@@ -4709,6 +4713,9 @@ var ListAllTools = struct{
 	if callRecorder.Code != http.StatusOK || !strings.Contains(callRecorder.Body.String(), `"fallback":"go-local-mcp"`) || !strings.Contains(callRecorder.Body.String(), `hypercode`) || !strings.Contains(callRecorder.Body.String(), `search_tools`) {
 		t.Fatalf("expected local callTool fallback response, got %d %s", callRecorder.Code, callRecorder.Body.String())
 	}
+	if !strings.Contains(callRecorder.Body.String(), `using local MCP meta-tool execution`) {
+		t.Fatalf("expected local callTool fallback reason, got %s", callRecorder.Body.String())
+	}
 
 	autoRequest := httptest.NewRequest(http.MethodPost, "/api/mcp/tools/auto-call", strings.NewReader(`{"objective":"find the right tool","context":"repo: hypercode"}`))
 	autoRequest.Header.Set("content-type", "application/json")
@@ -4716,6 +4723,9 @@ var ListAllTools = struct{
 	server.Handler().ServeHTTP(autoRecorder, autoRequest)
 	if autoRecorder.Code != http.StatusOK || !strings.Contains(autoRecorder.Body.String(), `"fallback":"go-local-mcp"`) || !strings.Contains(autoRecorder.Body.String(), `Auto-Execution Logic`) {
 		t.Fatalf("expected local auto_call_tool fallback response, got %d %s", autoRecorder.Code, autoRecorder.Body.String())
+	}
+	if !strings.Contains(autoRecorder.Body.String(), `using local auto-call meta-tool execution`) {
+		t.Fatalf("expected local auto-call fallback reason, got %s", autoRecorder.Body.String())
 	}
 }
 
@@ -4738,6 +4748,9 @@ func TestMCPToolSchemaFallsBackToLocalMetaSchemas(t *testing.T) {
 	}
 	if !strings.Contains(recorder.Body.String(), `"fallback":"go-local-mcp"`) || !strings.Contains(recorder.Body.String(), `"procedure":"mcp.getToolSchema"`) {
 		t.Fatalf("expected local schema fallback metadata, got %s", recorder.Body.String())
+	}
+	if !strings.Contains(recorder.Body.String(), `using local MCP tool schema fallback`) {
+		t.Fatalf("expected local schema fallback reason, got %s", recorder.Body.String())
 	}
 	if !strings.Contains(recorder.Body.String(), `"query"`) || !strings.Contains(recorder.Body.String(), `"inputSchema"`) {
 		t.Fatalf("expected local search_tools schema payload, got %s", recorder.Body.String())

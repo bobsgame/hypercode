@@ -1786,7 +1786,7 @@ func (s *Server) handleImportedSessionScan(w http.ResponseWriter, r *http.Reques
 		"bridge": map[string]any{
 			"fallback":  "go-sessionimport",
 			"procedure": "session.importedScan",
-			"reason":    err.Error(),
+			"reason":    "upstream unavailable; using scan-only imported session discovery summary",
 		},
 	})
 }

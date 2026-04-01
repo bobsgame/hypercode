@@ -5380,6 +5380,9 @@ func TestImportedSessionScanFallsBackToGoScanner(t *testing.T) {
 	if !strings.Contains(recorder.Body.String(), `"fallback":"go-sessionimport"`) {
 		t.Fatalf("expected go-sessionimport fallback metadata, got %s", recorder.Body.String())
 	}
+	if !strings.Contains(recorder.Body.String(), `using scan-only imported session discovery summary`) {
+		t.Fatalf("expected scan-only scan fallback reason, got %s", recorder.Body.String())
+	}
 	if !strings.Contains(recorder.Body.String(), `"instructionDocPath":null`) {
 		t.Fatalf("expected no instruction doc path in raw scan fallback, got %s", recorder.Body.String())
 	}

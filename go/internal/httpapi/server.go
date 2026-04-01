@@ -1149,8 +1149,8 @@ func (s *Server) handleAPIIndex(w http.ResponseWriter, _ *http.Request) {
 				{Path: "/api/api-keys/update", Category: "governance", Description: "Update an API key through the TypeScript API keys router."},
 				{Path: "/api/api-keys/delete", Category: "governance", Description: "Delete an API key through the TypeScript API keys router."},
 				{Path: "/api/api-keys/validate", Category: "governance", Description: "Validate an API key through the TypeScript API keys router."},
-				{Path: "/api/audit", Category: "governance", Description: "List audit logs through the TypeScript audit router."},
-				{Path: "/api/audit/query", Category: "governance", Description: "Query audit logs through the TypeScript audit router."},
+				{Path: "/api/audit", Category: "governance", Description: "List audit logs through the TypeScript audit router, with a local empty-state fallback when the audit service is unavailable."},
+				{Path: "/api/audit/query", Category: "governance", Description: "Query audit logs through the TypeScript audit router, with a local empty-state fallback when the audit service is unavailable."},
 				{Path: "/api/scripts", Category: "operator", Description: "List saved scripts through the TypeScript saved scripts router, with a local empty-state fallback when the script store is unavailable."},
 				{Path: "/api/scripts/get", Category: "operator", Description: "Read a saved script through the TypeScript saved scripts router."},
 				{Path: "/api/scripts/create", Category: "operator", Description: "Create a saved script through the TypeScript saved scripts router."},
@@ -5444,7 +5444,29 @@ func (s *Server) handleAuditList(w http.ResponseWriter, r *http.Request) {
 			payload["limit"] = parsed
 		}
 	}
-	s.handleTRPCBridgeCall(w, r, http.MethodGet, "audit.list", payload)
+	var result any
+	upstreamBase, err := s.callUpstreamJSON(r.Context(), "audit.list", payload, &result)
+	if err == nil {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"data":    result,
+			"bridge": map[string]any{
+				"upstreamBase": upstreamBase,
+				"procedure":    "audit.list",
+			},
+		})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"data":    []map[string]any{},
+		"bridge": map[string]any{
+			"fallback":  "go-local-audit",
+			"procedure": "audit.list",
+			"reason":    "upstream unavailable; using local empty audit log list",
+		},
+	})
 }
 
 func (s *Server) handleAuditQuery(w http.ResponseWriter, r *http.Request) {
@@ -5463,7 +5485,29 @@ func (s *Server) handleAuditQuery(w http.ResponseWriter, r *http.Request) {
 			payload["limit"] = parsed
 		}
 	}
-	s.handleTRPCBridgeCall(w, r, http.MethodGet, "audit.log", payload)
+	var result any
+	upstreamBase, err := s.callUpstreamJSON(r.Context(), "audit.log", payload, &result)
+	if err == nil {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"data":    result,
+			"bridge": map[string]any{
+				"upstreamBase": upstreamBase,
+				"procedure":    "audit.log",
+			},
+		})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"data":    []map[string]any{},
+		"bridge": map[string]any{
+			"fallback":  "go-local-audit",
+			"procedure": "audit.log",
+			"reason":    "upstream unavailable; using local empty audit query results",
+		},
+	})
 }
 
 func (s *Server) handleSavedScriptsList(w http.ResponseWriter, r *http.Request) {

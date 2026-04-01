@@ -5410,6 +5410,55 @@ func TestOperatorListEndpointsFallBackToEmptyState(t *testing.T) {
 	}
 }
 
+func TestAuditReadEndpointsFallBackToEmptyState(t *testing.T) {
+	t.Setenv("BORG_TRPC_UPSTREAM", "http://127.0.0.1:1/trpc")
+
+	server := New(config.Default(), stubDetector{})
+
+	cases := []struct {
+		name     string
+		path     string
+		contains []string
+	}{
+		{
+			name: "audit list",
+			path: "/api/audit?limit=25",
+			contains: []string{
+				`"fallback":"go-local-audit"`,
+				`"procedure":"audit.list"`,
+				`using local empty audit log list`,
+				`"data":[]`,
+			},
+		},
+		{
+			name: "audit query",
+			path: "/api/audit/query?level=info&agentId=agent-1&action=run&limit=10",
+			contains: []string{
+				`"fallback":"go-local-audit"`,
+				`"procedure":"audit.log"`,
+				`using local empty audit query results`,
+				`"data":[]`,
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			recorder := httptest.NewRecorder()
+			server.Handler().ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, tc.path, nil))
+
+			if recorder.Code != http.StatusOK {
+				t.Fatalf("expected status 200, got %d with body %s", recorder.Code, recorder.Body.String())
+			}
+			for _, needle := range tc.contains {
+				if !strings.Contains(recorder.Body.String(), needle) {
+					t.Fatalf("expected response to contain %s, got %s", needle, recorder.Body.String())
+				}
+			}
+		})
+	}
+}
+
 func TestMCPSearchToolsFallsBackToLocalInventory(t *testing.T) {
 	workspaceRoot := t.TempDir()
 	toolsDir := filepath.Join(workspaceRoot, "submodules", "hypercode", "tools")

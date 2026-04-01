@@ -6047,6 +6047,48 @@ func TestServerHealthFallsBackToCachedMCPMetadata(t *testing.T) {
 	}
 }
 
+func TestSymbolsReadRoutesFallBackToEmptyResults(t *testing.T) {
+	t.Setenv("BORG_TRPC_UPSTREAM", "http://127.0.0.1:1/trpc")
+
+	cfg := config.Default()
+	cfg.WorkspaceRoot = t.TempDir()
+	cfg.ConfigDir = t.TempDir()
+	cfg.MainConfigDir = t.TempDir()
+	server := New(cfg, stubDetector{})
+
+	cases := []struct {
+		name      string
+		path      string
+		procedure string
+		reason    string
+	}{
+		{name: "list", path: "/api/symbols", procedure: "symbols.list", reason: "symbol pins are not initialized"},
+		{name: "find", path: "/api/symbols/find?query=Run&limit=5", procedure: "symbols.find", reason: "symbol search is not initialized"},
+		{name: "for_file", path: "/api/symbols/file?filePath=src%2Fapp.ts", procedure: "symbols.forFile", reason: "symbol pins are not initialized"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			recorder := httptest.NewRecorder()
+			server.Handler().ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, tc.path, nil))
+			if recorder.Code != http.StatusOK {
+				t.Fatalf("expected %s 200, got %d with body %s", tc.name, recorder.Code, recorder.Body.String())
+			}
+
+			for _, needle := range []string{
+				`"fallback":"go-local-symbols"`,
+				`"procedure":"` + tc.procedure + `"`,
+				tc.reason,
+				`"data":[]`,
+			} {
+				if !strings.Contains(recorder.Body.String(), needle) {
+					t.Fatalf("expected %s fallback to contain %s, got %s", tc.name, needle, recorder.Body.String())
+				}
+			}
+		})
+	}
+}
+
 func TestToolAliasResolveFallsBackToUnresolvedState(t *testing.T) {
 	t.Setenv("BORG_TRPC_UPSTREAM", "http://127.0.0.1:1/trpc")
 

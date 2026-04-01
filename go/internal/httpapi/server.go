@@ -1133,14 +1133,14 @@ func (s *Server) handleAPIIndex(w http.ResponseWriter, _ *http.Request) {
 				{Path: "/api/workflows/canvases", Category: "workflow", Description: "List saved TypeScript workflow canvases."},
 				{Path: "/api/workflows/canvas", Category: "workflow", Description: "Load a saved TypeScript workflow canvas."},
 				{Path: "/api/workflows/canvas/save", Category: "workflow", Description: "Save a TypeScript workflow canvas."},
-				{Path: "/api/symbols", Category: "code", Description: "List pinned symbols through the TypeScript symbols router."},
-				{Path: "/api/symbols/find", Category: "code", Description: "Search symbols through the TypeScript symbols router."},
+				{Path: "/api/symbols", Category: "code", Description: "List pinned symbols through the TypeScript symbols router, with an explicit empty-state fallback when symbol pins are unavailable."},
+				{Path: "/api/symbols/find", Category: "code", Description: "Search symbols through the TypeScript symbols router, with an explicit empty-state fallback when symbol search is unavailable."},
 				{Path: "/api/symbols/pin", Category: "code", Description: "Pin a symbol through the TypeScript symbols router."},
 				{Path: "/api/symbols/unpin", Category: "code", Description: "Unpin a symbol through the TypeScript symbols router."},
 				{Path: "/api/symbols/priority", Category: "code", Description: "Update symbol priority through the TypeScript symbols router."},
 				{Path: "/api/symbols/notes", Category: "code", Description: "Add symbol notes through the TypeScript symbols router."},
 				{Path: "/api/symbols/clear", Category: "code", Description: "Clear pinned symbols through the TypeScript symbols router."},
-				{Path: "/api/symbols/file", Category: "code", Description: "List pinned symbols for a file through the TypeScript symbols router."},
+				{Path: "/api/symbols/file", Category: "code", Description: "List pinned symbols for a file through the TypeScript symbols router, with an explicit empty-state fallback when symbol pins are unavailable."},
 				{Path: "/api/lsp/find-symbol", Category: "code", Description: "Bridge to the TypeScript LSP find-symbol surface."},
 				{Path: "/api/lsp/find-references", Category: "code", Description: "Bridge to the TypeScript LSP reference search surface."},
 				{Path: "/api/lsp/symbols", Category: "code", Description: "Bridge to the TypeScript LSP file-symbol surface."},
@@ -5839,7 +5839,21 @@ func (s *Server) handleWorkflowCanvasSave(w http.ResponseWriter, r *http.Request
 }
 
 func (s *Server) handleSymbolsList(w http.ResponseWriter, r *http.Request) {
-	s.handleTRPCBridgeCall(w, r, http.MethodGet, "symbols.list", nil)
+	var result any
+	upstreamBase, err := s.callUpstreamJSON(r.Context(), "symbols.list", nil, &result)
+	if err == nil {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"data":    result,
+			"bridge": map[string]any{
+				"upstreamBase": upstreamBase,
+				"procedure":    "symbols.list",
+			},
+		})
+		return
+	}
+
+	s.writeSymbolsEmptyFallback(w, "symbols.list", "upstream unavailable; symbol pins are not initialized")
 }
 
 func (s *Server) handleSymbolsFind(w http.ResponseWriter, r *http.Request) {
@@ -5854,7 +5868,21 @@ func (s *Server) handleSymbolsFind(w http.ResponseWriter, r *http.Request) {
 			payload["limit"] = parsed
 		}
 	}
-	s.handleTRPCBridgeCall(w, r, http.MethodGet, "symbols.find", payload)
+	var result any
+	upstreamBase, err := s.callUpstreamJSON(r.Context(), "symbols.find", payload, &result)
+	if err == nil {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"data":    result,
+			"bridge": map[string]any{
+				"upstreamBase": upstreamBase,
+				"procedure":    "symbols.find",
+			},
+		})
+		return
+	}
+
+	s.writeSymbolsEmptyFallback(w, "symbols.find", "upstream unavailable; symbol search is not initialized")
 }
 
 func (s *Server) handleSymbolsPin(w http.ResponseWriter, r *http.Request) {
@@ -5883,7 +5911,33 @@ func (s *Server) handleSymbolsForFile(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]any{"success": false, "error": "missing filePath query parameter"})
 		return
 	}
-	s.handleTRPCBridgeCall(w, r, http.MethodGet, "symbols.forFile", map[string]any{"filePath": filePath})
+	var result any
+	upstreamBase, err := s.callUpstreamJSON(r.Context(), "symbols.forFile", map[string]any{"filePath": filePath}, &result)
+	if err == nil {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"data":    result,
+			"bridge": map[string]any{
+				"upstreamBase": upstreamBase,
+				"procedure":    "symbols.forFile",
+			},
+		})
+		return
+	}
+
+	s.writeSymbolsEmptyFallback(w, "symbols.forFile", "upstream unavailable; symbol pins are not initialized")
+}
+
+func (s *Server) writeSymbolsEmptyFallback(w http.ResponseWriter, procedure string, reason string) {
+	writeJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"data":    []map[string]any{},
+		"bridge": map[string]any{
+			"fallback":  "go-local-symbols",
+			"procedure": procedure,
+			"reason":    reason,
+		},
+	})
 }
 
 func (s *Server) handleLSPFindSymbol(w http.ResponseWriter, r *http.Request) {

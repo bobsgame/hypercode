@@ -5608,9 +5608,9 @@ func TestZeroStateRegistryReadEndpointsFallBackLocally(t *testing.T) {
 			name: "tool aliases",
 			path: "/api/tool-chains/aliases",
 			contains: []string{
-				`"fallback":"go-local-registry"`,
+				`"fallback":"go-local-toolchain-db"`,
 				`"procedure":"toolChaining.listAliases"`,
-				`using local empty tool alias registry`,
+				`using local tool aliases from metamcp.db`,
 				`"data":[]`,
 			},
 		},
@@ -7956,13 +7956,62 @@ func TestToolAliasResolveFallsBackToUnresolvedState(t *testing.T) {
 	}
 
 	for _, needle := range []string{
-		`"fallback":"go-local-registry"`,
+		`"fallback":"go-local-toolchain-db"`,
 		`"procedure":"toolChaining.resolveAlias"`,
-		`using local unresolved alias fallback`,
+		`using local tool alias from metamcp.db`,
 		`"resolved":false`,
 	} {
 		if !strings.Contains(recorder.Body.String(), needle) {
 			t.Fatalf("expected tool alias resolve fallback to contain %s, got %s", needle, recorder.Body.String())
+		}
+	}
+}
+
+func TestToolAliasesListFallsBackToLocalDB(t *testing.T) {
+	t.Setenv("BORG_TRPC_UPSTREAM", "http://127.0.0.1:1/trpc")
+
+	workspace := t.TempDir()
+	dbPath := filepath.Join(workspace, "metamcp.db")
+	db, err := sql.Open("sqlite", dbPath)
+	if err != nil {
+		t.Fatalf("failed to open sqlite db: %v", err)
+	}
+	defer db.Close()
+	if _, err := db.Exec(`
+		CREATE TABLE tool_aliases (
+			alias TEXT PRIMARY KEY,
+			target_tool TEXT NOT NULL,
+			description TEXT,
+			default_arguments TEXT NOT NULL DEFAULT '{}',
+			created_at INTEGER NOT NULL
+		);
+		INSERT INTO tool_aliases (alias, target_tool, description, default_arguments, created_at)
+		VALUES ('search', 'search_tools', 'Short alias', '{}', 1711958400);
+	`); err != nil {
+		t.Fatalf("failed to seed sqlite db: %v", err)
+	}
+
+	cfg := config.Default()
+	cfg.WorkspaceRoot = workspace
+	cfg.ConfigDir = t.TempDir()
+	cfg.MainConfigDir = t.TempDir()
+	server := New(cfg, stubDetector{})
+	recorder := httptest.NewRecorder()
+
+	server.Handler().ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/api/tool-chains/aliases", nil))
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected tool alias list 200, got %d with body %s", recorder.Code, recorder.Body.String())
+	}
+
+	for _, needle := range []string{
+		`"fallback":"go-local-toolchain-db"`,
+		`"procedure":"toolChaining.listAliases"`,
+		`using local tool aliases from metamcp.db`,
+		`"alias":"search"`,
+		`"originalName":"search_tools"`,
+	} {
+		if !strings.Contains(recorder.Body.String(), needle) {
+			t.Fatalf("expected tool alias list fallback to contain %s, got %s", needle, recorder.Body.String())
 		}
 	}
 }

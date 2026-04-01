@@ -8553,13 +8553,22 @@ func (s *Server) handleToolChainAliases(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	aliases, fallbackErr := s.localToolAliases()
+	if fallbackErr != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]any{
+			"success": false,
+			"error":   fallbackErr.Error(),
+		})
+		return
+	}
+
 	writeJSON(w, http.StatusOK, map[string]any{
 		"success": true,
-		"data":    []map[string]any{},
+		"data":    aliases,
 		"bridge": map[string]any{
-			"fallback":  "go-local-registry",
+			"fallback":  "go-local-toolchain-db",
 			"procedure": "toolChaining.listAliases",
-			"reason":    "upstream unavailable; using local empty tool alias registry",
+			"reason":    "upstream unavailable; using local tool aliases from metamcp.db",
 		},
 	})
 }
@@ -8593,15 +8602,22 @@ func (s *Server) handleToolChainResolveAlias(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
+	alias, fallbackErr := s.localToolAlias(name)
+	if fallbackErr != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]any{
+			"success": false,
+			"error":   fallbackErr.Error(),
+		})
+		return
+	}
+
 	writeJSON(w, http.StatusOK, map[string]any{
 		"success": true,
-		"data": map[string]any{
-			"resolved": false,
-		},
+		"data":    alias,
 		"bridge": map[string]any{
-			"fallback":  "go-local-registry",
+			"fallback":  "go-local-toolchain-db",
 			"procedure": "toolChaining.resolveAlias",
-			"reason":    "upstream unavailable; using local unresolved alias fallback",
+			"reason":    "upstream unavailable; using local tool alias from metamcp.db",
 		},
 	})
 }
@@ -12093,6 +12109,92 @@ func localToolChainSteps(db *sql.DB, chainID string) ([]map[string]any, error) {
 	}
 
 	return steps, nil
+}
+
+func (s *Server) localToolAliases() ([]map[string]any, error) {
+	db, err := sql.Open("sqlite", s.localMetaMCPDBPath())
+	if err != nil {
+		return nil, err
+	}
+	defer db.Close()
+
+	rows, err := db.Query(`
+		SELECT alias, target_tool, description, created_at
+		FROM tool_aliases
+		ORDER BY created_at DESC
+	`)
+	if err != nil {
+		if strings.Contains(strings.ToLower(err.Error()), "no such table") {
+			return []map[string]any{}, nil
+		}
+		return nil, err
+	}
+	defer rows.Close()
+
+	aliases := make([]map[string]any, 0)
+	for rows.Next() {
+		var (
+			alias       string
+			targetTool  string
+			description sql.NullString
+			createdAt   int64
+		)
+		if err := rows.Scan(&alias, &targetTool, &description, &createdAt); err != nil {
+			return nil, err
+		}
+
+		aliases = append(aliases, map[string]any{
+			"serverId":     "unknown",
+			"originalName": targetTool,
+			"alias":        alias,
+			"description":  nullStringToAny(description),
+			"createdAt":    createdAt * 1000,
+		})
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return aliases, nil
+}
+
+func (s *Server) localToolAlias(name string) (any, error) {
+	db, err := sql.Open("sqlite", s.localMetaMCPDBPath())
+	if err != nil {
+		return nil, err
+	}
+	defer db.Close()
+
+	var (
+		alias       string
+		targetTool  string
+		description sql.NullString
+		createdAt   int64
+	)
+	row := db.QueryRow(`
+		SELECT alias, target_tool, description, created_at
+		FROM tool_aliases
+		WHERE alias = ?
+		LIMIT 1
+	`, name)
+	if err := row.Scan(&alias, &targetTool, &description, &createdAt); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return map[string]any{"resolved": false}, nil
+		}
+		if strings.Contains(strings.ToLower(err.Error()), "no such table") {
+			return map[string]any{"resolved": false}, nil
+		}
+		return nil, err
+	}
+
+	return map[string]any{
+		"resolved":     true,
+		"serverId":     "unknown",
+		"originalName": targetTool,
+		"alias":        alias,
+		"description":  nullStringToAny(description),
+		"createdAt":    createdAt * 1000,
+	}, nil
 }
 
 func (s *Server) localShellQueryHistory(query string, limit int) ([]map[string]any, error) {

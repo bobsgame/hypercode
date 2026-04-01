@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"sort"
 	"strconv"
@@ -1031,12 +1032,12 @@ func (s *Server) handleAPIIndex(w http.ResponseWriter, _ *http.Request) {
 				{Path: "/api/graph/consumers", Category: "code", Description: "Bridge to repository graph consumers for a given file path."},
 				{Path: "/api/graph/dependencies", Category: "code", Description: "Bridge to repository graph dependencies for a given file path."},
 				{Path: "/api/graph/symbols", Category: "code", Description: "Bridge to the TypeScript symbols graph snapshot."},
-				{Path: "/api/context/list", Category: "code", Description: "Bridge to the current TypeScript context file list."},
+				{Path: "/api/context/list", Category: "code", Description: "Bridge to the current TypeScript context file list, with a local empty-state fallback when the TypeScript context manager is unavailable."},
 				{Path: "/api/context/add", Category: "code", Description: "Add a file to the TypeScript context manager."},
 				{Path: "/api/context/remove", Category: "code", Description: "Remove a file from the TypeScript context manager."},
 				{Path: "/api/context/clear", Category: "code", Description: "Clear the TypeScript context manager state."},
-				{Path: "/api/context/prompt", Category: "code", Description: "Bridge to the TypeScript context prompt output."},
-				{Path: "/api/git/modules", Category: "code", Description: "Bridge to parsed git submodule metadata from the TypeScript control plane."},
+				{Path: "/api/context/prompt", Category: "code", Description: "Bridge to the TypeScript context prompt output, with a local empty-state fallback when the TypeScript context manager is unavailable."},
+				{Path: "/api/git/modules", Category: "code", Description: "Bridge to parsed git submodule metadata, with a local .gitmodules fallback when the TypeScript control plane is unavailable."},
 				{Path: "/api/git/log", Category: "code", Description: "Bridge to git log output from the TypeScript control plane."},
 				{Path: "/api/git/status", Category: "code", Description: "Bridge to git status output from the TypeScript control plane."},
 				{Path: "/api/git/revert", Category: "code", Description: "Request a git revert through the TypeScript control plane."},
@@ -1100,9 +1101,9 @@ func (s *Server) handleAPIIndex(w http.ResponseWriter, _ *http.Request) {
 				{Path: "/api/tool-sets/create", Category: "control", Description: "Create a tool set through the TypeScript control plane."},
 				{Path: "/api/tool-sets/update", Category: "control", Description: "Update a tool set through the TypeScript control plane."},
 				{Path: "/api/tool-sets/delete", Category: "control", Description: "Delete a tool set through the TypeScript control plane."},
-				{Path: "/api/project/context", Category: "control", Description: "Bridge to the TypeScript project context document."},
+				{Path: "/api/project/context", Category: "control", Description: "Bridge to the TypeScript project context document, with a local .hypercode/project_context.md fallback when the TypeScript control plane is unavailable."},
 				{Path: "/api/project/context/update", Category: "control", Description: "Update the TypeScript project context document."},
-				{Path: "/api/project/handoffs", Category: "control", Description: "Bridge to TypeScript project handoff metadata."},
+				{Path: "/api/project/handoffs", Category: "control", Description: "Bridge to TypeScript project handoff metadata, with a local .hypercode/handoffs listing fallback when the TypeScript control plane is unavailable."},
 				{Path: "/api/shell/log", Category: "control", Description: "Log a shell command through the TypeScript shell service."},
 				{Path: "/api/shell/history/query", Category: "control", Description: "Bridge to TypeScript shell history search."},
 				{Path: "/api/shell/history/system", Category: "control", Description: "Bridge to recent TypeScript system shell history."},
@@ -4082,7 +4083,29 @@ func (s *Server) handleGraphSymbols(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleContextList(w http.ResponseWriter, r *http.Request) {
-	s.handleTRPCBridgeCall(w, r, http.MethodGet, "borgContext.list", nil)
+	var result any
+	upstreamBase, err := s.callUpstreamJSON(r.Context(), "borgContext.list", nil, &result)
+	if err == nil {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"data":    result,
+			"bridge": map[string]any{
+				"upstreamBase": upstreamBase,
+				"procedure":    "borgContext.list",
+			},
+		})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"data":    []string{},
+		"bridge": map[string]any{
+			"fallback":  "go-local-context",
+			"procedure": "borgContext.list",
+			"reason":    "upstream unavailable; using local empty context list",
+		},
+	})
 }
 
 func (s *Server) handleContextAdd(w http.ResponseWriter, r *http.Request) {
@@ -4098,11 +4121,55 @@ func (s *Server) handleContextClear(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleContextPrompt(w http.ResponseWriter, r *http.Request) {
-	s.handleTRPCBridgeCall(w, r, http.MethodGet, "borgContext.getPrompt", nil)
+	var result any
+	upstreamBase, err := s.callUpstreamJSON(r.Context(), "borgContext.getPrompt", nil, &result)
+	if err == nil {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"data":    result,
+			"bridge": map[string]any{
+				"upstreamBase": upstreamBase,
+				"procedure":    "borgContext.getPrompt",
+			},
+		})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"data":    "",
+		"bridge": map[string]any{
+			"fallback":  "go-local-context",
+			"procedure": "borgContext.getPrompt",
+			"reason":    "upstream unavailable; using local empty context prompt",
+		},
+	})
 }
 
 func (s *Server) handleGitModules(w http.ResponseWriter, r *http.Request) {
-	s.handleTRPCBridgeCall(w, r, http.MethodGet, "git.getModules", nil)
+	var result any
+	upstreamBase, err := s.callUpstreamJSON(r.Context(), "git.getModules", nil, &result)
+	if err == nil {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"data":    result,
+			"bridge": map[string]any{
+				"upstreamBase": upstreamBase,
+				"procedure":    "git.getModules",
+			},
+		})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"data":    localGitModules(s.cfg.WorkspaceRoot),
+		"bridge": map[string]any{
+			"fallback":  "go-local-git",
+			"procedure": "git.getModules",
+			"reason":    "upstream unavailable; using local .gitmodules parsing",
+		},
+	})
 }
 
 func (s *Server) handleGitLog(w http.ResponseWriter, r *http.Request) {
@@ -4791,7 +4858,29 @@ func (s *Server) handleToolSetsDelete(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleProjectContext(w http.ResponseWriter, r *http.Request) {
-	s.handleTRPCBridgeCall(w, r, http.MethodGet, "project.getContext", nil)
+	var result any
+	upstreamBase, err := s.callUpstreamJSON(r.Context(), "project.getContext", nil, &result)
+	if err == nil {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"data":    result,
+			"bridge": map[string]any{
+				"upstreamBase": upstreamBase,
+				"procedure":    "project.getContext",
+			},
+		})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"data":    localProjectContext(s.cfg.WorkspaceRoot),
+		"bridge": map[string]any{
+			"fallback":  "go-local-project",
+			"procedure": "project.getContext",
+			"reason":    "upstream unavailable; using local project context document",
+		},
+	})
 }
 
 func (s *Server) handleProjectContextUpdate(w http.ResponseWriter, r *http.Request) {
@@ -4799,7 +4888,29 @@ func (s *Server) handleProjectContextUpdate(w http.ResponseWriter, r *http.Reque
 }
 
 func (s *Server) handleProjectHandoffs(w http.ResponseWriter, r *http.Request) {
-	s.handleTRPCBridgeCall(w, r, http.MethodGet, "project.getHandoffs", nil)
+	var result any
+	upstreamBase, err := s.callUpstreamJSON(r.Context(), "project.getHandoffs", nil, &result)
+	if err == nil {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"data":    result,
+			"bridge": map[string]any{
+				"upstreamBase": upstreamBase,
+				"procedure":    "project.getHandoffs",
+			},
+		})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"data":    localProjectHandoffs(s.cfg.WorkspaceRoot),
+		"bridge": map[string]any{
+			"fallback":  "go-local-project",
+			"procedure": "project.getHandoffs",
+			"reason":    "upstream unavailable; using local handoff directory listing",
+		},
+	})
 }
 
 func (s *Server) handleShellLog(w http.ResponseWriter, r *http.Request) {
@@ -6547,6 +6658,84 @@ func summarizeCLI(workspaceRoot string, tools []controlplane.Tool) CLISummary {
 		AvailableTools:              availableTools,
 		InstalledHarnesses:          installedHarnesses,
 	}
+}
+
+func localGitModules(workspaceRoot string) []map[string]any {
+	content, err := os.ReadFile(filepath.Join(workspaceRoot, ".gitmodules"))
+	if err != nil {
+		return []map[string]any{}
+	}
+
+	regex := regexp.MustCompile(`\[submodule "(.*?)"\]\s*path = (.*?)\s*url = (.*?)\s`)
+	matches := regex.FindAllStringSubmatch(string(content), -1)
+	modules := make([]map[string]any, 0, len(matches))
+	date := time.Now().Format("2006-01-02")
+	for _, match := range matches {
+		if len(match) < 4 {
+			continue
+		}
+		modules = append(modules, map[string]any{
+			"name":       match[1],
+			"path":       match[2],
+			"url":        match[3],
+			"status":     "unknown",
+			"branch":     "main",
+			"lastCommit": "HEAD",
+			"date":       date,
+			"active":     false,
+		})
+	}
+	return modules
+}
+
+func localProjectContext(workspaceRoot string) string {
+	const defaultContent = "# Project Context\n\nDefine your repository rules and architectural vision here."
+	content, err := os.ReadFile(filepath.Join(workspaceRoot, ".hypercode", "project_context.md"))
+	if err != nil {
+		return defaultContent
+	}
+	return string(content)
+}
+
+func localProjectHandoffs(workspaceRoot string) []map[string]any {
+	entries, err := os.ReadDir(filepath.Join(workspaceRoot, ".hypercode", "handoffs"))
+	if err != nil {
+		return []map[string]any{}
+	}
+
+	type handoffFile struct {
+		name string
+	}
+	files := make([]handoffFile, 0, len(entries))
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		name := entry.Name()
+		if strings.HasPrefix(name, "handoff_") {
+			files = append(files, handoffFile{name: name})
+		}
+	}
+
+	sort.Slice(files, func(i, j int) bool {
+		return files[i].name > files[j].name
+	})
+
+	handoffs := make([]map[string]any, 0, len(files))
+	for _, file := range files {
+		rawTimestamp := strings.TrimSuffix(strings.TrimPrefix(file.name, "handoff_"), ".json")
+		timestamp, err := strconv.ParseInt(rawTimestamp, 10, 64)
+		if err != nil {
+			timestamp = 0
+		}
+		handoffs = append(handoffs, map[string]any{
+			"id":        file.name,
+			"timestamp": timestamp,
+			"path":      file.name,
+		})
+	}
+
+	return handoffs
 }
 
 func (s *Server) localMCPSummary(ctx context.Context) ([]controlplane.Tool, CLISummary, error) {

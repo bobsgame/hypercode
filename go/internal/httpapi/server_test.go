@@ -5134,6 +5134,104 @@ var ReadTool = struct{
 	}
 }
 
+func TestFileBackedReadEndpointsFallBackLocally(t *testing.T) {
+	workspaceRoot := t.TempDir()
+	if err := os.WriteFile(filepath.Join(workspaceRoot, ".gitmodules"), []byte("[submodule \"hypercode\"]\npath = submodules/hypercode\nurl = https://github.com/example/hypercode.git\n"), 0o644); err != nil {
+		t.Fatalf("failed to write .gitmodules: %v", err)
+	}
+
+	hypercodeDir := filepath.Join(workspaceRoot, ".hypercode")
+	handoffsDir := filepath.Join(hypercodeDir, "handoffs")
+	if err := os.MkdirAll(handoffsDir, 0o755); err != nil {
+		t.Fatalf("failed to create handoffs dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(hypercodeDir, "project_context.md"), []byte("# Project Context\n\nShip reliable fallbacks."), 0o644); err != nil {
+		t.Fatalf("failed to write project context: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(handoffsDir, "handoff_1710000000000.json"), []byte(`{}`), 0o644); err != nil {
+		t.Fatalf("failed to write handoff file: %v", err)
+	}
+
+	t.Setenv("BORG_TRPC_UPSTREAM", "http://127.0.0.1:1/trpc")
+
+	cfg := config.Default()
+	cfg.WorkspaceRoot = workspaceRoot
+	server := New(cfg, stubDetector{})
+
+	cases := []struct {
+		name     string
+		path     string
+		contains []string
+	}{
+		{
+			name: "context list",
+			path: "/api/context/list",
+			contains: []string{
+				`"fallback":"go-local-context"`,
+				`"procedure":"borgContext.list"`,
+				`using local empty context list`,
+				`"data":[]`,
+			},
+		},
+		{
+			name: "context prompt",
+			path: "/api/context/prompt",
+			contains: []string{
+				`"fallback":"go-local-context"`,
+				`"procedure":"borgContext.getPrompt"`,
+				`using local empty context prompt`,
+				`"data":""`,
+			},
+		},
+		{
+			name: "git modules",
+			path: "/api/git/modules",
+			contains: []string{
+				`"fallback":"go-local-git"`,
+				`"procedure":"git.getModules"`,
+				`using local .gitmodules parsing`,
+				`"name":"hypercode"`,
+			},
+		},
+		{
+			name: "project context",
+			path: "/api/project/context",
+			contains: []string{
+				`"fallback":"go-local-project"`,
+				`"procedure":"project.getContext"`,
+				`using local project context document`,
+				`Ship reliable fallbacks.`,
+			},
+		},
+		{
+			name: "project handoffs",
+			path: "/api/project/handoffs",
+			contains: []string{
+				`"fallback":"go-local-project"`,
+				`"procedure":"project.getHandoffs"`,
+				`using local handoff directory listing`,
+				`"id":"handoff_1710000000000.json"`,
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			recorder := httptest.NewRecorder()
+			server.Handler().ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, tc.path, nil))
+
+			if recorder.Code != http.StatusOK {
+				t.Fatalf("expected status 200, got %d with body %s", recorder.Code, recorder.Body.String())
+			}
+			for _, needle := range tc.contains {
+				if !strings.Contains(recorder.Body.String(), needle) {
+					t.Fatalf("expected response to contain %s, got %s", needle, recorder.Body.String())
+				}
+			}
+		})
+	}
+}
+
 func TestMCPSearchToolsFallsBackToLocalInventory(t *testing.T) {
 	workspaceRoot := t.TempDir()
 	toolsDir := filepath.Join(workspaceRoot, "submodules", "hypercode", "tools")

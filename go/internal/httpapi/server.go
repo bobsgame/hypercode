@@ -4425,7 +4425,7 @@ func (s *Server) handleSkillsList(w http.ResponseWriter, r *http.Request) {
 
 	fallbackSkills, fallbackErr := s.localSkillsMetadata()
 	if fallbackErr != nil {
-		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"success": false, "error": err.Error(), "detail": fallbackErr.Error()})
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"success": false, "error": fallbackErr.Error(), "detail": fallbackErr.Error()})
 		return
 	}
 
@@ -4435,7 +4435,7 @@ func (s *Server) handleSkillsList(w http.ResponseWriter, r *http.Request) {
 		"bridge": map[string]any{
 			"fallback":  "go-local-skills",
 			"procedure": "skills.list",
-			"reason":    err.Error(),
+			"reason":    "upstream unavailable; using local skills metadata",
 		},
 	})
 }
@@ -4487,7 +4487,7 @@ func (s *Server) handleSkillsSummary(w http.ResponseWriter, r *http.Request) {
 
 	fallbackSummaries, fallbackErr := s.localSkillSummaries(strings.TrimSpace(r.URL.Query().Get("query")))
 	if fallbackErr != nil {
-		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"success": false, "error": err.Error(), "detail": fallbackErr.Error()})
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"success": false, "error": fallbackErr.Error(), "detail": fallbackErr.Error()})
 		return
 	}
 
@@ -4497,7 +4497,7 @@ func (s *Server) handleSkillsSummary(w http.ResponseWriter, r *http.Request) {
 		"bridge": map[string]any{
 			"fallback":  "go-local-skills",
 			"procedure": "skills.list",
-			"reason":    err.Error(),
+			"reason":    "upstream unavailable; using local skill folder summaries",
 		},
 	})
 }
@@ -4525,7 +4525,7 @@ func (s *Server) handleSkillsRead(w http.ResponseWriter, r *http.Request) {
 
 	fallbackResult, fallbackErr := s.localReadSkill(name)
 	if fallbackErr != nil {
-		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"success": false, "error": err.Error(), "detail": fallbackErr.Error()})
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"success": false, "error": fallbackErr.Error(), "detail": fallbackErr.Error()})
 		return
 	}
 
@@ -4535,7 +4535,7 @@ func (s *Server) handleSkillsRead(w http.ResponseWriter, r *http.Request) {
 		"bridge": map[string]any{
 			"fallback":  "go-local-skills",
 			"procedure": "skills.read",
-			"reason":    err.Error(),
+			"reason":    "upstream unavailable; using local skill document",
 		},
 	})
 }
@@ -4584,7 +4584,7 @@ func (s *Server) handleSkillMutation(w http.ResponseWriter, r *http.Request, pro
 
 	fallbackResult, fallbackErr := fallback(payload)
 	if fallbackErr != nil {
-		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"success": false, "error": err.Error(), "detail": fallbackErr.Error()})
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"success": false, "error": fallbackErr.Error(), "detail": fallbackErr.Error()})
 		return
 	}
 
@@ -4594,7 +4594,7 @@ func (s *Server) handleSkillMutation(w http.ResponseWriter, r *http.Request, pro
 		"bridge": map[string]any{
 			"fallback":  "go-local-skills",
 			"procedure": procedure,
-			"reason":    err.Error(),
+			"reason":    "upstream unavailable; applying local skill mutation",
 		},
 	})
 }

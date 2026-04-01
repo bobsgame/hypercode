@@ -5237,17 +5237,26 @@ func TestSkillsFallBackToLocalSkillRegistry(t *testing.T) {
 	if listRecorder.Code != http.StatusOK || !strings.Contains(listRecorder.Body.String(), `"fallback":"go-local-skills"`) || !strings.Contains(listRecorder.Body.String(), `"name":"debug"`) {
 		t.Fatalf("expected local skills list fallback, got %d %s", listRecorder.Code, listRecorder.Body.String())
 	}
+	if !strings.Contains(listRecorder.Body.String(), `using local skills metadata`) {
+		t.Fatalf("expected local skills list fallback reason, got %s", listRecorder.Body.String())
+	}
 
 	summaryRecorder := httptest.NewRecorder()
 	server.Handler().ServeHTTP(summaryRecorder, httptest.NewRequest(http.MethodGet, "/api/skills/summary?query=deb", nil))
 	if summaryRecorder.Code != http.StatusOK || !strings.Contains(summaryRecorder.Body.String(), `"folder":"debug"`) {
 		t.Fatalf("expected local skills summary fallback, got %d %s", summaryRecorder.Code, summaryRecorder.Body.String())
 	}
+	if !strings.Contains(summaryRecorder.Body.String(), `using local skill folder summaries`) {
+		t.Fatalf("expected local skills summary fallback reason, got %s", summaryRecorder.Body.String())
+	}
 
 	readRecorder := httptest.NewRecorder()
 	server.Handler().ServeHTTP(readRecorder, httptest.NewRequest(http.MethodGet, "/api/skills/read?name=debug", nil))
 	if readRecorder.Code != http.StatusOK || !strings.Contains(readRecorder.Body.String(), `Skill content`) {
 		t.Fatalf("expected local skills read fallback, got %d %s", readRecorder.Code, readRecorder.Body.String())
+	}
+	if !strings.Contains(readRecorder.Body.String(), `using local skill document`) {
+		t.Fatalf("expected local skills read fallback reason, got %s", readRecorder.Body.String())
 	}
 
 	createRequest := httptest.NewRequest(http.MethodPost, "/api/skills/create", strings.NewReader(`{"id":"trace","name":"trace","description":"Trace help"}`))
@@ -5257,6 +5266,9 @@ func TestSkillsFallBackToLocalSkillRegistry(t *testing.T) {
 	if createRecorder.Code != http.StatusOK || !strings.Contains(createRecorder.Body.String(), `Created skill 'trace'`) {
 		t.Fatalf("expected local skills create fallback, got %d %s", createRecorder.Code, createRecorder.Body.String())
 	}
+	if !strings.Contains(createRecorder.Body.String(), `applying local skill mutation`) {
+		t.Fatalf("expected local skills create fallback reason, got %s", createRecorder.Body.String())
+	}
 
 	saveRequest := httptest.NewRequest(http.MethodPost, "/api/skills/save", strings.NewReader(`{"id":"trace","content":"Updated content"}`))
 	saveRequest.Header.Set("content-type", "application/json")
@@ -5264,6 +5276,9 @@ func TestSkillsFallBackToLocalSkillRegistry(t *testing.T) {
 	server.Handler().ServeHTTP(saveRecorder, saveRequest)
 	if saveRecorder.Code != http.StatusOK || !strings.Contains(saveRecorder.Body.String(), `"Saved skill 'trace'."`) {
 		t.Fatalf("expected local skills save fallback, got %d %s", saveRecorder.Code, saveRecorder.Body.String())
+	}
+	if !strings.Contains(saveRecorder.Body.String(), `applying local skill mutation`) {
+		t.Fatalf("expected local skills save fallback reason, got %s", saveRecorder.Body.String())
 	}
 
 	writtenSkill, err := os.ReadFile(filepath.Join(workspaceRoot, ".hypercode", "skills", "trace", "SKILL.md"))

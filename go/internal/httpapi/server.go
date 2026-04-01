@@ -6575,7 +6575,29 @@ func (s *Server) handleMarketplaceList(w http.ResponseWriter, r *http.Request) {
 	if filter := strings.TrimSpace(r.URL.Query().Get("filter")); filter != "" {
 		payload["filter"] = filter
 	}
-	s.handleTRPCBridgeCall(w, r, http.MethodGet, "marketplace.list", payload)
+	var result any
+	upstreamBase, err := s.callUpstreamJSON(r.Context(), "marketplace.list", payload, &result)
+	if err == nil {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"data":    result,
+			"bridge": map[string]any{
+				"upstreamBase": upstreamBase,
+				"procedure":    "marketplace.list",
+			},
+		})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"data":    []map[string]any{},
+		"bridge": map[string]any{
+			"fallback":  "go-local-marketplace",
+			"procedure": "marketplace.list",
+			"reason":    "upstream unavailable; marketplace service is unavailable",
+		},
+	})
 }
 
 func (s *Server) handleMarketplaceInstall(w http.ResponseWriter, r *http.Request) {

@@ -1325,7 +1325,7 @@ func (s *Server) handleAPIIndex(w http.ResponseWriter, _ *http.Request) {
 				{Path: "/api/research/retry-failed", Category: "research", Description: "Retry a failed research URL through the TypeScript research router."},
 				{Path: "/api/research/retry-all-failed", Category: "research", Description: "Retry all failed research URLs through the TypeScript research router."},
 				{Path: "/api/research/enqueue", Category: "research", Description: "Enqueue a research URL through the TypeScript research router."},
-				{Path: "/api/pulse/events", Category: "observability", Description: "Read pulse event history through the TypeScript pulse router."},
+				{Path: "/api/pulse/events", Category: "observability", Description: "Read pulse event history through the TypeScript pulse router, with a local empty-state fallback when the event bus is unavailable."},
 				{Path: "/api/pulse/status", Category: "observability", Description: "Read pulse system status through the TypeScript pulse router, with a local offline-state fallback when the router is unavailable."},
 				{Path: "/api/pulse/providers", Category: "observability", Description: "Check local provider status, with a local Go provider availability fallback when the TypeScript pulse router is unavailable."},
 				{Path: "/api/session-export/export", Category: "sessions", Description: "Export sessions through the TypeScript session export router."},
@@ -1343,7 +1343,7 @@ func (s *Server) handleAPIIndex(w http.ResponseWriter, _ *http.Request) {
 				{Path: "/api/browser/proxy-fetch", Category: "browser", Description: "Run a browser proxy fetch through the TypeScript browser router."},
 				{Path: "/api/browser-extension/save-memory", Category: "ui", Description: "Save a browser-extension memory through the TypeScript browser extension router."},
 				{Path: "/api/browser-extension/parse-dom", Category: "ui", Description: "Parse browser DOM content through the TypeScript browser extension router."},
-				{Path: "/api/browser-extension/memories", Category: "ui", Description: "List browser-extension memories through the TypeScript browser extension router."},
+				{Path: "/api/browser-extension/memories", Category: "ui", Description: "List browser-extension memories through the TypeScript browser extension router, with a local empty-state fallback when the browser memory store is unavailable."},
 				{Path: "/api/browser-extension/delete-memory", Category: "ui", Description: "Delete a browser-extension memory through the TypeScript browser extension router."},
 				{Path: "/api/browser-extension/stats", Category: "ui", Description: "Read browser-extension memory stats through the TypeScript browser extension router, with a local zero-state fallback when the browser memory store is unavailable."},
 				{Path: "/api/open-webui/status", Category: "ui", Description: "Read Open WebUI status through the TypeScript OpenWebUI router, with a local preview fallback when the integration is unavailable."},
@@ -5913,7 +5913,29 @@ func (s *Server) handlePulseEvents(w http.ResponseWriter, r *http.Request) {
 			payload["afterTimestamp"] = parsed
 		}
 	}
-	s.handleTRPCBridgeCall(w, r, http.MethodGet, "pulse.getLatestEvents", payload)
+	var result any
+	upstreamBase, err := s.callUpstreamJSON(r.Context(), "pulse.getLatestEvents", payload, &result)
+	if err == nil {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"data":    result,
+			"bridge": map[string]any{
+				"upstreamBase": upstreamBase,
+				"procedure":    "pulse.getLatestEvents",
+			},
+		})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"data":    []map[string]any{},
+		"bridge": map[string]any{
+			"fallback":  "go-local-pulse",
+			"procedure": "pulse.getLatestEvents",
+			"reason":    "upstream unavailable; using local empty pulse event history",
+		},
+	})
 }
 
 func (s *Server) handlePulseStatus(w http.ResponseWriter, r *http.Request) {
@@ -6109,7 +6131,32 @@ func (s *Server) handleBrowserExtensionListMemories(w http.ResponseWriter, r *ht
 			payload["offset"] = parsed
 		}
 	}
-	s.handleTRPCBridgeCall(w, r, http.MethodGet, "browserExtension.listMemories", payload)
+	var result any
+	upstreamBase, err := s.callUpstreamJSON(r.Context(), "browserExtension.listMemories", payload, &result)
+	if err == nil {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"data":    result,
+			"bridge": map[string]any{
+				"upstreamBase": upstreamBase,
+				"procedure":    "browserExtension.listMemories",
+			},
+		})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"data": map[string]any{
+			"items": []map[string]any{},
+			"total": 0,
+		},
+		"bridge": map[string]any{
+			"fallback":  "go-local-browser-memory",
+			"procedure": "browserExtension.listMemories",
+			"reason":    "upstream unavailable; using local empty browser memory list",
+		},
+	})
 }
 
 func (s *Server) handleBrowserExtensionDeleteMemory(w http.ResponseWriter, r *http.Request) {

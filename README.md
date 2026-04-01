@@ -83,9 +83,9 @@ HyperCode currently presents three operator-facing orchestrator identities:
 - `apps/maestro` is the desktop **electron-orchestrator** lane.
 - `apps/cloud-orchestrator` is the web **cloud-orchestrator** lane.
 
-The experimental Go workspace under `go/` is a sidecar **cli-orchestrator** port for coexistence and feasibility work, not a replacement fork.
+The experimental Go workspace under `go/` is a sidecar **cli-orchestrator** coexistence port for read-parity and feasibility work, not a replacement fork and not yet the primary control-plane implementation.
 
-Today, `electron-orchestrator` and `cli-orchestrator` do **not** yet have 100% feature parity. The desktop lane currently exposes the broader operator UX, while the CLI lane remains the cleaner control-plane foundation. HyperCode should not drop either surface until parity gaps and operator workflows are intentionally closed.
+Today, `electron-orchestrator` and `cli-orchestrator` do **not** yet have 100% feature parity. The desktop lane currently exposes the broader operator UX, while the Node-based CLI lane remains the cleaner control-plane foundation. HyperCode should not drop either surface until parity gaps and operator workflows are intentionally closed. The Go lane should currently be described as **Experimental** read-only bridge replacement work, not as a completed daemon extraction.
 
 ## Quick start
 
@@ -101,14 +101,14 @@ pnpm run dev
 
 ### HyperCode harness lane
 ```bash
-borg session harnesses
-borg session start ./my-app --harness hypercode
-borg mesh status
+hypercode session harnesses
+hypercode session start ./my-app --harness hypercode
+hypercode mesh status
 ```
 
-`hypercode` is now HyperCode's primary CLI harness identity, backed by the `submodules/hypercode` upstream. The upstream now exposes a Go/Cobra CLI with a default TUI REPL plus a `pipe` command, and HyperCode now surfaces HyperCode's source-backed tool inventory from `submodules/hypercode/tools/*.go` via `borg session harnesses` and the Go sidecar harness registry. HyperCode's harness catalogs now also track the broader known external identities it already references elsewhere in the repo, including `aider`, `cursor`, `copilot`, `qwen`, `superai-cli`, `codebuff`, `codemachine`, and `factory-droid`, but those still expose install/runtime metadata only until HyperCode has equally source-backed bridge contracts for them. HyperCode's maturity remains **Experimental** while the cross-runtime adapter contract is still shallow.
+`hypercode` is now HyperCode's primary CLI harness identity, backed by the `submodules/hypercode` upstream. The upstream now exposes a Go/Cobra CLI with a default TUI REPL plus a `pipe` command, and HyperCode now surfaces HyperCode's source-backed tool inventory from `submodules/hypercode/tools/*.go` via `hypercode session harnesses` and the Go sidecar harness registry. HyperCode's harness catalogs now also track the broader known external identities it already references elsewhere in the repo, including `aider`, `cursor`, `copilot`, `qwen`, `superai-cli`, `codebuff`, `codemachine`, and `factory-droid`, but those still expose install/runtime metadata only until HyperCode has equally source-backed bridge contracts for them. HyperCode's maturity remains **Experimental** while the cross-runtime adapter contract is still shallow.
 
-The CLI mesh surface is now operator-visible through `borg mesh status`, `borg mesh peers`, `borg mesh capabilities [nodeId]`, and `borg mesh find --capability <name>`. These commands query the live local control plane through `BORG_TRPC_UPSTREAM` or the Borg startup lock, so they report real mesh visibility instead of placeholder CLI output.
+The CLI mesh surface is now operator-visible through `hypercode mesh status`, `hypercode mesh peers`, `hypercode mesh capabilities [nodeId]`, and `hypercode mesh find --capability <name>`. These commands query the live local control plane through `BORG_TRPC_UPSTREAM` or the HyperCode startup lock, so they report real mesh visibility instead of placeholder CLI output.
 
 ### Docker
 ```bash
@@ -120,7 +120,7 @@ docker compose up --build
 ```text
 apps/
   web/              Next.js dashboard
-  borg-extension/   Browser extension surfaces (compatibility path)
+  hypercode-extension/   Browser extension surfaces (compatibility path)
   maestro/          electron-orchestrator desktop shell work (legacy path)
   vscode/           VS Code integration
 
@@ -135,9 +135,9 @@ submodules/
   hypercode/        External HyperCode harness upstream (experimental assimilation track)
 
 go/
-  cmd/borg/         Experimental sidecar Go cli-orchestrator port workspace
+  cmd/hypercode/         Experimental sidecar Go cli-orchestrator port workspace
 
-The Go port is intentionally isolated from the main Node/Next fork. It uses its own `.borg-go` config directory and can observe the primary HyperCode lock state via `/api/runtime/locks`, summarize its interop visibility via `/api/runtime/status` including compact lock visibility/running counts, config-path health, total and available CLI tool/harness counts, provider totals plus configured/authenticated/executable counts and auth/task buckets, memory availability plus default-section and per-section entry breakdowns, discovered-session counts plus session-type, task, model-hint, and TypeScript supervisor-bridge visibility, and import-root plus import-source health including valid/invalid counts, aggregate estimated size, and compact source-type, model-hint, and error buckets, expose a self-describing route index via `/api/index`, inspect effective path wiring via `/api/config/status` including repo-level `borg.config.json` and `mcp.jsonc` presence, expose read-only provider credential visibility via `/api/providers/status`, expose provider catalog metadata via `/api/providers/catalog`, expose compact provider rollups via `/api/providers/summary`, preview intended task-type routing order via `/api/providers/routing-summary`, read the main fork's generated imported-instructions artifact via `/api/runtime/imported-instructions`, expose discovered session artifacts through `/api/sessions` and `/api/sessions/summary`, bridge TypeScript session-supervisor catalog/list/get/create/start/stop/restart through `/api/sessions/supervisor/*`, bridge TypeScript imported-session list/get/scan/instruction-doc flows through `/api/sessions/imported/*`, bridge TypeScript MCP runtime/configured-server/tool/preference/telemetry/config/working-set surfaces through `/api/mcp/*`, bridge TypeScript memory search/context/session-bootstrap/tool-context/import-export flows through `/api/memory/*`, bridge dedicated TypeScript agent-memory search/add/recent/export/handoff/pickup flows through `/api/agent-memory/*`, bridge TypeScript repository graph, context-manager, git, and auto-test surfaces through `/api/graph/*`, `/api/context/*`, `/api/git/*`, and `/api/tests/*`, bridge TypeScript metrics, observability logs, and MCP server-health surfaces through `/api/metrics/*`, `/api/logs/*`, and `/api/server-health/*`, bridge TypeScript settings, tools, tool sets, project context, and shell-history surfaces through `/api/settings/*`, `/api/tools/*`, `/api/tool-sets/*`, `/api/project/*`, and `/api/shell/*`, bridge TypeScript agent, commands, and skills surfaces through `/api/agent/*`, `/api/commands/*`, and `/api/skills/*`, bridge TypeScript workflow definitions, execution controls, and visual-canvas surfaces through `/api/workflows/*`, bridge TypeScript symbol-pin and LSP discovery surfaces through `/api/symbols/*` and `/api/lsp/*`, bridge TypeScript API keys, audit logs, saved scripts, backlog links, infrastructure controls, and expert-agent dispatch surfaces through `/api/api-keys/*`, `/api/audit/*`, `/api/scripts/*`, `/api/links-backlog/*`, `/api/infrastructure/*`, and `/api/expert/*`, bridge TypeScript policies, secrets, marketplace, and published-catalog registry surfaces through `/api/policies/*`, `/api/secrets/*`, `/api/marketplace/*`, and `/api/catalog/*`, bridge TypeScript OAuth, research, pulse, and session-export surfaces through `/api/oauth/*`, `/api/research/*`, `/api/pulse/*`, and `/api/session-export/*`, bridge compact TypeScript browser-extension, Open WebUI, Code Mode, submodule, suggestions, and plan-mode surfaces through `/api/browser-extension/*`, `/api/open-webui/*`, `/api/code-mode/*`, `/api/submodules/*`, `/api/suggestions/*`, and `/api/plan/*`, expose explicit import discovery roots via `/api/import/roots`, scan explicit session-source roots via `/api/import/sources` across workspace and home OpenAI/ChatGPT export locations, validate and export structured import candidates via `/api/import/validate`, `/api/import/candidates`, `/api/import/manifest`, and `/api/import/summary` including source, format, model-hint, and validation-error buckets, expose read-only CLI tool and harness summaries via `/api/cli/summary` and `/api/cli/harnesses`, and expose a read-only sectioned-memory summary via `/api/memory/borg-memory/status` for coexistence testing. Its current role is to validate a Go-native cli-orchestrator path without breaking the main fork.
+The Go port is intentionally isolated from the main Node/Next fork. It uses its own `.hypercode-go` config directory and can observe the primary HyperCode lock state via `/api/runtime/locks`, summarize its interop visibility via `/api/runtime/status` including compact lock visibility/running counts, config-path health, total and available CLI tool/harness counts, provider totals plus configured/authenticated/executable counts and auth/task buckets, memory availability plus default-section and per-section entry breakdowns, discovered-session counts plus session-type, task, model-hint, and TypeScript supervisor-bridge visibility, and import-root plus import-source health including valid/invalid counts, aggregate estimated size, and compact source-type, model-hint, and error buckets, expose a self-describing route index via `/api/index`, inspect effective path wiring via `/api/config/status` including repo-level `hypercode.config.json` and `mcp.jsonc` presence, expose read-only provider credential visibility via `/api/providers/status`, expose provider catalog metadata via `/api/providers/catalog`, expose compact provider rollups via `/api/providers/summary`, preview intended task-type routing order via `/api/providers/routing-summary`, read the main fork's generated imported-instructions artifact via `/api/runtime/imported-instructions`, expose discovered session artifacts through `/api/sessions` and `/api/sessions/summary`, and bridge or selectively replace TypeScript read routes across `/api/sessions/supervisor/*`, `/api/sessions/imported/*`, `/api/mcp/*`, `/api/memory/*`, `/api/agent-memory/*`, `/api/graph/*`, `/api/context/*`, `/api/git/*`, `/api/tests/*`, `/api/metrics/*`, `/api/logs/*`, `/api/server-health/*`, `/api/settings/*`, `/api/tools/*`, `/api/tool-sets/*`, `/api/project/*`, `/api/shell/*`, `/api/agent/*`, `/api/commands/*`, `/api/skills/*`, `/api/workflows/*`, `/api/symbols/*`, `/api/lsp/*`, `/api/api-keys/*`, `/api/audit/*`, `/api/scripts/*`, `/api/links-backlog/*`, `/api/infrastructure/*`, `/api/expert/*`, `/api/policies/*`, `/api/secrets/*`, `/api/marketplace/*`, `/api/catalog/*`, `/api/oauth/*`, `/api/research/*`, `/api/pulse/*`, `/api/session-export/*`, `/api/browser-extension/*`, `/api/open-webui/*`, `/api/code-mode/*`, `/api/submodules/*`, `/api/suggestions/*`, and `/api/plan/*`. Some of those reads now have truthful local Go fallbacks backed by the same SQLite database, local config files, or deterministic local defaults, but many orchestration-heavy routes remain bridge-only by design. Its current role is to validate a Go-native cli-orchestrator path, grow honest read-only local truth where practical, and avoid overstating daemon-extraction maturity before the underlying contracts are stable.
 ```
 
 ## Recommended binary-to-package evolution
@@ -153,7 +153,7 @@ The repo does **not** yet ship the full recommended HyperCode binary family, but
   - `packages/ai`
   - `packages/types`
   - `packages/tools`
-  - `go/cmd/borg`
+  - `go/cmd/hypercode`
   - `go/internal/controlplane`, `go/internal/httpapi`, `go/internal/providers`
 
 ### MCP layer
@@ -182,7 +182,7 @@ The repo does **not** yet ship the full recommended HyperCode binary family, but
 - Current likely sources:
   - `packages/agents`
   - `packages/adk`
-  - `packages/borg-supervisor`
+  - `packages/hypercode-supervisor`
   - `packages/browser`
   - `packages/search`
   - harness registration and supervisor flows in `packages/core`
@@ -225,7 +225,7 @@ These seams are preferred first because they already have visible operator-facin
 
 ## Contributing
 
-For now, compatibility paths, package names, and the `borg` CLI command remain unchanged while the visible branding shifts to HyperCode.
+For now, compatibility paths, package names, and the `hypercode` CLI command remain unchanged while the visible branding shifts to HyperCode.
 
 Use `pnpm` v10 and verify changes before claiming success:
 

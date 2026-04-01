@@ -11,7 +11,7 @@ _Last updated: 2026-03-25_
 
 ## Framing
 
-Borg has two jobs at once:
+HyperCode has two jobs at once:
 1. ship a reliable local control plane,
 2. preserve a credible long-term vision for richer AI orchestration.
 
@@ -75,7 +75,7 @@ Focus on the strongest product shape already present:
 - stronger attach/restart ergonomics
 - clearer crash/recovery visibility
 - clearer isolation behavior
-- converge primary CLI harness support around first-class Borg identities, starting with `hypercode`
+- converge primary CLI harness support around first-class HyperCode identities, starting with `hypercode`
 
 ### D. Provider routing polish
 - clearer fallback history
@@ -87,7 +87,8 @@ Focus on the strongest product shape already present:
 - turn current packages into clearer extraction seams for `hypercoded`, `hypermcpd`, `hypermemd`, `hyperingest`, and `hyperharnessd`
 - keep CLIs and GUIs as clients of daemon-owned state
 - keep shared contracts and config stable before promoting them into cross-process APIs
-- treat the current Go workspace as the main proving ground for daemon boundaries and bridge-first replacement work
+- treat the current Go workspace as an **Experimental** coexistence lane for truthful read-parity and bridge-first replacement work, not as proof that the daemon boundaries are already extracted
+- use the Go lane to validate which reads can be backed by the same SQLite/file/config truth sources before promoting any service boundary claims
 
 ## Later
 
@@ -101,7 +102,7 @@ Focus on the strongest product shape already present:
 
 These remain exploratory until the control plane is stronger:
 - advanced council or debate systems
-- a definitive internal library of MCP servers aggregated from public lists and kept refreshed inside Borg
+- a definitive internal library of MCP servers aggregated from public lists and kept refreshed inside HyperCode
 - benchmarking and comparative ranking across competing MCP server implementations
 - eventual model reach to any relevant MCP tool through one operator-controlled control plane
 - an operator-owned substrate spanning any model, any provider, any session, and any relevant tool

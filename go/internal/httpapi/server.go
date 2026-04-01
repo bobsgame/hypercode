@@ -1040,7 +1040,7 @@ func (s *Server) handleAPIIndex(w http.ResponseWriter, _ *http.Request) {
 				{Path: "/api/context/clear", Category: "code", Description: "Clear the TypeScript context manager state."},
 				{Path: "/api/context/prompt", Category: "code", Description: "Bridge to the TypeScript context prompt output, with a local empty-state fallback when the TypeScript context manager is unavailable."},
 				{Path: "/api/git/modules", Category: "code", Description: "Bridge to parsed git submodule metadata, with a local .gitmodules fallback when the TypeScript control plane is unavailable."},
-				{Path: "/api/git/log", Category: "code", Description: "Bridge to git log output from the TypeScript control plane."},
+				{Path: "/api/git/log", Category: "code", Description: "Read git log output through the TypeScript control plane, with a local Go git fallback when the router is unavailable."},
 				{Path: "/api/git/status", Category: "code", Description: "Read git status through the TypeScript control plane, with a local Go git fallback when the router is unavailable."},
 				{Path: "/api/git/revert", Category: "code", Description: "Request a git revert through the TypeScript control plane."},
 				{Path: "/api/tests/status", Category: "code", Description: "Bridge to TypeScript auto-test service status, with a local zero-state fallback when the auto-test service is unavailable."},
@@ -4176,12 +4176,38 @@ func (s *Server) handleGitModules(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleGitLog(w http.ResponseWriter, r *http.Request) {
 	payload := map[string]any{}
-	if limit := strings.TrimSpace(r.URL.Query().Get("limit")); limit != "" {
-		if parsed, err := strconv.Atoi(limit); err == nil {
+	limit := 20
+	if rawLimit := strings.TrimSpace(r.URL.Query().Get("limit")); rawLimit != "" {
+		if parsed, err := strconv.Atoi(rawLimit); err == nil {
 			payload["limit"] = parsed
+			if parsed > 0 {
+				limit = parsed
+			}
 		}
 	}
-	s.handleTRPCBridgeCall(w, r, http.MethodGet, "git.getLog", payload)
+	var result any
+	upstreamBase, err := s.callUpstreamJSON(r.Context(), "git.getLog", payload, &result)
+	if err == nil {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"data":    result,
+			"bridge": map[string]any{
+				"upstreamBase": upstreamBase,
+				"procedure":    "git.getLog",
+			},
+		})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"data":    localGitLog(s.cfg.WorkspaceRoot, limit),
+		"bridge": map[string]any{
+			"fallback":  "go-local-git",
+			"procedure": "git.getLog",
+			"reason":    "upstream unavailable; using local git log fallback",
+		},
+	})
 }
 
 func (s *Server) handleGitStatus(w http.ResponseWriter, r *http.Request) {
@@ -7459,6 +7485,37 @@ func localGitStatus(workspaceRoot string) map[string]any {
 		"modified": modified,
 		"staged":   staged,
 	}
+}
+
+func localGitLog(workspaceRoot string, limit int) []map[string]any {
+	if limit <= 0 {
+		limit = 20
+	}
+	command := exec.Command("git", "log", "-n", strconv.Itoa(limit), `--pretty=format:%H|%an|%aI|%s`)
+	command.Dir = workspaceRoot
+	output, err := command.Output()
+	if err != nil {
+		return []map[string]any{}
+	}
+
+	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
+	results := make([]map[string]any, 0, len(lines))
+	for _, line := range lines {
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+		parts := strings.SplitN(line, "|", 4)
+		if len(parts) != 4 {
+			continue
+		}
+		results = append(results, map[string]any{
+			"hash":    parts[0],
+			"author":  parts[1],
+			"date":    parts[2],
+			"message": parts[3],
+		})
+	}
+	return results
 }
 
 func localProjectContext(workspaceRoot string) string {

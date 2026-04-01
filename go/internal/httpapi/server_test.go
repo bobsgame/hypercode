@@ -6032,6 +6032,75 @@ func TestGitStatusFallsBackLocally(t *testing.T) {
 	}
 }
 
+func TestGitLogFallsBackLocally(t *testing.T) {
+	workspaceRoot := t.TempDir()
+	initRepo := exec.Command("git", "init", "-b", "main")
+	initRepo.Dir = workspaceRoot
+	if output, err := initRepo.CombinedOutput(); err != nil {
+		t.Fatalf("failed to init git repo: %v (%s)", err, string(output))
+	}
+	for _, args := range [][]string{
+		{"config", "user.name", "HyperCode Test"},
+		{"config", "user.email", "test@hypercode.local"},
+	} {
+		command := exec.Command("git", args...)
+		command.Dir = workspaceRoot
+		if output, err := command.CombinedOutput(); err != nil {
+			t.Fatalf("failed to run git %v: %v (%s)", args, err, string(output))
+		}
+	}
+
+	for _, commit := range []struct {
+		file    string
+		content string
+		message string
+	}{
+		{file: "first.txt", content: "one\n", message: "first commit"},
+		{file: "second.txt", content: "two\n", message: "second commit"},
+	} {
+		if err := os.WriteFile(filepath.Join(workspaceRoot, commit.file), []byte(commit.content), 0o644); err != nil {
+			t.Fatalf("failed to write %s: %v", commit.file, err)
+		}
+		add := exec.Command("git", "add", commit.file)
+		add.Dir = workspaceRoot
+		if output, err := add.CombinedOutput(); err != nil {
+			t.Fatalf("failed to add %s: %v (%s)", commit.file, err, string(output))
+		}
+		commitCmd := exec.Command("git", "commit", "-m", commit.message)
+		commitCmd.Dir = workspaceRoot
+		if output, err := commitCmd.CombinedOutput(); err != nil {
+			t.Fatalf("failed to commit %s: %v (%s)", commit.file, err, string(output))
+		}
+	}
+
+	t.Setenv("BORG_TRPC_UPSTREAM", "http://127.0.0.1:1/trpc")
+
+	cfg := config.Default()
+	cfg.WorkspaceRoot = workspaceRoot
+	server := New(cfg, stubDetector{})
+
+	recorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/api/git/log?limit=1", nil))
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected git log 200, got %d with body %s", recorder.Code, recorder.Body.String())
+	}
+
+	for _, needle := range []string{
+		`"fallback":"go-local-git"`,
+		`"procedure":"git.getLog"`,
+		`using local git log fallback`,
+		`"message":"second commit"`,
+		`"author":"HyperCode Test"`,
+	} {
+		if !strings.Contains(recorder.Body.String(), needle) {
+			t.Fatalf("expected git log response to contain %s, got %s", needle, recorder.Body.String())
+		}
+	}
+	if strings.Contains(recorder.Body.String(), `"message":"first commit"`) {
+		t.Fatalf("expected limit=1 to exclude first commit, got %s", recorder.Body.String())
+	}
+}
+
 func TestMCPSearchToolsFallsBackToLocalInventory(t *testing.T) {
 	workspaceRoot := t.TempDir()
 	toolsDir := filepath.Join(workspaceRoot, "submodules", "hypercode", "tools")

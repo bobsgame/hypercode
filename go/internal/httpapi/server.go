@@ -8621,13 +8621,22 @@ func (s *Server) handleToolChainsList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	chains, fallbackErr := s.localToolChains()
+	if fallbackErr != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]any{
+			"success": false,
+			"error":   fallbackErr.Error(),
+		})
+		return
+	}
+
 	writeJSON(w, http.StatusOK, map[string]any{
 		"success": true,
-		"data":    []map[string]any{},
+		"data":    chains,
 		"bridge": map[string]any{
-			"fallback":  "go-local-registry",
+			"fallback":  "go-local-toolchain-db",
 			"procedure": "toolChaining.listChains",
-			"reason":    "upstream unavailable; using local empty tool chain registry",
+			"reason":    "upstream unavailable; using local tool chains from metamcp.db",
 		},
 	})
 }
@@ -8638,7 +8647,38 @@ func (s *Server) handleToolChainsGet(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]any{"success": false, "error": "missing id query parameter"})
 		return
 	}
-	s.handleTRPCBridgeCall(w, r, http.MethodGet, "toolChaining.getChain", map[string]any{"id": id})
+	var result any
+	upstreamBase, err := s.callUpstreamJSON(r.Context(), "toolChaining.getChain", map[string]any{"id": id}, &result)
+	if err == nil {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"data":    result,
+			"bridge": map[string]any{
+				"upstreamBase": upstreamBase,
+				"procedure":    "toolChaining.getChain",
+			},
+		})
+		return
+	}
+
+	chain, fallbackErr := s.localToolChain(id)
+	if fallbackErr != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]any{
+			"success": false,
+			"error":   fallbackErr.Error(),
+		})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"data":    chain,
+		"bridge": map[string]any{
+			"fallback":  "go-local-toolchain-db",
+			"procedure": "toolChaining.getChain",
+			"reason":    "upstream unavailable; using local tool chain from metamcp.db",
+		},
+	})
 }
 
 func (s *Server) handleToolChainsCreate(w http.ResponseWriter, r *http.Request) {
@@ -11908,6 +11948,151 @@ func (s *Server) localToolSets() ([]map[string]any, error) {
 	}
 
 	return toolSets, nil
+}
+
+func (s *Server) localToolChains() ([]map[string]any, error) {
+	db, err := sql.Open("sqlite", s.localMetaMCPDBPath())
+	if err != nil {
+		return nil, err
+	}
+	defer db.Close()
+
+	rows, err := db.Query(`
+		SELECT id, name, description, created_at
+		FROM tool_chains
+		ORDER BY created_at DESC
+	`)
+	if err != nil {
+		if strings.Contains(strings.ToLower(err.Error()), "no such table") {
+			return []map[string]any{}, nil
+		}
+		return nil, err
+	}
+	defer rows.Close()
+
+	chains := make([]map[string]any, 0)
+	for rows.Next() {
+		var (
+			id          string
+			name        string
+			description sql.NullString
+			createdAt   int64
+		)
+		if err := rows.Scan(&id, &name, &description, &createdAt); err != nil {
+			return nil, err
+		}
+
+		steps, err := localToolChainSteps(db, id)
+		if err != nil {
+			return nil, err
+		}
+
+		chains = append(chains, map[string]any{
+			"id":            id,
+			"name":          name,
+			"description":   nullStringToAny(description),
+			"steps":         steps,
+			"failurePolicy": "stop",
+			"maxRetries":    1,
+			"createdAt":     createdAt * 1000,
+			"runCount":      0,
+		})
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return chains, nil
+}
+
+func (s *Server) localToolChain(id string) (any, error) {
+	db, err := sql.Open("sqlite", s.localMetaMCPDBPath())
+	if err != nil {
+		return nil, err
+	}
+	defer db.Close()
+
+	var (
+		chainID     string
+		name        string
+		description sql.NullString
+		createdAt   int64
+	)
+	row := db.QueryRow(`
+		SELECT id, name, description, created_at
+		FROM tool_chains
+		WHERE id = ?
+		LIMIT 1
+	`, id)
+	if err := row.Scan(&chainID, &name, &description, &createdAt); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		if strings.Contains(strings.ToLower(err.Error()), "no such table") {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	steps, err := localToolChainSteps(db, chainID)
+	if err != nil {
+		return nil, err
+	}
+
+	return map[string]any{
+		"id":            chainID,
+		"name":          name,
+		"description":   nullStringToAny(description),
+		"steps":         steps,
+		"failurePolicy": "stop",
+		"maxRetries":    1,
+		"createdAt":     createdAt * 1000,
+		"runCount":      0,
+	}, nil
+}
+
+func localToolChainSteps(db *sql.DB, chainID string) ([]map[string]any, error) {
+	rows, err := db.Query(`
+		SELECT tool_name, arguments_template
+		FROM tool_chain_steps
+		WHERE chain_id = ?
+		ORDER BY step_order ASC
+	`, chainID)
+	if err != nil {
+		if strings.Contains(strings.ToLower(err.Error()), "no such table") {
+			return []map[string]any{}, nil
+		}
+		return nil, err
+	}
+	defer rows.Close()
+
+	steps := make([]map[string]any, 0)
+	for rows.Next() {
+		var (
+			toolName             string
+			argumentsTemplateRaw string
+		)
+		if err := rows.Scan(&toolName, &argumentsTemplateRaw); err != nil {
+			return nil, err
+		}
+
+		inputMapping := map[string]any{}
+		if strings.TrimSpace(argumentsTemplateRaw) != "" {
+			if err := json.Unmarshal([]byte(argumentsTemplateRaw), &inputMapping); err != nil {
+				inputMapping = map[string]any{}
+			}
+		}
+
+		steps = append(steps, map[string]any{
+			"toolName":     toolName,
+			"inputMapping": inputMapping,
+		})
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return steps, nil
 }
 
 func (s *Server) localShellQueryHistory(query string, limit int) ([]map[string]any, error) {

@@ -186,16 +186,125 @@ func TestMeshEndpoints(t *testing.T) {
 func TestBridgeRouteReportsProcedureFailure(t *testing.T) {
 	t.Setenv("BORG_TRPC_UPSTREAM", "http://127.0.0.1:1/trpc")
 
-	server := New(config.Default(), stubDetector{})
+	workspace := t.TempDir()
+	dbPath := filepath.Join(workspace, "metamcp.db")
+	db, err := sql.Open("sqlite", dbPath)
+	if err != nil {
+		t.Fatalf("failed to open sqlite db: %v", err)
+	}
+	defer db.Close()
+	if _, err := db.Exec(`
+		CREATE TABLE tool_chains (
+			id TEXT PRIMARY KEY,
+			name TEXT NOT NULL,
+			description TEXT,
+			trigger_pattern TEXT,
+			created_at INTEGER NOT NULL
+		);
+		CREATE TABLE tool_chain_steps (
+			id TEXT PRIMARY KEY,
+			chain_id TEXT NOT NULL,
+			step_order INTEGER NOT NULL,
+			tool_name TEXT NOT NULL,
+			arguments_template TEXT NOT NULL,
+			timeout_ms INTEGER,
+			failure_policy TEXT NOT NULL DEFAULT 'abort',
+			retry_count INTEGER NOT NULL DEFAULT 0
+		);
+		INSERT INTO tool_chains (id, name, description, trigger_pattern, created_at)
+		VALUES ('chain-1', 'Chain One', 'DB-backed chain', NULL, 1711958400);
+		INSERT INTO tool_chain_steps (id, chain_id, step_order, tool_name, arguments_template, timeout_ms, failure_policy, retry_count)
+		VALUES ('step-1', 'chain-1', 0, 'search_tools', '{"query":"mcp"}', NULL, 'abort', 0);
+	`); err != nil {
+		t.Fatalf("failed to seed sqlite db: %v", err)
+	}
+
+	cfg := config.Default()
+	cfg.WorkspaceRoot = workspace
+	cfg.ConfigDir = t.TempDir()
+	cfg.MainConfigDir = t.TempDir()
+	server := New(cfg, stubDetector{})
 	recorder := httptest.NewRecorder()
 
 	server.Handler().ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/api/tool-chains/get?id=chain-1", nil))
 
-	if recorder.Code != http.StatusServiceUnavailable {
-		t.Fatalf("expected status 503, got %d with body %s", recorder.Code, recorder.Body.String())
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d with body %s", recorder.Code, recorder.Body.String())
 	}
-	if !strings.Contains(recorder.Body.String(), `failed to call upstream procedure toolChaining.getChain:`) {
-		t.Fatalf("expected bridge procedure error, got %s", recorder.Body.String())
+	for _, needle := range []string{
+		`"fallback":"go-local-toolchain-db"`,
+		`"procedure":"toolChaining.getChain"`,
+		`using local tool chain from metamcp.db`,
+		`"chain-1"`,
+		`"search_tools"`,
+	} {
+		if !strings.Contains(recorder.Body.String(), needle) {
+			t.Fatalf("expected tool chain get fallback to contain %s, got %s", needle, recorder.Body.String())
+		}
+	}
+}
+
+func TestToolChainsListFallsBackToLocalDB(t *testing.T) {
+	t.Setenv("BORG_TRPC_UPSTREAM", "http://127.0.0.1:1/trpc")
+
+	workspace := t.TempDir()
+	dbPath := filepath.Join(workspace, "metamcp.db")
+	db, err := sql.Open("sqlite", dbPath)
+	if err != nil {
+		t.Fatalf("failed to open sqlite db: %v", err)
+	}
+	defer db.Close()
+	if _, err := db.Exec(`
+		CREATE TABLE tool_chains (
+			id TEXT PRIMARY KEY,
+			name TEXT NOT NULL,
+			description TEXT,
+			trigger_pattern TEXT,
+			created_at INTEGER NOT NULL
+		);
+		CREATE TABLE tool_chain_steps (
+			id TEXT PRIMARY KEY,
+			chain_id TEXT NOT NULL,
+			step_order INTEGER NOT NULL,
+			tool_name TEXT NOT NULL,
+			arguments_template TEXT NOT NULL,
+			timeout_ms INTEGER,
+			failure_policy TEXT NOT NULL DEFAULT 'abort',
+			retry_count INTEGER NOT NULL DEFAULT 0
+		);
+		INSERT INTO tool_chains (id, name, description, trigger_pattern, created_at)
+		VALUES ('chain-1', 'Chain One', 'DB-backed chain', NULL, 1711958400);
+		INSERT INTO tool_chain_steps (id, chain_id, step_order, tool_name, arguments_template, timeout_ms, failure_policy, retry_count)
+		VALUES
+			('step-1', 'chain-1', 0, 'search_tools', '{"query":"mcp"}', NULL, 'abort', 0),
+			('step-2', 'chain-1', 1, 'read_file', '{"path":"README.md"}', NULL, 'abort', 0);
+	`); err != nil {
+		t.Fatalf("failed to seed sqlite db: %v", err)
+	}
+
+	cfg := config.Default()
+	cfg.WorkspaceRoot = workspace
+	cfg.ConfigDir = t.TempDir()
+	cfg.MainConfigDir = t.TempDir()
+	server := New(cfg, stubDetector{})
+	recorder := httptest.NewRecorder()
+
+	server.Handler().ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/api/tool-chains", nil))
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d with body %s", recorder.Code, recorder.Body.String())
+	}
+	for _, needle := range []string{
+		`"fallback":"go-local-toolchain-db"`,
+		`"procedure":"toolChaining.listChains"`,
+		`using local tool chains from metamcp.db`,
+		`"chain-1"`,
+		`"search_tools"`,
+		`"read_file"`,
+	} {
+		if !strings.Contains(recorder.Body.String(), needle) {
+			t.Fatalf("expected tool chain list fallback to contain %s, got %s", needle, recorder.Body.String())
+		}
 	}
 }
 
@@ -5509,9 +5618,9 @@ func TestZeroStateRegistryReadEndpointsFallBackLocally(t *testing.T) {
 			name: "tool chains",
 			path: "/api/tool-chains",
 			contains: []string{
-				`"fallback":"go-local-registry"`,
+				`"fallback":"go-local-toolchain-db"`,
 				`"procedure":"toolChaining.listChains"`,
-				`using local empty tool chain registry`,
+				`using local tool chains from metamcp.db`,
 				`"data":[]`,
 			},
 		},

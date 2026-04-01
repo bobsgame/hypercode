@@ -6002,6 +6002,79 @@ func TestLinksBacklogGetFallsBackToLocalDB(t *testing.T) {
 	}
 }
 
+func TestOAuthClientGetFallsBackToLocalDB(t *testing.T) {
+	t.Setenv("BORG_TRPC_UPSTREAM", "http://127.0.0.1:1/trpc")
+
+	workspace := t.TempDir()
+	dbPath := filepath.Join(workspace, "metamcp.db")
+	db, err := sql.Open("sqlite", dbPath)
+	if err != nil {
+		t.Fatalf("failed to open sqlite db: %v", err)
+	}
+	defer db.Close()
+
+	if _, err := db.Exec(`
+		CREATE TABLE oauth_clients (
+			client_id TEXT PRIMARY KEY,
+			client_secret TEXT,
+			client_name TEXT NOT NULL,
+			redirect_uris TEXT NOT NULL DEFAULT '[]',
+			grant_types TEXT NOT NULL DEFAULT '["authorization_code","refresh_token"]',
+			response_types TEXT NOT NULL DEFAULT '["code"]',
+			token_endpoint_auth_method TEXT NOT NULL DEFAULT 'none',
+			scope TEXT DEFAULT 'admin',
+			client_uri TEXT,
+			logo_uri TEXT,
+			contacts TEXT,
+			tos_uri TEXT,
+			policy_uri TEXT,
+			software_id TEXT,
+			software_version TEXT,
+			created_at INTEGER NOT NULL,
+			updated_at INTEGER NOT NULL
+		);
+		INSERT INTO oauth_clients (
+			client_id, client_secret, client_name, redirect_uris, grant_types, response_types,
+			token_endpoint_auth_method, scope, client_uri, logo_uri, contacts, tos_uri,
+			policy_uri, software_id, software_version, created_at, updated_at
+		) VALUES (
+			'client-1', 'secret-1', 'Client One', '["https://example.com/callback"]',
+			'["authorization_code","refresh_token"]', '["code"]', 'client_secret_post', 'admin',
+			'https://example.com', 'https://example.com/logo.png', '["ops@example.com"]',
+			'https://example.com/tos', 'https://example.com/policy', 'soft-1', '1.0.0', 1711958300, 1711958460
+		);
+	`); err != nil {
+		t.Fatalf("failed to seed sqlite db: %v", err)
+	}
+
+	cfg := config.Default()
+	cfg.WorkspaceRoot = workspace
+	cfg.ConfigDir = t.TempDir()
+	cfg.MainConfigDir = t.TempDir()
+	server := New(cfg, stubDetector{})
+
+	recorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/api/oauth/clients/get?clientId=client-1", nil))
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d with body %s", recorder.Code, recorder.Body.String())
+	}
+
+	for _, needle := range []string{
+		`"fallback":"go-local-oauth-clients-db"`,
+		`"procedure":"oauth.clients.get"`,
+		`using local metamcp oauth client record`,
+		`"client_id":"client-1"`,
+		`"client_name":"Client One"`,
+		`"redirect_uris":["https://example.com/callback"]`,
+		`"contacts":["ops@example.com"]`,
+	} {
+		if !strings.Contains(recorder.Body.String(), needle) {
+			t.Fatalf("expected oauth client fallback to contain %s, got %s", needle, recorder.Body.String())
+		}
+	}
+}
+
 func TestInfrastructureStatusFallsBackToLocalProbe(t *testing.T) {
 	workspaceRoot := t.TempDir()
 	userProfile := t.TempDir()

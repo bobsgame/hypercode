@@ -6838,7 +6838,39 @@ func (s *Server) handleOAuthClientGet(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]any{"success": false, "error": "missing clientId query parameter"})
 		return
 	}
-	s.handleTRPCBridgeCall(w, r, http.MethodGet, "oauth.clients.get", map[string]any{"clientId": clientID})
+	var result any
+	upstreamBase, err := s.callUpstreamJSON(r.Context(), "oauth.clients.get", map[string]any{"clientId": clientID}, &result)
+	if err == nil {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"data":    result,
+			"bridge": map[string]any{
+				"upstreamBase": upstreamBase,
+				"procedure":    "oauth.clients.get",
+			},
+		})
+		return
+	}
+
+	client, fallbackErr := s.localOAuthClient(clientID)
+	if fallbackErr != nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{
+			"success": false,
+			"error":   fallbackErr.Error(),
+			"detail":  fallbackErr.Error(),
+		})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"data":    client,
+		"bridge": map[string]any{
+			"fallback":  "go-local-oauth-clients-db",
+			"procedure": "oauth.clients.get",
+			"reason":    "upstream unavailable; using local metamcp oauth client record",
+		},
+	})
 }
 
 func (s *Server) handleOAuthSessionUpsert(w http.ResponseWriter, r *http.Request) {
@@ -8970,6 +9002,82 @@ func (s *Server) localLinksBacklogItem(uuid string) (any, error) {
 	}, nil
 }
 
+func (s *Server) localOAuthClient(clientID string) (any, error) {
+	db, err := sql.Open("sqlite", s.localMetaMCPDBPath())
+	if err != nil {
+		return nil, err
+	}
+	defer db.Close()
+
+	var (
+		foundClientID           string
+		clientSecret            sql.NullString
+		clientName              string
+		redirectURIsRaw         string
+		grantTypesRaw           string
+		responseTypesRaw        string
+		tokenEndpointAuthMethod string
+		scope                   sql.NullString
+		clientURI               sql.NullString
+		logoURI                 sql.NullString
+		contactsRaw             sql.NullString
+		tosURI                  sql.NullString
+		policyURI               sql.NullString
+		softwareID              sql.NullString
+		softwareVersion         sql.NullString
+		createdAtRaw            int64
+		updatedAtRaw            int64
+	)
+
+	row := db.QueryRow(`
+		SELECT client_id, client_secret, client_name, redirect_uris, grant_types, response_types,
+		       token_endpoint_auth_method, scope, client_uri, logo_uri, contacts, tos_uri,
+		       policy_uri, software_id, software_version, created_at, updated_at
+		FROM oauth_clients
+		WHERE client_id = ?
+		LIMIT 1
+	`, clientID)
+	if err := row.Scan(
+		&foundClientID, &clientSecret, &clientName, &redirectURIsRaw, &grantTypesRaw, &responseTypesRaw,
+		&tokenEndpointAuthMethod, &scope, &clientURI, &logoURI, &contactsRaw, &tosURI,
+		&policyURI, &softwareID, &softwareVersion, &createdAtRaw, &updatedAtRaw,
+	); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	redirectURIs := jsonArrayOrEmpty(redirectURIsRaw)
+	grantTypes := jsonArrayOrEmpty(grantTypesRaw)
+	responseTypes := jsonArrayOrEmpty(responseTypesRaw)
+
+	var contacts any
+	if contactsRaw.Valid {
+		contacts = jsonArrayOrEmpty(contactsRaw.String)
+	}
+
+	return map[string]any{
+		"client_id":                  foundClientID,
+		"client_secret":              nullStringToAny(clientSecret),
+		"client_name":                clientName,
+		"redirect_uris":              redirectURIs,
+		"grant_types":                grantTypes,
+		"response_types":             responseTypes,
+		"token_endpoint_auth_method": tokenEndpointAuthMethod,
+		"scope":                      nullStringToAny(scope),
+		"client_uri":                 nullStringToAny(clientURI),
+		"logo_uri":                   nullStringToAny(logoURI),
+		"contacts":                   contacts,
+		"tos_uri":                    nullStringToAny(tosURI),
+		"policy_uri":                 nullStringToAny(policyURI),
+		"software_id":                nullStringToAny(softwareID),
+		"software_version":           nullStringToAny(softwareVersion),
+		"created_at":                 unixTimestampToRFC3339(createdAtRaw),
+		"updated_at":                 unixTimestampToRFC3339(updatedAtRaw),
+	}, nil
+}
+
 func unixTimestampToRFC3339(value int64) string {
 	if value <= 0 {
 		return time.Unix(0, 0).UTC().Format(time.RFC3339)
@@ -8996,6 +9104,14 @@ func nullTimestampToAny(value sql.NullInt64) any {
 		return unixTimestampToRFC3339(value.Int64)
 	}
 	return nil
+}
+
+func jsonArrayOrEmpty(raw string) any {
+	var value any
+	if err := json.Unmarshal([]byte(raw), &value); err != nil {
+		return []any{}
+	}
+	return value
 }
 
 func (s *Server) localServerHealth(serverUUID string) map[string]any {

@@ -2,6 +2,7 @@ import activeWin from 'active-win';
 import { runPowerShell, runPowerShellJson, toPowerShellString } from './powershell.js';
 import { DEFAULT_ACTION_LABELS, SupervisorSettings, SupervisorSettingsManager } from './settings.js';
 import { DEFAULT_SURFACE_PROFILE, listSurfaceProfiles, resolveSurfaceProfile, SurfaceProfile } from './surface_profiles.js';
+import { inspectionLooksLikeAntigravity, resolveActionLabels } from './decision_logic.js';
 
 export interface WindowBounds {
     left: number;
@@ -86,9 +87,6 @@ export interface SurfaceDetectionOptions {
     windowTitle?: string;
     processName?: string;
 }
-
-const TERMINAL_TEXT_HINTS = ['@terminal:', 'pwsh', 'powershell', 'terminal', 'shell'];
-const ANTIGRAVITY_LABEL_HINTS = ['Run', 'Expand', 'Always Allow', 'Retry', 'Accept all', 'Accept', 'Allow', 'Approve', 'Proceed', 'Keep'];
 
 const UI_AUTOMATION_BASE = String.raw`
 $ErrorActionPreference = 'Stop'
@@ -500,52 +498,6 @@ function detectSurfaceName(title: string, processName: string | null): { detecte
     }
 
     return { detectedSurface: 'unknown', heuristics: ['no known chat-surface heuristic matched'] };
-}
-
-function normalizeComparableLabel(value: string | null | undefined): string {
-    if (!value) {
-        return '';
-    }
-
-    return value
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim();
-}
-
-function collectInspectionHints(inspection: UiInspection): string[] {
-    return [
-        ...inspection.labels,
-        ...inspection.buttons.map((button) => button.name),
-        ...inspection.inputs.flatMap((input) => [input.name, input.automationId ?? '', input.className ?? ''])
-    ].filter((value): value is string => Boolean(value && value.trim()));
-}
-
-function inspectionLooksLikeAntigravity(inspection: UiInspection): boolean {
-    const normalizedHints = new Set(collectInspectionHints(inspection).map((value) => normalizeComparableLabel(value)));
-
-    for (const label of ANTIGRAVITY_LABEL_HINTS) {
-        if (normalizedHints.has(normalizeComparableLabel(label))) {
-            return true;
-        }
-    }
-
-    return [...normalizedHints].some((value) =>
-        TERMINAL_TEXT_HINTS.some((needle) => value.includes(normalizeComparableLabel(needle)))
-    );
-}
-
-function resolveActionLabels(explicitLabels: string[] | undefined, surface: ChatSurfaceInfo, settings: SupervisorSettings): string[] {
-    if (explicitLabels && explicitLabels.length > 0) {
-        return explicitLabels;
-    }
-
-    if (surface.detectedSurface === 'antigravity') {
-        return [...DEFAULT_ACTION_LABELS];
-    }
-
-    return surface.surfaceProfile.actionLabels ?? settings.actionLabels ?? [...DEFAULT_ACTION_LABELS];
 }
 
 function buildClickScript(labels: string[], delays: Pick<SupervisorSettings, 'afterClickDelayMs'>, windowTitle?: string, processName?: string): string {

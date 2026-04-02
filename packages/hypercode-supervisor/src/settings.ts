@@ -27,7 +27,7 @@ const supervisorSettingsSchema = z.object({
 export type SupervisorSettings = z.infer<typeof supervisorSettingsSchema>;
 export type SupervisorSettingsUpdate = Partial<SupervisorSettings>;
 
-const DEFAULT_SETTINGS = supervisorSettingsSchema.parse({});
+export const DEFAULT_SETTINGS = supervisorSettingsSchema.parse({});
 
 export class SupervisorSettingsManager {
     private readonly settingsPath: string;

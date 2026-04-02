@@ -299,6 +299,35 @@ Validated with:
 - `pnpm -C packages\hypercode-supervisor exec tsc --noEmit`
 - `pnpm -C packages\hypercode-supervisor run build`
 
+### 0.13. Supervisor decision logic now has focused regression coverage
+
+Finding:
+
+- the Antigravity supervisor lane had become materially safer, but it still had no tests
+- that meant future “helpful” generalization could quietly reintroduce the exact class of regressions we were chasing: dropdown/menu confusion, terminal-like input targeting, and the wrong action-label resolution path
+
+What changed:
+
+- extracted the pure decision helpers into `packages/hypercode-supervisor/src/decision_logic.ts`
+- added `packages/hypercode-supervisor/src/decision_logic.test.ts` using the built-in Node test runner instead of bringing in a new test framework
+- exported `DEFAULT_SETTINGS` from `settings.ts` for stable expectations in those tests
+- added `pnpm -C packages\hypercode-supervisor run test`
+
+Covered behavior:
+
+- normalized label comparison
+- inspection-hint aggregation
+- Antigravity hint detection from approval labels
+- Antigravity hint detection from terminal-like surface hints
+- non-Antigravity noise staying negative
+- action-label resolution priority, including forced Antigravity defaults
+
+Validated with:
+
+- `pnpm -C packages\hypercode-supervisor exec tsc --noEmit`
+- `pnpm -C packages\hypercode-supervisor run build`
+- `pnpm -C packages\hypercode-supervisor run test`
+
 ### 1. Published catalog stdio entries are no longer labeled "unsafe"
 
 Updated `packages/core/src/services/published-catalog-validator.ts` so stdio-backed published catalog entries are labeled as transport-skipped instead of `stdio_unsafe`.

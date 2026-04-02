@@ -638,7 +638,24 @@ Validation:
 - `pnpm -C packages\cli exec tsc --noEmit`
 - `pnpm -C packages\cli exec vitest run src\commands\tools.test.ts src\commands\session.test.ts src\commands\status.test.ts src\commands\provider.test.ts src\commands\config.test.ts src\commands\mcp.test.ts src\commands\agent.test.ts src\commands\memory.test.ts src\control-plane.test.ts`
 
-### 26. `harden-published-catalog-ingestion`
+### 26. `wire-cli-tool-groups-write`
+
+Status: **completed**
+
+What changed:
+
+- `packages/cli/src/commands/tools.ts` no longer prints fabricated success lines for `hypercode tools groups --create` and `hypercode tools groups --delete`
+- `tools groups --create` now calls the live `toolSets.create` mutation with safe default description/tool membership, and `--delete` now calls the live `toolSets.delete` mutation
+- `--json` now emits structured mutation results for automation and troubleshooting
+- command failures now flow through the existing structured tools control-plane error handling path
+- focused CLI coverage in `packages/cli/src/commands/tools.test.ts` now includes the tool-group create/delete JSON flows
+
+Validation:
+
+- `pnpm -C packages\cli exec tsc --noEmit`
+- `pnpm -C packages\cli exec vitest run src\commands\tools.test.ts src\commands\session.test.ts src\commands\status.test.ts src\commands\provider.test.ts src\commands\config.test.ts src\commands\mcp.test.ts src\commands\agent.test.ts src\commands\memory.test.ts src\control-plane.test.ts`
+
+### 27. `harden-published-catalog-ingestion`
 
 Status: **completed**
 

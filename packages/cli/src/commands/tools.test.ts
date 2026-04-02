@@ -202,6 +202,46 @@ describe('registerToolsCommand', () => {
     }, null, 2));
   });
 
+  it('creates a tool group as JSON via the live control plane', async () => {
+    queryTrpcMock.mockResolvedValue({
+      uuid: 'group-2',
+      name: 'new-group',
+      description: null,
+      tools: [],
+    });
+
+    const program = createProgram();
+    await program.parseAsync(['tools', 'groups', '--create', 'new-group', '--json'], { from: 'user' });
+
+    expect(queryTrpcMock).toHaveBeenCalledWith('toolSets.create', {
+      name: 'new-group',
+      description: null,
+      tools: [],
+    });
+    expect(logSpy).toHaveBeenCalledWith(JSON.stringify({
+      group: {
+        uuid: 'group-2',
+        name: 'new-group',
+        description: null,
+        tools: [],
+      },
+    }, null, 2));
+  });
+
+  it('deletes a tool group as JSON via the live control plane', async () => {
+    queryTrpcMock.mockResolvedValue({ success: true });
+
+    const program = createProgram();
+    await program.parseAsync(['tools', 'groups', '--delete', 'group-2', '--json'], { from: 'user' });
+
+    expect(queryTrpcMock).toHaveBeenCalledWith('toolSets.delete', {
+      uuid: 'group-2',
+    });
+    expect(logSpy).toHaveBeenCalledWith(JSON.stringify({
+      success: true,
+    }, null, 2));
+  });
+
   it('enables a tool as JSON via the live control plane', async () => {
     queryTrpcMock.mockResolvedValue({
       success: true,

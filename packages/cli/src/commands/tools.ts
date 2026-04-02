@@ -66,6 +66,8 @@ type ToolToggleResult = {
   tool: DetailedTool;
 };
 
+type ToolSetMutationResult = ToolGroup | { success: boolean };
+
 function normalizeText(value: string | undefined | null): string {
   return typeof value === 'string' && value.trim().length > 0 ? value.trim() : '—';
 }
@@ -330,10 +332,30 @@ Examples:
       await withToolsErrorHandling(async () => {
         const chalk = (await import('chalk')).default;
         if (opts.create) {
+          const created = await queryTrpc<ToolSetMutationResult>('toolSets.create', {
+            name: opts.create,
+            description: null,
+            tools: [],
+          });
+
+          if (opts.json) {
+            console.log(JSON.stringify({ group: created }, null, 2));
+            return;
+          }
+
           console.log(chalk.green(`  ✓ Tool group '${opts.create}' created`));
           return;
         }
         if (opts.delete) {
+          const deleted = await queryTrpc<ToolSetMutationResult>('toolSets.delete', {
+            uuid: opts.delete,
+          });
+
+          if (opts.json) {
+            console.log(JSON.stringify(deleted, null, 2));
+            return;
+          }
+
           console.log(chalk.green(`  ✓ Tool group '${opts.delete}' deleted`));
           return;
         }

@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **CLI Tool Group Write Surface**: `hypercode tools groups --create` and `hypercode tools groups --delete` now call the live `toolSets.create` and `toolSets.delete` control-plane mutations instead of printing fabricated success messages, with structured `--json` output and truthful group mutation results.
 - **CLI Tool Toggle Surface**: `hypercode tools enable <name>` and `hypercode tools disable <name>` now call the live `tools.setAlwaysOn` control-plane mutation instead of printing fabricated success messages, with structured `--json` output and truthful always-on tool state updates.
 - **CLI Session Resume Surface**: `hypercode session resume <id>` now calls the live `session.restart` control-plane mutation instead of printing a fabricated success message, with structured `--json` output and truthful resumed-session status reporting.
 - **CLI Session Stop Surface**: `hypercode session stop <id>` now calls the live `session.stop` control-plane mutation instead of printing a fabricated success message, with `--force`, structured `--json` output, and truthful stopped-session status reporting.

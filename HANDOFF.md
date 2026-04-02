@@ -211,15 +211,12 @@ What is known:
 - persisted store initialization is now safer
 - `apps/hypercode-extension/pages/content/src/stores/extension-storage.ts` no longer falls back to page `localStorage` when extension storage exists but rejects access, so restricted pages stop mirroring extension state into page-scoped storage after `Access to storage is not allowed from this context`
 - `apps/hypercode-extension/pages/content/src/render_prescript/src/mcpexecute/storage.ts` now keeps execution-history duplicate checks in session memory for extension-backed contexts instead of depending on page `localStorage`, while still preserving non-extension fallback behavior
-- the remaining `localStorage` footprint in `pages/content/src` now appears to be mostly:
-  - tests,
-  - comments/documentation strings,
-  - and the `ToolPermission` helper path in `pages/content/src/utils/storage.ts`, which currently appears to have no live consumers in the checked-in content runtime
+- the remaining `localStorage` footprint in `pages/content/src` now appears to be mostly tests and comments/documentation strings; the dead `ToolPermission` helper path in `pages/content/src/utils/storage.ts` has been removed
 
 What remains:
 
 - verify whether the remaining console noise is fully addressed by the store adapter migration
-- decide whether to remove, migrate, or leave the apparently-unused `ToolPermission` helper path in `pages/content/src/utils/storage.ts`
+- decide whether any remaining comment-only or test-only `localStorage` references need cleanup, or whether the storage-noise lane is complete enough to close
 
 Validation note:
 

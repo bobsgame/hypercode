@@ -82,6 +82,29 @@ describe('registerConfigCommand', () => {
     }, null, 2));
   });
 
+  it('lists live secrets from the control plane as JSON', async () => {
+    queryTrpcMock.mockResolvedValue([
+      {
+        key: 'OPENAI_API_KEY',
+        created_at: '2026-04-02T09:00:00.000Z',
+        updated_at: '2026-04-02T09:05:00.000Z',
+      },
+    ]);
+
+    const program = createProgram();
+    await program.parseAsync(['config', 'secrets', '--list', '--json'], { from: 'user' });
+
+    expect(queryTrpcMock).toHaveBeenCalledWith('secrets.list');
+    expect(logSpy).toHaveBeenCalledWith(JSON.stringify([
+      {
+        key: 'OPENAI_API_KEY',
+        created_at: '2026-04-02T09:00:00.000Z',
+        updated_at: '2026-04-02T09:05:00.000Z',
+      },
+    ], null, 2));
+    expect(errorSpy).not.toHaveBeenCalled();
+  });
+
   it('reports control-plane failures without throwing out of the command', async () => {
     queryTrpcMock.mockRejectedValue(new Error('control plane unavailable'));
 

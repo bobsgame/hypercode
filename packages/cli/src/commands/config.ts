@@ -17,8 +17,23 @@ type ConfigEntry = {
   value: string;
 };
 
+type SecretEntry = {
+  key: string;
+  created_at?: string | number | Date;
+  updated_at?: string | number | Date;
+};
+
 function normalizeText(value: string | null | undefined): string {
   return typeof value === 'string' && value.trim().length > 0 ? value.trim() : '—';
+}
+
+function formatTimestamp(value: string | number | Date | undefined): string {
+  if (typeof value === 'undefined' || value === null) {
+    return '—';
+  }
+
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? '—' : date.toISOString();
 }
 
 function parseMaybeJson(value: string): unknown {
@@ -226,6 +241,7 @@ Examples:
     .command('secrets')
     .description('Manage secrets and environment variables')
     .option('--list', 'List all secrets (masked)')
+    .option('--json', 'Output as JSON')
     .option('--set <key>', 'Set a secret value')
     .option('--delete <key>', 'Delete a secret')
     .option('--env', 'Show environment variable sources')
@@ -239,21 +255,55 @@ Examples:
   $ hypercode config secrets --env
     `)
     .action(async (opts) => {
-      const chalk = (await import('chalk')).default;
-      if (opts.list) {
-        console.log(chalk.bold.cyan('\n  Secrets (masked)\n'));
-        console.log(chalk.dim('  No secrets configured.\n'));
-      } else if (opts.set) {
-        console.log(chalk.yellow(`  Setting secret: ${opts.set}`));
-        console.log(chalk.dim('  (Interactive input not yet implemented)'));
-      } else if (opts.delete) {
-        console.log(chalk.green(`  ✓ Secret '${opts.delete}' deleted`));
-      } else if (opts.env) {
-        console.log(chalk.bold.cyan('\n  Environment Variable Sources\n'));
-        console.log(chalk.dim('  .env files, system env, and encrypted secrets\n'));
-      } else {
-        console.log(chalk.dim('  Use --list, --set, --delete, or --env\n'));
-      }
+      await withConfigErrorHandling(async () => {
+        const chalk = (await import('chalk')).default;
+        if (opts.list) {
+          const secrets = await queryTrpc<SecretEntry[]>('secrets.list');
+
+          if (opts.json) {
+            console.log(JSON.stringify(secrets, null, 2));
+            return;
+          }
+
+          console.log(chalk.bold.cyan('\n  Secrets (masked)\n'));
+          if (secrets.length === 0) {
+            console.log(chalk.dim('  No secrets configured.\n'));
+            return;
+          }
+
+          const Table = (await import('cli-table3')).default;
+          const table = new Table({
+            head: ['Key', 'Updated', 'Created'],
+            style: { head: ['cyan'] },
+            wordWrap: true,
+            colWidths: [36, 28, 28],
+          });
+
+          for (const secret of secrets) {
+            table.push([
+              secret.key,
+              formatTimestamp(secret.updated_at),
+              formatTimestamp(secret.created_at),
+            ]);
+          }
+
+          console.log(table.toString());
+          console.log('');
+          return;
+        }
+
+        if (opts.set) {
+          console.log(chalk.yellow(`  Setting secret: ${opts.set}`));
+          console.log(chalk.dim('  (Interactive input not yet implemented)'));
+        } else if (opts.delete) {
+          console.log(chalk.green(`  ✓ Secret '${opts.delete}' deleted`));
+        } else if (opts.env) {
+          console.log(chalk.bold.cyan('\n  Environment Variable Sources\n'));
+          console.log(chalk.dim('  .env files, system env, and encrypted secrets\n'));
+        } else {
+          console.log(chalk.dim('  Use --list, --set, --delete, or --env\n'));
+        }
+      }, opts);
     });
 
   config

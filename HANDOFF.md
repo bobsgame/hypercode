@@ -417,7 +417,24 @@ Validation:
 - `pnpm -C packages\cli exec tsc --noEmit`
 - `pnpm -C packages\cli exec vitest run src\commands\tools.test.ts src\commands\memory.test.ts src\commands\session.test.ts src\commands\status.test.ts src\commands\provider.test.ts src\commands\config.test.ts src\commands\mcp.test.ts src\control-plane.test.ts`
 
-### 13. `harden-published-catalog-ingestion`
+### 13. `wire-cli-config-secrets-list`
+
+Status: **completed**
+
+What changed:
+
+- `packages/cli/src/commands/config.ts` no longer hardcodes `hypercode config secrets --list` to an always-empty "No secrets configured" placeholder
+- `config secrets --list` now queries the live `secrets.list` route and renders the returned secret keys with truthful created/updated metadata instead of fabricated empty state
+- `--json` now emits the structured live secrets inventory instead of table-only placeholder output
+- command failures now report the resolved control-plane endpoint and a concrete remediation path, consistent with the other wired CLI commands
+- focused CLI coverage in `packages/cli/src/commands/config.test.ts` now includes the secrets inventory JSON flow
+
+Validation:
+
+- `pnpm -C packages\cli exec tsc --noEmit`
+- `pnpm -C packages\cli exec vitest run src\commands\config.test.ts src\commands\tools.test.ts src\commands\memory.test.ts src\commands\session.test.ts src\commands\status.test.ts src\commands\provider.test.ts src\commands\mcp.test.ts src\control-plane.test.ts`
+
+### 14. `harden-published-catalog-ingestion`
 
 Status: **completed**
 

@@ -89,10 +89,18 @@ class SupervisorServer {
                     },
                     {
                         name: "detect_chat_surface",
-                        description: "Inspect the active window and classify the current chat surface heuristically",
+                        description: "Inspect the active or matching window and classify the current chat surface heuristically",
                         inputSchema: {
                             type: "object",
                             properties: {
+                                windowTitle: {
+                                    type: "string",
+                                    description: "Optional partial window title to target"
+                                },
+                                processName: {
+                                    type: "string",
+                                    description: "Optional process name to target (e.g. chrome, firefox)"
+                                },
                                 surfaceOverride: {
                                     type: "string",
                                     description: "Optional explicit surface/profile id to force instead of heuristic detection"
@@ -360,9 +368,11 @@ class SupervisorServer {
                 }
 
                 if (request.params.name === "detect_chat_surface") {
+                    const windowTitle = request.params.arguments?.windowTitle as string | undefined;
+                    const processName = request.params.arguments?.processName as string | undefined;
                     const surfaceOverride = request.params.arguments?.surfaceOverride as string | undefined;
-                    const result = await this.uiAutomationManager.detectChatSurface({ surfaceOverride });
-                    logger.info("Chat Surface Detected", result);
+                    const result = await this.uiAutomationManager.detectChatSurface({ windowTitle, processName, surfaceOverride });
+                    logger.info("Chat Surface Detected", { windowTitle, processName, detectedSurface: result.detectedSurface });
                     return {
                         content: [{ type: "text", text: JSON.stringify(result, null, 2) }]
                     };

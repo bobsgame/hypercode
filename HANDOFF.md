@@ -250,6 +250,28 @@ Validated with:
 - `pnpm -C packages\hypercode-supervisor exec tsc --noEmit`
 - `pnpm -C packages\hypercode-supervisor run build`
 
+### 0.11. `detect_chat_surface` now exposes targeted-window probing directly
+
+Finding:
+
+- after the target-window alignment fix, the runtime could already detect a surface from a requested `windowTitle` / `processName`
+- but the public MCP schema for `detect_chat_surface` still only exposed active-window-style behavior, so direct callers could not use the targeted detection path explicitly
+
+What changed:
+
+- `packages/hypercode-supervisor/src/index.ts` now adds `windowTitle` and `processName` to the `detect_chat_surface` input schema
+- the handler now passes those selectors through to `UiAutomationManager.detectChatSurface(...)`
+
+Behavior change:
+
+- operators can now directly ask the supervisor to classify a non-foreground matching window
+- the public MCP contract now matches the runtime capability that was added in the previous slice
+
+Validated with:
+
+- `pnpm -C packages\hypercode-supervisor exec tsc --noEmit`
+- `pnpm -C packages\hypercode-supervisor run build`
+
 ### 1. Published catalog stdio entries are no longer labeled "unsafe"
 
 Updated `packages/core/src/services/published-catalog-validator.ts` so stdio-backed published catalog entries are labeled as transport-skipped instead of `stdio_unsafe`.

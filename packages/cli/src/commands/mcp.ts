@@ -5,6 +5,8 @@
  * traffic inspection, config sync, and directory access.
  */
 
+import { readFileSync, writeFileSync } from 'node:fs';
+
 import type { Command } from 'commander';
 
 import { queryTrpc, resolveControlPlaneLocation } from '../control-plane.js';
@@ -86,6 +88,34 @@ type McpDeleteResult = {
   success?: boolean;
 };
 
+type McpJsoncEditorRecord = {
+  path: string;
+  content: string;
+};
+
+type McpSyncTargetRecord = {
+  client: string;
+  path: string;
+  candidates: string[];
+  exists: boolean;
+};
+
+type McpClientConfigPreview = {
+  client: string;
+  targetPath: string;
+  existed: boolean;
+  serverCount: number;
+  json: string;
+  document?: Record<string, unknown>;
+};
+
+type McpClientConfigSyncResult = McpClientConfigPreview & {
+  written: boolean;
+};
+
+const SUPPORTED_SYNC_CLIENTS = ['claude-desktop', 'cursor', 'vscode'] as const;
+type SupportedSyncClient = (typeof SUPPORTED_SYNC_CLIENTS)[number];
+
 function normalizeText(value: string | null | undefined): string {
   return typeof value === 'string' && value.trim().length > 0 ? value.trim() : '—';
 }
@@ -101,6 +131,18 @@ function parsePositiveInt(value: string, fieldName: string): number {
   }
 
   return parsed;
+}
+
+function isSupportedSyncClient(value: string): value is SupportedSyncClient {
+  return (SUPPORTED_SYNC_CLIENTS as readonly string[]).includes(value);
+}
+
+function parseSyncClient(value: string): SupportedSyncClient {
+  const normalized = value.trim().toLowerCase();
+  if (isSupportedSyncClient(normalized)) {
+    return normalized;
+  }
+  throw new Error(`Unsupported MCP client '${value}'. Supported clients: ${SUPPORTED_SYNC_CLIENTS.join(', ')}.`);
 }
 
 async function withMcpErrorHandling(
@@ -717,18 +759,53 @@ Examples:
     .command('export')
     .description('Export MCP configuration to JSON file')
     .option('-o, --output <file>', 'Output file path', 'hypercode-mcp-export.json')
+    .option('--json', 'Output as JSON')
     .action(async (opts) => {
-      const chalk = (await import('chalk')).default;
-      console.log(chalk.green(`  ✓ Exported MCP config to ${opts.output}`));
+      await withMcpErrorHandling(async () => {
+        const editor = await queryTrpc<McpJsoncEditorRecord>('mcp.getJsoncEditor');
+        writeFileSync(opts.output, editor.content, 'utf8');
+
+        if (opts.json) {
+          console.log(JSON.stringify({
+            output: opts.output,
+            sourcePath: editor.path,
+            bytes: Buffer.byteLength(editor.content, 'utf8'),
+          }, null, 2));
+          return;
+        }
+
+        const chalk = (await import('chalk')).default;
+        console.log(chalk.green(`  ✓ Exported MCP config to ${opts.output}`));
+        console.log(chalk.dim(`    Source: ${editor.path}`));
+      }, opts);
     });
 
   mcp
     .command('import <file>')
     .description('Import MCP configuration from JSON file')
     .option('--merge', 'Merge with existing config instead of replacing')
-    .action(async (file) => {
-      const chalk = (await import('chalk')).default;
-      console.log(chalk.green(`  ✓ Imported MCP config from ${file}`));
+    .option('--json', 'Output as JSON')
+    .action(async (file, opts) => {
+      await withMcpErrorHandling(async () => {
+        if (opts.merge) {
+          throw new Error('Live MCP config import does not yet support merge mode.');
+        }
+
+        const content = readFileSync(file, 'utf8');
+        await queryTrpc<{ ok: boolean }>('mcp.saveJsoncEditor', { content });
+
+        if (opts.json) {
+          console.log(JSON.stringify({
+            success: true,
+            file,
+            bytes: Buffer.byteLength(content, 'utf8'),
+          }, null, 2));
+          return;
+        }
+
+        const chalk = (await import('chalk')).default;
+        console.log(chalk.green(`  ✓ Imported MCP config from ${file}`));
+      }, opts);
     });
 
   mcp
@@ -736,25 +813,88 @@ Examples:
     .description('Auto-detect and sync MCP configs to all AI tools (Claude, Cursor, VS Code, etc.)')
     .option('--dry-run', 'Show what would be synced without writing')
     .option('--client <name>', 'Sync to specific client only')
+    .option('--json', 'Output as JSON')
     .addHelpText('after', `
 Supported clients:
-  claude     Claude Desktop (claude_desktop_config.json)
-  cursor     Cursor (.cursor/mcp.json)
-  vscode     VS Code (settings.json)
-  windsurf   Windsurf (.windsurf/mcp.json)
-  opencode   OpenCode (opencode.json)
+  claude-desktop  Claude Desktop
+  cursor          Cursor
+  vscode          VS Code
     `)
     .action(async (opts) => {
-      const chalk = (await import('chalk')).default;
-      console.log(chalk.bold.cyan('\n  MCP Config Sync\n'));
-      if (opts.dryRun) {
-        console.log(chalk.yellow('  [DRY RUN] No changes will be written\n'));
-      }
-      console.log(chalk.dim('  Scanning for AI tool configs...\n'));
-      const clients = ['Claude Desktop', 'Cursor', 'VS Code', 'Windsurf', 'OpenCode'];
-      for (const client of clients) {
-        console.log(chalk.dim(`  ${client}: `) + chalk.yellow('not found'));
-      }
-      console.log('');
+      await withMcpErrorHandling(async () => {
+        const requestedClient = opts.client ? parseSyncClient(String(opts.client)) : null;
+
+        if (requestedClient) {
+          const result = opts.dryRun
+            ? await queryTrpc<McpClientConfigPreview>('mcpServers.exportClientConfig', { client: requestedClient })
+            : await queryTrpc<McpClientConfigSyncResult>('mcpServers.syncClientConfig', { client: requestedClient });
+
+          if (opts.json) {
+            console.log(JSON.stringify({
+              dryRun: Boolean(opts.dryRun),
+              result,
+            }, null, 2));
+            return;
+          }
+
+          const chalk = (await import('chalk')).default;
+          console.log(chalk.bold.cyan('\n  MCP Config Sync\n'));
+          if (opts.dryRun) {
+            console.log(chalk.yellow('  [DRY RUN] No changes were written\n'));
+          }
+          console.log(chalk.green(`  ✓ ${requestedClient} ${opts.dryRun ? 'previewed' : 'synced'}`));
+          console.log(chalk.dim(`    Path: ${result.targetPath}`));
+          console.log(chalk.dim(`    Existing file: ${result.existed ? 'yes' : 'no'}`));
+          console.log(chalk.dim(`    MCP servers: ${result.serverCount}`));
+          console.log('');
+          return;
+        }
+
+        const targets = await queryTrpc<McpSyncTargetRecord[]>('mcpServers.syncTargets');
+        const results = await Promise.all(targets.map((target) => (
+          opts.dryRun
+            ? queryTrpc<McpClientConfigPreview>('mcpServers.exportClientConfig', { client: parseSyncClient(target.client) })
+            : queryTrpc<McpClientConfigSyncResult>('mcpServers.syncClientConfig', { client: parseSyncClient(target.client) })
+        )));
+
+        if (opts.json) {
+          console.log(JSON.stringify({
+            dryRun: Boolean(opts.dryRun),
+            results,
+          }, null, 2));
+          return;
+        }
+
+        const chalk = (await import('chalk')).default;
+        const Table = (await import('cli-table3')).default;
+
+        console.log(chalk.bold.cyan('\n  MCP Config Sync\n'));
+        if (opts.dryRun) {
+          console.log(chalk.yellow('  [DRY RUN] No changes were written\n'));
+        }
+
+        const table = new Table({
+          head: ['Client', 'Path', 'Existing', 'Servers', 'Status'],
+          style: { head: ['cyan'] },
+          wordWrap: true,
+          colWidths: [18, 56, 10, 10, 14],
+        });
+
+        for (const result of results) {
+          const status = opts.dryRun
+            ? 'previewed'
+            : ('written' in result && result.written ? 'written' : 'skipped');
+          table.push([
+            result.client,
+            result.targetPath,
+            result.existed ? 'yes' : 'no',
+            String(result.serverCount),
+            status,
+          ]);
+        }
+
+        console.log(table.toString());
+        console.log('');
+      }, opts);
     });
 }

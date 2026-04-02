@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **CLI MCP Config IO Surface**: `hypercode mcp export`, `hypercode mcp import`, and `hypercode mcp sync` now use live control-plane routes for raw JSONC config export/import and supported client config preview/sync (`claude-desktop`, `cursor`, `vscode`), perform real local file IO, support structured `--json` output, and fail explicitly for unsupported placeholder-only options like `mcp import --merge` or unsupported sync clients instead of printing fabricated success.
 - **CLI Memory Write Surfaces**: `hypercode memory add`, `hypercode memory export`, and `hypercode memory import` now call live `memory.addFact`, `memory.exportMemories`, and `memory.importMemories` control-plane routes, perform real file IO for import/export, and fail explicitly for unsupported placeholder-only flags instead of printing fabricated success messages.
 - **CLI Config Reset/Init Surface**: `hypercode config reset` and `hypercode config init` now call live `config.reset` and `config.init` control-plane mutations, with scoped reset support, real config-file initialization, and structured `--json` output instead of fabricated success messages.
 - **CLI Session Import Surface**: `hypercode session import <file>` now reads the local export file, calls the live `sessionExport.import` control-plane mutation, supports `--dry-run`, `--replace`, `--source-environment`, and structured `--json` output instead of printing a fabricated success message.

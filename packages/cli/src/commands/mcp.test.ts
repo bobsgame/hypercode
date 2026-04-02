@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Command } from 'commander';
+import { readFileSync, writeFileSync } from 'node:fs';
 
 const queryTrpcMock = vi.fn();
 const resolveControlPlaneLocationMock = vi.fn(() => ({
@@ -16,12 +17,19 @@ vi.mock('../control-plane.js', () => ({
 
 import { registerMcpCommand } from './mcp.js';
 
+vi.mock('node:fs', () => ({
+  readFileSync: vi.fn(),
+  writeFileSync: vi.fn(),
+}));
+
 const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
 afterEach(() => {
   queryTrpcMock.mockReset();
   resolveControlPlaneLocationMock.mockClear();
+  vi.mocked(readFileSync).mockReset();
+  vi.mocked(writeFileSync).mockReset();
   logSpy.mockClear();
   errorSpy.mockClear();
   process.exitCode = 0;
@@ -313,6 +321,151 @@ describe('registerMcpCommand', () => {
     expect(logSpy).toHaveBeenCalledWith(JSON.stringify({
       success: true,
     }, null, 2));
+  });
+
+  it('exports MCP JSONC config through the live editor route', async () => {
+    queryTrpcMock.mockResolvedValue({
+      path: 'C:\\Users\\hyper\\.hypercode\\mcp.jsonc',
+      content: '{\n  "mcpServers": {}\n}\n',
+    });
+
+    const program = createProgram();
+    await program.parseAsync(['mcp', 'export', '--output', 'out.json', '--json'], { from: 'user' });
+
+    expect(queryTrpcMock).toHaveBeenCalledWith('mcp.getJsoncEditor');
+    expect(writeFileSync).toHaveBeenCalledWith('out.json', '{\n  "mcpServers": {}\n}\n', 'utf8');
+    expect(logSpy).toHaveBeenCalledWith(JSON.stringify({
+      output: 'out.json',
+      sourcePath: 'C:\\Users\\hyper\\.hypercode\\mcp.jsonc',
+      bytes: Buffer.byteLength('{\n  "mcpServers": {}\n}\n', 'utf8'),
+    }, null, 2));
+  });
+
+  it('imports MCP JSONC config through the live save route', async () => {
+    vi.mocked(readFileSync).mockReturnValue('{\n  "mcpServers": {\n    "fs": {}\n  }\n}\n' as never);
+    queryTrpcMock.mockResolvedValue({ ok: true });
+
+    const program = createProgram();
+    await program.parseAsync(['mcp', 'import', 'in.json', '--json'], { from: 'user' });
+
+    expect(readFileSync).toHaveBeenCalledWith('in.json', 'utf8');
+    expect(queryTrpcMock).toHaveBeenCalledWith('mcp.saveJsoncEditor', {
+      content: '{\n  "mcpServers": {\n    "fs": {}\n  }\n}\n',
+    });
+    expect(logSpy).toHaveBeenCalledWith(JSON.stringify({
+      success: true,
+      file: 'in.json',
+      bytes: Buffer.byteLength('{\n  "mcpServers": {\n    "fs": {}\n  }\n}\n', 'utf8'),
+    }, null, 2));
+  });
+
+  it('rejects unsupported MCP import merge mode explicitly', async () => {
+    const program = createProgram();
+    await program.parseAsync(['mcp', 'import', 'in.json', '--merge', '--json'], { from: 'user' });
+
+    expect(queryTrpcMock).not.toHaveBeenCalled();
+    expect(logSpy).toHaveBeenCalledWith(JSON.stringify({
+      error: 'Live MCP config import does not yet support merge mode.',
+    }, null, 2));
+    expect(process.exitCode).toBe(1);
+  });
+
+  it('previews MCP client sync through the live preview route', async () => {
+    queryTrpcMock.mockResolvedValue({
+      client: 'cursor',
+      targetPath: 'C:\\Users\\hyper\\AppData\\Roaming\\Cursor\\User\\mcp.json',
+      existed: true,
+      serverCount: 2,
+      json: '{\n  "mcpServers": {}\n}\n',
+    });
+
+    const program = createProgram();
+    await program.parseAsync(['mcp', 'sync', '--client', 'cursor', '--dry-run', '--json'], { from: 'user' });
+
+    expect(queryTrpcMock).toHaveBeenCalledWith('mcpServers.exportClientConfig', { client: 'cursor' });
+    expect(logSpy).toHaveBeenCalledWith(JSON.stringify({
+      dryRun: true,
+      result: {
+        client: 'cursor',
+        targetPath: 'C:\\Users\\hyper\\AppData\\Roaming\\Cursor\\User\\mcp.json',
+        existed: true,
+        serverCount: 2,
+        json: '{\n  "mcpServers": {}\n}\n',
+      },
+    }, null, 2));
+  });
+
+  it('syncs all supported MCP clients through live target discovery', async () => {
+    queryTrpcMock
+      .mockResolvedValueOnce([
+        {
+          client: 'claude-desktop',
+          path: 'C:\\Users\\hyper\\AppData\\Roaming\\Claude\\claude_desktop_config.json',
+          candidates: ['C:\\Users\\hyper\\AppData\\Roaming\\Claude\\claude_desktop_config.json'],
+          exists: true,
+        },
+        {
+          client: 'cursor',
+          path: 'C:\\Users\\hyper\\AppData\\Roaming\\Cursor\\User\\mcp.json',
+          candidates: ['C:\\Users\\hyper\\AppData\\Roaming\\Cursor\\User\\mcp.json'],
+          exists: false,
+        },
+      ])
+      .mockResolvedValueOnce({
+        client: 'claude-desktop',
+        targetPath: 'C:\\Users\\hyper\\AppData\\Roaming\\Claude\\claude_desktop_config.json',
+        existed: true,
+        serverCount: 3,
+        json: '{}',
+        written: true,
+      })
+      .mockResolvedValueOnce({
+        client: 'cursor',
+        targetPath: 'C:\\Users\\hyper\\AppData\\Roaming\\Cursor\\User\\mcp.json',
+        existed: false,
+        serverCount: 3,
+        json: '{}',
+        written: true,
+      });
+
+    const program = createProgram();
+    await program.parseAsync(['mcp', 'sync', '--json'], { from: 'user' });
+
+    expect(queryTrpcMock).toHaveBeenNthCalledWith(1, 'mcpServers.syncTargets');
+    expect(queryTrpcMock).toHaveBeenNthCalledWith(2, 'mcpServers.syncClientConfig', { client: 'claude-desktop' });
+    expect(queryTrpcMock).toHaveBeenNthCalledWith(3, 'mcpServers.syncClientConfig', { client: 'cursor' });
+    expect(logSpy).toHaveBeenCalledWith(JSON.stringify({
+      dryRun: false,
+      results: [
+        {
+          client: 'claude-desktop',
+          targetPath: 'C:\\Users\\hyper\\AppData\\Roaming\\Claude\\claude_desktop_config.json',
+          existed: true,
+          serverCount: 3,
+          json: '{}',
+          written: true,
+        },
+        {
+          client: 'cursor',
+          targetPath: 'C:\\Users\\hyper\\AppData\\Roaming\\Cursor\\User\\mcp.json',
+          existed: false,
+          serverCount: 3,
+          json: '{}',
+          written: true,
+        },
+      ],
+    }, null, 2));
+  });
+
+  it('rejects unsupported MCP sync clients explicitly', async () => {
+    const program = createProgram();
+    await program.parseAsync(['mcp', 'sync', '--client', 'windsurf', '--json'], { from: 'user' });
+
+    expect(queryTrpcMock).not.toHaveBeenCalled();
+    expect(logSpy).toHaveBeenCalledWith(JSON.stringify({
+      error: "Unsupported MCP client 'windsurf'. Supported clients: claude-desktop, cursor, vscode.",
+    }, null, 2));
+    expect(process.exitCode).toBe(1);
   });
 
   it('reports control-plane failures without throwing out of the command', async () => {

@@ -743,7 +743,25 @@ Validation:
 - `pnpm -C packages\cli exec tsc --noEmit`
 - `pnpm -C packages\cli exec vitest run src\commands\memory.test.ts src\commands\config.test.ts src\commands\session.test.ts src\commands\mcp.test.ts src\commands\tools.test.ts src\commands\status.test.ts src\commands\provider.test.ts src\commands\agent.test.ts src\control-plane.test.ts`
 
-### 32. `harden-published-catalog-ingestion`
+### 32. `wire-cli-mcp-config-io`
+
+Status: **completed**
+
+What changed:
+
+- `packages/cli/src/commands/mcp.ts` no longer prints fabricated success for `hypercode mcp export`, `hypercode mcp import`, or `hypercode mcp sync`
+- `mcp export` now calls the live `mcp.getJsoncEditor` route and writes the returned JSONC content to the requested local file
+- `mcp import` now reads the requested local file and calls the live `mcp.saveJsoncEditor` mutation instead of pretending the import succeeded
+- `mcp sync` now uses the live `mcpServers.syncTargets`, `mcpServers.exportClientConfig`, and `mcpServers.syncClientConfig` routes for supported clients only (`claude-desktop`, `cursor`, `vscode`), with truthful dry-run preview vs write behavior
+- unsupported placeholder-only inputs now fail explicitly: `mcp import --merge` is rejected because there is no live merge contract, and unsupported sync clients like the previously advertised `windsurf` / `opencode` are rejected instead of being silently treated as discoverable
+- focused CLI coverage in `packages/cli/src/commands/mcp.test.ts` now includes export/import JSON flows, sync preview, multi-target sync, and explicit unsupported-option failures
+
+Validation:
+
+- `pnpm -C packages\cli exec tsc --noEmit`
+- `pnpm -C packages\cli exec vitest run src\commands\mcp.test.ts src\commands\tools.test.ts src\commands\config.test.ts src\control-plane.test.ts`
+
+### 33. `harden-published-catalog-ingestion`
 
 Status: **completed**
 

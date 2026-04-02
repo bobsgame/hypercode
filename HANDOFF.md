@@ -71,6 +71,185 @@ This is a **recommended architecture plan**, not a claim that the repo already c
 
 ## Completed in this session
 
+### 0. HyperCode supervisor is now a truthful UI-automation bridge, not just a blind SendKeys shim
+
+Root-cause finding:
+
+- the live `packages/hypercode-supervisor` integration that core auto-connects was not a real Antigravity/director automation engine
+- it only exposed `install_supervisor`, `list_processes`, `kill_process`, and `simulate_input`
+- `simulate_input` relied on `AppActivate(...)` plus raw `SendKeys`, which explains the user-reported misfires around wrong controls, Alt+Enter regressions, and dropdown/button confusion
+
+What changed:
+
+- added `packages/hypercode-supervisor/src/powershell.ts`
+- added `packages/hypercode-supervisor/src/ui_automation.ts`
+- refactored `packages/hypercode-supervisor/src/input_manager.ts`
+- expanded `packages/hypercode-supervisor/src/index.ts`
+
+New truthful MCP tools:
+
+- `detect_chat_surface`
+- `inspect_window_ui`
+- `detect_chat_state`
+- `click_action_buttons`
+- `set_chat_input`
+- `submit_chat_input`
+- `advance_chat`
+
+Behavior change:
+
+- the supervisor now uses Windows UI Automation for visible button/input inspection instead of pretending raw keyboard injection is enough
+- button clicking is constrained to real interactive control types (`Button`, `Hyperlink`, `MenuItem`, `SplitButton`, `TabItem`) so combobox-like affordances are less likely to be mistaken for primary action buttons
+- chat advancement is now explicitly heuristic and tool-shaped: inspect state, click pending action buttons, or type+submit bump text when a usable input is found
+- the package is still **not** a full autonomous director/council implementation; it is now a narrower but more truthful native chat-automation bridge
+
+Validated with:
+
+- `pnpm -C packages\hypercode-supervisor exec tsc --noEmit`
+- `pnpm -C packages\hypercode-supervisor run build`
+
+### 0.5. Supervisor action matching is now exact and operator-configurable
+
+Follow-up finding:
+
+- the first UI-automation bridge still used generic substring scoring when resolving requested button labels
+- that left room for `Run` to drift toward labels like `Always Run`, which matches the user-reported dropdown misfire
+
+What changed:
+
+- added `packages/hypercode-supervisor/src/settings.ts`
+- `packages/hypercode-supervisor/src/ui_automation.ts` now uses normalized exact label matching for actionable controls
+- `packages/hypercode-supervisor/src/index.ts` now exposes `get_supervisor_settings` and `update_supervisor_settings`
+
+Behavior change:
+
+- default bump text, action labels, submit behavior, and timing delays are now persisted in `~/.hypercode/supervisor-settings.json`
+- `advance_chat` now inherits those defaults when explicit arguments are omitted
+- action-button targeting is stricter and less likely to hit lookalike controls or dropdown affordances
+
+Validated with:
+
+- `pnpm -C packages\hypercode-supervisor exec tsc --noEmit`
+- `pnpm -C packages\hypercode-supervisor run build`
+
+### 0.6. Supervisor now carries minimal fork-aware surface profiles
+
+Finding:
+
+- after the exact-match fix, the bridge could classify a surface like `antigravity` or `claude-web`, but it still did not *use* that classification to vary behavior
+- that meant submit defaults and action-label defaults still effectively came from one generic path
+
+What changed:
+
+- added `packages/hypercode-supervisor/src/surface_profiles.ts`
+- `packages/hypercode-supervisor/src/ui_automation.ts` now attaches a `surfaceProfile` object to detected chat surfaces
+- `detect_chat_state`, `click_action_buttons`, and `advance_chat` now prefer surface-profile defaults for action labels, submit chord, and input-preference hints
+
+Behavior change:
+
+- known surfaces now carry small explicit defaults:
+  - `antigravity`, `gemini-web`
+  - `claude-web`, `chatgpt-web`
+  - `copilot`, `cursor`
+  - `browser-chat`, `vscode`
+- this is still intentionally lightweight: it is a profile lookup table, not a giant automation framework
+- future fork-specific fixes can now extend one profile at a time instead of overloading the generic fallback path
+
+Validated with:
+
+- `pnpm -C packages\hypercode-supervisor exec tsc --noEmit`
+- `pnpm -C packages\hypercode-supervisor run build`
+
+### 0.7. Surface profiles now drive composer targeting too
+
+Finding:
+
+- surface profiles already declared `inputControlTypes`, but the actual text-entry and submit paths still hardcoded `Edit` + `Document`
+- that meant the new profile layer was only partially wired
+
+What changed:
+
+- `packages/hypercode-supervisor/src/ui_automation.ts` now passes each detected surface profile's preferred input control types into `set_chat_input` and `submit_chat_input`
+
+Behavior change:
+
+- browser-like surfaces continue preferring `Document` controls before `Edit`
+- editor-like surfaces such as `copilot`, `cursor`, and `vscode` can now prefer `Edit` controls first
+- the profile layer now influences button defaults, submit defaults, and composer targeting instead of only the first two
+
+Validated with:
+
+- `pnpm -C packages\hypercode-supervisor exec tsc --noEmit`
+- `pnpm -C packages\hypercode-supervisor run build`
+
+### 0.8. Surface profiles can now be listed and overridden explicitly
+
+Finding:
+
+- even with the new profile layer, higher-level automation still had to trust heuristic surface detection completely
+- that left no truthful way to say "treat this as antigravity" when the title/process heuristic was too generic
+
+What changed:
+
+- `packages/hypercode-supervisor/src/surface_profiles.ts` now exposes `listSurfaceProfiles()`
+- `packages/hypercode-supervisor/src/index.ts` now exposes `list_surface_profiles`
+- `detect_chat_surface` and `advance_chat` now accept `surfaceOverride`, and state detection can run under that forced profile
+
+Behavior change:
+
+- operators and higher-level automation can now inspect the known profile ids and explicitly force one
+- this reduces the amount of guesswork required when the active window only looks like a generic browser chat
+
+Validated with:
+
+- `pnpm -C packages\hypercode-supervisor exec tsc --noEmit`
+- `pnpm -C packages\hypercode-supervisor run build`
+
+### 0.9. Surface override plumbing now matches the exposed MCP contract
+
+Finding:
+
+- the schema already advertised `surfaceOverride` on `click_action_buttons`, `set_chat_input`, and `submit_chat_input`
+- but only `detect_chat_surface`, `detect_chat_state`, and `advance_chat` actually honored it, which was a truthfulness gap in the bridge contract
+
+What changed:
+
+- `packages/hypercode-supervisor/src/ui_automation.ts` now threads `surfaceOverride` through click, set, and submit operations
+- `packages/hypercode-supervisor/src/index.ts` now passes the override argument through for those low-level tools too
+
+Behavior change:
+
+- forced-profile behavior is now consistent across detect/click/type/submit/advance
+- higher-level automation can pick one profile and rely on the whole bridge using it instead of only the top-level helper
+
+Validated with:
+
+- `pnpm -C packages\hypercode-supervisor exec tsc --noEmit`
+- `pnpm -C packages\hypercode-supervisor run build`
+
+### 0.10. Targeted window actions now derive the profile from that same target
+
+Finding:
+
+- low-level supervisor operations already accepted `windowTitle` / `processName` and correctly inspected or acted on the matching window
+- but surface detection still always used the active foreground window through `active-win`
+- that meant profile defaults could be computed from one surface while the actual click/type/submit operation ran against another, which was another contract-truthfulness gap
+
+What changed:
+
+- `packages/hypercode-supervisor/src/ui_automation.ts` now probes the targeted automation window when surface detection is asked to operate against `windowTitle` and/or `processName`
+- the detect/state/click/set/submit/advance paths now pass the same target-window criteria through to surface detection, so profile selection and window interaction stay aligned
+
+Behavior change:
+
+- targeted operations no longer inherit action-label/input-profile defaults from whichever window happens to be active on the desktop
+- when a caller supplies a window selector, both inspection and profile resolution now follow that same selected window
+
+Validated with:
+
+- `pnpm -C packages\hypercode-supervisor exec tsc --noEmit`
+- `pnpm -C packages\hypercode-supervisor run build`
+
 ### 1. Published catalog stdio entries are no longer labeled "unsafe"
 
 Updated `packages/core/src/services/published-catalog-validator.ts` so stdio-backed published catalog entries are labeled as transport-skipped instead of `stdio_unsafe`.

@@ -83,6 +83,8 @@ export interface AdvanceChatResult {
 
 export interface SurfaceDetectionOptions {
     surfaceOverride?: string;
+    windowTitle?: string;
+    processName?: string;
 }
 
 const UI_AUTOMATION_BASE = String.raw`
@@ -349,6 +351,18 @@ $result = Get-Inspection $window
 $result | ConvertTo-Json -Depth 8 -Compress`;
 }
 
+function buildSurfaceProbeScript(windowTitle?: string, processName?: string): string {
+    return `${UI_AUTOMATION_BASE}
+$window = Get-TargetWindow ${toPowerShellString(windowTitle ?? '')} ${toPowerShellString(processName ?? '')}
+$result = @{
+    title = $window.Current.Name
+    processName = Get-WindowProcessName $window
+    processId = $window.Current.ProcessId
+    bounds = Convert-Bounds $window.Current.BoundingRectangle
+}
+$result | ConvertTo-Json -Depth 6 -Compress`;
+}
+
 function classifyBrowserFamily(processName: string | null): string | null {
     if (!processName) {
         return null;
@@ -612,20 +626,39 @@ export class UiAutomationManager {
     }
 
     async detectChatSurface(options?: SurfaceDetectionOptions): Promise<ChatSurfaceInfo> {
-        const activeWindow = await activeWin();
+        let title = '';
+        let processName: string | null = null;
+        let processPath: string | null = null;
+        let processId: number | null = null;
+        let bounds: WindowBounds | null = null;
 
-        const title = activeWindow?.title ?? '';
-        const processName = activeWindow?.owner?.name ?? null;
-        const processPath = activeWindow?.owner?.path ?? null;
-        const processId = activeWindow?.owner?.processId ?? null;
-        const bounds = activeWindow?.bounds
-            ? {
-                left: activeWindow.bounds.x,
-                top: activeWindow.bounds.y,
-                width: activeWindow.bounds.width,
-                height: activeWindow.bounds.height
-            }
-            : null;
+        if (options?.windowTitle || options?.processName) {
+            const probedWindow = await runPowerShellJson<{
+                title?: string;
+                processName?: string | null;
+                processId?: number | null;
+                bounds?: WindowBounds | null;
+            }>(buildSurfaceProbeScript(options.windowTitle, options.processName));
+
+            title = probedWindow.title ?? '';
+            processName = probedWindow.processName ?? null;
+            processId = probedWindow.processId ?? null;
+            bounds = probedWindow.bounds ?? null;
+        } else {
+            const activeWindow = await activeWin();
+            title = activeWindow?.title ?? '';
+            processName = activeWindow?.owner?.name ?? null;
+            processPath = activeWindow?.owner?.path ?? null;
+            processId = activeWindow?.owner?.processId ?? null;
+            bounds = activeWindow?.bounds
+                ? {
+                    left: activeWindow.bounds.x,
+                    top: activeWindow.bounds.y,
+                    width: activeWindow.bounds.width,
+                    height: activeWindow.bounds.height
+                }
+                : null;
+        }
 
         const browserFamily = classifyBrowserFamily(processName);
         const detection = detectSurfaceName(title, processName);
@@ -634,6 +667,10 @@ export class UiAutomationManager {
         const heuristics = options?.surfaceOverride
             ? [`surface override applied: ${options.surfaceOverride}`, ...detection.heuristics]
             : detection.heuristics;
+
+        if (options?.windowTitle || options?.processName) {
+            heuristics.unshift('surface detected from targeted window criteria');
+        }
 
         return {
             title,
@@ -650,7 +687,7 @@ export class UiAutomationManager {
 
     async detectChatState(windowTitle?: string, processName?: string, actionLabels?: string[], options?: SurfaceDetectionOptions): Promise<ChatStateInfo> {
         const [surface, inspection, settings] = await Promise.all([
-            this.detectChatSurface(options),
+            this.detectChatSurface({ ...options, windowTitle, processName }),
             this.inspectWindow(windowTitle, processName),
             this.getSettings()
         ]);
@@ -690,7 +727,7 @@ export class UiAutomationManager {
     ): Promise<ClickActionResult> {
         const [settings, surface] = await Promise.all([
             this.getSettings(),
-            this.detectChatSurface(options)
+            this.detectChatSurface({ ...options, windowTitle, processName })
         ]);
         const resolvedLabels = labels ?? surface.surfaceProfile.actionLabels ?? settings.actionLabels ?? [...DEFAULT_ACTION_LABELS];
         return runPowerShellJson<ClickActionResult>(buildClickScript(resolvedLabels, settings, windowTitle, processName));
@@ -704,7 +741,7 @@ export class UiAutomationManager {
     }): Promise<SetInputResult> {
         const [settings, surface] = await Promise.all([
             this.getSettings(),
-            this.detectChatSurface({ surfaceOverride: options?.surfaceOverride })
+            this.detectChatSurface({ surfaceOverride: options?.surfaceOverride, windowTitle: options?.windowTitle, processName: options?.processName })
         ]);
         const inputControlTypes = surface.surfaceProfile.inputControlTypes.length > 0
             ? surface.surfaceProfile.inputControlTypes
@@ -729,7 +766,7 @@ export class UiAutomationManager {
     ): Promise<SubmitInputResult> {
         const [settings, surface] = await Promise.all([
             this.getSettings(),
-            this.detectChatSurface(options)
+            this.detectChatSurface({ ...options, windowTitle, processName })
         ]);
         const inputControlTypes = surface.surfaceProfile.inputControlTypes.length > 0
             ? surface.surfaceProfile.inputControlTypes
@@ -748,7 +785,7 @@ export class UiAutomationManager {
     }): Promise<AdvanceChatResult> {
         const [settings, surface] = await Promise.all([
             this.getSettings(),
-            this.detectChatSurface({ surfaceOverride: options?.surfaceOverride })
+            this.detectChatSurface({ surfaceOverride: options?.surfaceOverride, windowTitle: options?.windowTitle, processName: options?.processName })
         ]);
         const profile = surface.surfaceProfile ?? DEFAULT_SURFACE_PROFILE;
         const actionLabels = options?.actionLabels ?? profile.actionLabels ?? settings.actionLabels;

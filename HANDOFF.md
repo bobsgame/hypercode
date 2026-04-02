@@ -328,6 +328,32 @@ Validated with:
 - `pnpm -C packages\hypercode-supervisor run build`
 - `pnpm -C packages\hypercode-supervisor run test`
 
+### 0.14. Dashboard tool docs now match the simplified supervisor contract
+
+Finding:
+
+- after the Antigravity-first simplification, the dashboard docs page still described older supervisor behavior
+- it still implied active-window-only surface detection, broader submit-mode knobs on `advance_chat`, and did not describe the narrowed approval/composer behavior or the current settings surface
+
+What changed:
+
+- `apps/web/src/app/docs/tools/page.tsx` now documents:
+  - targeted `detect_chat_surface` with `windowTitle` / `processName` / `surfaceOverride`
+  - narrowed approval clicking that avoids dropdown-style pseudo-actions
+  - terminal-aware composer targeting for bump text
+  - explicit composer re-focus before `submit_chat_input`
+  - simplified `advance_chat`
+  - `get_supervisor_settings` / `update_supervisor_settings`
+
+Behavior change:
+
+- operator-facing docs are now aligned with the runtime instead of advertising stale generic behavior
+- the web dashboard describes the actual supervisor contract that exists today, which reduces operator confusion while debugging Antigravity automation
+
+Validated with:
+
+- `pnpm -C apps\web exec tsc --noEmit --pretty false`
+
 ### 1. Published catalog stdio entries are no longer labeled "unsafe"
 
 Updated `packages/core/src/services/published-catalog-validator.ts` so stdio-backed published catalog entries are labeled as transport-skipped instead of `stdio_unsafe`.

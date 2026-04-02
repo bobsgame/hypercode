@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Supervisor Docs Contract Sync**: the dashboard tools documentation now describes the simplified Antigravity-first supervisor contract truthfully, including targeted `detect_chat_surface`, narrowed approval clicking, terminal-aware composer targeting, simplified `advance_chat`, and the current supervisor settings surface.
 - **Supervisor Decision Regression Coverage**: `packages/hypercode-supervisor` now has built-in Node test coverage for the pure Antigravity decision logic that detects approval/composer hints and resolves action labels, reducing the chance that future generic tweaks reintroduce dropdown-style or terminal-target regressions.
 - **Antigravity-First Supervisor Simplification**: `packages/hypercode-supervisor` now narrows its live action/composer path for browser-hosted coding chats by rejecting menu/dropdown-style pseudo-buttons, filtering terminal-like `Document`/`Edit` surfaces such as `@terminal:pwsh` out of chat-composer selection, re-focusing the chosen composer before submission, and promoting generic browser windows to the `antigravity` profile when visible approval/composer hints match that UI.
 - **Supervisor Targeted Surface Probe API**: `detect_chat_surface` now accepts `windowTitle` and `processName` so operators can directly probe non-foreground windows instead of only the active surface, matching the runtime's targeted detection support.

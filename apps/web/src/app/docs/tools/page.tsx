@@ -452,6 +452,104 @@ const TOOL_CATEGORIES: ToolCategory[] = [
                 parameters: [],
                 example: 'list_processes()',
                 returns: 'Array of process info (pid, name, status, uptime)'
+            },
+            {
+                name: 'detect_chat_surface',
+                description: 'Inspect the active or matching window and classify the current chat surface heuristically, with browser-hosted approval/composer hints able to promote a generic browser surface to Antigravity',
+                parameters: [
+                    { name: 'windowTitle', type: 'string', required: false, description: 'Optional partial window title to target' },
+                    { name: 'processName', type: 'string', required: false, description: 'Optional process name to target' },
+                    { name: 'surfaceOverride', type: 'string', required: false, description: 'Optional explicit surface/profile id to force' }
+                ],
+                example: 'detect_chat_surface({ processName: "firefox" })',
+                returns: 'Target window title, process metadata, browser family, detected surface id, and detection heuristics'
+            },
+            {
+                name: 'inspect_window_ui',
+                description: 'Enumerate visible button-like controls and text inputs from the active or matching window',
+                parameters: [
+                    { name: 'windowTitle', type: 'string', required: false, description: 'Optional partial window title to target' },
+                    { name: 'processName', type: 'string', required: false, description: 'Optional process name to target' }
+                ],
+                example: 'inspect_window_ui({ processName: "firefox" })',
+                returns: 'Window info plus visible buttons, inputs, and label text'
+            },
+            {
+                name: 'detect_chat_state',
+                description: 'Detect whether the current chat appears to be waiting on action buttons or ready for text input',
+                parameters: [
+                    { name: 'windowTitle', type: 'string', required: false, description: 'Optional partial window title to target' },
+                    { name: 'processName', type: 'string', required: false, description: 'Optional process name to target' }
+                ],
+                example: 'detect_chat_state({ processName: "chrome" })',
+                returns: 'Chat state classification, pending action buttons, and reasoning'
+            },
+            {
+                name: 'click_action_buttons',
+                description: 'Click primary approval/continue controls by label using a narrowed Button/Hyperlink path that avoids dropdown-style pseudo-actions',
+                parameters: [
+                    { name: 'labels', type: 'string[]', required: false, description: 'Button labels to match; defaults to Run/Expand/Accept style actions' },
+                    { name: 'windowTitle', type: 'string', required: false, description: 'Optional partial window title to target' },
+                    { name: 'processName', type: 'string', required: false, description: 'Optional process name to target' }
+                ],
+                example: 'click_action_buttons({ labels: ["Run", "Accept all"], processName: "firefox" })',
+                returns: 'Clicked controls and any requested labels that were not found'
+            },
+            {
+                name: 'set_chat_input',
+                description: 'Find a likely chat composer, skip terminal-like text surfaces such as @terminal:pwsh, and replace its content with bump text',
+                parameters: [
+                    { name: 'text', type: 'string', required: true, description: 'Text to place in the composer' },
+                    { name: 'clearExisting', type: 'boolean', required: false, description: 'Whether to replace existing content (default true)' },
+                    { name: 'windowTitle', type: 'string', required: false, description: 'Optional partial window title to target' },
+                    { name: 'processName', type: 'string', required: false, description: 'Optional process name to target' }
+                ],
+                example: 'set_chat_input({ text: "keep going!", processName: "firefox" })',
+                returns: 'Target input metadata, text length, and the method used'
+            },
+            {
+                name: 'submit_chat_input',
+                description: 'Re-focus the detected chat composer and submit it with a key chord such as Alt+Enter; fails explicitly if no valid composer can be found',
+                parameters: [
+                    { name: 'keyChord', type: 'string', required: false, description: 'Submission key chord (default alt+enter)' },
+                    { name: 'windowTitle', type: 'string', required: false, description: 'Optional partial window title to target' },
+                    { name: 'processName', type: 'string', required: false, description: 'Optional process name to target' }
+                ],
+                example: 'submit_chat_input({ keyChord: "alt+enter", processName: "firefox" })',
+                returns: 'Confirmation of the submission chord used'
+            },
+            {
+                name: 'advance_chat',
+                description: 'Single-step helper that clicks pending action buttons, or types and submits bump text when the chat is ready',
+                parameters: [
+                    { name: 'bumpText', type: 'string', required: false, description: 'Text to type when the chat is ready for input' },
+                    { name: 'actionLabels', type: 'string[]', required: false, description: 'Optional button labels to click' },
+                    { name: 'windowTitle', type: 'string', required: false, description: 'Optional partial window title to target' },
+                    { name: 'processName', type: 'string', required: false, description: 'Optional process name to target' },
+                    { name: 'surfaceOverride', type: 'string', required: false, description: 'Optional explicit surface/profile id to force' }
+                ],
+                example: 'advance_chat({ bumpText: "continue development", processName: "firefox" })',
+                returns: 'Detected state, actions taken, and a short detail summary'
+            },
+            {
+                name: 'get_supervisor_settings',
+                description: 'Read the persisted supervisor defaults for bump text, action labels, and timing values',
+                parameters: [],
+                example: 'get_supervisor_settings()',
+                returns: 'Current bump text, action labels, and timing values used by the supervisor bridge'
+            },
+            {
+                name: 'update_supervisor_settings',
+                description: 'Persist the simplified supervisor defaults for bump text, action labels, and timing values',
+                parameters: [
+                    { name: 'bumpText', type: 'string', required: false, description: 'Default bump text used when the chat is ready for input' },
+                    { name: 'actionLabels', type: 'string[]', required: false, description: 'Default approval labels to match exactly' },
+                    { name: 'focusDelayMs', type: 'number', required: false, description: 'Delay after focusing a composer before submission' },
+                    { name: 'afterClickDelayMs', type: 'number', required: false, description: 'Delay after clicking an approval button' },
+                    { name: 'inputSettleDelayMs', type: 'number', required: false, description: 'Delay after focusing a composer before typing' }
+                ],
+                example: 'update_supervisor_settings({ bumpText: "keep going", focusDelayMs: 100, afterClickDelayMs: 150 })',
+                returns: 'Updated supervisor defaults'
             }
         ]
     },
@@ -737,7 +835,7 @@ export default function ToolsPage() {
 
                 {/* Footer */}
                 <footer className="mt-12 pt-8 border-t border-zinc-200 dark:border-zinc-800 text-center text-sm text-zinc-500">
-                    <p>Borg Mission Control • {totalTools} MCP Tools</p>
+                    <p>HyperCode Mission Control • {totalTools} MCP Tools</p>
                     <div className="mt-2 flex justify-center gap-4">
                         <Link href="/docs" className="text-blue-500 hover:text-blue-400">Feature Docs</Link>
                         <Link href="/docs/api" className="text-blue-500 hover:text-blue-400">API Reference</Link>

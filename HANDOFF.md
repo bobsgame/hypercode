@@ -519,7 +519,24 @@ Validation:
 - `pnpm -C packages\cli exec tsc --noEmit`
 - `pnpm -C packages\cli exec vitest run src\commands\mcp.test.ts src\commands\agent.test.ts src\commands\provider.test.ts src\commands\config.test.ts src\commands\tools.test.ts src\commands\memory.test.ts src\commands\session.test.ts src\commands\status.test.ts src\control-plane.test.ts`
 
-### 19. `harden-published-catalog-ingestion`
+### 19. `wire-cli-provider-test`
+
+Status: **completed**
+
+What changed:
+
+- `packages/cli/src/commands/provider.ts` no longer prints a fabricated connectivity check for `hypercode provider test <name>`
+- `provider test` now reads the live `settings.getProviders` and `billing.getProviderQuotas` routes, resolves the requested provider by id or display name, and renders truthful configured/authenticated/availability/tier/remaining/last-error state
+- `--json` now emits the structured live provider-plus-quota readiness snapshot for automation and troubleshooting
+- command failures now report the resolved control-plane endpoint and a concrete remediation path, consistent with the other wired CLI commands
+- focused CLI coverage in `packages/cli/src/commands/provider.test.ts` now includes the provider-test JSON flow
+
+Validation:
+
+- `pnpm -C packages\cli exec tsc --noEmit`
+- `pnpm -C packages\cli exec vitest run src\commands\provider.test.ts src\commands\mcp.test.ts src\commands\agent.test.ts src\commands\config.test.ts src\commands\tools.test.ts src\commands\memory.test.ts src\commands\session.test.ts src\commands\status.test.ts src\control-plane.test.ts`
+
+### 20. `harden-published-catalog-ingestion`
 
 Status: **completed**
 

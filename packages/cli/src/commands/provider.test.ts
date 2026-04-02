@@ -152,6 +152,60 @@ describe('registerProviderCommand', () => {
     }, null, 2));
   });
 
+  it('shows live provider readiness as JSON from control-plane data', async () => {
+    queryTrpcMock
+      .mockResolvedValueOnce([
+        {
+          id: 'openai',
+          name: 'OpenAI',
+          envVar: 'OPENAI_API_KEY',
+          configured: true,
+          keyPreview: 'sk-a...1234',
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          provider: 'openai',
+          name: 'OpenAI',
+          configured: true,
+          authenticated: true,
+          authMethod: 'api_key',
+          availability: 'available',
+          tier: 'paid',
+          remaining: 90,
+          lastError: null,
+        },
+      ]);
+
+    const program = createProgram();
+    await program.parseAsync(['provider', 'test', 'openai', '--json'], { from: 'user' });
+
+    expect(queryTrpcMock).toHaveBeenNthCalledWith(1, 'settings.getProviders');
+    expect(queryTrpcMock).toHaveBeenNthCalledWith(2, 'billing.getProviderQuotas');
+    expect(logSpy).toHaveBeenCalledWith(JSON.stringify({
+      provider: {
+        id: 'openai',
+        name: 'OpenAI',
+        envVar: 'OPENAI_API_KEY',
+        configured: true,
+        keyPreview: 'sk-a...1234',
+      },
+      quota: {
+        provider: 'openai',
+        name: 'OpenAI',
+        configured: true,
+        authenticated: true,
+        authMethod: 'api_key',
+        availability: 'available',
+        tier: 'paid',
+        remaining: 90,
+        lastError: null,
+      },
+      reachable: true,
+      authenticated: true,
+    }, null, 2));
+  });
+
   it('reports control-plane failures without throwing out of the command', async () => {
     queryTrpcMock.mockRejectedValue(new Error('control plane unavailable'));
 

@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **CLI Provider Readiness Surface**: `hypercode provider test <name>` now queries the live `settings.getProviders` and `billing.getProviderQuotas` control-plane routes instead of printing a fabricated connectivity check, with structured `--json` output, truthful configured/authenticated/availability reporting, and actionable control-plane error reporting.
 - **CLI MCP Traffic Surface**: `hypercode mcp traffic` now reads the live `mcp.traffic` route instead of printing a static watcher banner, with structured `--json` output, server/method filtering, bounded history, and actionable control-plane error reporting.
 - **CLI MCP Inspect Surface**: `hypercode mcp inspect <name>` now reads the live `mcp.listServers` and `mcp.listTools` inventories instead of printing a fabricated stopped/zero-tools snapshot, with structured `--json` output and actionable control-plane error reporting.
 - **CLI MCP Config Surface**: `hypercode mcp config` now reads the live `config.list` MCP section instead of printing a fabricated router config, with structured `--json` output and actionable control-plane error reporting.

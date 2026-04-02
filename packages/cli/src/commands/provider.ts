@@ -242,11 +242,50 @@ OAuth-capable subscription services:
   provider
     .command('test <name>')
     .description('Test connectivity and authentication for a provider')
-    .action(async (name) => {
-      const chalk = (await import('chalk')).default;
-      console.log(chalk.yellow(`  Testing provider: ${name}...`));
-      console.log(chalk.dim('  Sending test request...'));
-      console.log(chalk.yellow(`  ⚠ Provider '${name}' not configured`));
+    .option('--json', 'Output as JSON')
+    .action(async (name, opts) => {
+      await withProviderErrorHandling(async () => {
+        const [settingsProviders, quotas] = await Promise.all([
+          queryTrpc<SettingsProviderRecord[]>('settings.getProviders'),
+          queryTrpc<BillingProviderQuota[]>('billing.getProviderQuotas'),
+        ]);
+
+        const normalizedName = name.trim().toLowerCase();
+        const providerRecord = settingsProviders.find((entry) => (
+          entry.id.toLowerCase() === normalizedName || entry.name.toLowerCase() === normalizedName
+        ));
+        const quota = quotas.find((entry) => (
+          entry.provider.toLowerCase() === normalizedName || entry.name.toLowerCase() === normalizedName
+        )) ?? null;
+
+        if (!providerRecord && !quota) {
+          throw new Error(`Provider '${name}' was not found`);
+        }
+
+        const payload = {
+          provider: providerRecord ?? null,
+          quota,
+          reachable: quota?.availability === 'available',
+          authenticated: quota?.authenticated ?? providerRecord?.configured ?? false,
+        };
+
+        if (opts.json) {
+          console.log(JSON.stringify(payload, null, 2));
+          return;
+        }
+
+        const chalk = (await import('chalk')).default;
+        const label = providerRecord?.name ?? quota?.name ?? name;
+        console.log(chalk.bold.cyan(`\n  Provider Check: ${label}\n`));
+        console.log(chalk.dim('  Configured:     ') + ((providerRecord?.configured ?? quota?.configured) ? chalk.green('yes') : chalk.yellow('no')));
+        console.log(chalk.dim('  Authenticated:  ') + ((quota?.authenticated ?? false) ? chalk.green('yes') : chalk.yellow('no')));
+        console.log(chalk.dim('  Auth method:    ') + normalizeText(quota?.authMethod));
+        console.log(chalk.dim('  Availability:   ') + normalizeText(quota?.availability));
+        console.log(chalk.dim('  Tier:           ') + normalizeText(quota?.tier));
+        console.log(chalk.dim('  Remaining:      ') + formatNumber(quota?.remaining));
+        console.log(chalk.dim('  Last error:     ') + normalizeText(quota?.lastError));
+        console.log('');
+      }, opts);
     });
 
   provider

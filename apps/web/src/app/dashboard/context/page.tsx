@@ -1,14 +1,30 @@
 "use client";
 
 import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, Button, Badge, ScrollArea } from "@borg/ui";
+import { Card, CardContent, CardHeader, CardTitle, Button, Badge, ScrollArea } from "@hypercode/ui";
 import { Layers, Plus, Trash2, Loader2, RefreshCw, FileText, Code2, Copy, Check } from "lucide-react";
 import { trpc } from '@/utils/trpc';
 import { toast } from 'sonner';
 
-function normalizeContextFiles(data: unknown): string[] {
-    if (!Array.isArray(data)) return [];
-    return data.filter((f): f is string => typeof f === 'string');
+type NormalizedContextFilesResult = {
+    data: string[];
+    invalid: boolean;
+};
+
+function normalizeContextFiles(data: unknown): NormalizedContextFilesResult {
+    if (data == null) return { data: [], invalid: false };
+    if (!Array.isArray(data)) return { data: [], invalid: true };
+
+    let invalid = false;
+    const normalized = data.filter((f): f is string => {
+        const isValid = typeof f === 'string';
+        if (!isValid) {
+            invalid = true;
+        }
+        return isValid;
+    });
+
+    return { data: normalized, invalid };
 }
 
 export default function ContextDashboard() {
@@ -47,7 +63,10 @@ export default function ContextDashboard() {
         onError: err => toast.error(`Failed to clear: ${err.message}`),
     });
 
-    const contextFiles = normalizeContextFiles(filesQuery.data);
+    const normalizedContextFiles = normalizeContextFiles(filesQuery.data);
+    const contextFiles = normalizedContextFiles.data;
+    const filesUnavailable = filesQuery.isError || normalizedContextFiles.invalid;
+    const promptUnavailable = promptQuery.isError || (promptQuery.data != null && typeof promptQuery.data !== 'string');
     const promptText = typeof promptQuery.data === 'string' ? promptQuery.data : '';
 
     const handleAdd = () => {
@@ -73,7 +92,7 @@ export default function ContextDashboard() {
                         Context Manager
                     </h1>
                     <p className="text-zinc-500 mt-2">
-                        Manage the set of files that are injected into the Borg context prompt for active AI sessions.
+                        Manage the set of files that are injected into the HyperCode context prompt for active AI sessions.
                     </p>
                 </div>
                 <Button
@@ -151,6 +170,11 @@ export default function ContextDashboard() {
                         <div className="flex justify-center p-10">
                             <Loader2 className="h-6 w-6 animate-spin text-zinc-600" />
                         </div>
+                    ) : filesUnavailable ? (
+                        <div className="text-center p-10 text-rose-300 text-sm border border-rose-500/30 bg-rose-950/20 rounded-lg">
+                            <Layers className="h-8 w-8 mx-auto mb-3 opacity-80" />
+                            Context file list unavailable{filesQuery.isError ? `: ${filesQuery.error.message}` : ' due to malformed data'}.
+                        </div>
                     ) : contextFiles.length === 0 ? (
                         <div className="text-center p-10 text-zinc-600 text-sm border border-dashed border-zinc-800 rounded-lg">
                             <Layers className="h-8 w-8 mx-auto mb-3 opacity-30" />
@@ -219,6 +243,10 @@ export default function ContextDashboard() {
                             {promptQuery.isLoading ? (
                                 <div className="flex justify-center p-10">
                                     <Loader2 className="h-6 w-6 animate-spin text-zinc-600" />
+                                </div>
+                            ) : promptUnavailable ? (
+                                <div className="text-center p-10 text-rose-300 text-sm border border-rose-500/30 bg-rose-950/20 rounded-lg m-4">
+                                    Context prompt unavailable{promptQuery.isError ? `: ${promptQuery.error.message}` : ' due to malformed data'}.
                                 </div>
                             ) : !promptText ? (
                                 <div className="text-center p-10 text-zinc-600 text-sm">

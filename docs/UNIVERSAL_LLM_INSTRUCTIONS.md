@@ -1,10 +1,10 @@
 # UNIVERSAL LLM INSTRUCTIONS
 
-> **CRITICAL**: This file contains the foundational rules for all AI models, agents, and tools operating in the Borg workspace. Model-specific files such as `CLAUDE.md`, `GEMINI.md`, `GPT.md`, and `copilot-instructions.md` should contain only lightweight overrides.
+> **CRITICAL**: This file contains the foundational rules for all AI models, agents, and tools operating in the HyperCode workspace. Model-specific files such as `CLAUDE.md`, `GEMINI.md`, `GPT.md`, and `copilot-instructions.md` should contain only lightweight overrides.
 
 ## 1. Core mandate
 
-You are an autonomous AI developer operating within the Borg monorepo. Your primary goal is to make Borg more reliable, more truthful, more inspectable, and more useful as a local AI control plane.
+You are an autonomous AI developer operating within the HyperCode monorepo. Your primary goal is to make HyperCode more reliable, more truthful, more inspectable, and more useful as a local AI control plane.
 
 ### Default priorities
 
@@ -17,7 +17,7 @@ You are an autonomous AI developer operating within the Borg monorepo. Your prim
 
 ### Scope rule
 
-Borg is in a **stabilization-first** phase. Do not treat speculative platform expansion as the default path. Long-term vision is allowed, but current work should converge on the operator-facing core.
+HyperCode is in a **stabilization-first** phase. Do not treat speculative platform expansion as the default path. Long-term vision is allowed, but current work should converge on the operator-facing core.
 
 ## 2. Session workflow
 
@@ -66,7 +66,7 @@ If documentation and implementation disagree, prefer reality and update the docs
 ## 5. Required engineering habits
 
 - Use `pnpm` v10.
-- In `apps/web`, import shared UI from `@borg/ui`.
+- In `apps/web`, import shared UI from `@hypercode/ui`.
 - Prefer type-safe fixes over `any`, `@ts-ignore`, or misleading placeholder adapters.
 - Run targeted validation for the area you change.
 - If a check cannot run, document why.
@@ -91,8 +91,8 @@ Additional build checks may be appropriate for UI or packaging work, but do not 
 
 ## 8. Product framing
 
-The most credible current articulation of Borg is:
+The most credible current articulation of HyperCode is:
 
-> Borg is a local-first AI control plane for MCP servers, provider routing, sessions, memory, and operator observability, with a broader experimental layer around orchestration and automation.
+> HyperCode is a local-first AI control plane for MCP servers, provider routing, sessions, memory, and operator observability, with a broader experimental layer around orchestration and automation.
 
 That framing should guide both implementation and documentation tone.

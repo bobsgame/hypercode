@@ -10,7 +10,7 @@ export default function MetricsPage() {
         { refetchInterval: 5000 }
     );
 
-    const { data: routingHistory } = trpc.metrics.getRoutingHistory.useQuery(
+    const { data: routingHistory, error: routingHistoryError } = trpc.metrics.getRoutingHistory.useQuery(
         { limit: 20 },
         { refetchInterval: 10000 }
     );
@@ -126,7 +126,9 @@ export default function MetricsPage() {
                 <p className="text-sm text-muted-foreground mb-4">
                     Recent provider selection and failover events (last 20, newest first). Refreshes every 10s.
                 </p>
-                {(!routingHistory || routingHistory.length === 0) ? (
+                {routingHistoryError ? (
+                    <p className="text-sm text-destructive">{routingHistoryError.message}</p>
+                ) : (!routingHistory || routingHistory.length === 0) ? (
                     <p className="text-sm text-muted-foreground italic">No routing events recorded yet.</p>
                 ) : (
                     <div className="overflow-x-auto">

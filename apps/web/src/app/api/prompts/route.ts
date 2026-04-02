@@ -8,7 +8,7 @@ function getMonorepoRoot(): string {
     return process.env.BORG_ROOT || path.resolve(process.cwd(), '..', '..');
 }
 
-const PROMPTS_DIR = path.join(getMonorepoRoot(), '.borg', 'prompts');
+const PROMPTS_DIR = path.join(getMonorepoRoot(), '.hypercode', 'prompts');
 
 function normalizePromptId(id: string): string {
     return id.replace(/[^a-zA-Z0-9._-]/g, '_');

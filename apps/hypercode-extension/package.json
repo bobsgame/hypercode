@@ -1,6 +1,6 @@
 {
     "name":  "hypercode-extension",
-    "version": "0.99.1",
+    "version": "1.0.0-alpha.1",
     "description":  "HyperCode Extension",
     "license":  "MIT",
     "private":  true,

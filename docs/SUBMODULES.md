@@ -7,9 +7,9 @@ These are the top-level projects integrated into the monorepo.
 
 | Path | Description | Rationale |
 | :--- | :--- | :--- |
-| `submodules/hypercode/` | HyperCode CLI Harness | Experimental primary CLI harness assimilation track for Borg. |
+| `submodules/hypercode/` | HyperCode CLI Harness | Experimental primary CLI harness assimilation track for HyperCode. |
 | `apps/maestro/` | electron-orchestrator desktop shell | Core desktop surface for multi-agent coordination. |
-| `borg/` | Autonomous IDE | The central intelligence and supervision engine. |
+| `hypercode/` | Autonomous IDE | The central intelligence and supervision engine. |
 | `antigravity-autopilot/` | UI/Mobile Bridge | Autonomous UI testing and mobile control plane. |
 | `bg/` | Game Engine Cluster | Core game logic and legacy references. |
 | `bobmani/` | Rhythm Ecosystem | Unified platform for IIDX, DDR, and chart tools. |

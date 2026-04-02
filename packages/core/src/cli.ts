@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { Command } from 'commander';
-import { Registry } from '@borg/mcp-registry';
+import { Registry } from '@hypercode/mcp-registry';
 import { spawn } from 'child_process';
 import path from 'path';
 
@@ -8,8 +8,8 @@ const program = new Command();
 const registry = new Registry();
 
 program
-    .name('borg')
-    .description('Borg CLI - Neural Operating System Interface')
+    .name('hypercode')
+    .description('HyperCode CLI - Neural Operating System Interface')
     .version('2.2.0');
 
 const mcp = program.command('mcp').description('Manage MCP servers');

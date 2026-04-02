@@ -1,5 +1,5 @@
 import { EventBus, SystemEvent } from '../services/EventBus.js';
-import { LLMService } from '@borg/ai';
+import { LLMService } from '@hypercode/ai';
 import AgentMemoryService from '../services/AgentMemoryService.js';
 import fs from 'fs/promises';
 import path from 'path';
@@ -9,7 +9,7 @@ import path from 'path';
  * 
  * Automatically "harvests" context from file system changes.
  * When a file is created or modified, it semantically analyzes the new content
- * and updates Borg's long-term memory graph.
+ * and updates HyperCode's long-term memory graph.
  */
 export class MemoryHarvestReactor {
     private eventBus: EventBus;
@@ -63,7 +63,7 @@ export class MemoryHarvestReactor {
             if (content.length > 50000) return; // Skip massive files for harvesting
 
             const prompt = `
-            You are a Borg Knowledge Harvester.
+            You are a HyperCode Knowledge Harvester.
             A file in the repository has been updated: ${relativePath}
             
             Analyze the content and extract the most important architectural rules, 

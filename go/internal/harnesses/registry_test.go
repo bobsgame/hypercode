@@ -1,4 +1,4 @@
-﻿package harnesses
+package harnesses
 
 import (
 	"os"
@@ -36,8 +36,8 @@ func demo() {
 		{Type: "copilot", Available: true},
 	})
 
-	if len(definitions) != 16 {
-		t.Fatalf("expected 16 harness definitions, got %d", len(definitions))
+	if len(definitions) != 49 {
+		t.Fatalf("expected 49 harness definitions, got %d", len(definitions))
 	}
 	if !definitions[0].Primary || !definitions[0].Installed {
 		t.Fatalf("expected hypercode to be primary and installed, got %+v", definitions[0])
@@ -55,8 +55,8 @@ func demo() {
 	if !installed["opencode"] {
 		t.Fatalf("expected opencode to be installed")
 	}
-	if !installed["claude"] {
-		t.Fatalf("expected claude harness to be installed")
+	if !installed["claude-code"] {
+		t.Fatalf("expected claude-code harness to be installed")
 	}
 	if !installed["copilot"] {
 		t.Fatalf("expected copilot harness to be installed")
@@ -66,8 +66,8 @@ func demo() {
 	if summary.SourceBackedHarnessCount != 1 || summary.SourceBackedToolCount != 2 {
 		t.Fatalf("expected one source-backed harness with two tools, got %+v", summary)
 	}
-	if summary.MetadataOnlyHarnessCount != 14 {
-		t.Fatalf("expected fourteen metadata-only harnesses, got %+v", summary)
+	if summary.MetadataOnlyHarnessCount != 47 {
+		t.Fatalf("expected forty-seven metadata-only harnesses, got %+v", summary)
 	}
 	if summary.OperatorDefinedHarnessCount != 1 {
 		t.Fatalf("expected one operator-defined harness, got %+v", summary)

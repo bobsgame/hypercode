@@ -68,7 +68,7 @@ export const CLI_HARNESS_DEFINITIONS: Record<CliHarness, CliHarnessDefinition> =
     upstream: 'https://github.com/robertpelloni/hypercode',
     runtime: 'Go / Cobra / TUI',
     launchCommand: 'go run .',
-    capabilities: ['repl', 'pipe', 'borg-adapter', 'tool-registry'],
+    capabilities: ['repl', 'pipe', 'hypercode-adapter', 'tool-registry'],
     parityNotes: 'HyperCode can read HyperCode tool calls directly from the assimilated submodule source.',
   },
   aider: {

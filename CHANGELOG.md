@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0-alpha.1] - 2026-04-02
+
+### Fixed
+- **MCP Database Destructive Sync**: Fixed a critical bug in `McpConfigService.syncWithDatabase()` that was wiping out SQLite tool records (and resetting their `always_on` status) when `mcp.jsonc` was empty.
+- **Config Directory Resolution**: Changed `getBorgConfigDir()` to respect local workspace `mcp.jsonc` configs, improving the loader's ability to find active tool caches.
+- **Split-Brain MCP Loader**: Fixed the `stdioLoader` returning 0 tools by caching the database inventory to `.hypercode/mcp-cache.json` during synchronization via `exportToolCache()`, allowing the lightweight proxy to serve both manually configured servers and database-discovered directories without slowing down initialization.
+- **Tool Inventory Merging**: Fixed `getCachedToolInventory()` to correctly merge database snapshots with `mcp.jsonc` snapshots instead of treating them as mutually exclusive.
+
 ## [Unreleased]
 
 ### Added

@@ -201,4 +201,66 @@ describe('registerToolsCommand', () => {
       ],
     }, null, 2));
   });
+
+  it('enables a tool as JSON via the live control plane', async () => {
+    queryTrpcMock.mockResolvedValue({
+      success: true,
+      tool: {
+        uuid: 'search_tools',
+        name: 'search_tools',
+        description: 'Search available tools',
+        server: 'meta',
+        always_on: true,
+      },
+    });
+
+    const program = createProgram();
+    await program.parseAsync(['tools', 'enable', 'search_tools', '--json'], { from: 'user' });
+
+    expect(queryTrpcMock).toHaveBeenCalledWith('tools.setAlwaysOn', {
+      uuid: 'search_tools',
+      alwaysOn: true,
+    });
+    expect(logSpy).toHaveBeenCalledWith(JSON.stringify({
+      success: true,
+      tool: {
+        uuid: 'search_tools',
+        name: 'search_tools',
+        description: 'Search available tools',
+        server: 'meta',
+        always_on: true,
+      },
+    }, null, 2));
+  });
+
+  it('disables a tool as JSON via the live control plane', async () => {
+    queryTrpcMock.mockResolvedValue({
+      success: true,
+      tool: {
+        uuid: 'search_tools',
+        name: 'search_tools',
+        description: 'Search available tools',
+        server: 'meta',
+        always_on: false,
+      },
+    });
+
+    const program = createProgram();
+    await program.parseAsync(['tools', 'disable', 'search_tools', '--json'], { from: 'user' });
+
+    expect(queryTrpcMock).toHaveBeenCalledWith('tools.setAlwaysOn', {
+      uuid: 'search_tools',
+      alwaysOn: false,
+    });
+    expect(logSpy).toHaveBeenCalledWith(JSON.stringify({
+      success: true,
+      tool: {
+        uuid: 'search_tools',
+        name: 'search_tools',
+        description: 'Search available tools',
+        server: 'meta',
+        always_on: false,
+      },
+    }, null, 2));
+  });
 });

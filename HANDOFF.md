@@ -621,7 +621,24 @@ Validation:
 - `pnpm -C packages\cli exec tsc --noEmit`
 - `pnpm -C packages\cli exec vitest run src\commands\session.test.ts src\commands\status.test.ts src\commands\provider.test.ts src\commands\config.test.ts src\commands\mcp.test.ts src\commands\agent.test.ts src\commands\tools.test.ts src\commands\memory.test.ts src\control-plane.test.ts`
 
-### 25. `harden-published-catalog-ingestion`
+### 25. `wire-cli-tools-enable-disable`
+
+Status: **completed**
+
+What changed:
+
+- `packages/cli/src/commands/tools.ts` no longer prints fabricated success lines for `hypercode tools enable <name>` and `hypercode tools disable <name>`
+- both commands now call the live `tools.setAlwaysOn` control-plane mutation with the requested tool UUID and desired always-on state
+- `--json` now emits the structured mutation result so automation can inspect the updated tool record directly
+- command failures now flow through the existing structured tools control-plane error handling path
+- focused CLI coverage in `packages/cli/src/commands/tools.test.ts` now includes the enable/disable JSON flows
+
+Validation:
+
+- `pnpm -C packages\cli exec tsc --noEmit`
+- `pnpm -C packages\cli exec vitest run src\commands\tools.test.ts src\commands\session.test.ts src\commands\status.test.ts src\commands\provider.test.ts src\commands\config.test.ts src\commands\mcp.test.ts src\commands\agent.test.ts src\commands\memory.test.ts src\control-plane.test.ts`
+
+### 26. `harden-published-catalog-ingestion`
 
 Status: **completed**
 

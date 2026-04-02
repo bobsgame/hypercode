@@ -61,6 +61,11 @@ type ToolGroup = {
   tools?: string[];
 };
 
+type ToolToggleResult = {
+  success: boolean;
+  tool: DetailedTool;
+};
+
 function normalizeText(value: string | undefined | null): string {
   return typeof value === 'string' && value.trim().length > 0 ? value.trim() : '—';
 }
@@ -276,17 +281,43 @@ Examples:
   tools
     .command('enable <name>')
     .description('Enable a tool (make it available to AI models)')
-    .action(async (name) => {
-      const chalk = (await import('chalk')).default;
-      console.log(chalk.green(`  ✓ Tool '${name}' enabled`));
+    .option('--json', 'Output as JSON')
+    .action(async (name, opts) => {
+      await withToolsErrorHandling(async () => {
+        const chalk = (await import('chalk')).default;
+        const result = await queryTrpc<ToolToggleResult>('tools.setAlwaysOn', {
+          uuid: name,
+          alwaysOn: true,
+        });
+
+        if (opts.json) {
+          console.log(JSON.stringify(result, null, 2));
+          return;
+        }
+
+        console.log(chalk.green(`  ✓ Tool '${name}' enabled`));
+      }, opts);
     });
 
   tools
     .command('disable <name>')
     .description('Disable a tool (hide from AI models)')
-    .action(async (name) => {
-      const chalk = (await import('chalk')).default;
-      console.log(chalk.green(`  ✓ Tool '${name}' disabled`));
+    .option('--json', 'Output as JSON')
+    .action(async (name, opts) => {
+      await withToolsErrorHandling(async () => {
+        const chalk = (await import('chalk')).default;
+        const result = await queryTrpc<ToolToggleResult>('tools.setAlwaysOn', {
+          uuid: name,
+          alwaysOn: false,
+        });
+
+        if (opts.json) {
+          console.log(JSON.stringify(result, null, 2));
+          return;
+        }
+
+        console.log(chalk.green(`  ✓ Tool '${name}' disabled`));
+      }, opts);
     });
 
   tools

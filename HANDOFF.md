@@ -349,7 +349,24 @@ Validation:
 - `pnpm -C packages\cli exec tsc --noEmit`
 - `pnpm -C packages\cli exec vitest run src\commands\status.test.ts src\commands\provider.test.ts src\commands\config.test.ts src\commands\mcp.test.ts src\commands\tools.test.ts src\control-plane.test.ts`
 
-### 9. `harden-published-catalog-ingestion`
+### 9. `wire-cli-session-list-command`
+
+Status: **completed**
+
+What changed:
+
+- `packages/cli/src/commands/session.ts` no longer hardcodes `hypercode session list` to an always-empty "No sessions found" placeholder
+- `session list` now queries both `session.list` and `cloudDev.listSessions`, merges the local supervisor inventory with cloud-dev sessions, and preserves truthful `--active` and `--cloud` filtering
+- `--json` now emits the structured merged session inventory instead of a fabricated empty state
+- command failures now report the resolved control-plane endpoint and a concrete remediation path, consistent with the other wired CLI commands
+- focused CLI coverage was added in `packages/cli/src/commands/session.test.ts`
+
+Validation:
+
+- `pnpm -C packages\cli exec tsc --noEmit`
+- `pnpm -C packages\cli exec vitest run src\commands\session.test.ts src\commands\status.test.ts src\commands\provider.test.ts src\commands\config.test.ts src\commands\mcp.test.ts src\commands\tools.test.ts src\control-plane.test.ts`
+
+### 10. `harden-published-catalog-ingestion`
 
 Status: **completed**
 

@@ -1,16 +1,56 @@
 /**
- * `borg agent` - Agent management commands
+ * `hypercode agent` - Agent management commands
  *
  * Manage AI agents: list available definitions, spawn instances,
  * monitor running agents, and interact via chat.
  *
  * @example
- *   borg agent list              # List available agent definitions
- *   borg agent spawn architect   # Spawn an architect agent
- *   borg agent chat agent_123    # Chat with a running agent
+ *   hypercode agent list              # List available agent definitions
+ *   hypercode agent spawn architect   # Spawn an architect agent
+ *   hypercode agent chat agent_123    # Chat with a running agent
  */
 
 import type { Command } from 'commander';
+import { queryTrpc, resolveControlPlaneLocation } from '../control-plane.js';
+
+type DirectorStatus = {
+  status?: string;
+};
+
+type SupervisorStatus = {
+  isActive?: boolean;
+  activeWorkers?: string[];
+  queueDepth?: number;
+  lastActivity?: string | null;
+  totalTasksCompleted?: number;
+};
+
+type CouncilStatus = {
+  enabled?: boolean;
+  supervisorCount?: number;
+  availableCount?: number;
+};
+
+async function withAgentErrorHandling(
+  action: () => Promise<void>,
+  opts: { json?: boolean } = {},
+): Promise<void> {
+  try {
+    await action();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (opts.json) {
+      console.log(JSON.stringify({ error: message }, null, 2));
+    } else {
+      const chalk = (await import('chalk')).default;
+      const location = resolveControlPlaneLocation();
+      console.error(chalk.red(`  ✗ ${message}`));
+      console.error(chalk.dim(`  Control plane: ${location.baseUrl} (${location.source})`));
+      console.error(chalk.dim('  Start HyperCode with `hypercode start` or point BORG_TRPC_UPSTREAM at a live /trpc endpoint.'));
+    }
+    process.exitCode = 1;
+  }
+}
 
 export function registerAgentCommand(program: Command): void {
   const agent = program
@@ -54,7 +94,7 @@ export function registerAgentCommand(program: Command): void {
 
       console.log(chalk.bold.cyan('\n  Available Agents\n'));
       console.log(table.toString());
-      console.log(chalk.dim(`\n  ${agents.length} agents available. Use \`borg agent spawn <name>\` to start one.\n`));
+      console.log(chalk.dim(`\n  ${agents.length} agents available. Use \`hypercode agent spawn <name>\` to start one.\n`));
     });
 
   agent
@@ -67,9 +107,9 @@ export function registerAgentCommand(program: Command): void {
     .option('--temperature <temp>', 'LLM temperature', '0.7')
     .addHelpText('after', `
 Examples:
-  $ borg agent spawn architect
-  $ borg agent spawn builder --model gpt-5.2 --workdir ./my-project
-  $ borg agent spawn researcher --provider google
+  $ hypercode agent spawn architect
+  $ hypercode agent spawn builder --model gpt-5.2 --workdir ./my-project
+  $ hypercode agent spawn researcher --provider google
     `)
     .action(async (name, opts) => {
       const chalk = (await import('chalk')).default;
@@ -125,11 +165,40 @@ Examples:
     .option('--status', 'Show council status')
     .option('--json', 'Output as JSON')
     .action(async (opts) => {
-      const chalk = (await import('chalk')).default;
-      console.log(chalk.bold.cyan('\n  Agent Council\n'));
-      console.log(chalk.dim('  Director:   ') + chalk.yellow('not configured'));
-      console.log(chalk.dim('  Supervisor: ') + chalk.yellow('not configured'));
-      console.log(chalk.dim('  Council:    ') + chalk.yellow('0 members'));
-      console.log(chalk.dim('\n  Configure in `borg config set director.enabled true`\n'));
+      await withAgentErrorHandling(async () => {
+        const chalk = (await import('chalk')).default;
+
+        if (opts.status) {
+          const [director, supervisor, council] = await Promise.all([
+            queryTrpc<DirectorStatus>('director.status'),
+            queryTrpc<SupervisorStatus>('supervisor.status'),
+            queryTrpc<CouncilStatus>('council.status'),
+          ]);
+
+          const payload = {
+            director,
+            supervisor,
+            council,
+          };
+
+          if (opts.json) {
+            console.log(JSON.stringify(payload, null, 2));
+            return;
+          }
+
+          console.log(chalk.bold.cyan('\n  Agent Council\n'));
+          console.log(chalk.dim('  Director:   ') + (director.status ? chalk.green(director.status) : chalk.yellow('offline')));
+          console.log(chalk.dim('  Supervisor: ') + (supervisor.isActive ? chalk.green('active') : chalk.yellow('idle')));
+          console.log(chalk.dim('  Queue:      ') + String(supervisor.queueDepth ?? 0));
+          console.log(chalk.dim('  Workers:    ') + String(supervisor.activeWorkers?.length ?? 0));
+          console.log(chalk.dim('  Council:    ') + `${council.supervisorCount ?? 0} members`);
+          console.log(chalk.dim('  Enabled:    ') + ((council.enabled ?? false) ? chalk.green('yes') : chalk.yellow('no')));
+          console.log('');
+          return;
+        }
+
+        console.log(chalk.bold.cyan('\n  Agent Council\n'));
+        console.log(chalk.dim('  Use --status to inspect the live Director/Council/Supervisor state.\n'));
+      }, opts);
     });
 }

@@ -451,7 +451,24 @@ Validation:
 - `pnpm -C packages\cli exec tsc --noEmit`
 - `pnpm -C packages\cli exec vitest run src\commands\provider.test.ts src\commands\config.test.ts src\commands\tools.test.ts src\commands\memory.test.ts src\commands\session.test.ts src\commands\status.test.ts src\commands\mcp.test.ts src\control-plane.test.ts`
 
-### 15. `harden-published-catalog-ingestion`
+### 15. `wire-cli-agent-council-status`
+
+Status: **completed**
+
+What changed:
+
+- `packages/cli/src/commands/agent.ts` no longer prints hardcoded "not configured" council state for `hypercode agent council --status`
+- `agent council --status` now queries the live `director.status`, `supervisor.status`, and `council.status` routes and renders truthful director/supervisor/council state instead of a fabricated static summary
+- `--json` now emits the structured live council snapshot for automation and troubleshooting
+- command failures now report the resolved control-plane endpoint and a concrete remediation path, consistent with the other wired CLI commands
+- focused CLI coverage was added in `packages/cli/src/commands/agent.test.ts`
+
+Validation:
+
+- `pnpm -C packages\cli exec tsc --noEmit`
+- `pnpm -C packages\cli exec vitest run src\commands\agent.test.ts src\commands\provider.test.ts src\commands\config.test.ts src\commands\tools.test.ts src\commands\memory.test.ts src\commands\session.test.ts src\commands\status.test.ts src\commands\mcp.test.ts src\control-plane.test.ts`
+
+### 16. `harden-published-catalog-ingestion`
 
 Status: **completed**
 

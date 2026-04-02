@@ -315,7 +315,24 @@ Validation:
 - `pnpm -C packages\cli exec tsc --noEmit`
 - `pnpm -C packages\cli exec vitest run src\commands\config.test.ts src\commands\mcp.test.ts src\commands\tools.test.ts src\control-plane.test.ts`
 
-### 7. `harden-published-catalog-ingestion`
+### 7. `wire-cli-provider-command`
+
+Status: **completed**
+
+What changed:
+
+- `packages/cli/src/commands/provider.ts` no longer leaves `hypercode provider list` and `hypercode provider quota` as placeholder empty-state output
+- `provider list` now merges `settings.getProviders` with `billing.getProviderQuotas` so the CLI shows real configured/authenticated/auth-method/quota-preview state instead of a fake empty table
+- `provider quota` now reads `billing.getProviderQuotas`, supports `--json` and `--provider`, and renders real used/limit/remaining/availability/reset data
+- command failures now report the resolved control-plane endpoint and a concrete remediation path, consistent with the other wired CLI commands
+- focused CLI coverage was added in `packages/cli/src/commands/provider.test.ts`
+
+Validation:
+
+- `pnpm -C packages\cli exec tsc --noEmit`
+- `pnpm -C packages\cli exec vitest run src\commands\provider.test.ts src\commands\config.test.ts src\commands\mcp.test.ts src\commands\tools.test.ts src\control-plane.test.ts`
+
+### 8. `harden-published-catalog-ingestion`
 
 Status: **completed**
 
@@ -339,7 +356,7 @@ Validation:
 - `pnpm -C packages\core exec vitest run src\services\published-catalog-ingestor.test.ts`
 - `pnpm -C packages\core exec tsc --noEmit`
 
-### 8. `workflow-canvas-save-truthfulness`
+### 9. `workflow-canvas-save-truthfulness`
 
 Status: **completed**
 
@@ -353,7 +370,7 @@ Validation:
 
 - `pnpm -C apps\web exec tsc --noEmit --pretty false`
 
-### 9. `workflow-canvas-payload-truthfulness`
+### 10. `workflow-canvas-payload-truthfulness`
 
 Status: **completed**
 
@@ -367,7 +384,7 @@ Validation:
 
 - `pnpm -C apps\web exec tsc --noEmit --pretty false`
 
-### 10. `workflow-engine-empty-state-truthfulness`
+### 11. `workflow-engine-empty-state-truthfulness`
 
 Status: **completed**
 
@@ -383,7 +400,7 @@ Validation:
 - `pnpm -C packages\core exec vitest run src\routers\workflowRouter.test.ts`
 - `pnpm -C packages\core exec tsc --noEmit`
 
-### 11. `workflow-designer-fetch-truthfulness`
+### 12. `workflow-designer-fetch-truthfulness`
 
 Status: **completed**
 

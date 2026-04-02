@@ -1,16 +1,69 @@
 /**
- * `borg provider` - AI provider management
+ * `hypercode provider` - AI provider management
  *
  * Configure and manage AI model providers, API keys, OAuth logins,
  * quota tracking, and automatic model fallback chains.
- *
- * @example
- *   borg provider list         # List providers with quota status
- *   borg provider add openai   # Add a new provider
- *   borg provider quota        # Show all quota/billing info
  */
 
 import type { Command } from 'commander';
+
+import { queryTrpc, resolveControlPlaneLocation } from '../control-plane.js';
+
+type SettingsProviderRecord = {
+  id: string;
+  name: string;
+  envVar: string;
+  configured: boolean;
+  keyPreview?: string | null;
+};
+
+type BillingProviderQuota = {
+  provider: string;
+  name: string;
+  configured: boolean;
+  authenticated: boolean;
+  authMethod: string;
+  authTruth?: string | null;
+  tier?: string | null;
+  limit?: number | null;
+  used?: number;
+  remaining?: number | null;
+  resetDate?: string | null;
+  rateLimitRpm?: number | null;
+  availability?: string;
+  lastError?: string | null;
+  quotaConfidence?: string;
+  quotaRefreshedAt?: string | null;
+};
+
+function normalizeText(value: string | null | undefined): string {
+  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : '—';
+}
+
+function formatNumber(value: number | null | undefined): string {
+  return typeof value === 'number' ? String(value) : '—';
+}
+
+async function withProviderErrorHandling(
+  action: () => Promise<void>,
+  opts: { json?: boolean } = {},
+): Promise<void> {
+  try {
+    await action();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (opts.json) {
+      console.log(JSON.stringify({ error: message }, null, 2));
+    } else {
+      const chalk = (await import('chalk')).default;
+      const location = resolveControlPlaneLocation();
+      console.error(chalk.red(`  ✗ ${message}`));
+      console.error(chalk.dim(`  Control plane: ${location.baseUrl} (${location.source})`));
+      console.error(chalk.dim('  Start HyperCode with `hypercode start` or point BORG_TRPC_UPSTREAM at a live /trpc endpoint.'));
+    }
+    process.exitCode = 1;
+  }
+}
 
 export function registerProviderCommand(program: Command): void {
   const provider = program
@@ -23,23 +76,57 @@ export function registerProviderCommand(program: Command): void {
     .description('List all configured providers with status and quota usage')
     .option('--json', 'Output as JSON')
     .action(async (opts) => {
-      const chalk = (await import('chalk')).default;
-      const Table = (await import('cli-table3')).default;
+      await withProviderErrorHandling(async () => {
+        const [settingsProviders, quotas] = await Promise.all([
+          queryTrpc<SettingsProviderRecord[]>('settings.getProviders'),
+          queryTrpc<BillingProviderQuota[]>('billing.getProviderQuotas'),
+        ]);
 
-      if (opts.json) {
-        console.log(JSON.stringify({ providers: [] }, null, 2));
-        return;
-      }
+        const quotaMap = new Map(quotas.map((entry) => [entry.provider, entry]));
+        const merged = settingsProviders.map((providerRecord) => {
+          const quota = quotaMap.get(providerRecord.id);
+          return {
+            ...providerRecord,
+            quota: quota ?? null,
+          };
+        });
 
-      const table = new Table({
-        head: ['Provider', 'Status', 'Auth', 'Models', 'Quota Used', 'Quota Limit', 'Resets'],
-        style: { head: ['cyan'] },
-      });
+        if (opts.json) {
+          console.log(JSON.stringify({ providers: merged }, null, 2));
+          return;
+        }
 
-      console.log(chalk.bold.cyan('\n  AI Providers\n'));
-      console.log(chalk.dim('  No providers configured. Use `borg provider add` to add one.\n'));
-      console.log(chalk.dim('  Supported: openai, anthropic, google, xai, deepseek, mistral,'));
-      console.log(chalk.dim('             openrouter, copilot, antigravity, local\n'));
+        const chalk = (await import('chalk')).default;
+        const Table = (await import('cli-table3')).default;
+
+        console.log(chalk.bold.cyan('\n  AI Providers\n'));
+        if (merged.length === 0) {
+          console.log(chalk.dim('  No provider data available.\n'));
+          return;
+        }
+
+        const table = new Table({
+          head: ['Provider', 'Configured', 'Authenticated', 'Auth', 'Used', 'Remaining', 'Preview'],
+          style: { head: ['cyan'] },
+          wordWrap: true,
+          colWidths: [22, 12, 15, 16, 12, 12, 18],
+        });
+
+        for (const entry of merged) {
+          table.push([
+            `${entry.name}\n${chalk.dim(entry.id)}`,
+            entry.configured ? chalk.green('yes') : chalk.dim('no'),
+            entry.quota?.authenticated ? chalk.green('yes') : chalk.dim('no'),
+            normalizeText(entry.quota?.authMethod),
+            formatNumber(entry.quota?.used),
+            formatNumber(entry.quota?.remaining),
+            normalizeText(entry.keyPreview),
+          ]);
+        }
+
+        console.log(table.toString());
+        console.log('');
+      }, opts);
     });
 
   provider
@@ -63,10 +150,10 @@ Supported providers:
   local        Local models (Ollama, LM Studio, etc.)
 
 OAuth-capable subscription services:
-  $ borg provider add anthropic --oauth    # Claude Max/Pro subscription
-  $ borg provider add google --oauth       # Google AI Plus subscription
-  $ borg provider add copilot --oauth      # Copilot Premium Plus
-  $ borg provider add openai --oauth       # ChatGPT Plus subscription
+  $ hypercode provider add anthropic --oauth    # Claude Max/Pro subscription
+  $ hypercode provider add google --oauth       # Google AI Plus subscription
+  $ hypercode provider add copilot --oauth      # Copilot Premium Plus
+  $ hypercode provider add openai --oauth       # ChatGPT Plus subscription
     `)
     .action(async (name, opts) => {
       const chalk = (await import('chalk')).default;
@@ -76,7 +163,7 @@ OAuth-capable subscription services:
       } else if (opts.apiKey) {
         console.log(chalk.green(`  ✓ Provider '${name}' added with API key`));
       } else {
-        console.log(chalk.yellow(`  Set API key via environment variable or --api-key flag`));
+        console.log(chalk.yellow('  Set API key via environment variable or --api-key flag'));
         console.log(chalk.dim(`  Example: export ${name.toUpperCase()}_API_KEY=sk-...`));
       }
     });
@@ -96,10 +183,48 @@ OAuth-capable subscription services:
     .option('--json', 'Output as JSON')
     .option('--provider <name>', 'Show quota for specific provider')
     .action(async (opts) => {
-      const chalk = (await import('chalk')).default;
-      console.log(chalk.bold.cyan('\n  Provider Quotas & Billing\n'));
-      console.log(chalk.dim('  No providers configured with quota tracking.\n'));
-      console.log(chalk.dim('  Tip: Enable quota tracking with `borg provider add <name>`\n'));
+      await withProviderErrorHandling(async () => {
+        const quotas = await queryTrpc<BillingProviderQuota[]>('billing.getProviderQuotas');
+        const filtered = opts.provider
+          ? quotas.filter((entry) => entry.provider.toLowerCase() === opts.provider.toLowerCase())
+          : quotas;
+
+        if (opts.json) {
+          console.log(JSON.stringify({ providers: filtered }, null, 2));
+          return;
+        }
+
+        const chalk = (await import('chalk')).default;
+        const Table = (await import('cli-table3')).default;
+
+        console.log(chalk.bold.cyan('\n  Provider Quotas & Billing\n'));
+        if (filtered.length === 0) {
+          console.log(chalk.dim('  No matching provider quota data found.\n'));
+          return;
+        }
+
+        const table = new Table({
+          head: ['Provider', 'Tier', 'Used', 'Limit', 'Remaining', 'Availability', 'Reset'],
+          style: { head: ['cyan'] },
+          wordWrap: true,
+          colWidths: [22, 14, 10, 10, 12, 18, 22],
+        });
+
+        for (const entry of filtered) {
+          table.push([
+            `${entry.name}\n${chalk.dim(entry.provider)}`,
+            normalizeText(entry.tier),
+            formatNumber(entry.used),
+            formatNumber(entry.limit),
+            formatNumber(entry.remaining),
+            normalizeText(entry.availability),
+            normalizeText(entry.resetDate),
+          ]);
+        }
+
+        console.log(table.toString());
+        console.log('');
+      }, opts);
     });
 
   provider
@@ -123,9 +248,9 @@ The fallback chain determines which model to use when the primary model's
 quota is exhausted. Models are tried in order.
 
 Examples:
-  $ borg provider fallback --show
-  $ borg provider fallback --set claude-opus-4 gpt-5.2 gemini-3-pro grok-4
-  $ borg provider fallback --strategy cost-optimized
+  $ hypercode provider fallback --show
+  $ hypercode provider fallback --set claude-opus-4 gpt-5.2 gemini-3-pro grok-4
+  $ hypercode provider fallback --strategy cost-optimized
     `)
     .action(async (opts) => {
       const chalk = (await import('chalk')).default;

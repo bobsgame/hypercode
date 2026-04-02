@@ -655,7 +655,24 @@ Validation:
 - `pnpm -C packages\cli exec tsc --noEmit`
 - `pnpm -C packages\cli exec vitest run src\commands\tools.test.ts src\commands\session.test.ts src\commands\status.test.ts src\commands\provider.test.ts src\commands\config.test.ts src\commands\mcp.test.ts src\commands\agent.test.ts src\commands\memory.test.ts src\control-plane.test.ts`
 
-### 27. `harden-published-catalog-ingestion`
+### 27. `wire-cli-mcp-add-remove`
+
+Status: **completed**
+
+What changed:
+
+- `packages/cli/src/commands/mcp.ts` no longer prints fabricated success lines for `hypercode mcp add` and `hypercode mcp remove`
+- `mcp add` now calls the live `mcpServers.create` mutation, maps stdio vs URL-style transport inputs truthfully, and parses `KEY=VALUE` environment arguments into the backend record shape
+- `mcp remove` now resolves the server from the live `mcpServers.list` inventory and then calls `mcpServers.delete` with the real UUID instead of pretending removal succeeded
+- `--json` now emits structured mutation results for both flows, and command failures continue to use the structured MCP control-plane error path
+- focused CLI coverage in `packages/cli/src/commands/mcp.test.ts` now includes MCP add/remove JSON flows
+
+Validation:
+
+- `pnpm -C packages\cli exec tsc --noEmit`
+- `pnpm -C packages\cli exec vitest run src\commands\mcp.test.ts src\commands\tools.test.ts src\commands\session.test.ts src\commands\status.test.ts src\commands\provider.test.ts src\commands\config.test.ts src\commands\agent.test.ts src\commands\memory.test.ts src\control-plane.test.ts`
+
+### 28. `harden-published-catalog-ingestion`
 
 Status: **completed**
 

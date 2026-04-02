@@ -72,6 +72,20 @@ type McpTrafficEvent = {
   error?: string | null;
 };
 
+type McpServerMutationResult = McpServerRecord & {
+  uuid?: string;
+  type?: string;
+  command?: string | null;
+  args?: string[];
+  env?: Record<string, string>;
+  url?: string | null;
+  always_on?: boolean;
+};
+
+type McpDeleteResult = {
+  success?: boolean;
+};
+
 function normalizeText(value: string | null | undefined): string {
   return typeof value === 'string' && value.trim().length > 0 ? value.trim() : '—';
 }
@@ -245,6 +259,23 @@ function printConfigObject(obj: Record<string, unknown>, chalk: typeof import('c
   }
 }
 
+function parseEnvVars(values: string[] | undefined): Record<string, string> | undefined {
+  if (!Array.isArray(values) || values.length === 0) {
+    return undefined;
+  }
+
+  const entries = values.map((entry) => {
+    const separator = entry.indexOf('=');
+    if (separator <= 0) {
+      throw new Error(`Invalid environment variable '${entry}'. Expected KEY=VALUE.`);
+    }
+
+    return [entry.slice(0, separator), entry.slice(separator + 1)] as const;
+  });
+
+  return Object.fromEntries(entries);
+}
+
 export function registerMcpCommand(program: Command): void {
   const mcp = program
     .command('mcp')
@@ -340,20 +371,59 @@ Examples:
   $ hypercode mcp add github npx -- -y @modelcontextprotocol/server-github --env GITHUB_TOKEN=xxx
   $ hypercode mcp add remote-api http://localhost:8080/mcp -t streamable-http
     `)
+    .option('--json', 'Output as JSON')
     .action(async (name, command, opts) => {
-      const chalk = (await import('chalk')).default;
-      console.log(chalk.green(`  ✓ Added MCP server '${name}' (${opts.transport})`));
-      console.log(chalk.dim(`    Command: ${command}`));
-      console.log(chalk.dim(`    Namespace: ${opts.namespace}`));
+      await withMcpErrorHandling(async () => {
+        const chalk = (await import('chalk')).default;
+        const transport = String(opts.transport);
+        const env = parseEnvVars(opts.env);
+        const created = await queryTrpc<McpServerMutationResult>('mcpServers.create', {
+          name,
+          description: null,
+          type: transport,
+          command: transport === 'stdio' ? command : null,
+          args: transport === 'stdio' ? (opts.args ?? []) : [],
+          env,
+          url: transport === 'stdio' ? null : command,
+          always_on: Boolean(opts.autoStart),
+        });
+
+        if (opts.json) {
+          console.log(JSON.stringify({ server: created }, null, 2));
+          return;
+        }
+
+        console.log(chalk.green(`  ✓ Added MCP server '${name}' (${transport})`));
+        console.log(chalk.dim(`    Command: ${command}`));
+        console.log(chalk.dim(`    Namespace: ${opts.namespace}`));
+      }, opts);
     });
 
   mcp
     .command('remove <name>')
     .description('Remove an MCP server from configuration')
     .option('-f, --force', 'Skip confirmation')
-    .action(async (name) => {
-      const chalk = (await import('chalk')).default;
-      console.log(chalk.green(`  ✓ Removed MCP server '${name}'`));
+    .option('--json', 'Output as JSON')
+    .action(async (name, opts) => {
+      await withMcpErrorHandling(async () => {
+        const chalk = (await import('chalk')).default;
+        const servers = await queryTrpc<McpServerRecord[]>('mcpServers.list');
+        const server = findServerByName(servers, name);
+        const uuid = (server as McpServerMutationResult | undefined)?.uuid;
+
+        if (!uuid) {
+          throw new Error(`MCP server '${name}' was not found`);
+        }
+
+        const deleted = await queryTrpc<McpDeleteResult>('mcpServers.delete', { uuid });
+
+        if (opts.json) {
+          console.log(JSON.stringify(deleted, null, 2));
+          return;
+        }
+
+        console.log(chalk.green(`  ✓ Removed MCP server '${name}'`));
+      }, opts);
     });
 
   mcp

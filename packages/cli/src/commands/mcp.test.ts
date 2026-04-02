@@ -243,6 +243,78 @@ describe('registerMcpCommand', () => {
     }, null, 2));
   });
 
+  it('adds an MCP server as JSON via the live control plane', async () => {
+    queryTrpcMock.mockResolvedValue({
+      uuid: 'server-1',
+      name: 'filesystem',
+      type: 'stdio',
+      command: 'npx',
+      args: ['-y', '@modelcontextprotocol/server-filesystem', 'C:\\repo'],
+      env: { GITHUB_TOKEN: 'xxx' },
+      always_on: true,
+    });
+
+    const program = createProgram();
+    await program.parseAsync([
+      'mcp',
+      'add',
+      'filesystem',
+      'npx',
+      '--transport',
+      'stdio',
+      '--args',
+      '-y',
+      '@modelcontextprotocol/server-filesystem',
+      'C:\\repo',
+      '--env',
+      'GITHUB_TOKEN=xxx',
+      '--json',
+    ], { from: 'user' });
+
+    expect(queryTrpcMock).toHaveBeenCalledWith('mcpServers.create', {
+      name: 'filesystem',
+      description: null,
+      type: 'stdio',
+      command: 'npx',
+      args: ['-y', '@modelcontextprotocol/server-filesystem', 'C:\\repo'],
+      env: { GITHUB_TOKEN: 'xxx' },
+      url: null,
+      always_on: true,
+    });
+    expect(logSpy).toHaveBeenCalledWith(JSON.stringify({
+      server: {
+        uuid: 'server-1',
+        name: 'filesystem',
+        type: 'stdio',
+        command: 'npx',
+        args: ['-y', '@modelcontextprotocol/server-filesystem', 'C:\\repo'],
+        env: { GITHUB_TOKEN: 'xxx' },
+        always_on: true,
+      },
+    }, null, 2));
+  });
+
+  it('removes an MCP server as JSON via the live control plane', async () => {
+    queryTrpcMock
+      .mockResolvedValueOnce([
+        {
+          uuid: 'server-1',
+          name: 'filesystem',
+          displayName: 'Filesystem',
+        },
+      ])
+      .mockResolvedValueOnce({ success: true });
+
+    const program = createProgram();
+    await program.parseAsync(['mcp', 'remove', 'filesystem', '--json'], { from: 'user' });
+
+    expect(queryTrpcMock).toHaveBeenNthCalledWith(1, 'mcpServers.list');
+    expect(queryTrpcMock).toHaveBeenNthCalledWith(2, 'mcpServers.delete', { uuid: 'server-1' });
+    expect(logSpy).toHaveBeenCalledWith(JSON.stringify({
+      success: true,
+    }, null, 2));
+  });
+
   it('reports control-plane failures without throwing out of the command', async () => {
     queryTrpcMock.mockRejectedValue(new Error('control plane unavailable'));
 

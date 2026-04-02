@@ -1,19 +1,122 @@
 /**
- * `borg config` - Configuration management
+ * `hypercode config` - Configuration management
  *
  * View, set, and manage HyperCode configuration including
- * all subsystem settings, secrets, and environment variables.
- *
- * @example
- *   borg config show                # Show current config
- *   borg config set server.port 8080
- *   borg config secrets             # Manage secrets
+ * subsystem settings, secrets, and environment variables.
  */
 
 import type { Command } from 'commander';
 import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+import { queryTrpc, resolveControlPlaneLocation } from '../control-plane.js';
 import { readCanonicalVersion } from '../version.js';
+
+type ConfigEntry = {
+  key: string;
+  value: string;
+};
+
+function normalizeText(value: string | null | undefined): string {
+  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : '—';
+}
+
+function parseMaybeJson(value: string): unknown {
+  const trimmed = value.trim();
+  if (trimmed.length === 0) {
+    return '';
+  }
+
+  if (trimmed === 'true') return true;
+  if (trimmed === 'false') return false;
+  if (trimmed === 'null') return null;
+
+  const numeric = Number(trimmed);
+  if (!Number.isNaN(numeric) && trimmed === String(numeric)) {
+    return numeric;
+  }
+
+  if (
+    (trimmed.startsWith('{') && trimmed.endsWith('}'))
+    || (trimmed.startsWith('[') && trimmed.endsWith(']'))
+  ) {
+    try {
+      return JSON.parse(trimmed);
+    } catch {
+      return value;
+    }
+  }
+
+  return value;
+}
+
+function groupConfigEntries(entries: ConfigEntry[]): Record<string, unknown> {
+  const grouped: Record<string, unknown> = {};
+
+  for (const entry of entries) {
+    const parts = entry.key.split('.');
+    let cursor: Record<string, unknown> = grouped;
+
+    for (let index = 0; index < parts.length; index += 1) {
+      const part = parts[index];
+      const isLeaf = index === parts.length - 1;
+
+      if (isLeaf) {
+        cursor[part] = parseMaybeJson(entry.value);
+        continue;
+      }
+
+      const next = cursor[part];
+      if (!next || typeof next !== 'object' || Array.isArray(next)) {
+        cursor[part] = {};
+      }
+      cursor = cursor[part] as Record<string, unknown>;
+    }
+  }
+
+  return grouped;
+}
+
+function pickSection(grouped: Record<string, unknown>, section?: string): unknown {
+  if (!section) {
+    return grouped;
+  }
+
+  return grouped[section];
+}
+
+function printConfigObject(obj: Record<string, unknown>, chalk: typeof import('chalk').default, prefix = '  '): void {
+  for (const [key, value] of Object.entries(obj)) {
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      console.log(chalk.bold(`${prefix}${key}:`));
+      printConfigObject(value as Record<string, unknown>, chalk, `${prefix}  `);
+      continue;
+    }
+
+    console.log(chalk.dim(`${prefix}${key}: `) + JSON.stringify(value));
+  }
+}
+
+async function withConfigErrorHandling(
+  action: () => Promise<void>,
+  opts: { json?: boolean } = {},
+): Promise<void> {
+  try {
+    await action();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (opts.json) {
+      console.log(JSON.stringify({ error: message }, null, 2));
+    } else {
+      const chalk = (await import('chalk')).default;
+      const location = resolveControlPlaneLocation();
+      console.error(chalk.red(`  ✗ ${message}`));
+      console.error(chalk.dim(`  Control plane: ${location.baseUrl} (${location.source})`));
+      console.error(chalk.dim('  Start HyperCode with `hypercode start` or point BORG_TRPC_UPSTREAM at a live /trpc endpoint.'));
+    }
+    process.exitCode = 1;
+  }
+}
 
 export function registerConfigCommand(program: Command): void {
   const commandDir = dirname(fileURLToPath(import.meta.url));
@@ -30,80 +133,82 @@ export function registerConfigCommand(program: Command): void {
     .option('--json', 'Output as raw JSON')
     .option('--section <section>', 'Show specific section: server, mcp, memory, providers, sessions, director')
     .action(async (opts) => {
-      const chalk = (await import('chalk')).default;
+      await withConfigErrorHandling(async () => {
+        const entries = await queryTrpc<ConfigEntry[]>('config.list');
+        const grouped = {
+          version,
+          ...groupConfigEntries(entries),
+        };
+        const selected = pickSection(grouped, opts.section);
 
-      const defaultConfig = {
-        version,
-        server: { host: '0.0.0.0', port: 3000, cors: true },
-        mcp: {
-          enabled: true,
-          progressiveDisclosure: true,
-          semanticSearch: true,
-          toonFormat: false,
-          codeMode: false,
-          toolRenaming: true,
-          keepAlive: true,
-          heartbeatIntervalMs: 30000,
-        },
-        memory: {
-          primaryBackend: 'file',
-          autoHarvest: false,
-          pruneThreshold: 0.3,
-          embeddingModel: 'text-embedding-3-small',
-        },
-        director: { enabled: false, autoApprove: false, checkIntervalMs: 60000 },
-        logLevel: 'info',
-        dataDir: '~/.borg',
-      };
-
-      if (opts.json) {
-        const data = opts.section ? (defaultConfig as Record<string, unknown>)[opts.section] : defaultConfig;
-        console.log(JSON.stringify(data, null, 2));
-        return;
-      }
-
-      console.log(chalk.bold.cyan('\n  HyperCode Configuration\n'));
-      const printConfig = (obj: Record<string, unknown>, prefix = '  ') => {
-        for (const [key, val] of Object.entries(obj)) {
-          if (typeof val === 'object' && val !== null && !Array.isArray(val)) {
-            console.log(chalk.bold(`${prefix}${key}:`));
-            printConfig(val as Record<string, unknown>, prefix + '  ');
-          } else {
-            console.log(chalk.dim(`${prefix}${key}: `) + String(val));
-          }
+        if (typeof selected === 'undefined') {
+          throw new Error(`Configuration section '${opts.section}' was not found`);
         }
-      };
 
-      if (opts.section && opts.section in defaultConfig) {
-        printConfig({ [opts.section]: (defaultConfig as Record<string, unknown>)[opts.section] });
-      } else {
-        printConfig(defaultConfig);
-      }
-      console.log('');
+        if (opts.json) {
+          console.log(JSON.stringify(selected, null, 2));
+          return;
+        }
+
+        const chalk = (await import('chalk')).default;
+        console.log(chalk.bold.cyan('\n  HyperCode Configuration\n'));
+
+        if (selected && typeof selected === 'object' && !Array.isArray(selected)) {
+          printConfigObject(selected as Record<string, unknown>, chalk);
+        } else {
+          const label = opts.section ?? 'value';
+          console.log(chalk.dim(`  ${label}: `) + JSON.stringify(selected));
+        }
+        console.log('');
+      }, opts);
     });
 
   config
     .command('set <key> <value>')
     .description('Set a configuration value (dot-notation keys)')
+    .option('--json', 'Output as JSON')
     .addHelpText('after', `
 Examples:
-  $ borg config set server.port 8080
-  $ borg config set mcp.toonFormat true
-  $ borg config set memory.primaryBackend sqlite
-  $ borg config set director.enabled true
-  $ borg config set logLevel debug
+  $ hypercode config set server.port 8080
+  $ hypercode config set mcp.toonFormat true
+  $ hypercode config set memory.primaryBackend sqlite
+  $ hypercode config set director.enabled true
+  $ hypercode config set logLevel debug
     `)
-    .action(async (key, value) => {
-      const chalk = (await import('chalk')).default;
-      console.log(chalk.green(`  ✓ Set ${key} = ${value}`));
+    .action(async (key, value, opts) => {
+      await withConfigErrorHandling(async () => {
+        await queryTrpc('config.update', { key, value });
+
+        if (opts.json) {
+          console.log(JSON.stringify({ ok: true, key, value }, null, 2));
+          return;
+        }
+
+        const chalk = (await import('chalk')).default;
+        console.log(chalk.green(`  ✓ Set ${key} = ${value}`));
+      }, opts);
     });
 
   config
     .command('get <key>')
     .description('Get a configuration value')
-    .action(async (key) => {
-      const chalk = (await import('chalk')).default;
-      console.log(chalk.dim(`  ${key}: `) + 'undefined');
+    .option('--json', 'Output as JSON')
+    .action(async (key, opts) => {
+      await withConfigErrorHandling(async () => {
+        const value = await queryTrpc<string | null>('config.get', { key });
+
+        if (value === null || typeof value === 'undefined') {
+          throw new Error(`Configuration key '${key}' was not found`);
+        }
+
+        if (opts.json) {
+          console.log(JSON.stringify({ key, value }, null, 2));
+          return;
+        }
+
+        const chalk = (await import('chalk')).default;
+        console.log(chalk.dim(`  ${key}: `) + normalizeText(value));
+      }, opts);
     });
 
   config
@@ -125,13 +230,13 @@ Examples:
     .option('--delete <key>', 'Delete a secret')
     .option('--env', 'Show environment variable sources')
     .addHelpText('after', `
-Secrets are stored encrypted in ~/.borg/secrets.enc
+Secrets are stored encrypted in ~/.hypercode/secrets.enc
 
 Examples:
-  $ borg config secrets --list
-  $ borg config secrets --set OPENAI_API_KEY
-  $ borg config secrets --delete GITHUB_TOKEN
-  $ borg config secrets --env
+  $ hypercode config secrets --list
+  $ hypercode config secrets --set OPENAI_API_KEY
+  $ hypercode config secrets --delete GITHUB_TOKEN
+  $ hypercode config secrets --env
     `)
     .action(async (opts) => {
       const chalk = (await import('chalk')).default;
@@ -154,11 +259,11 @@ Examples:
   config
     .command('init')
     .description('Initialize HyperCode configuration in current directory or globally')
-    .option('--global', 'Initialize global config at ~/.borg/')
-    .option('--local', 'Initialize local .borg/ config in current directory')
+    .option('--global', 'Initialize global config at ~/.hypercode/')
+    .option('--local', 'Initialize local .hypercode/ config in current directory')
     .action(async (opts) => {
       const chalk = (await import('chalk')).default;
-      const scope = opts.global ? 'global (~/.borg/)' : 'local (.borg/)';
+      const scope = opts.global ? 'global (~/.hypercode/)' : 'local (.hypercode/)';
       console.log(chalk.green(`  ✓ Configuration initialized (${scope})`));
     });
 }

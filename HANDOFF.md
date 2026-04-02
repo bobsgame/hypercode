@@ -298,7 +298,24 @@ Validation:
 - `pnpm -C packages\cli exec tsc --noEmit`
 - `pnpm -C packages\cli exec vitest run src\commands\mcp.test.ts src\commands\tools.test.ts src\control-plane.test.ts`
 
-### 6. `harden-published-catalog-ingestion`
+### 6. `wire-cli-config-command`
+
+Status: **completed**
+
+What changed:
+
+- `packages/cli/src/commands/config.ts` no longer invents a fake default configuration for `hypercode config show`
+- `hypercode config show` now queries `config.list`, reconstructs nested dotted keys for operator display, supports `--json`, and supports `--section` against the live control-plane configuration state
+- `hypercode config get <key>` now queries `config.get` and fails truthfully when the key does not exist instead of printing a hardcoded `undefined`
+- `hypercode config set <key> <value>` now writes through `config.update`, supports `--json`, and preserves actionable control-plane failure output consistent with the other wired CLI commands
+- focused CLI coverage was added in `packages/cli/src/commands/config.test.ts`
+
+Validation:
+
+- `pnpm -C packages\cli exec tsc --noEmit`
+- `pnpm -C packages\cli exec vitest run src\commands\config.test.ts src\commands\mcp.test.ts src\commands\tools.test.ts src\control-plane.test.ts`
+
+### 7. `harden-published-catalog-ingestion`
 
 Status: **completed**
 
@@ -322,7 +339,7 @@ Validation:
 - `pnpm -C packages\core exec vitest run src\services\published-catalog-ingestor.test.ts`
 - `pnpm -C packages\core exec tsc --noEmit`
 
-### 7. `workflow-canvas-save-truthfulness`
+### 8. `workflow-canvas-save-truthfulness`
 
 Status: **completed**
 
@@ -336,7 +353,7 @@ Validation:
 
 - `pnpm -C apps\web exec tsc --noEmit --pretty false`
 
-### 8. `workflow-canvas-payload-truthfulness`
+### 9. `workflow-canvas-payload-truthfulness`
 
 Status: **completed**
 
@@ -350,7 +367,7 @@ Validation:
 
 - `pnpm -C apps\web exec tsc --noEmit --pretty false`
 
-### 9. `workflow-engine-empty-state-truthfulness`
+### 10. `workflow-engine-empty-state-truthfulness`
 
 Status: **completed**
 
@@ -366,7 +383,7 @@ Validation:
 - `pnpm -C packages\core exec vitest run src\routers\workflowRouter.test.ts`
 - `pnpm -C packages\core exec tsc --noEmit`
 
-### 10. `workflow-designer-fetch-truthfulness`
+### 11. `workflow-designer-fetch-truthfulness`
 
 Status: **completed**
 

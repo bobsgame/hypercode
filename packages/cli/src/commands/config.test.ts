@@ -1,0 +1,94 @@
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { Command } from 'commander';
+
+const queryTrpcMock = vi.fn();
+const resolveControlPlaneLocationMock = vi.fn(() => ({
+  source: 'default',
+  baseUrl: 'http://127.0.0.1:4000/trpc',
+  host: '127.0.0.1',
+  port: 4000,
+}));
+
+vi.mock('../control-plane.js', () => ({
+  queryTrpc: (...args: unknown[]) => queryTrpcMock(...args),
+  resolveControlPlaneLocation: () => resolveControlPlaneLocationMock(),
+}));
+
+vi.mock('../version.js', () => ({
+  readCanonicalVersion: () => '1.0.15',
+}));
+
+import { registerConfigCommand } from './config.js';
+
+const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+afterEach(() => {
+  queryTrpcMock.mockReset();
+  resolveControlPlaneLocationMock.mockClear();
+  logSpy.mockClear();
+  errorSpy.mockClear();
+  process.exitCode = 0;
+});
+
+function createProgram(): Command {
+  const program = new Command();
+  registerConfigCommand(program);
+  return program;
+}
+
+describe('registerConfigCommand', () => {
+  it('shows live config as JSON', async () => {
+    queryTrpcMock.mockResolvedValue([
+      { key: 'server.port', value: '4000' },
+      { key: 'mcp.progressiveDisclosure', value: 'true' },
+    ]);
+
+    const program = createProgram();
+    await program.parseAsync(['config', 'show', '--json'], { from: 'user' });
+
+    expect(queryTrpcMock).toHaveBeenCalledWith('config.list');
+    expect(logSpy).toHaveBeenCalledWith(JSON.stringify({
+      version: '1.0.15',
+      server: { port: 4000 },
+      mcp: { progressiveDisclosure: true },
+    }, null, 2));
+  });
+
+  it('gets a live config value as JSON', async () => {
+    queryTrpcMock.mockResolvedValue('4000');
+
+    const program = createProgram();
+    await program.parseAsync(['config', 'get', 'server.port', '--json'], { from: 'user' });
+
+    expect(queryTrpcMock).toHaveBeenCalledWith('config.get', { key: 'server.port' });
+    expect(logSpy).toHaveBeenCalledWith(JSON.stringify({
+      key: 'server.port',
+      value: '4000',
+    }, null, 2));
+  });
+
+  it('sets a live config value as JSON', async () => {
+    queryTrpcMock.mockResolvedValue('debug');
+
+    const program = createProgram();
+    await program.parseAsync(['config', 'set', 'logLevel', 'debug', '--json'], { from: 'user' });
+
+    expect(queryTrpcMock).toHaveBeenCalledWith('config.update', { key: 'logLevel', value: 'debug' });
+    expect(logSpy).toHaveBeenCalledWith(JSON.stringify({
+      ok: true,
+      key: 'logLevel',
+      value: 'debug',
+    }, null, 2));
+  });
+
+  it('reports control-plane failures without throwing out of the command', async () => {
+    queryTrpcMock.mockRejectedValue(new Error('control plane unavailable'));
+
+    const program = createProgram();
+    await program.parseAsync(['config', 'show'], { from: 'user' });
+
+    expect(errorSpy).toHaveBeenCalled();
+    expect(process.exitCode).toBe(1);
+  });
+});

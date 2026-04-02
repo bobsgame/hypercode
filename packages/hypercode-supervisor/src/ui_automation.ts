@@ -1,6 +1,7 @@
 import activeWin from 'active-win';
 import { runPowerShell, runPowerShellJson, toPowerShellString } from './powershell.js';
 import { DEFAULT_ACTION_LABELS, SupervisorSettings, SupervisorSettingsManager } from './settings.js';
+import { DEFAULT_SURFACE_PROFILE, resolveSurfaceProfile, SurfaceProfile } from './surface_profiles.js';
 
 export interface WindowBounds {
     left: number;
@@ -42,6 +43,7 @@ export interface ChatSurfaceInfo {
     bounds: WindowBounds | null;
     browserFamily: string | null;
     detectedSurface: string;
+    surfaceProfile: SurfaceProfile;
     heuristics: string[];
 }
 
@@ -617,6 +619,7 @@ export class UiAutomationManager {
 
         const browserFamily = classifyBrowserFamily(processName);
         const detection = detectSurfaceName(title, processName);
+        const surfaceProfile = resolveSurfaceProfile(detection.detectedSurface);
 
         return {
             title,
@@ -626,16 +629,18 @@ export class UiAutomationManager {
             bounds,
             browserFamily,
             detectedSurface: detection.detectedSurface,
+            surfaceProfile,
             heuristics: detection.heuristics
         };
     }
 
     async detectChatState(windowTitle?: string, processName?: string, actionLabels?: string[]): Promise<ChatStateInfo> {
-        const resolvedActionLabels = actionLabels ?? [...DEFAULT_ACTION_LABELS];
-        const [surface, inspection] = await Promise.all([
+        const [surface, inspection, settings] = await Promise.all([
             this.detectChatSurface(),
-            this.inspectWindow(windowTitle, processName)
+            this.inspectWindow(windowTitle, processName),
+            this.getSettings()
         ]);
+        const resolvedActionLabels = actionLabels ?? surface.surfaceProfile.actionLabels ?? settings.actionLabels ?? [...DEFAULT_ACTION_LABELS];
 
         const pendingActionButtons = inspection.buttons
             .map((button) => button.name)
@@ -649,7 +654,7 @@ export class UiAutomationManager {
             reasoning.push('Found actionable approval/continue buttons in the active window');
         } else if (inspection.inputs.some((input) => input.isEnabled && !input.isOffscreen)) {
             state = 'ready_for_input';
-            reasoning.push('Found an enabled visible text input and no pending action buttons');
+            reasoning.push(`Found an enabled visible text input and no pending action buttons; surface profile prefers ${surface.surfaceProfile.inputControlTypes.join(' > ')}`);
         } else {
             reasoning.push('Did not find a pending action button or a usable text input');
         }
@@ -664,8 +669,11 @@ export class UiAutomationManager {
     }
 
     async clickActionButtons(labels?: string[], windowTitle?: string, processName?: string): Promise<ClickActionResult> {
-        const settings = await this.getSettings();
-        const resolvedLabels = labels ?? [...DEFAULT_ACTION_LABELS];
+        const [settings, surface] = await Promise.all([
+            this.getSettings(),
+            this.detectChatSurface()
+        ]);
+        const resolvedLabels = labels ?? surface.surfaceProfile.actionLabels ?? settings.actionLabels ?? [...DEFAULT_ACTION_LABELS];
         return runPowerShellJson<ClickActionResult>(buildClickScript(resolvedLabels, settings, windowTitle, processName));
     }
 
@@ -695,11 +703,15 @@ export class UiAutomationManager {
         windowTitle?: string;
         processName?: string;
     }): Promise<AdvanceChatResult> {
-        const settings = await this.getSettings();
-        const actionLabels = options?.actionLabels ?? settings.actionLabels;
+        const [settings, surface] = await Promise.all([
+            this.getSettings(),
+            this.detectChatSurface()
+        ]);
+        const profile = surface.surfaceProfile ?? DEFAULT_SURFACE_PROFILE;
+        const actionLabels = options?.actionLabels ?? profile.actionLabels ?? settings.actionLabels;
         const bumpText = options?.bumpText ?? settings.bumpText;
         const submitAfterTyping = options?.submitAfterTyping ?? settings.submitAfterTyping;
-        const submitKeyChord = options?.submitKeyChord ?? settings.submitKeyChord;
+        const submitKeyChord = options?.submitKeyChord ?? profile.submitKeyChord ?? settings.submitKeyChord;
         const windowTitle = options?.windowTitle;
         const processName = options?.processName;
         const state = await this.detectChatState(windowTitle, processName, actionLabels);
@@ -731,7 +743,7 @@ export class UiAutomationManager {
                     clicked: [],
                     typed: true,
                     submitted: true,
-                    detail: `Typed bump text and submitted with ${submitKeyChord}`
+                    detail: `Typed bump text and submitted with ${submitKeyChord} for ${profile.id}`
                 };
             }
 
@@ -749,7 +761,7 @@ export class UiAutomationManager {
             clicked: [],
             typed: false,
             submitted: false,
-            detail: 'No action taken because the current UI state was unknown or no bump text was provided'
+            detail: `No action taken because the current UI state was unknown or no bump text was provided for ${profile.id}`
         };
     }
 

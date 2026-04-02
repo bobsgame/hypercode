@@ -175,4 +175,30 @@ describe('registerToolsCommand', () => {
       },
     }, null, 2));
   });
+
+  it('lists tool groups as JSON from the live control plane', async () => {
+    queryTrpcMock.mockResolvedValue([
+      {
+        uuid: 'group-1',
+        name: 'repo-coding',
+        description: 'Coding helpers',
+        tools: ['read_file', 'write_file'],
+      },
+    ]);
+
+    const program = createProgram();
+    await program.parseAsync(['tools', 'groups', '--json'], { from: 'user' });
+
+    expect(queryTrpcMock).toHaveBeenCalledWith('toolSets.list');
+    expect(logSpy).toHaveBeenCalledWith(JSON.stringify({
+      groups: [
+        {
+          uuid: 'group-1',
+          name: 'repo-coding',
+          description: 'Coding helpers',
+          tools: ['read_file', 'write_file'],
+        },
+      ],
+    }, null, 2));
+  });
 });

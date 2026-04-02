@@ -54,6 +54,13 @@ type DetailedTool = {
   always_on?: boolean;
 };
 
+type ToolGroup = {
+  uuid: string;
+  name: string;
+  description?: string | null;
+  tools?: string[];
+};
+
 function normalizeText(value: string | undefined | null): string {
   return typeof value === 'string' && value.trim().length > 0 ? value.trim() : '—';
 }
@@ -289,17 +296,50 @@ Examples:
     .option('--create <name>', 'Create a new tool group')
     .option('--delete <name>', 'Delete a tool group')
     .action(async (opts) => {
-      const chalk = (await import('chalk')).default;
-      if (opts.create) {
-        console.log(chalk.green(`  ✓ Tool group '${opts.create}' created`));
-        return;
-      }
-      if (opts.delete) {
-        console.log(chalk.green(`  ✓ Tool group '${opts.delete}' deleted`));
-        return;
-      }
-      console.log(chalk.bold.cyan('\n  Tool Groups\n'));
-      console.log(chalk.dim('  No tool groups configured.\n'));
+      await withToolsErrorHandling(async () => {
+        const chalk = (await import('chalk')).default;
+        if (opts.create) {
+          console.log(chalk.green(`  ✓ Tool group '${opts.create}' created`));
+          return;
+        }
+        if (opts.delete) {
+          console.log(chalk.green(`  ✓ Tool group '${opts.delete}' deleted`));
+          return;
+        }
+
+        const groups = await queryTrpc<ToolGroup[]>('toolSets.list');
+
+        if (opts.json) {
+          console.log(JSON.stringify({ groups }, null, 2));
+          return;
+        }
+
+        console.log(chalk.bold.cyan('\n  Tool Groups\n'));
+        if (groups.length === 0) {
+          console.log(chalk.dim('  No tool groups configured.\n'));
+          return;
+        }
+
+        const Table = (await import('cli-table3')).default;
+        const table = new Table({
+          head: ['Name', 'Description', 'Tools', 'UUID'],
+          style: { head: ['cyan'] },
+          wordWrap: true,
+          colWidths: [24, 44, 10, 40],
+        });
+
+        for (const group of groups) {
+          table.push([
+            normalizeText(group.name),
+            normalizeText(group.description),
+            Array.isArray(group.tools) ? String(group.tools.length) : '0',
+            normalizeText(group.uuid),
+          ]);
+        }
+
+        console.log(table.toString());
+        console.log('');
+      }, opts);
     });
 
   tools

@@ -400,7 +400,24 @@ Validation:
 - `pnpm -C packages\cli exec tsc --noEmit`
 - `pnpm -C packages\cli exec vitest run src\commands\memory.test.ts src\commands\session.test.ts src\commands\status.test.ts src\commands\provider.test.ts src\commands\config.test.ts src\commands\mcp.test.ts src\commands\tools.test.ts src\control-plane.test.ts`
 
-### 12. `harden-published-catalog-ingestion`
+### 12. `wire-cli-tool-groups-command`
+
+Status: **completed**
+
+What changed:
+
+- `packages/cli/src/commands/tools.ts` no longer hardcodes `hypercode tools groups` to an always-empty "No tool groups configured" placeholder
+- `tools groups` now queries `toolSets.list` so the CLI reflects the live tool-set inventory with names, descriptions, tool counts, and UUIDs
+- `--json` now emits the structured live tool-group inventory instead of a fabricated empty state
+- command failures now report the resolved control-plane endpoint and a concrete remediation path, consistent with the other wired CLI commands
+- focused CLI coverage in `packages/cli/src/commands/tools.test.ts` now includes the tool-group JSON flow
+
+Validation:
+
+- `pnpm -C packages\cli exec tsc --noEmit`
+- `pnpm -C packages\cli exec vitest run src\commands\tools.test.ts src\commands\memory.test.ts src\commands\session.test.ts src\commands\status.test.ts src\commands\provider.test.ts src\commands\config.test.ts src\commands\mcp.test.ts src\control-plane.test.ts`
+
+### 13. `harden-published-catalog-ingestion`
 
 Status: **completed**
 

@@ -69,6 +69,39 @@ describe('sessionExportRouter orchestrator base resolution', () => {
         ]);
     });
 
+    it('filters exported sessions when sessionIds are provided', async () => {
+        process.env.BORG_ORCHESTRATOR_URL = 'http://127.0.0.1:5001';
+        globalThis.fetch = vi.fn(async (input) => {
+            expect(String(input)).toBe('http://127.0.0.1:5001/api/sessions');
+            return {
+                ok: true,
+                json: async () => ([
+                    { id: 'sess-1', currentTask: 'Ship export lane', status: 'running', startTime: 1234 },
+                    { id: 'sess-2', currentTask: 'Other session', status: 'stopped', startTime: 5678 },
+                ]),
+            } as Response;
+        }) as typeof fetch;
+
+        const caller = createCaller();
+        const result = await caller.export({
+            format: 'json',
+            includeMemories: true,
+            includeLogs: true,
+            includeMetadata: true,
+            sessionIds: ['sess-2'],
+        });
+
+        expect(result.package.sessionCount).toBe(1);
+        expect(result.package.sessions).toEqual([
+            expect.objectContaining({
+                id: 'sess-2',
+                name: 'Other session',
+                status: 'stopped',
+                createdAt: 5678,
+            }),
+        ]);
+    });
+
     it('reports a clear error when importing without an orchestrator base', async () => {
         const configDir = mkdtempSync(`${os.tmpdir()}\\borg-export-empty-`);
         mkdirSync(configDir, { recursive: true });

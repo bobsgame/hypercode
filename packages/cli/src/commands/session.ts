@@ -11,6 +11,7 @@
  */
 
 import type { Command } from 'commander';
+import { readFileSync, writeFileSync } from 'node:fs';
 import {
   CLI_HARNESSES,
   PRIMARY_CLI_HARNESS,
@@ -85,6 +86,25 @@ type SessionRecord = {
   workingDirectory: string;
   status?: string;
   metadata?: Record<string, unknown>;
+};
+
+type SessionExportResult = {
+  id: string;
+  format: string;
+  package: unknown;
+};
+
+type SessionImportResult = {
+  imported: number;
+  skipped: number;
+  merged: number;
+  errors: string[];
+  dryRun: boolean;
+  details: Array<{
+    sessionId: string;
+    action: 'imported' | 'merged' | 'skipped' | 'error';
+    reason?: string;
+  }>;
 };
 
 function normalizeText(value: string | null | undefined): string {
@@ -460,18 +480,62 @@ Harnesses:
     .description('Export session history, messages, and metadata')
     .option('-f, --format <format>', 'Export format: json, markdown', 'json')
     .option('-o, --output <file>', 'Output file path')
+    .option('--json', 'Output as JSON')
     .action(async (id, opts) => {
-      const chalk = (await import('chalk')).default;
-      const file = opts.output || `session-${id}-export.${opts.format}`;
-      console.log(chalk.green(`  ✓ Session '${id}' exported to ${file}`));
+      await withSessionErrorHandling(async () => {
+        const chalk = (await import('chalk')).default;
+        const result = await queryTrpc<SessionExportResult>('sessionExport.export', {
+          format: opts.format,
+          sessionIds: [id],
+        });
+
+        if (opts.json) {
+          console.log(JSON.stringify(result, null, 2));
+          return;
+        }
+
+        const file = opts.output || `session-${id}-export.${opts.format}`;
+        writeFileSync(file, `${JSON.stringify(result.package, null, 2)}\n`, 'utf8');
+        console.log(chalk.green(`  ✓ Session '${id}' exported to ${file}`));
+      }, opts);
     });
 
   session
     .command('import <file>')
     .description('Import a session from exported file')
-    .action(async (file) => {
-      const chalk = (await import('chalk')).default;
-      console.log(chalk.green(`  ✓ Session imported from ${file}`));
+    .option('--dry-run', 'Preview import results without applying them')
+    .option('--replace', 'Replace instead of merging with existing sessions')
+    .option('--source-environment <name>', 'Label the import source environment')
+    .option('--json', 'Output as JSON')
+    .action(async (file, opts) => {
+      await withSessionErrorHandling(async () => {
+        const chalk = (await import('chalk')).default;
+        const data = readFileSync(file, 'utf8');
+        const result = await queryTrpc<SessionImportResult>('sessionExport.import', {
+          data,
+          dryRun: Boolean(opts.dryRun),
+          merge: !opts.replace,
+          sourceEnvironment: opts.sourceEnvironment,
+        });
+
+        if (opts.json) {
+          console.log(JSON.stringify(result, null, 2));
+          return;
+        }
+
+        console.log(chalk.green(`  ✓ Session import processed from ${file}`));
+        console.log(chalk.dim(`    Imported: ${result.imported}`));
+        console.log(chalk.dim(`    Merged:   ${result.merged}`));
+        console.log(chalk.dim(`    Skipped:  ${result.skipped}`));
+        console.log(chalk.dim(`    Dry run:  ${result.dryRun ? 'yes' : 'no'}`));
+
+        if (result.errors.length > 0) {
+          console.log(chalk.yellow('\n  Import errors:'));
+          for (const error of result.errors) {
+            console.log(chalk.yellow(`    - ${error}`));
+          }
+        }
+      }, opts);
     });
 
   session

@@ -672,7 +672,41 @@ Validation:
 - `pnpm -C packages\cli exec tsc --noEmit`
 - `pnpm -C packages\cli exec vitest run src\commands\mcp.test.ts src\commands\tools.test.ts src\commands\session.test.ts src\commands\status.test.ts src\commands\provider.test.ts src\commands\config.test.ts src\commands\agent.test.ts src\commands\memory.test.ts src\control-plane.test.ts`
 
-### 28. `harden-published-catalog-ingestion`
+### 28. `wire-cli-session-export`
+
+Status: **completed**
+
+What changed:
+
+- `packages/cli/src/commands/session.ts` no longer prints a fabricated success line for `hypercode session export <id>`
+- `session export` now calls the live `sessionExport.export` control-plane mutation, passes the requested `sessionIds` filter, writes the returned portable export package to disk, and supports `--json` for structured automation output
+- `packages/core/src/routers/sessionExportRouter.ts` now applies the requested `sessionIds` filter to the exported orchestrator session list instead of silently exporting every discovered session
+- focused CLI coverage in `packages/cli/src/commands/session.test.ts` now includes the session-export JSON and file-write flows
+- focused core coverage in `packages/core/src/routers/sessionExportRouter.test.ts` now verifies that `sessionIds` filtering is honored
+
+Validation:
+
+- `pnpm -C packages\core exec vitest run src\routers\sessionExportRouter.test.ts`
+- `pnpm -C packages\cli exec tsc --noEmit`
+- `pnpm -C packages\cli exec vitest run src\commands\session.test.ts src\commands\mcp.test.ts src\commands\tools.test.ts src\commands\status.test.ts src\commands\provider.test.ts src\commands\config.test.ts src\commands\agent.test.ts src\commands\memory.test.ts src\control-plane.test.ts`
+
+### 29. `wire-cli-session-import`
+
+Status: **completed**
+
+What changed:
+
+- `packages/cli/src/commands/session.ts` no longer prints a fabricated success line for `hypercode session import <file>`
+- `session import` now reads the requested export file locally, calls the live `sessionExport.import` control-plane mutation, supports `--dry-run`, `--replace`, `--source-environment`, and emits structured `--json` output
+- focused CLI coverage in `packages/cli/src/commands/session.test.ts` now includes the session-import dry-run JSON flow and replace-mode mutation input
+
+Validation:
+
+- `pnpm -C packages\core exec vitest run src\routers\sessionExportRouter.test.ts`
+- `pnpm -C packages\cli exec tsc --noEmit`
+- `pnpm -C packages\cli exec vitest run src\commands\session.test.ts src\commands\mcp.test.ts src\commands\tools.test.ts src\commands\status.test.ts src\commands\provider.test.ts src\commands\config.test.ts src\commands\agent.test.ts src\commands\memory.test.ts src\control-plane.test.ts`
+
+### 30. `harden-published-catalog-ingestion`
 
 Status: **completed**
 

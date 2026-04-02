@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **CLI Session Import Surface**: `hypercode session import <file>` now reads the local export file, calls the live `sessionExport.import` control-plane mutation, supports `--dry-run`, `--replace`, `--source-environment`, and structured `--json` output instead of printing a fabricated success message.
+- **CLI Session Export Surface**: `hypercode session export <id>` now calls the live `sessionExport.export` control-plane mutation, passes the requested `sessionIds` filter through to the core export path, writes the returned portable package to disk, and supports truthful `--json` output instead of a fabricated success message.
 - **CLI MCP Registry Write Surface**: `hypercode mcp add` and `hypercode mcp remove` now call the live `mcpServers.create`, `mcpServers.list`, and `mcpServers.delete` control-plane routes instead of printing fabricated success messages, with structured `--json` output and truthful registry mutation results.
 - **CLI Tool Group Write Surface**: `hypercode tools groups --create` and `hypercode tools groups --delete` now call the live `toolSets.create` and `toolSets.delete` control-plane mutations instead of printing fabricated success messages, with structured `--json` output and truthful group mutation results.
 - **CLI Tool Toggle Surface**: `hypercode tools enable <name>` and `hypercode tools disable <name>` now call the live `tools.setAlwaysOn` control-plane mutation instead of printing fabricated success messages, with structured `--json` output and truthful always-on tool state updates.

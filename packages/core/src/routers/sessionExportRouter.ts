@@ -235,7 +235,7 @@ export const sessionExportRouter = t.router({
             };
 
             try {
-                pkg.sessions = await loadExportableOrchestratorSessions();
+                pkg.sessions = await loadExportableOrchestratorSessions(fetch, undefined, input.sessionIds);
                 pkg.sessionCount = pkg.sessions.length;
             } catch (e: any) {
                 console.warn(`[SessionExport] Borg Orchestrator unavailable (${e.message}). Exporting empty sessions list.`);
@@ -270,7 +270,7 @@ export const sessionExportRouter = t.router({
             };
 
             if (format === 'invalid') {
-                report.errors.push('Invalid import data — could not parse JSON');
+                report.errors.push('Invalid import data ΓÇö could not parse JSON');
                 return report;
             }
 

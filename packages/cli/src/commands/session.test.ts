@@ -1,5 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Command } from 'commander';
+import { readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
 
 const queryTrpcMock = vi.fn();
 const resolveControlPlaneLocationMock = vi.fn(() => ({
@@ -261,6 +264,155 @@ describe('registerSessionCommand', () => {
         status: 'restarting',
       },
     }, null, 2));
+  });
+
+  it('exports a session as JSON from the live control plane', async () => {
+    queryTrpcMock.mockResolvedValue({
+      id: 'export_1',
+      format: 'json',
+      package: {
+        version: '1.0',
+        sessionCount: 1,
+      },
+    });
+
+    const program = createProgram();
+    await program.parseAsync(['session', 'export', 'sess_live_1', '--json'], { from: 'user' });
+
+    expect(queryTrpcMock).toHaveBeenCalledWith('sessionExport.export', {
+      format: 'json',
+      sessionIds: ['sess_live_1'],
+    });
+    expect(logSpy).toHaveBeenCalledWith(JSON.stringify({
+      id: 'export_1',
+      format: 'json',
+      package: {
+        version: '1.0',
+        sessionCount: 1,
+      },
+    }, null, 2));
+  });
+
+  it('writes exported session data to the requested file', async () => {
+    queryTrpcMock.mockResolvedValue({
+      id: 'export_1',
+      format: 'json',
+      package: {
+        version: '1.0',
+        sessionCount: 1,
+      },
+    });
+
+    const output = join(tmpdir(), `hypercode-session-export-${Date.now()}.json`);
+
+    try {
+      const program = createProgram();
+      await program.parseAsync(['session', 'export', 'sess_live_1', '--output', output], { from: 'user' });
+
+      expect(queryTrpcMock).toHaveBeenCalledWith('sessionExport.export', {
+        format: 'json',
+        sessionIds: ['sess_live_1'],
+      });
+      expect(readFileSync(output, 'utf8')).toContain('"sessionCount": 1');
+    } finally {
+      rmSync(output, { force: true });
+    }
+  });
+
+  it('imports a session export as JSON through the live control plane', async () => {
+    const input = join(tmpdir(), `hypercode-session-import-${Date.now()}.json`);
+    queryTrpcMock.mockResolvedValue({
+      imported: 1,
+      skipped: 0,
+      merged: 0,
+      errors: [],
+      dryRun: true,
+      details: [
+        { sessionId: 'sess_live_1', action: 'imported', reason: 'dry-run preview' },
+      ],
+    });
+
+    try {
+      writeFileSync(input, JSON.stringify({
+        version: '1.0',
+        sessions: [{ id: 'sess_live_1' }],
+      }), 'utf8');
+
+      const program = createProgram();
+      await program.parseAsync([
+        'session',
+        'import',
+        input,
+        '--dry-run',
+        '--source-environment',
+        'staging',
+        '--json',
+      ], { from: 'user' });
+
+      expect(queryTrpcMock).toHaveBeenCalledWith('sessionExport.import', {
+        data: JSON.stringify({
+          version: '1.0',
+          sessions: [{ id: 'sess_live_1' }],
+        }),
+        dryRun: true,
+        merge: true,
+        sourceEnvironment: 'staging',
+      });
+      expect(logSpy).toHaveBeenCalledWith(JSON.stringify({
+        imported: 1,
+        skipped: 0,
+        merged: 0,
+        errors: [],
+        dryRun: true,
+        details: [
+          { sessionId: 'sess_live_1', action: 'imported', reason: 'dry-run preview' },
+        ],
+      }, null, 2));
+    } finally {
+      rmSync(input, { force: true });
+    }
+  });
+
+  it('passes replace mode to live session import', async () => {
+    const input = join(tmpdir(), `hypercode-session-import-replace-${Date.now()}.json`);
+    queryTrpcMock.mockResolvedValue({
+      imported: 1,
+      skipped: 0,
+      merged: 0,
+      errors: [],
+      dryRun: false,
+      details: [
+        { sessionId: 'sess_live_1', action: 'imported' },
+      ],
+    });
+
+    try {
+      writeFileSync(input, JSON.stringify({
+        version: '1.0',
+        sessions: [{ id: 'sess_live_1' }],
+      }), 'utf8');
+
+      const program = createProgram();
+      await program.parseAsync([
+        'session',
+        'import',
+        input,
+        '--replace',
+        '--json',
+      ], { from: 'user' });
+
+      expect(queryTrpcMock).toHaveBeenCalledWith('sessionExport.import', {
+        data: JSON.stringify({
+          version: '1.0',
+          sessions: [{ id: 'sess_live_1' }],
+        }),
+        dryRun: false,
+        merge: false,
+        sourceEnvironment: undefined,
+      });
+    } finally {
+      rmSync(input, { force: true });
+    }
   });
 
   it('reports control-plane failures without throwing out of the command', async () => {

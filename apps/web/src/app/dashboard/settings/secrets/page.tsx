@@ -2,11 +2,21 @@
 
 import { trpc } from '@/utils/trpc';
 import { useState } from 'react';
-import { Card, Button, Input } from '@borg/ui';
+import { Card, Button, Input } from '@hypercode/ui';
+
+function isSecretRecord(value: unknown): value is { key: string; updated_at: string | number | Date } {
+    return typeof value === 'object'
+        && value !== null
+        && typeof (value as { key?: unknown }).key === 'string'
+        && ['string', 'number', 'object'].includes(typeof (value as { updated_at?: unknown }).updated_at);
+}
 
 export default function SecretsVault() {
     const utils = trpc.useUtils();
     const secretsQuery = trpc.secrets.list.useQuery();
+    const secretsUnavailable = Boolean(secretsQuery.error)
+        || (secretsQuery.data !== undefined && (!Array.isArray(secretsQuery.data) || !secretsQuery.data.every(isSecretRecord)));
+    const secrets = !secretsUnavailable && Array.isArray(secretsQuery.data) ? secretsQuery.data : [];
     const setMutation = trpc.secrets.set.useMutation({
         onSuccess: () => utils.secrets.list.invalidate(),
     });
@@ -87,7 +97,11 @@ export default function SecretsVault() {
                 <h2 className="text-xl font-semibold text-white mb-4">Stored Secrets</h2>
                 {secretsQuery.isPending ? (
                     <div className="text-gray-500 font-mono">Loading secrets...</div>
-                ) : secretsQuery.data?.length === 0 ? (
+                ) : secretsUnavailable ? (
+                    <div className="text-red-300 text-sm rounded border border-red-900/40 bg-red-950/20 p-3">
+                        {secretsQuery.error?.message ?? 'Secrets inventory is unavailable.'}
+                    </div>
+                ) : secrets.length === 0 ? (
                     <div className="text-gray-500 italic">No secrets configured.</div>
                 ) : (
                     <div className="border border-gray-800 rounded-lg overflow-hidden">
@@ -100,7 +114,7 @@ export default function SecretsVault() {
                                 </tr>
                             </thead>
                             <tbody>
-                                {secretsQuery.data?.map((secret) => (
+                                {secrets.map((secret) => (
                                     <tr key={secret.key} className="border-b border-gray-800 hover:bg-gray-800/50">
                                         <td className="px-4 py-3 font-mono text-green-400">{secret.key}</td>
                                         <td className="px-4 py-3">

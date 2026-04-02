@@ -148,6 +148,63 @@ const BROADCAST_STATUS_ORDER: SessionStatus[] = [
 
 const TERMINAL: Set<SessionStatus> = new Set(["completed", "failed", "cancelled"]);
 
+function isCloudSessionSummary(value: unknown): value is SessionSummary {
+    return typeof value === "object"
+        && value !== null
+        && typeof (value as { id?: unknown }).id === "string"
+        && typeof (value as { provider?: unknown }).provider === "string"
+        && typeof (value as { projectName?: unknown }).projectName === "string"
+        && typeof (value as { task?: unknown }).task === "string"
+        && typeof (value as { status?: unknown }).status === "string"
+        && typeof (value as { autoAcceptPlan?: unknown }).autoAcceptPlan === "boolean"
+        && typeof (value as { messageCount?: unknown }).messageCount === "number"
+        && typeof (value as { logCount?: unknown }).logCount === "number";
+}
+
+function isChatMessage(value: unknown): value is ChatMessage {
+    return typeof value === "object"
+        && value !== null
+        && typeof (value as { id?: unknown }).id === "string"
+        && typeof (value as { role?: unknown }).role === "string"
+        && typeof (value as { content?: unknown }).content === "string"
+        && typeof (value as { timestamp?: unknown }).timestamp === "string";
+}
+
+function isLogEntry(value: unknown): value is LogEntry {
+    return typeof value === "object"
+        && value !== null
+        && typeof (value as { id?: unknown }).id === "string"
+        && typeof (value as { level?: unknown }).level === "string"
+        && typeof (value as { message?: unknown }).message === "string"
+        && typeof (value as { timestamp?: unknown }).timestamp === "string";
+}
+
+function isProviderRecord(value: unknown): value is { provider: string; name: string; enabled: boolean; hasApiKey?: boolean } {
+    return typeof value === "object"
+        && value !== null
+        && typeof (value as { provider?: unknown }).provider === "string"
+        && typeof (value as { name?: unknown }).name === "string"
+        && typeof (value as { enabled?: unknown }).enabled === "boolean";
+}
+
+function isStatsPayload(value: unknown): value is { totalMessages: number; totalLogs: number } {
+    return typeof value === "object"
+        && value !== null
+        && typeof (value as { totalMessages?: unknown }).totalMessages === "number"
+        && typeof (value as { totalLogs?: unknown }).totalLogs === "number";
+}
+
+function isBroadcastPreview(value: unknown): value is BroadcastPreview {
+    return typeof value === "object"
+        && value !== null
+        && typeof (value as { totalSessions?: unknown }).totalSessions === "number"
+        && typeof (value as { targeted?: unknown }).targeted === "number"
+        && typeof (value as { skipped?: unknown }).skipped === "number"
+        && Array.isArray((value as { recipients?: unknown }).recipients)
+        && Array.isArray((value as { skippedSessionIds?: unknown }).skippedSessionIds)
+        && Array.isArray((value as { skippedSessions?: unknown }).skippedSessions);
+}
+
 function SessionPanel({
     session,
     onClose,
@@ -220,8 +277,16 @@ function SessionPanel({
         if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); }
     }, [handleSend]);
 
-    const messages: ChatMessage[] = (messagesQuery.data ?? []) as ChatMessage[];
-    const logs: LogEntry[] = (logsQuery.data ?? []) as LogEntry[];
+    const messagesUnavailable = Boolean(messagesQuery.error)
+        || (messagesQuery.data !== undefined && (!Array.isArray(messagesQuery.data) || !messagesQuery.data.every(isChatMessage)));
+    const logsUnavailable = Boolean(logsQuery.error)
+        || (logsQuery.data !== undefined && (!Array.isArray(logsQuery.data) || !logsQuery.data.every(isLogEntry)));
+    const messages: ChatMessage[] = !messagesUnavailable && Array.isArray(messagesQuery.data)
+        ? (messagesQuery.data as ChatMessage[])
+        : [];
+    const logs: LogEntry[] = !logsUnavailable && Array.isArray(logsQuery.data)
+        ? (logsQuery.data as LogEntry[])
+        : [];
     const isTerminal = TERMINAL.has(session.status);
     const messageCoverage = useMemo(
         () => getHistoryCoverage({ loadedCount: messages.length, totalCount: session.messageCount, label: "messages" }),
@@ -377,8 +442,10 @@ function SessionPanel({
             </div>
             <div className="h-52 overflow-auto px-3 py-2 text-xs font-mono space-y-1">
                 {activeTab === "chat" && (
-                    filteredMessages.length === 0
-                        ? <p className="text-zinc-600 text-center pt-8">No messages yet.</p>
+                    messagesUnavailable
+                        ? <p className="text-red-300 text-center pt-8">{messagesQuery.error?.message ?? "Messages are unavailable."}</p>
+                        : filteredMessages.length === 0
+                            ? <p className="text-zinc-600 text-center pt-8">No messages yet.</p>
                         : <>
                             {filteredMessages.map((m) => (
                                 <div key={m.id} className="flex gap-1.5">
@@ -394,8 +461,10 @@ function SessionPanel({
                         </>
                 )}
                 {activeTab === "logs" && (
-                    filteredLogs.length === 0
-                        ? <p className="text-zinc-600 text-center pt-8">No log entries.</p>
+                    logsUnavailable
+                        ? <p className="text-red-300 text-center pt-8">{logsQuery.error?.message ?? "Logs are unavailable."}</p>
+                        : filteredLogs.length === 0
+                            ? <p className="text-zinc-600 text-center pt-8">No log entries.</p>
                         : <>
                             {filteredLogs.map((l) => (
                                 <div key={l.id} className="flex gap-1.5">
@@ -562,10 +631,19 @@ export default function CloudDevDashboardPage() {
         setShowAllResultSkippedSessions(false);
     }, [broadcastResult]);
 
-    const sessions: SessionSummary[] = (sessionsQuery.data ?? []) as SessionSummary[];
-    const broadcastPreview = (broadcastPreviewQuery.data ?? null) as BroadcastPreview | null;
-    const stats = statsQuery.data;
-    const providers = providersQuery.data ?? [];
+    const sessionsUnavailable = Boolean(sessionsQuery.error)
+        || (sessionsQuery.data !== undefined && (!Array.isArray(sessionsQuery.data) || !sessionsQuery.data.every(isCloudSessionSummary)));
+    const statsUnavailable = Boolean(statsQuery.error) || (statsQuery.data !== undefined && !isStatsPayload(statsQuery.data));
+    const providersUnavailable = Boolean(providersQuery.error)
+        || (providersQuery.data !== undefined && (!Array.isArray(providersQuery.data) || !providersQuery.data.every(isProviderRecord)));
+    const broadcastPreviewUnavailable = Boolean(broadcastPreviewQuery.error)
+        || (broadcastPreviewQuery.data !== undefined && !isBroadcastPreview(broadcastPreviewQuery.data));
+    const sessions: SessionSummary[] = !sessionsUnavailable && Array.isArray(sessionsQuery.data)
+        ? (sessionsQuery.data as SessionSummary[])
+        : [];
+    const broadcastPreview = !broadcastPreviewUnavailable && isBroadcastPreview(broadcastPreviewQuery.data) ? broadcastPreviewQuery.data : null;
+    const stats = !statsUnavailable && isStatsPayload(statsQuery.data) ? statsQuery.data : undefined;
+    const providers = !providersUnavailable && Array.isArray(providersQuery.data) ? providersQuery.data : [];
     const previewRecipients = useMemo(
         () => broadcastPreview?.recipients ?? [],
         [broadcastPreview]
@@ -713,16 +791,23 @@ export default function CloudDevDashboardPage() {
                 <div className="flex items-center gap-1.5">
                     <Cloud className="h-3.5 w-3.5 text-blue-400" />
                     <span className="text-zinc-400">Total:</span>
-                    <span className="text-blue-300 font-semibold">{sessions.length}</span>
+                    <span className="text-blue-300 font-semibold">{sessionsUnavailable ? "—" : sessions.length}</span>
                 </div>
-                {stats && (
+                {statsUnavailable ? (
+                    <div className="flex items-center gap-1.5">
+                        <MessageSquare className="h-3 w-3 text-red-400" />
+                        <span className="text-red-300">{statsQuery.error?.message ?? "Cloud-dev stats unavailable."}</span>
+                    </div>
+                ) : stats && (
                     <div className="flex items-center gap-1.5">
                         <MessageSquare className="h-3 w-3 text-zinc-500" />
                         <span className="text-zinc-500">{stats.totalMessages} msgs / {stats.totalLogs} logs</span>
                     </div>
                 )}
                 <div className="flex items-center gap-1.5 ml-auto">
-                    {providers.map((p) => (
+                    {providersUnavailable ? (
+                        <span className="text-red-300">{providersQuery.error?.message ?? "Provider inventory unavailable."}</span>
+                    ) : providers.map((p) => (
                         <span key={p.provider} className={`px-1.5 py-0.5 rounded text-[10px] border ${
                             p.enabled ? "bg-emerald-900/40 text-emerald-300 border-emerald-700/40" : "bg-zinc-800 text-zinc-500 border-zinc-700/40"
                         }`}>
@@ -731,6 +816,12 @@ export default function CloudDevDashboardPage() {
                     ))}
                 </div>
             </div>
+
+            {sessionsUnavailable ? (
+                <div className="mx-4 mt-4 rounded-lg border border-red-900/40 bg-red-950/20 px-4 py-3 text-sm text-red-300">
+                    {sessionsQuery.error?.message ?? "Cloud-dev sessions are unavailable."}
+                </div>
+            ) : null}
 
             {showBroadcast && (
                 <div className="px-4 py-3 border-b border-zinc-800 bg-purple-950/20">
@@ -805,6 +896,8 @@ export default function CloudDevDashboardPage() {
                     <div className="mt-2 rounded border border-purple-800/60 bg-purple-950/25 px-2 py-1.5 text-[11px] text-zinc-300">
                         {broadcastPreviewQuery.isLoading ? (
                             <span className="text-zinc-500">Calculating recipients…</span>
+                        ) : broadcastPreviewUnavailable ? (
+                            <span className="text-red-300">{broadcastPreviewQuery.error?.message ?? "Broadcast preview is unavailable."}</span>
                         ) : broadcastPreview ? (
                             <div className="space-y-2">
                                 <div className="flex flex-wrap items-center gap-2">
@@ -1226,7 +1319,12 @@ export default function CloudDevDashboardPage() {
             )}
 
             <div className="flex-1 p-4 space-y-3">
-                {sessions.length === 0 ? (
+                {sessionsUnavailable ? (
+                    <div className="flex flex-col items-center justify-center py-20 text-red-300">
+                        <Cloud className="h-12 w-12 mb-3 opacity-40" />
+                        <p className="text-sm">{sessionsQuery.error?.message ?? "Cloud-dev sessions are unavailable."}</p>
+                    </div>
+                ) : sessions.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-20 text-zinc-500">
                         <Cloud className="h-12 w-12 mb-3 opacity-30" />
                         <p className="text-sm">No cloud dev sessions yet.</p>

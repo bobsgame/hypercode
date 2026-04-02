@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { Suspense, useEffect, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { Button, Card, CardContent, CardHeader, CardTitle } from "@borg/ui";
+import { Button, Card, CardContent, CardHeader, CardTitle } from "@hypercode/ui";
 import { Loader2, Search, Zap, Code, Layers, ExternalLink, Activity, Database, ArrowDownToLine, Sparkles, Trash2, SlidersHorizontal, History } from "lucide-react";
 import { trpc } from '@/utils/trpc';
 import { toast } from 'sonner';
@@ -127,7 +127,7 @@ type EvictionReasonFilter = 'all' | 'idle-biased' | 'capacity';
 type EvictionTierFilter = 'all' | WorkingSetEvictionEvent['tier'];
 type EvictionWindowPreset = 'all' | '5m' | '15m' | '1h' | '24h';
 
-const TELEMETRY_FILTERS_STORAGE_KEY = 'borg.mcp.search.telemetryFilters.v1';
+const TELEMETRY_FILTERS_STORAGE_KEY = 'hypercode.mcp.search.telemetryFilters.v1';
 const TELEMETRY_TYPE_QUERY_KEY = 'telemetryType';
 const TELEMETRY_STATUS_QUERY_KEY = 'telemetryStatus';
 const TELEMETRY_WINDOW_QUERY_KEY = 'telemetryWindow';
@@ -135,7 +135,7 @@ const TELEMETRY_SOURCE_QUERY_KEY = 'telemetrySource';
 const TELEMETRY_TOOL_QUERY_KEY = 'telemetryTool';
 const TELEMETRY_BUCKET_START_QUERY_KEY = 'telemetryBucketStart';
 const TELEMETRY_BUCKET_END_QUERY_KEY = 'telemetryBucketEnd';
-const EVICTION_FILTERS_STORAGE_KEY = 'borg.mcp.search.evictionFilters.v1';
+const EVICTION_FILTERS_STORAGE_KEY = 'hypercode.mcp.search.evictionFilters.v1';
 const EVICTION_REASON_QUERY_KEY = 'evictionReason';
 const EVICTION_TIER_QUERY_KEY = 'evictionTier';
 const EVICTION_WINDOW_QUERY_KEY = 'evictionWindow';
@@ -145,6 +145,63 @@ type TelemetryTrendBucket = {
     end: number;
     label: string;
 };
+
+function isSearchResult(value: unknown): value is SearchResult {
+    return typeof value === 'object'
+        && value !== null
+        && typeof (value as { name?: unknown }).name === 'string'
+        && typeof (value as { server?: unknown }).server === 'string'
+        && typeof (value as { description?: unknown }).description === 'string'
+        && Object.prototype.hasOwnProperty.call(value, 'inputSchema');
+}
+
+function isWorkingSetTool(value: unknown): value is WorkingSetTool {
+    return typeof value === 'object'
+        && value !== null
+        && typeof (value as { name?: unknown }).name === 'string'
+        && typeof (value as { hydrated?: unknown }).hydrated === 'boolean'
+        && typeof (value as { lastLoadedAt?: unknown }).lastLoadedAt === 'number'
+        && (typeof (value as { lastHydratedAt?: unknown }).lastHydratedAt === 'number'
+            || (value as { lastHydratedAt?: unknown }).lastHydratedAt === null)
+        && typeof (value as { lastAccessedAt?: unknown }).lastAccessedAt === 'number';
+}
+
+function isToolSelectionTelemetryEvent(value: unknown): value is ToolSelectionTelemetryEvent {
+    return typeof value === 'object'
+        && value !== null
+        && typeof (value as { id?: unknown }).id === 'string'
+        && typeof (value as { type?: unknown }).type === 'string'
+        && typeof (value as { timestamp?: unknown }).timestamp === 'number'
+        && typeof (value as { status?: unknown }).status === 'string';
+}
+
+function isWorkingSetEvictionEvent(value: unknown): value is WorkingSetEvictionEvent {
+    return typeof value === 'object'
+        && value !== null
+        && typeof (value as { toolName?: unknown }).toolName === 'string'
+        && typeof (value as { timestamp?: unknown }).timestamp === 'number'
+        && typeof (value as { tier?: unknown }).tier === 'string'
+        && typeof (value as { idleEvicted?: unknown }).idleEvicted === 'boolean'
+        && typeof (value as { idleDurationMs?: unknown }).idleDurationMs === 'number';
+}
+
+function isToolPreferences(value: unknown): value is ToolPreferences {
+    return typeof value === 'object'
+        && value !== null
+        && Array.isArray((value as { importantTools?: unknown }).importantTools)
+        && Array.isArray((value as { alwaysLoadedTools?: unknown }).alwaysLoadedTools)
+        && typeof (value as { autoLoadMinConfidence?: unknown }).autoLoadMinConfidence === 'number'
+        && typeof (value as { maxLoadedTools?: unknown }).maxLoadedTools === 'number'
+        && typeof (value as { maxHydratedSchemas?: unknown }).maxHydratedSchemas === 'number'
+        && typeof (value as { idleEvictionThresholdMs?: unknown }).idleEvictionThresholdMs === 'number';
+}
+
+function isWorkingSetSnapshot(value: unknown): value is { tools: WorkingSetTool[]; limits?: { maxLoadedTools?: number; maxHydratedSchemas?: number; idleEvictionThresholdMs?: number } } {
+    return typeof value === 'object'
+        && value !== null
+        && Array.isArray((value as { tools?: unknown }).tools)
+        && ((value as { tools: unknown[] }).tools).every(isWorkingSetTool);
+}
 
 function resolveTelemetryWindowStart(windowPreset: TelemetryWindowPreset): number | null {
     const now = Date.now();
@@ -417,12 +474,27 @@ function SearchDashboardContent() {
         },
     });
 
-    const results = (searchQuery.data || []) as SearchResult[];
+    const searchResultsUnavailable = searchQuery.data !== undefined
+        && (!Array.isArray(searchQuery.data) || !searchQuery.data.every(isSearchResult));
+    const results = !searchResultsUnavailable && Array.isArray(searchQuery.data) ? (searchQuery.data as SearchResult[]) : [];
     const isLoading = searchQuery.isLoading;
-    const workingSet = ((workingSetQuery.data?.tools as WorkingSetTool[] | undefined) ?? []);
+    const searchError = searchQuery.error?.message ?? (searchResultsUnavailable ? 'Tool search results are unavailable.' : null);
+    const workingSetUnavailable = Boolean(workingSetQuery.error)
+        || (workingSetQuery.data !== undefined && !isWorkingSetSnapshot(workingSetQuery.data));
+    const workingSet = !workingSetUnavailable && isWorkingSetSnapshot(workingSetQuery.data) ? workingSetQuery.data.tools : [];
+    const workingSetError = workingSetQuery.error?.message ?? (workingSetUnavailable ? 'Working set snapshot is unavailable.' : null);
     const allToolsQuery = trpc.mcp.listTools.useQuery(undefined, { refetchInterval: 15000 });
-    const allKnownTools = (allToolsQuery.data as SearchResult[] | undefined) ?? [];
-    const telemetryEvents = ((telemetryQuery.data as ToolSelectionTelemetryEvent[] | undefined) ?? []);
+    const allToolsUnavailable = Boolean(allToolsQuery.error)
+        || (allToolsQuery.data !== undefined && (!Array.isArray(allToolsQuery.data) || !allToolsQuery.data.every(isSearchResult)));
+    const allKnownTools = !allToolsUnavailable && Array.isArray(allToolsQuery.data) ? (allToolsQuery.data as SearchResult[]) : [];
+    const allToolsError = allToolsQuery.error?.message ?? (allToolsUnavailable ? 'Tool catalog is unavailable.' : null);
+    const telemetryUnavailable = Boolean(telemetryQuery.error)
+        || (telemetryQuery.data !== undefined && (!Array.isArray(telemetryQuery.data) || !telemetryQuery.data.every(isToolSelectionTelemetryEvent)));
+    const telemetryEvents = !telemetryUnavailable && Array.isArray(telemetryQuery.data) ? (telemetryQuery.data as ToolSelectionTelemetryEvent[]) : [];
+    const telemetryError = telemetryQuery.error?.message ?? (telemetryUnavailable ? 'Tool-selection telemetry is unavailable.' : null);
+    const evictionHistoryUnavailable = Boolean(evictionHistoryQuery.error)
+        || (evictionHistoryQuery.data !== undefined && (!Array.isArray(evictionHistoryQuery.data) || !evictionHistoryQuery.data.every(isWorkingSetEvictionEvent)));
+    const evictionHistoryError = evictionHistoryQuery.error?.message ?? (evictionHistoryUnavailable ? 'Working-set eviction history is unavailable.' : null);
     const telemetryWindowStart = resolveTelemetryWindowStart(telemetryWindowFilter);
     const telemetryEventsPreStatusFilter = telemetryEvents
         .filter((event) => telemetryWindowStart == null || event.timestamp >= telemetryWindowStart)
@@ -606,7 +678,9 @@ function SearchDashboardContent() {
         const sourceMax = source.trend.reduce((bucketMax, bucket) => Math.max(bucketMax, bucket.count), 0);
         return Math.max(max, sourceMax);
     }, 0);
-    const recentEvictions = (evictionHistoryQuery.data as WorkingSetEvictionEvent[] | undefined) ?? [];
+    const recentEvictions = !evictionHistoryUnavailable && Array.isArray(evictionHistoryQuery.data)
+        ? (evictionHistoryQuery.data as WorkingSetEvictionEvent[])
+        : [];
     const evictionSummary = recentEvictions.reduce((accumulator, event) => {
         accumulator.total += 1;
         if (event.idleEvicted) {
@@ -642,7 +716,9 @@ function SearchDashboardContent() {
     const evictionFiltersAtDefault = evictionReasonFilter === 'all'
         && evictionTierFilter === 'all'
         && evictionWindowFilter === 'all';
-    const preferences = (preferencesQuery.data as ToolPreferences | undefined) ?? {
+    const preferencesUnavailable = Boolean(preferencesQuery.error)
+        || (preferencesQuery.data !== undefined && !isToolPreferences(preferencesQuery.data));
+    const preferences = !preferencesUnavailable && isToolPreferences(preferencesQuery.data) ? preferencesQuery.data : {
         importantTools: [],
         alwaysLoadedTools: ['search_tools', 'read_file', 'write_file', 'grep_search', 'execute_command', 'browser__open'],
         autoLoadMinConfidence: 0.85,
@@ -650,6 +726,7 @@ function SearchDashboardContent() {
         maxHydratedSchemas: 8,
         idleEvictionThresholdMs: 5 * 60 * 1000,
     };
+    const preferencesError = preferencesQuery.error?.message ?? (preferencesUnavailable ? 'Tool preferences are unavailable.' : null);
     const importantTools = new Set(preferences.importantTools);
     const alwaysLoadedTools = new Set(preferences.alwaysLoadedTools);
     const loadedToolNames = new Set(workingSet.map((tool) => tool.name));
@@ -672,9 +749,12 @@ function SearchDashboardContent() {
         .filter((tool) => alwaysLoadedTools.has(tool.name) && !alwaysOnAdvertisedNames.has(tool.name))
         .sort((left, right) => left.name.localeCompare(right.name));
     const hydratedCount = workingSet.filter((tool) => tool.hydrated).length;
+    const workingSetLimits = !workingSetUnavailable && isWorkingSetSnapshot(workingSetQuery.data)
+        ? workingSetQuery.data.limits
+        : undefined;
     const idleEvictionThresholdMs = Math.max(
         0,
-        ((workingSetQuery.data?.limits as { idleEvictionThresholdMs?: number } | undefined)?.idleEvictionThresholdMs ?? 0),
+        (workingSetLimits?.idleEvictionThresholdMs ?? 0),
     );
 
     useEffect(() => {
@@ -1653,30 +1733,36 @@ function SearchDashboardContent() {
                                 </div>
                                 <div className="rounded-lg border border-zinc-800 bg-zinc-950/70 p-3">
                                     <div className="text-xs uppercase tracking-wider text-zinc-500">Loaded</div>
-                                    <div className="mt-1 text-2xl font-semibold text-white">{workingSet.length}</div>
+                                    <div className="mt-1 text-2xl font-semibold text-white">{workingSetError ? '—' : workingSet.length}</div>
                                 </div>
                                 <div className="rounded-lg border border-zinc-800 bg-zinc-950/70 p-3">
                                     <div className="text-xs uppercase tracking-wider text-zinc-500">Hydrated schemas</div>
-                                    <div className="mt-1 text-2xl font-semibold text-white">{hydratedCount}</div>
+                                    <div className="mt-1 text-2xl font-semibold text-white">{workingSetError ? '—' : hydratedCount}</div>
                                 </div>
                                 <div className="rounded-lg border border-zinc-800 bg-zinc-950/70 p-3">
                                     <div className="text-xs uppercase tracking-wider text-zinc-500">Always-on tools</div>
-                                    <div className="mt-1 text-2xl font-semibold text-white">{alwaysOnAdvertisedNames.size}</div>
-                                    <div className="mt-1 text-xs text-zinc-500">Advertised immediately by always-on MCP servers.</div>
+                                    <div className="mt-1 text-2xl font-semibold text-white">{allToolsError ? '—' : alwaysOnAdvertisedNames.size}</div>
+                                    <div className={`mt-1 text-xs ${allToolsError ? 'text-red-300' : 'text-zinc-500'}`}>
+                                        {allToolsError ? allToolsError : 'Advertised immediately by always-on MCP servers.'}
+                                    </div>
                                 </div>
                                 <div className="rounded-lg border border-zinc-800 bg-zinc-950/70 p-3">
                                     <div className="text-xs uppercase tracking-wider text-zinc-500">Keep warm tools</div>
-                                    <div className="mt-1 text-2xl font-semibold text-white">{alwaysLoadedTools.size}</div>
-                                    <div className="mt-1 text-xs text-zinc-500">Pinned tools Borg auto-loads into the working set.</div>
+                                    <div className="mt-1 text-2xl font-semibold text-white">{preferencesError ? '—' : alwaysLoadedTools.size}</div>
+                                    <div className={`mt-1 text-xs ${preferencesError ? 'text-red-300' : 'text-zinc-500'}`}>
+                                        {preferencesError ? preferencesError : 'Pinned tools HyperCode auto-loads into the working set.'}
+                                    </div>
                                 </div>
                                 <div className="rounded-lg border border-zinc-800 bg-zinc-950/70 p-3 md:col-span-3 space-y-3">
                                     <div className="flex items-center justify-between gap-3">
                                         <div>
                                             <div className="text-xs uppercase tracking-wider text-zinc-500">Auto-load confidence floor</div>
-                                            <div className="mt-1 text-2xl font-semibold text-white">{Math.round((preferences.autoLoadMinConfidence ?? 0.85) * 100)}%</div>
+                                            <div className="mt-1 text-2xl font-semibold text-white">
+                                                {preferencesError ? '—' : `${Math.round((preferences.autoLoadMinConfidence ?? 0.85) * 100)}%`}
+                                            </div>
                                         </div>
                                         <div className="text-xs text-zinc-500 text-right max-w-xs">
-                                            Cached ranking auto-loads only when confidence is above this threshold.
+                                            {preferencesError ?? 'Cached ranking auto-loads only when confidence is above this threshold.'}
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-3">
@@ -1688,8 +1774,9 @@ function SearchDashboardContent() {
                                             value={autoLoadMinConfidenceDraft}
                                             onChange={(event) => setAutoLoadMinConfidenceDraft(Number(event.target.value))}
                                             className="w-full"
-                                            title="Set minimum confidence required before Borg auto-loads the top ranked tool"
+                                            title="Set minimum confidence required before HyperCode auto-loads the top ranked tool"
                                             aria-label="Auto-load confidence threshold"
+                                            disabled={Boolean(preferencesError)}
                                         />
                                         <input
                                             type="number"
@@ -1701,13 +1788,14 @@ function SearchDashboardContent() {
                                             className="w-24 rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1 text-sm text-zinc-100"
                                             title="Numeric confidence threshold between 0.50 and 0.99"
                                             aria-label="Auto-load confidence threshold numeric input"
+                                            disabled={Boolean(preferencesError)}
                                         />
                                         <Button
                                             type="button"
                                             variant="outline"
                                             className="border-zinc-700 text-zinc-200 hover:bg-zinc-800"
                                             onClick={saveAutoLoadMinConfidence}
-                                            disabled={setPreferencesMutation.isPending}
+                                            disabled={setPreferencesMutation.isPending || Boolean(preferencesError)}
                                             title="Save auto-load confidence threshold"
                                             aria-label="Save auto-load confidence threshold"
                                         >
@@ -1949,6 +2037,11 @@ function SearchDashboardContent() {
                                         );
                                     })}
                                 </div>
+                            ) : searchError ? (
+                                <div className="rounded-lg border border-amber-700/40 bg-amber-950/20 py-12 px-6 text-center text-amber-200">
+                                    <div className="font-medium">Tool search unavailable</div>
+                                    <div className="mt-2 text-sm text-amber-200/80">{searchError}</div>
+                                </div>
                             ) : query ? (
                                 <div className="text-center text-zinc-500 py-12 px-6">
                                     No tools found matching “{query}”.
@@ -1974,19 +2067,25 @@ function SearchDashboardContent() {
                             <div className="grid grid-cols-2 gap-3 text-sm">
                                 <div className="rounded-lg border border-zinc-800 bg-zinc-950/70 p-3">
                                     <div className="text-xs uppercase tracking-wider text-zinc-500">Loaded cap</div>
-                                    <div className="mt-1 text-xl font-semibold text-white">{workingSetQuery.data?.limits?.maxLoadedTools ?? 0}</div>
+                                    <div className="mt-1 text-xl font-semibold text-white">{workingSetError ? '—' : (workingSetLimits?.maxLoadedTools ?? 0)}</div>
                                 </div>
                                 <div className="rounded-lg border border-zinc-800 bg-zinc-950/70 p-3">
                                     <div className="text-xs uppercase tracking-wider text-zinc-500">Schema cap</div>
-                                    <div className="mt-1 text-xl font-semibold text-white">{workingSetQuery.data?.limits?.maxHydratedSchemas ?? 0}</div>
+                                    <div className="mt-1 text-xl font-semibold text-white">{workingSetError ? '—' : (workingSetLimits?.maxHydratedSchemas ?? 0)}</div>
                                 </div>
                                 <div className="rounded-lg border border-zinc-800 bg-zinc-950/70 p-3 col-span-2">
                                     <div className="text-xs uppercase tracking-wider text-zinc-500">Idle eviction threshold</div>
                                     <div className="mt-1 text-xl font-semibold text-white">
-                                        {Math.max(0.17, Number((((workingSetQuery.data?.limits as { idleEvictionThresholdMs?: number } | undefined)?.idleEvictionThresholdMs ?? 0) / 60000).toFixed(2)))} min
+                                        {workingSetError ? 'unavailable' : `${Math.max(0.17, Number(((workingSetLimits?.idleEvictionThresholdMs ?? 0) / 60000).toFixed(2)))} min`}
                                     </div>
                                 </div>
                             </div>
+
+                            {workingSetError ? (
+                                <div className="rounded-lg border border-red-500/20 bg-red-500/10 p-3 text-xs text-red-200">
+                                    Working set unavailable: {workingSetError}
+                                </div>
+                            ) : null}
 
                             <div className="space-y-3 max-h-[420px] overflow-y-auto">
                                 {workingSet.length > 0 ? (
@@ -2320,7 +2419,11 @@ function SearchDashboardContent() {
                                             </Button>
                                         </div>
                                     </div>
-                                    {lane.tools.length > 0 ? (
+                                    {allToolsError ? (
+                                        <div className="rounded-lg border border-red-500/20 bg-red-500/10 p-3 text-xs text-red-200 text-center">
+                                            {allToolsError}
+                                        </div>
+                                    ) : lane.tools.length > 0 ? (
                                         <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1">
                                             {lane.tools.map((tool) => {
                                                 const loaded = loadedToolNames.has(tool.name);
@@ -2428,7 +2531,7 @@ function SearchDashboardContent() {
                                 type="button"
                                 variant="outline"
                                 size="sm"
-                                disabled={clearEvictionHistoryMutation.isPending || recentEvictions.length === 0}
+                                disabled={clearEvictionHistoryMutation.isPending || recentEvictions.length === 0 || Boolean(evictionHistoryError)}
                                 onClick={() => clearEvictionHistoryMutation.mutate()}
                                 title="Clear the recent working-set eviction history"
                                 aria-label="Clear working-set eviction history"
@@ -2581,7 +2684,11 @@ function SearchDashboardContent() {
                                 ) : null}
                             </div>
 
-                            {filteredEvictions.length > 0 ? (
+                            {evictionHistoryError ? (
+                                <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-4 text-xs text-red-200 text-center">
+                                    {evictionHistoryError}
+                                </div>
+                            ) : filteredEvictions.length > 0 ? (
                                 <div className="space-y-2 max-h-[200px] overflow-y-auto">
                                     {filteredEvictions.slice(0, 10).map((event, index) => (
                                         <div key={`${event.toolName}-${event.timestamp}-${index}`} className="flex items-center justify-between gap-3 rounded-lg border border-zinc-800 bg-zinc-950/60 px-3 py-2">
@@ -2640,7 +2747,7 @@ function SearchDashboardContent() {
                                 type="button"
                                 variant="outline"
                                 size="sm"
-                                disabled={clearTelemetryMutation.isPending || telemetry.length === 0}
+                                disabled={clearTelemetryMutation.isPending || telemetry.length === 0 || Boolean(telemetryError)}
                                 onClick={() => clearTelemetryMutation.mutate()}
                                 title="Clear the recent search/load telemetry timeline shown in this panel"
                                 aria-label="Clear MCP search telemetry history"
@@ -3311,7 +3418,11 @@ function SearchDashboardContent() {
                             ) : null}
 
                             <div className="space-y-3 max-h-[420px] overflow-y-auto">
-                                {telemetry.length > 0 ? (
+                                {telemetryError ? (
+                                    <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-4 text-xs text-red-200 text-center">
+                                        {telemetryError}
+                                    </div>
+                                ) : telemetry.length > 0 ? (
                                     telemetry.map((event) => (
                                         <div key={event.id} className="rounded-lg border border-zinc-800 bg-zinc-950/60 p-3 space-y-2">
                                             <div className="flex items-center justify-between gap-3">
@@ -3402,7 +3513,7 @@ function SearchDashboardContent() {
                             <textarea
                                 value={jsoncDraft}
                                 onChange={(event) => setJsoncDraft(event.target.value)}
-                                title="Edit the Borg MCP JSONC configuration. Changes are saved to the Borg config mcp.jsonc file (typically ~/.borg/mcp.jsonc)."
+                                title="Edit the HyperCode MCP JSONC configuration. Changes are saved to the HyperCode config mcp.jsonc file (typically ~/.hypercode/mcp.jsonc)."
                                 aria-label="MCP JSONC configuration editor"
                                 className="w-full h-48 bg-zinc-950 border border-zinc-800 rounded-md p-3 font-mono text-xs text-zinc-200 outline-none"
                                 spellCheck={false}

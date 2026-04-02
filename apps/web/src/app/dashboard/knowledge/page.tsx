@@ -8,10 +8,30 @@ import { motion } from "framer-motion";
 import { Loader2, RefreshCw, Download, Play, CheckCircle, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 
+function isKnowledgeSubmodule(value: unknown): value is {
+    name: string;
+    path: string;
+    status: string;
+    commit: string;
+    capabilities?: string[];
+    isInstalled?: boolean;
+    isBuilt?: boolean;
+} {
+    return typeof value === 'object'
+        && value !== null
+        && typeof (value as { name?: unknown }).name === 'string'
+        && typeof (value as { path?: unknown }).path === 'string'
+        && typeof (value as { status?: unknown }).status === 'string'
+        && typeof (value as { commit?: unknown }).commit === 'string';
+}
+
 export default function KnowledgeDashboard() {
     // Real submodule data
     const submodulesQuery = trpc.submodule.list.useQuery();
-    const submodulesData = submodulesQuery.data || [];
+    const submodulesUnavailable = Boolean(submodulesQuery.error)
+        || (submodulesQuery.data !== undefined && (!Array.isArray(submodulesQuery.data) || !submodulesQuery.data.every(isKnowledgeSubmodule)));
+    const submodulesData = !submodulesUnavailable && Array.isArray(submodulesQuery.data) ? submodulesQuery.data : [];
+    const submodulesError = submodulesQuery.error?.message ?? null;
 
     const resourcesQuery = trpc.knowledge.getResources.useQuery();
 
@@ -111,7 +131,11 @@ export default function KnowledgeDashboard() {
     };
 
     const submodules = submodulesData;
-    const resources = resourcesQuery.data || { categories: [] };
+    const resources = resourcesQuery.data && typeof resourcesQuery.data === 'object' && !Array.isArray(resourcesQuery.data)
+        ? resourcesQuery.data as { categories?: unknown[]; lastUpdated?: string | null }
+        : { categories: [] as unknown[], lastUpdated: null };
+    const resourcesError = resourcesQuery.error?.message ?? null;
+    const resourcesUnavailable = !resourcesQuery.isLoading && !resourcesQuery.error && (!resourcesQuery.data || Array.isArray(resourcesQuery.data));
 
     return (
         <div className="p-8 bg-gray-900 min-h-screen text-gray-100 font-mono">
@@ -122,9 +146,17 @@ export default function KnowledgeDashboard() {
                 </div>
                 <div className="text-right">
                     <div className="text-sm text-gray-500">LAST SYNC</div>
-                    <div className="text-blue-500 font-bold">{resources.lastUpdated ? new Date(resources.lastUpdated).toLocaleString() : 'Never'}</div>
+                    <div className="text-blue-500 font-bold">
+                        {resourcesError || resourcesUnavailable ? 'Unavailable' : resources.lastUpdated ? new Date(resources.lastUpdated).toLocaleString() : 'Never'}
+                    </div>
                 </div>
             </header>
+
+            {resourcesError || resourcesUnavailable ? (
+                <div className="mb-6 rounded border border-red-900/40 bg-red-950/20 p-4 text-sm text-red-300">
+                    {resourcesError ?? 'Knowledge resource inventory is unavailable.'}
+                </div>
+            ) : null}
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 {/* Submodules Section */}
@@ -147,6 +179,10 @@ export default function KnowledgeDashboard() {
                         {submodulesQuery.isLoading ? (
                             <div className="flex justify-center p-8">
                                 <Loader2 className="animate-spin text-gray-500" />
+                            </div>
+                        ) : submodulesUnavailable ? (
+                            <div className="text-red-400 text-center p-8 border border-red-900/40 bg-red-950/20 rounded">
+                                <p>{submodulesError ?? 'Submodule inventory is unavailable.'}</p>
                             </div>
                         ) : submodules.length === 0 ? (
                             <div className="text-gray-500 italic text-center p-8 border border-dashed border-gray-700 rounded">

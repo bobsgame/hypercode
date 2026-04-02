@@ -5,6 +5,7 @@ import { trpc } from '../../utils/trpc';
 import {
     DashboardHomeView,
     type DashboardFallbackSummary,
+    type DashboardInstallSurfaceArtifact,
     type DashboardProviderSummary,
     type DashboardServerSummary,
     type DashboardSessionSummary,
@@ -36,6 +37,64 @@ export function sortSessions(sessions: DashboardSessionSummary[]) {
 
 function sortServers(servers: DashboardServerSummary[]) {
     return [...servers].sort((left, right) => left.name.localeCompare(right.name));
+}
+
+function isDashboardServerSummary(value: unknown): value is DashboardServerSummary {
+    return typeof value === 'object'
+        && value !== null
+        && typeof (value as { name?: unknown }).name === 'string'
+        && typeof (value as { status?: unknown }).status === 'string'
+        && typeof (value as { toolCount?: unknown }).toolCount === 'number';
+}
+
+function isDashboardTrafficSummary(value: unknown): value is DashboardTrafficSummary {
+    return typeof value === 'object'
+        && value !== null
+        && typeof (value as { server?: unknown }).server === 'string'
+        && typeof (value as { method?: unknown }).method === 'string'
+        && typeof (value as { paramsSummary?: unknown }).paramsSummary === 'string'
+        && typeof (value as { latencyMs?: unknown }).latencyMs === 'number'
+        && typeof (value as { success?: unknown }).success === 'boolean'
+        && typeof (value as { timestamp?: unknown }).timestamp === 'number';
+}
+
+function isDashboardProviderSummary(value: unknown): value is DashboardProviderSummary {
+    return typeof value === 'object'
+        && value !== null
+        && typeof (value as { provider?: unknown }).provider === 'string'
+        && typeof (value as { name?: unknown }).name === 'string'
+        && typeof (value as { configured?: unknown }).configured === 'boolean'
+        && typeof (value as { tier?: unknown }).tier === 'string'
+        && typeof (value as { used?: unknown }).used === 'number';
+}
+
+function isDashboardFallbackSummary(value: unknown): value is DashboardFallbackSummary {
+    return typeof value === 'object'
+        && value !== null
+        && typeof (value as { priority?: unknown }).priority === 'number'
+        && typeof (value as { provider?: unknown }).provider === 'string'
+        && typeof (value as { reason?: unknown }).reason === 'string';
+}
+
+function isDashboardSessionSummary(value: unknown): value is DashboardSessionSummary {
+    return typeof value === 'object'
+        && value !== null
+        && typeof (value as { id?: unknown }).id === 'string'
+        && typeof (value as { name?: unknown }).name === 'string'
+        && typeof (value as { cliType?: unknown }).cliType === 'string'
+        && typeof (value as { workingDirectory?: unknown }).workingDirectory === 'string'
+        && typeof (value as { status?: unknown }).status === 'string'
+        && typeof (value as { restartCount?: unknown }).restartCount === 'number'
+        && typeof (value as { maxRestartAttempts?: unknown }).maxRestartAttempts === 'number'
+        && typeof (value as { lastActivityAt?: unknown }).lastActivityAt === 'number'
+        && Array.isArray((value as { logs?: unknown }).logs);
+}
+
+function isDashboardInstallSurfaceArtifact(value: unknown): value is DashboardInstallSurfaceArtifact {
+    return typeof value === 'object'
+        && value !== null
+        && typeof (value as { id?: unknown }).id === 'string'
+        && typeof (value as { status?: unknown }).status === 'string';
 }
 
 interface DashboardHomeClientProps {
@@ -108,6 +167,37 @@ export function DashboardHomeClient({ versionLabel }: DashboardHomeClientProps) 
         toolCount: 0,
         connectedCount: 0,
     }) as DashboardStatusSummary;
+    const mcpStatusError = mcpStatusQuery.error?.message ?? null;
+    const startupStatusError = startupStatusQuery.error?.message ?? null;
+    const serversError = serversQuery.isError
+        || (serversQuery.data !== undefined && (!Array.isArray(serversQuery.data) || !serversQuery.data.every(isDashboardServerSummary)))
+        ? (serversQuery.error?.message ?? 'MCP server inventory is unavailable.')
+        : null;
+    const trafficError = trafficQuery.isError
+        || (trafficQuery.data !== undefined && (!Array.isArray(trafficQuery.data) || !trafficQuery.data.every(isDashboardTrafficSummary)))
+        ? (trafficQuery.error?.message ?? 'MCP traffic telemetry is unavailable.')
+        : null;
+    const providersError = providerQuotasQuery.isError
+        || (providerQuotasQuery.data !== undefined && (!Array.isArray(providerQuotasQuery.data) || !providerQuotasQuery.data.every(isDashboardProviderSummary)))
+        ? (providerQuotasQuery.error?.message ?? 'Provider routing inventory is unavailable.')
+        : null;
+    const fallbackChainError = fallbackChainQuery.isError
+        || (fallbackChainQuery.data !== undefined && (
+            !fallbackChainQuery.data
+            || !Array.isArray(fallbackChainQuery.data.chain)
+            || !fallbackChainQuery.data.chain.every(isDashboardFallbackSummary)
+        ))
+        ? (fallbackChainQuery.error?.message ?? 'Provider fallback chain is unavailable.')
+        : null;
+    const sessionsError = sessionsQuery.isError
+        || (sessionsQuery.data !== undefined && (!Array.isArray(sessionsQuery.data) || !sessionsQuery.data.every(isDashboardSessionSummary)))
+        ? (sessionsQuery.error?.message ?? 'Supervised session inventory is unavailable.')
+        : null;
+    const installArtifactsError = installArtifactsQuery.data !== null
+        && installArtifactsQuery.data !== undefined
+        && (!Array.isArray(installArtifactsQuery.data) || !installArtifactsQuery.data.every(isDashboardInstallSurfaceArtifact))
+        ? 'Extension install artifact inventory is unavailable.'
+        : null;
 
     const startupStatus = (startupStatusQuery.data ?? {
         status: 'starting',
@@ -173,28 +263,29 @@ export function DashboardHomeClient({ versionLabel }: DashboardHomeClientProps) 
     }) as DashboardStartupStatus;
 
     const servers = useMemo(
-        () => sortServers(((serversQuery.data ?? []) as DashboardServerSummary[])),
-        [serversQuery.data],
+        () => sortServers((!serversError ? ((serversQuery.data ?? []) as DashboardServerSummary[]) : [])),
+        [serversError, serversQuery.data],
     );
 
     const traffic = useMemo(
-        () => ([...((trafficQuery.data ?? []) as DashboardTrafficSummary[])].sort((left, right) => right.timestamp - left.timestamp)),
-        [trafficQuery.data],
+        () => ([...(!trafficError && Array.isArray(trafficQuery.data) ? (trafficQuery.data as DashboardTrafficSummary[]) : [])]
+            .sort((left, right) => right.timestamp - left.timestamp)),
+        [trafficError, trafficQuery.data],
     );
 
     const providers = useMemo(
-        () => ((providerQuotasQuery.data ?? []) as DashboardProviderSummary[]),
-        [providerQuotasQuery.data],
+        () => ((!providersError ? ((providerQuotasQuery.data ?? []) as DashboardProviderSummary[]) : [])),
+        [providerQuotasQuery.data, providersError],
     );
 
     const fallbackChain = useMemo(
-        () => ((fallbackChainQuery.data?.chain ?? []) as DashboardFallbackSummary[]),
-        [fallbackChainQuery.data],
+        () => ((!fallbackChainError ? ((fallbackChainQuery.data?.chain ?? []) as DashboardFallbackSummary[]) : [])),
+        [fallbackChainError, fallbackChainQuery.data],
     );
 
     const sessions = useMemo(
-        () => sortSessions(((sessionsQuery.data ?? []) as DashboardSessionSummary[])),
-        [sessionsQuery.data],
+        () => sortSessions((!sessionsError ? ((sessionsQuery.data ?? []) as DashboardSessionSummary[]) : [])),
+        [sessionsError, sessionsQuery.data],
     );
 
     return (
@@ -204,13 +295,22 @@ export function DashboardHomeClient({ versionLabel }: DashboardHomeClientProps) 
             currentTimestamp={currentTimestamp}
             isBootstrapping={isBootstrapping}
             mcpStatus={mcpStatus}
+            mcpStatusError={mcpStatusError}
             startupStatus={startupStatus}
+            startupStatusError={startupStatusError}
             servers={servers}
+            serversError={serversError}
             traffic={traffic}
+            trafficError={trafficError}
             providers={providers}
+            providersError={providersError}
             fallbackChain={fallbackChain}
+            fallbackChainError={fallbackChainError}
             sessions={sessions}
-            installSurfaceArtifacts={installArtifactsQuery.data ?? null}
+            sessionsError={sessionsError}
+            installSurfaceArtifacts={installArtifactsError
+                ? null
+                : (Array.isArray(installArtifactsQuery.data) ? installArtifactsQuery.data as DashboardInstallSurfaceArtifact[] : null)}
             onStartSession={(sessionId) => {
                 setPendingSessionActionId(sessionId);
                 startSessionMutation.mutate({ id: sessionId });

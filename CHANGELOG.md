@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Supervisor Chat-State Resolver Extraction**: the decision that classifies a chat as `awaiting_action`, `ready_for_input`, or `unknown` now lives in the tested `decision_logic` layer instead of only inside `detectChatState`, with direct Node coverage for all three outcomes.
 - **Supervisor Surface Resolution Extraction**: the final surface-resolution rule for override handling, targeted-window heuristics, browser-family fallback, and Antigravity inspection promotion now lives in the tested `decision_logic` layer instead of being embedded inline in `detectChatSurface`.
 - **Supervisor Surface Classifier Extraction**: title/process-based chat-surface detection now lives in the tested `decision_logic` layer instead of being embedded only in the UI automation file, with direct coverage for browser-family and title/process classifier behavior.
 - **Supervisor Surface Override Docs Sync**: the dashboard tools docs now list the supported `surfaceOverride` parameter on `detect_chat_state`, `click_action_buttons`, `set_chat_input`, and `submit_chat_input`, matching the live MCP schema.

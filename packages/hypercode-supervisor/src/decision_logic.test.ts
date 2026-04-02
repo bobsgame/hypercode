@@ -9,6 +9,7 @@ import {
     inspectionLooksLikeAntigravity,
     normalizeComparableLabel,
     resolveActionLabels,
+    resolveChatState,
     resolveDetectedSurface
 } from './decision_logic.js';
 import type { ChatSurfaceInfo, UiInspection } from './ui_automation.js';
@@ -187,5 +188,51 @@ test('resolveDetectedSurface does not promote non-browser unknown surfaces witho
         detectedSurface: 'antigravity',
         browserFamily: null,
         heuristics: ['inspection hints matched Antigravity approval/composer patterns', 'no known chat-surface heuristic matched']
+    });
+});
+
+test('resolveChatState returns awaiting_action when an approval button is present', () => {
+    const result = resolveChatState({
+        inspection: makeInspection({
+            buttons: [{ name: 'Run', isEnabled: true, isOffscreen: false, hasKeyboardFocus: false }]
+        }),
+        actionLabels: ['Run', 'Accept all'],
+        preferredInputControlTypes: ['Document', 'Edit']
+    });
+
+    assert.deepEqual(result, {
+        state: 'awaiting_action',
+        pendingActionButtons: ['Run'],
+        reasoning: ['Found actionable approval/continue buttons in the active window']
+    });
+});
+
+test('resolveChatState returns ready_for_input when no approval button exists but a usable input does', () => {
+    const result = resolveChatState({
+        inspection: makeInspection({
+            inputs: [{ name: 'composer', automationId: 'chat-input', className: 'editor', isEnabled: true, isOffscreen: false, hasKeyboardFocus: true }]
+        }),
+        actionLabels: ['Run', 'Accept all'],
+        preferredInputControlTypes: ['Document', 'Edit']
+    });
+
+    assert.deepEqual(result, {
+        state: 'ready_for_input',
+        pendingActionButtons: [],
+        reasoning: ['Found an enabled visible text input and no pending action buttons; surface profile prefers Document > Edit']
+    });
+});
+
+test('resolveChatState returns unknown when neither approval buttons nor usable input exist', () => {
+    const result = resolveChatState({
+        inspection: makeInspection(),
+        actionLabels: ['Run', 'Accept all'],
+        preferredInputControlTypes: ['Document', 'Edit']
+    });
+
+    assert.deepEqual(result, {
+        state: 'unknown',
+        pendingActionButtons: [],
+        reasoning: ['Did not find a pending action button or a usable text input']
     });
 });

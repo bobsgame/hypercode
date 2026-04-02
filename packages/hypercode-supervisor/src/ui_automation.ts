@@ -2,7 +2,7 @@ import activeWin from 'active-win';
 import { runPowerShell, runPowerShellJson, toPowerShellString } from './powershell.js';
 import { DEFAULT_ACTION_LABELS, SupervisorSettings, SupervisorSettingsManager } from './settings.js';
 import { DEFAULT_SURFACE_PROFILE, listSurfaceProfiles, resolveSurfaceProfile, SurfaceProfile } from './surface_profiles.js';
-import { inspectionLooksLikeAntigravity, resolveActionLabels, resolveDetectedSurface } from './decision_logic.js';
+import { inspectionLooksLikeAntigravity, resolveActionLabels, resolveChatState, resolveDetectedSurface } from './decision_logic.js';
 
 export interface WindowBounds {
     left: number;
@@ -705,30 +705,18 @@ export class UiAutomationManager {
             this.getSettings()
         ]);
         const resolvedActionLabels = resolveActionLabels(actionLabels, surface, settings);
-
-        const pendingActionButtons = inspection.buttons
-            .map((button) => button.name)
-            .filter((name) => resolvedActionLabels.some((label) => name?.trim().toLowerCase() === label.toLowerCase()));
-
-        const reasoning: string[] = [];
-        let state: ChatStateInfo['state'] = 'unknown';
-
-        if (pendingActionButtons.length > 0) {
-            state = 'awaiting_action';
-            reasoning.push('Found actionable approval/continue buttons in the active window');
-        } else if (inspection.inputs.some((input) => input.isEnabled && !input.isOffscreen)) {
-            state = 'ready_for_input';
-            reasoning.push(`Found an enabled visible text input and no pending action buttons; surface profile prefers ${surface.surfaceProfile.inputControlTypes.join(' > ')}`);
-        } else {
-            reasoning.push('Did not find a pending action button or a usable text input');
-        }
+        const stateResult = resolveChatState({
+            inspection,
+            actionLabels: resolvedActionLabels,
+            preferredInputControlTypes: surface.surfaceProfile.inputControlTypes
+        });
 
         return {
             surface,
             inspection,
-            state,
-            pendingActionButtons,
-            reasoning
+            state: stateResult.state,
+            pendingActionButtons: stateResult.pendingActionButtons,
+            reasoning: stateResult.reasoning
         };
     }
 

@@ -426,6 +426,32 @@ Validated with:
 - `pnpm -C packages\hypercode-supervisor run build`
 - `pnpm -C packages\hypercode-supervisor run test`
 
+### 0.18. Chat-state classification now lives in the tested decision layer too
+
+Finding:
+
+- `detectChatState` still held one important piece of inline reasoning: whether the current window was `awaiting_action`, `ready_for_input`, or `unknown`
+- that meant the supervisor still had one more core decision path embedded in the larger automation file even after the previous classifier/resolver extractions
+
+What changed:
+
+- added `resolveChatState(...)` to `packages/hypercode-supervisor/src/decision_logic.ts`
+- added direct Node coverage for:
+  - pending approval button → `awaiting_action`
+  - usable input without approval button → `ready_for_input`
+  - neither condition → `unknown`
+- `ui_automation.ts` now delegates that classification to the shared tested helper
+
+Behavior change:
+
+- runtime behavior is unchanged in intent, but chat-state resolution is now explicit, shared, and regression covered alongside the other supervisor decision rules
+
+Validated with:
+
+- `pnpm -C packages\hypercode-supervisor exec tsc --noEmit`
+- `pnpm -C packages\hypercode-supervisor run build`
+- `pnpm -C packages\hypercode-supervisor run test`
+
 ### 1. Published catalog stdio entries are no longer labeled "unsafe"
 
 Updated `packages/core/src/services/published-catalog-validator.ts` so stdio-backed published catalog entries are labeled as transport-skipped instead of `stdio_unsafe`.

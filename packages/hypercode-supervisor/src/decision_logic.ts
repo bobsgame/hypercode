@@ -149,3 +149,36 @@ export function resolveDetectedSurface(options: {
         heuristics
     };
 }
+
+export function resolveChatState(options: {
+    inspection: UiInspection;
+    actionLabels: string[];
+    preferredInputControlTypes: string[];
+}): {
+    state: 'awaiting_action' | 'ready_for_input' | 'unknown';
+    pendingActionButtons: string[];
+    reasoning: string[];
+} {
+    const pendingActionButtons = options.inspection.buttons
+        .map((button) => button.name)
+        .filter((name) => options.actionLabels.some((label) => name?.trim().toLowerCase() === label.toLowerCase()));
+
+    const reasoning: string[] = [];
+    let state: 'awaiting_action' | 'ready_for_input' | 'unknown' = 'unknown';
+
+    if (pendingActionButtons.length > 0) {
+        state = 'awaiting_action';
+        reasoning.push('Found actionable approval/continue buttons in the active window');
+    } else if (options.inspection.inputs.some((input) => input.isEnabled && !input.isOffscreen)) {
+        state = 'ready_for_input';
+        reasoning.push(`Found an enabled visible text input and no pending action buttons; surface profile prefers ${options.preferredInputControlTypes.join(' > ')}`);
+    } else {
+        reasoning.push('Did not find a pending action button or a usable text input');
+    }
+
+    return {
+        state,
+        pendingActionButtons,
+        reasoning
+    };
+}

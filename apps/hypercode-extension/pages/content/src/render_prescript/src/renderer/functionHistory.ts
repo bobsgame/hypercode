@@ -218,7 +218,7 @@ export const checkAndDisplayFunctionHistory = (
   // Get executed functions for the current URL
   const executedFunctions = getExecutedFunctionsForCurrentUrl();
 
-  // Find matching executions - direct lookup from localStorage to prevent race conditions
+  // Find matching executions - direct lookup from the synchronous history cache prevents race conditions
   const exactMatch = getPreviousExecution(functionName, callId, contentSignature);
   const matchingExecutions = exactMatch ? [exactMatch] : [];
 

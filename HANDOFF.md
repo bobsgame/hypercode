@@ -202,7 +202,7 @@ Current repo framing remains consistent:
 
 ### 1. `investigate-storage-access-noise`
 
-Status: **in progress**
+Status: **completed**
 
 What is known:
 
@@ -215,8 +215,7 @@ What is known:
 
 What remains:
 
-- verify whether the remaining console noise is fully addressed by the store adapter migration
-- decide whether any remaining comment-only or test-only `localStorage` references need cleanup, or whether the storage-noise lane is complete enough to close
+- browser-in-the-loop confirmation is still valuable, but the checked-in content runtime audit now points to intentional non-extension fallback helpers plus tests/comments rather than live restricted-page storage coupling
 
 Validation note:
 

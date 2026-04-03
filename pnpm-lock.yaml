@@ -681,6 +681,8 @@ importers:
         specifier: ^4.0.15
         version: 4.0.16(@opentelemetry/api@1.9.0)(@types/node@20.19.37)(jiti@1.21.7)(jsdom@27.4.0(@noble/hashes@2.0.1)(canvas@3.2.2))(lightningcss@1.32.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
 
+  apps/maestro-native: {}
+
   apps/mobile:
     dependencies:
       expo:

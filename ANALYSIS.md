@@ -1,42 +1,265 @@
-# HyperCode Complete Parity & Stabilization Pass
+# HyperCode Stabilization Analysis — 2026-04-03
 
-## 1. Zero-Error Workspace Compilation
-The entire HyperCode monorepo (`@hypercode/*`, `maestro`, `@jules/*`, `hypercode-extension`) has been successfully compiled using `pnpm run build:workspace` with **0 errors**.
+## Summary
+This pass focused on **stabilization-first Go sidecar expansion** and a small **Maestro terminal-history UX fix**. The work stayed aligned with the current repo policy in `docs/UNIVERSAL_LLM_INSTRUCTIONS.md`: improve operator-facing reliability and truthful fallback behavior before speculative platform expansion.
 
-## 2. Native Maestro Evolution
-A new native application framework has been introduced in `apps/maestro-native` to achieve the goal of porting Maestro to C++/Qt6:
-- Utilizes the `bobui` submodule framework.
-- Standardized CMake build structure for cross-platform support.
-- Bootstrapped the initial QML layout reflecting the Maestro split-pane view (Sidebar, Chat, Terminal).
-- **Native Terminal Bridge**: Registered the `bobui` C++ `OmniTerminal` component natively to the QML engine, exposing the high-performance PTY backend directly to the UI layer for perfect feature parity.
+## Truthfulness labels
 
-## 3. Go Sidecar Integration & Parity
-The experimental Go orchestrator (`apps/maestro-go` & `go/`) has been significantly enhanced:
-- **Wails Integration:** Integrated the Wails framework to bridge Go processes to the React frontend.
-- **Process Management:** Implemented PTY/Stdio command execution and streaming natively in Go (`ExecuteCommand`, `KillProcess`).
-- **Native Session Supervisor:** Built a robust Go-native task supervisor (`go/internal/supervisor/supervisor.go`) that manages long-running daemon processes (like `opencode` or `jules-autopilot`) natively, with automatic restart backoffs, crash reporting, and lifecycle hooks directly accessible via Wails!
-- **Native Council Debate Engine:** Ported the multi-agent debate loop directly to Go (`go/internal/orchestration/council.go`). The sidecar now autonomously runs a synchronous discussion between a "Principal Architect" and a "Security Reviewer", utilizing the native Go LLM router to synthesize a consensus implementation plan before passing it back to the client!
-- **Agent Detection:** Ported the PATH-based agent detection logic into the `agents` Go package.
-- **MCP Aggregation Core:** Bootstrapped `mcp.Aggregator` in `go/internal/mcp` capable of maintaining persistent Stdio `Client` structs, tracking `jsonrpc` message IDs, and marshaling `tools/list` broadcasts locally.
-- **Go Tool RAG Ranking Engine:** Constructed a sophisticated TF-IDF/BM25-style tool search and ranking algorithm directly in Go (`go/internal/mcp/ranking.go`). It automatically tokenizes user prompts, weights tool names, descriptions, tags, and semantic categories, and dynamically calculates relevance scores. This is wired directly into `/api/mcp/tools/search`, eliminating the need to spin up the Node.js TypeScript engine for semantic tool discovery!
-- **Omniscient Memory Expansion:** Implemented a direct SQLite full-text search capability in `go/internal/memorystore/search.go`. The Go sidecar now falls back to native high-performance searches across `web_memories` and `imported_session_memories` when the primary Node router is unavailable, ensuring absolute read-parity.
-- **Native Session Importer:** Established `go/internal/sessionimport/import.go` with deep native integration to parse and extract JSON/Markdown records directly into the `metamcp.db` SQLite database, perfectly mimicking the Node-based `SessionImportService.ts`.
-- **Cloud Orchestrator Routes:** Added Jules Autopilot API parity via `/api/jules/manifest`, `/api/jules/sessions`, and `/api/system/submodules` handlers inside the Go sidecar (`cloud_orchestrator_handlers.go`).
-- **BobbyBookmarks Parity:** Ported the `bobby-bookmarks-adapter` from TypeScript into a highly efficient native Go implementation (`go/internal/sync/bobbybookmarks.go`). It fetches paginated payloads from the remote API and executes bulk `UPSERT` queries directly against the `links_backlog` SQLite table, acting as an instant fallback for `/api/links-backlog/sync`.
-- **LLM Provider Routing & Execution:** Designed and implemented a native Go LLM provider routing engine (`go/internal/ai/llm.go`). It automatically routes to Anthropic (Claude 3.5 Sonnet) or OpenAI (GPT-4o) depending on configured environment variables.
-- **Go CLI Agent Chat API:** Bootstrapped the `/api/agent/chat` endpoint natively inside the Go control plane (`agent_handlers.go`). This provides a fast fallback layer for the terminal interfaces to communicate with frontier LLMs without relying on the Node.js backend.
+### Stable
+- `go build -buildvcs=false ./cmd/hypercode` currently succeeds.
+- `pnpm run build:workspace` currently succeeds across the workspace.
+- The new Go code added in this pass compiles and is wired into the Go HTTP server.
+- The Maestro quick action change for clearing terminal history builds successfully as part of the workspace build.
 
-## 4. Submodule & Tooling Alignment
-- **HyperCode CLI Harness Parity:** Updated the terminal-based chat interface (`submodules/hypercode/tui/slash.go`) to actively query the new local Go Control Plane (port 4000). The `/mcp` and `/memory` slash commands now natively fetch live tool inventories and search results via the Go API instead of relying on legacy routes.
-- **Opencode Assimilation:** Maintained and synced the `packages/claude-mem/opencode-plugin` logic, preparing the sidecar to parse opencode-specific `.docs/ai-logs`.
-- All submodules, including `prism-mcp`, `hypercode`, `Maestro`, `OmniRoute`, and the `claude-mem` archives, have been synchronized.
-- The `bobbybookmarks` submodule path and GitHub origin have been corrected.
-- "Borg" nomenclature was eradicated across all nested submodules.
+### Beta
+- The Go sidecar now exposes additional native fallback surfaces for:
+  - provider auto-routing improvements
+  - native workflow execution endpoints
+  - native supervisor endpoints
+  - native session export
+  - native git submodule update orchestration
+- These surfaces compile and are route-registered, but they are still young and should be treated as beta until exercised with targeted API-level tests.
 
-## 5. UI and Browser Parity Stabilization
-- Fixed the `ThemeContext` broken import path in Maestro's Visual Orchestrator.
-- Addressed missing React components in the HyperCode Dashboard (Tools and Logs pages).
-- Upgraded the Maestro PWA UI capabilities and corrected missing React dependencies (`react-devtools-core` and `zustand`) within `@jules/cli`.
-- **Browser Extension Parity**: Extensively refactored `hypercode-extension` background scripts to dynamically target the new HyperCode control plane (port 4000 and the correct WebSocket paths), removing legacy proxy routing (port 3006).
+### Experimental
+- The native workflow engine is a lightweight DAG executor with shell-command steps. It is useful and functional, but it is not yet a full parity replacement for every workflow feature exposed by the TypeScript side.
+- The native supervisor HTTP surface is functional for create/start/stop/list/status flows, but it does not yet provide the same breadth of logs/streaming/inspection semantics as the mature TS path.
+- The native session export path works as a file-based exporter and manifest writer, but it is not yet a comprehensive parity layer for every external session ecosystem.
+- Concurrent native git submodule updating is implemented, but it should be considered experimental because some submodule remotes in this repo are known to be brittle or unavailable.
 
-The "party" continues. All systems are deeply integrated, flawlessly compiling, and prepped for the next generation of native implementations.
+### Vision / still blocked
+- `apps/maestro-native` Qt/Wails-adjacent native ambitions remain partially blocked by the external `bobui` toolchain state, especially missing generated Qt build tooling like `moc.exe` in the current local setup.
+- Full Go parity for all TypeScript orchestration surfaces is still an ongoing migration, not a completed state.
+
+---
+
+## Work completed in this pass
+
+### 1. Go provider routing expansion
+File: `go/internal/ai/llm.go`
+
+Added broader native provider coverage and better fallback selection logic.
+
+#### Implemented
+- Added `GeminiProvider` using Google Generative Language API.
+- Added `DeepSeekProvider` using an OpenAI-compatible endpoint.
+- Added `OpenRouterProvider` using an OpenAI-compatible endpoint.
+- Added `ProviderPriority` routing order with env-var-driven selection.
+- Added `AutoRouteWithModel()` for model override support.
+- Added `ListConfiguredProviders()` to inspect configured native providers.
+
+#### Result
+The Go sidecar is no longer limited to just Anthropic/OpenAI for native fallback routing. It can now truthfully attempt a broader set of providers when the TS control plane is unavailable.
+
+#### Status
+**Beta** — compiled and integrated, but not yet validated with live API calls in this pass.
+
+---
+
+### 2. Native workflow engine
+Files:
+- `go/internal/workflow/engine.go`
+- `go/internal/workflow/builtins.go`
+- `go/internal/httpapi/workflow_handlers.go`
+- `go/internal/httpapi/server.go`
+
+Implemented a lightweight native Go workflow system.
+
+#### Implemented
+- DAG-style workflow model with:
+  - step dependency resolution
+  - topological sorting
+  - step status tracking
+  - concurrent execution where dependency structure allows it
+  - output passing between dependent steps
+- Built-in workflows:
+  - `full-build`
+  - `submodule-sync`
+  - `lint-test`
+- New native endpoints:
+  - `/api/workflows/native`
+  - `/api/workflows/native/get`
+  - `/api/workflows/native/run`
+  - `/api/workflows/native/create`
+
+#### Important truthfulness note
+This is **not** a complete replacement for every existing TypeScript workflow surface. It is a native fallback executor for practical shell-based workflows.
+
+#### Status
+**Experimental** — compiles, route-registered, suitable for iterative expansion.
+
+---
+
+### 3. Native supervisor API wiring
+Files:
+- `go/internal/httpapi/native_supervisor_handlers.go`
+- `go/internal/httpapi/server.go`
+
+Connected the existing Go supervisor manager to first-class HTTP endpoints.
+
+#### Implemented
+- Native endpoints:
+  - `/api/supervisor/native/list`
+  - `/api/supervisor/native/create`
+  - `/api/supervisor/native/start`
+  - `/api/supervisor/native/stop`
+  - `/api/supervisor/native/status`
+- Server boot now initializes:
+  - `supervisorManager`
+  - `workflowEngine`
+
+#### Result
+The supervisor code is no longer just a library surface; it is now reachable through HTTP in the sidecar.
+
+#### Status
+**Beta** — compiles and is usable, but still narrower than the TS session/supervisor ecosystem.
+
+---
+
+### 4. Native session export
+Files:
+- `go/internal/sessionimport/exporter.go`
+- `go/internal/httpapi/session_export_handlers.go`
+- `go/internal/httpapi/server.go`
+
+Expanded the exporter from a manifest stub into a practical file export flow.
+
+#### Implemented
+- Added file-based export logic that:
+  - scans session candidates
+  - copies source content into an export directory
+  - records metadata per exported item
+  - writes `export-manifest.json`
+- Added native endpoint:
+  - `/api/import/export-native`
+
+#### Important truthfulness note
+This exporter currently acts as a practical filesystem export/packaging path. It should not be described as universal parity for every import/export format.
+
+#### Status
+**Beta** — compiled and integrated.
+
+---
+
+### 5. Native git submodule orchestration fallback
+Files:
+- `go/internal/git/submodules.go`
+- `go/internal/httpapi/git_handlers.go`
+
+Added a native Go path for `submodule.updateAll` fallback behavior.
+
+#### Implemented
+- `ListSubmodules()` parses `git submodule status`
+- `UpdateAll()`:
+  - initializes submodules recursively
+  - updates submodules concurrently
+  - captures per-submodule result status/output
+- HTTP fallback handler attempts upstream first, then executes native Go orchestration if upstream is unavailable.
+
+#### Important truthfulness note
+This is especially useful in this repo because some submodules are known to have remote inconsistencies. The code handles that with per-submodule reporting, but the surrounding ecosystem is still operationally fragile.
+
+#### Status
+**Experimental** — good fallback utility, but needs targeted runtime exercise against real remote states.
+
+---
+
+### 6. Maestro terminal history clear action improvement
+File:
+- `apps/maestro/src/renderer/components/QuickActionsModal.tsx`
+
+#### Implemented
+Updated the “Clear Terminal History” quick action so it now clears:
+- legacy `shellLogs`
+- terminal-tab logs when terminal tabs exist
+
+#### Why this matters
+The previous behavior only cleared the legacy log array, which could leave visible terminal-tab history intact and create confusing UX.
+
+#### Status
+**Stable** for the changed behavior within current build validation.
+
+---
+
+## Validation performed
+
+### 1. Go validation
+Command:
+```bash
+cd go && go build -buildvcs=false ./cmd/hypercode
+```
+
+Result:
+- **Succeeded** with no reported compile errors after final fixes.
+
+### 2. Workspace validation
+Command:
+```bash
+pnpm run build:workspace
+```
+
+Result:
+- **Succeeded**.
+- Workspace build completed successfully.
+
+### 3. Notable warnings still present during workspace build
+These are warnings, not blockers, but they should be kept visible:
+- `apps/cloud-orchestrator` warns that `pnpm.overrides` is defined below workspace root and will not take effect there.
+- Maestro Vite/browser build logs include existing warnings around:
+  - browser externalization of `crypto`
+  - large chunk sizes
+  - some dynamic/static import overlap
+  - CSS minification warning around malformed CSS content already present elsewhere
+
+These warnings predated this pass’s Go work and did **not** block successful builds.
+
+---
+
+## Files added or changed in this pass
+
+### Added
+- `go/internal/git/submodules.go`
+- `go/internal/httpapi/git_handlers.go`
+- `go/internal/httpapi/native_supervisor_handlers.go`
+- `go/internal/httpapi/session_export_handlers.go`
+- `go/internal/httpapi/workflow_handlers.go`
+- `go/internal/workflow/engine.go`
+- `go/internal/workflow/builtins.go`
+
+### Modified
+- `go/internal/ai/llm.go`
+- `go/internal/httpapi/server.go`
+- `go/internal/sessionimport/exporter.go`
+- `apps/maestro/src/renderer/components/QuickActionsModal.tsx`
+- `ANALYSIS.md`
+
+---
+
+## Remaining gaps / next recommended steps
+
+### Recommended next
+1. Add targeted API-level tests for the new native Go endpoints:
+   - workflows
+   - supervisor native routes
+   - export-native
+   - submodule update fallback
+2. Add structured logging around workflow execution and supervisor lifecycle events.
+3. Add cancellation and safer execution constraints for native workflow shell steps.
+4. Improve provider routing observability so the dashboard can show which native provider path was selected and why.
+5. Normalize submodule path/base extraction for Windows path edge cases if needed.
+6. Continue Maestro migration away from legacy `shellLogs`; current code still intentionally retains compatibility fallbacks for sessions without terminal tabs.
+
+### Still blocked / external dependency
+- `bobui` / Qt native toolchain completion is still required before claiming successful native Qt binary compilation for `apps/maestro-native`.
+
+---
+
+## Bottom line
+This pass meaningfully strengthened the **Go sidecar as a truthful local fallback control plane**:
+- broader provider routing
+- native workflows
+- native supervisor endpoints
+- native export
+- native submodule update orchestration
+- a small but real Maestro UX fix
+
+It was validated by successful Go compilation and a successful full workspace build. The new systems are real and integrated, but several of them should still be described as **Beta** or **Experimental**, not full parity.

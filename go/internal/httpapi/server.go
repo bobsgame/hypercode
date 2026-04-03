@@ -37,6 +37,8 @@ import (
 	"github.com/hypercodehq/hypercode-go/internal/mesh"
 	"github.com/hypercodehq/hypercode-go/internal/providers"
 	"github.com/hypercodehq/hypercode-go/internal/sessionimport"
+	"github.com/hypercodehq/hypercode-go/internal/supervisor"
+	"github.com/hypercodehq/hypercode-go/internal/workflow"
 	bobbySync "github.com/hypercodehq/hypercode-go/internal/sync"
 	_ "modernc.org/sqlite"
 )
@@ -53,14 +55,16 @@ var sessionExportKnownFormats = []map[string]any{
 }
 
 type Server struct {
-	cfg            config.Config
-	detector       controlplane.ToolProvider
-	mesh           *mesh.Service
-	aggregator     *mcp.Aggregator
-	startedAt      time.Time
-	mux            *http.ServeMux
-	lifecycleModes map[string]any
-	fallbackBuffer *providerFallbackBuffer
+	cfg               config.Config
+	detector          controlplane.ToolProvider
+	mesh              *mesh.Service
+	aggregator        *mcp.Aggregator
+	startedAt         time.Time
+	mux               *http.ServeMux
+	lifecycleModes    map[string]any
+	fallbackBuffer    *providerFallbackBuffer
+	supervisorManager *supervisor.Manager
+	workflowEngine    *workflow.Engine
 }
 
 type providerFallbackEvent struct {
@@ -351,18 +355,29 @@ type SummaryBucket struct {
 }
 
 func New(cfg config.Config, detector controlplane.ToolProvider) *Server {
+	// Create supervisor manager
+	supMgr := supervisor.NewManager()
+
+	// Create workflow engine with built-in workflows
+	wfEngine := workflow.NewEngine()
+	wfEngine.Register(workflow.FullBuildWorkflow(cfg.WorkspaceRoot))
+	wfEngine.Register(workflow.SubmoduleSyncWorkflow(cfg.WorkspaceRoot))
+	wfEngine.Register(workflow.LintAndTestWorkflow(cfg.WorkspaceRoot))
+
 	server := &Server{
-		cfg:        cfg,
-		detector:   detector,
-		mesh:       mesh.New(cfg),
-		aggregator: mcp.NewAggregator(),
-		startedAt:  time.Now().UTC(),
-		mux:        http.NewServeMux(),
+		cfg:               cfg,
+		detector:          detector,
+		mesh:              mesh.New(cfg),
+		aggregator:        mcp.NewAggregator(),
+		startedAt:         time.Now().UTC(),
+		mux:               http.NewServeMux(),
 		lifecycleModes: map[string]any{
 			"lazySessionMode":        false,
 			"singleActiveServerMode": false,
 		},
-		fallbackBuffer: newProviderFallbackBuffer(50),
+		fallbackBuffer:    newProviderFallbackBuffer(50),
+		supervisorManager: supMgr,
+		workflowEngine:    wfEngine,
 	}
 
 	server.registerRoutes()
@@ -951,6 +966,22 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("/api/mesh/query-capabilities", s.handleMeshQueryCapabilities)
 	s.mux.HandleFunc("/api/mesh/find-peer", s.handleMeshFindPeer)
 	s.mux.HandleFunc("/api/mesh/broadcast", s.handleMeshBroadcast)
+
+	// Workflow Engine (Native Go DAG executor)
+	s.mux.HandleFunc("/api/workflows/native", s.handleNativeWorkflowList)
+	s.mux.HandleFunc("/api/workflows/native/get", s.handleNativeWorkflowGet)
+	s.mux.HandleFunc("/api/workflows/native/run", s.handleNativeWorkflowRun)
+	s.mux.HandleFunc("/api/workflows/native/create", s.handleNativeWorkflowCreate)
+
+	// Native Supervisor (Go-native process management)
+	s.mux.HandleFunc("/api/supervisor/native/list", s.handleNativeSupervisorList)
+	s.mux.HandleFunc("/api/supervisor/native/create", s.handleNativeSupervisorCreate)
+	s.mux.HandleFunc("/api/supervisor/native/start", s.handleNativeSupervisorStart)
+	s.mux.HandleFunc("/api/supervisor/native/stop", s.handleNativeSupervisorStop)
+	s.mux.HandleFunc("/api/supervisor/native/status", s.handleNativeSupervisorStatus)
+
+	// Session Export (Native Go)
+	s.mux.HandleFunc("/api/import/export-native", s.handleNativeSessionExport)
 }
 
 func (s *Server) handleHealth(w http.ResponseWriter, _ *http.Request) {
@@ -7974,9 +8005,6 @@ func (s *Server) handleSubmoduleList(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func (s *Server) handleSubmoduleUpdateAll(w http.ResponseWriter, r *http.Request) {
-	s.handleTRPCBridgeBodyCall(w, r, "submodule.updateAll")
-}
 
 func (s *Server) handleSubmoduleInstallDependencies(w http.ResponseWriter, r *http.Request) {
 	s.handleTRPCBridgeBodyCall(w, r, "submodule.installDependencies")

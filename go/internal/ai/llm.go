@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -168,18 +169,192 @@ func (p *AnthropicProvider) GenerateText(ctx context.Context, model string, mess
 	}, nil
 }
 
-// AutoRoute selects the best available provider based on environment variables
-// This acts as a lightweight fallback router when the main TypeScript Core is unavailable
+// GeminiProvider implements the Google Gemini (Generative AI) API
+type GeminiProvider struct {
+	APIKey  string
+	BaseURL string
+}
+
+func (p *GeminiProvider) GenerateText(ctx context.Context, model string, messages []Message) (*LLMResponse, error) {
+	if p.BaseURL == "" {
+		p.BaseURL = "https://generativelanguage.googleapis.com/v1beta"
+	}
+
+	// Convert messages to Gemini content format
+	contents := make([]map[string]interface{}, 0, len(messages))
+	var systemInstruction string
+	for _, msg := range messages {
+		if msg.Role == "system" {
+			systemInstruction = msg.Content
+			continue
+		}
+		role := msg.Role
+		if role == "assistant" {
+			role = "model"
+		}
+		contents = append(contents, map[string]interface{}{
+			"role":  role,
+			"parts": []map[string]string{{"text": msg.Content}},
+		})
+	}
+
+	body := map[string]interface{}{
+		"contents": contents,
+	}
+	if systemInstruction != "" {
+		body["systemInstruction"] = map[string]interface{}{
+			"parts": []map[string]string{{"text": systemInstruction}},
+		}
+	}
+
+	reqBody, _ := json.Marshal(body)
+
+	url := fmt.Sprintf("%s/models/%s:generateContent?key=%s", p.BaseURL, model, p.APIKey)
+	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(reqBody))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{Timeout: 120 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		respBody, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("Gemini API error: %s - %s", resp.Status, string(respBody))
+	}
+
+	var payload struct {
+		Candidates []struct {
+			Content struct {
+				Parts []struct {
+					Text string `json:"text"`
+				} `json:"parts"`
+			} `json:"content"`
+		} `json:"candidates"`
+		UsageMetadata struct {
+			PromptTokenCount     int `json:"promptTokenCount"`
+			CandidatesTokenCount int `json:"candidatesTokenCount"`
+		} `json:"usageMetadata"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
+		return nil, err
+	}
+
+	if len(payload.Candidates) == 0 || len(payload.Candidates[0].Content.Parts) == 0 {
+		return nil, fmt.Errorf("no content returned from Gemini")
+	}
+
+	// Concatenate all parts
+	var sb strings.Builder
+	for _, part := range payload.Candidates[0].Content.Parts {
+		sb.WriteString(part.Text)
+	}
+
+	return &LLMResponse{
+		Content:  sb.String(),
+		Provider: "google",
+		Model:    model,
+		Usage: struct {
+			InputTokens  int
+			OutputTokens int
+		}{
+			InputTokens:  payload.UsageMetadata.PromptTokenCount,
+			OutputTokens: payload.UsageMetadata.CandidatesTokenCount,
+		},
+	}, nil
+}
+
+// DeepSeekProvider uses OpenAI-compatible API at api.deepseek.com
+type DeepSeekProvider struct {
+	APIKey string
+}
+
+func (p *DeepSeekProvider) GenerateText(ctx context.Context, model string, messages []Message) (*LLMResponse, error) {
+	oai := &OpenAIProvider{
+		APIKey:  p.APIKey,
+		BaseURL: "https://api.deepseek.com/v1/chat/completions",
+	}
+	resp, err := oai.GenerateText(ctx, model, messages)
+	if err != nil {
+		return nil, err
+	}
+	resp.Provider = "deepseek"
+	return resp, nil
+}
+
+// OpenRouterProvider uses OpenAI-compatible API at openrouter.ai
+type OpenRouterProvider struct {
+	APIKey string
+}
+
+func (p *OpenRouterProvider) GenerateText(ctx context.Context, model string, messages []Message) (*LLMResponse, error) {
+	oai := &OpenAIProvider{
+		APIKey:  p.APIKey,
+		BaseURL: "https://openrouter.ai/api/v1/chat/completions",
+	}
+	resp, err := oai.GenerateText(ctx, model, messages)
+	if err != nil {
+		return nil, err
+	}
+	resp.Provider = "openrouter"
+	return resp, nil
+}
+
+// ProviderPriority defines the order for auto-routing
+var ProviderPriority = []struct {
+	EnvVar       string
+	ProviderName string
+	DefaultModel string
+	Factory      func(apiKey string) Provider
+}{
+	{"ANTHROPIC_API_KEY", "anthropic", "claude-sonnet-4-20250514", func(k string) Provider { return &AnthropicProvider{APIKey: k} }},
+	{"GOOGLE_API_KEY", "google", "gemini-2.5-flash", func(k string) Provider { return &GeminiProvider{APIKey: k} }},
+	{"GEMINI_API_KEY", "google", "gemini-2.5-flash", func(k string) Provider { return &GeminiProvider{APIKey: k} }},
+	{"OPENAI_API_KEY", "openai", "gpt-4o", func(k string) Provider { return &OpenAIProvider{APIKey: k} }},
+	{"DEEPSEEK_API_KEY", "deepseek", "deepseek-chat", func(k string) Provider { return &DeepSeekProvider{APIKey: k} }},
+	{"OPENROUTER_API_KEY", "openrouter", "openrouter/auto", func(k string) Provider { return &OpenRouterProvider{APIKey: k} }},
+}
+
+// AutoRoute selects the best available provider based on environment variables.
+// Priority: Anthropic > Gemini > OpenAI > DeepSeek > OpenRouter
+// This acts as a lightweight fallback router when the main TypeScript Core is unavailable.
 func AutoRoute(ctx context.Context, messages []Message) (*LLMResponse, error) {
-	if key := os.Getenv("ANTHROPIC_API_KEY"); key != "" {
-		provider := &AnthropicProvider{APIKey: key}
-		return provider.GenerateText(ctx, "claude-3-5-sonnet-20241022", messages)
+	for _, entry := range ProviderPriority {
+		if key := os.Getenv(entry.EnvVar); key != "" {
+			return entry.Factory(key).GenerateText(ctx, entry.DefaultModel, messages)
+		}
 	}
 
-	if key := os.Getenv("OPENAI_API_KEY"); key != "" {
-		provider := &OpenAIProvider{APIKey: key}
-		return provider.GenerateText(ctx, "gpt-4o", messages)
+	return nil, fmt.Errorf("no LLM provider configured (set ANTHROPIC_API_KEY, GOOGLE_API_KEY, GEMINI_API_KEY, OPENAI_API_KEY, DEEPSEEK_API_KEY, or OPENROUTER_API_KEY)")
+}
+
+// AutoRouteWithModel selects the best provider and allows model override
+func AutoRouteWithModel(ctx context.Context, model string, messages []Message) (*LLMResponse, error) {
+	for _, entry := range ProviderPriority {
+		if key := os.Getenv(entry.EnvVar); key != "" {
+			if model == "" {
+				model = entry.DefaultModel
+			}
+			return entry.Factory(key).GenerateText(ctx, model, messages)
+		}
 	}
 
-	return nil, fmt.Errorf("no suitable LLM provider configured in the environment (missing ANTHROPIC_API_KEY or OPENAI_API_KEY)")
+	return nil, fmt.Errorf("no LLM provider configured")
+}
+
+// ListConfiguredProviders returns which providers have API keys set
+func ListConfiguredProviders() []string {
+	var configured []string
+	for _, entry := range ProviderPriority {
+		if os.Getenv(entry.EnvVar) != "" {
+			configured = append(configured, entry.ProviderName)
+		}
+	}
+	return configured
 }

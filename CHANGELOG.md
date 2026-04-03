@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.0.0-alpha.1] - 2026-04-02
 
 ### Added
+- **Workspace Secrets Injection**: The internal `workspace_secrets` SQLite table (managed by the "Secrets Vault" dashboard) is now natively and securely injected into the `process.env` stream for every `StdioClient` spawn. This allows global API credentials (like GitHub tokens, API keys) to flow securely into all MCP servers without needing to hardcode them in individual server configs or the operator's shell profile.
+
+## [1.0.0-alpha.1] - 2026-04-02
+
+### Added
 - **HyperIngest Daemon Processes**: Implemented the first standalone daemon package boundaries for `hyperingest` via `BobbyBookmarksSyncWorker` and `LinkCrawlerWorker`.
 - **Autonomous Link Crawler**: HyperCode now autonomously crawls pending URLs in the Links Backlog using `jsdom` to extract OpenGraph tags, favicons, and page descriptions, feeding the raw text to a configured LLM to automatically generate semantic tags and categories without user intervention.
 - **Cross-Database Backlog Sync**: Built a background daemon worker to seamlessly and safely synchronize the external `resources.db` bookmarks fed by the Python ecosystem into the canonical `metamcp.db` `links_backlog` table.

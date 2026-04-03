@@ -973,6 +973,33 @@ export function buildDashboardAlerts(
             href: '/dashboard/mcp',
             hrefLabel: 'Open server health',
         });
+    } else if (mcpStatus.initialized && servers.length === 0 && providers.length === 0) {
+        alerts.push({
+            id: 'first-run-setup',
+            severity: 'info',
+            title: 'Welcome to HyperCode! Let\'s get started. 🚀',
+            detail: 'Your workspace is fresh. Start by configuring an AI Provider and connecting an MCP Server to give your models tools.',
+            href: '/dashboard/providers',
+            hrefLabel: 'Configure Providers',
+        });
+    } else if (mcpStatus.initialized && servers.length === 0) {
+        alerts.push({
+            id: 'no-mcp-servers',
+            severity: 'info',
+            title: 'No MCP Servers Connected',
+            detail: 'Your models have no tools available. Add a server from the registry or sync your VS Code/Cursor configuration.',
+            href: '/dashboard/integrations',
+            hrefLabel: 'Add MCP Server',
+        });
+    } else if (mcpStatus.initialized && providers.length === 0) {
+        alerts.push({
+            id: 'no-providers',
+            severity: 'info',
+            title: 'No AI Providers Configured',
+            detail: 'You need to configure an API key (Anthropic, OpenAI, Gemini) to run autonomous sessions.',
+            href: '/dashboard/providers',
+            hrefLabel: 'Configure Providers',
+        });
     }
 
     if (options?.providersError) {

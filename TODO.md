@@ -32,8 +32,8 @@ Make HyperCode feel trustworthy in daily operator use.
 
 ## P2 — Helpful but not urgent
 
-- [ ] Publish clearer reliability and latency baselines
-- [ ] Improve benchmark and diagnostics visibility
+- [x] Publish clearer reliability and latency baselines
+- [x] Improve benchmark and diagnostics visibility
 - [ ] Reduce duplicate or low-value dashboard surfaces
 - [ ] Improve tool search and working-set ergonomics
 - [x] Design the internal MCP server library pipeline: ingestion from public lists, dedupe, provenance, and refresh rules

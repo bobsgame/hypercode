@@ -120,6 +120,44 @@ export default function MetricsPage() {
                 </>
             )}
 
+            {/* Histograms / Latency Baselines */}
+            {data && normalized.histograms && normalized.histograms.length > 0 && (
+                <div className="bg-card border rounded-lg p-6">
+                    <h2 className="text-lg font-semibold mb-1">⏱️ Latency & Reliability Baselines</h2>
+                    <p className="text-sm text-muted-foreground mb-4">
+                        Tool execution durations and aggregated MCP latency profiles.
+                    </p>
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                            <thead>
+                                <tr className="text-left border-b">
+                                    <th className="pb-2 pr-4 font-medium text-muted-foreground">Metric</th>
+                                    <th className="pb-2 pr-4 font-medium text-muted-foreground">Samples</th>
+                                    <th className="pb-2 pr-4 font-medium text-muted-foreground">Avg (ms)</th>
+                                    <th className="pb-2 pr-4 font-medium text-muted-foreground">p50</th>
+                                    <th className="pb-2 pr-4 font-medium text-muted-foreground">p95</th>
+                                    <th className="pb-2 pr-4 font-medium text-muted-foreground">p99</th>
+                                    <th className="pb-2 font-medium text-muted-foreground">Max</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {normalized.histograms.map((h, i) => (
+                                    <tr key={i} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
+                                        <td className="py-2 pr-4 font-mono text-emerald-400 whitespace-nowrap">{h.name}</td>
+                                        <td className="py-2 pr-4 text-muted-foreground tabular-nums">{h.stats.count}</td>
+                                        <td className="py-2 pr-4 text-muted-foreground tabular-nums">{Math.round(h.stats.avg)}</td>
+                                        <td className="py-2 pr-4 text-amber-200/80 tabular-nums">{Math.round(h.stats.p50)}</td>
+                                        <td className="py-2 pr-4 text-amber-400 tabular-nums">{Math.round(h.stats.p95)}</td>
+                                        <td className="py-2 pr-4 text-rose-400 tabular-nums">{Math.round(h.stats.p99)}</td>
+                                        <td className="py-2 font-mono text-rose-500 tabular-nums">{Math.round(h.stats.max)}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            )}
+
             {/* LLM Routing Decisions */}
             <div className="bg-card border rounded-lg p-6">
                 <h2 className="text-lg font-semibold mb-1">🔀 LLM Routing Decisions</h2>

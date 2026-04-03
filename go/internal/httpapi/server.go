@@ -710,6 +710,8 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("/api/jules/sessions", s.handleCloudOrchestratorSessions())
 	s.mux.HandleFunc("/api/system/submodules", s.handleCloudOrchestratorSubmodules())
 	s.mux.HandleFunc("/api/metrics/stats", s.handleMetricsStats)
+	s.mux.HandleFunc("/sse", s.handleSSE)
+	s.mux.HandleFunc("/message", s.handleSSEMessage)
 	s.mux.HandleFunc("/api/metrics/track", s.handleMetricsTrack)
 	s.mux.HandleFunc("/api/metrics/system-snapshot", s.handleMetricsSystemSnapshot)
 	s.mux.HandleFunc("/api/metrics/timeline", s.handleMetricsTimeline)

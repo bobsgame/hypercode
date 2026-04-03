@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"sync"
 
+	"github.com/hypercodehq/hypercode-go/internal/supervisor"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 	"maestro-go/internal/agents"
 )
@@ -18,12 +19,14 @@ type App struct {
 	ctx        context.Context
 	processes  map[string]*exec.Cmd
 	processMu  sync.Mutex
+	supervisor *supervisor.Manager
 }
 
 // NewApp creates a new App application struct
 func NewApp() *App {
 	return &App{
-		processes: make(map[string]*exec.Cmd),
+		processes:  make(map[string]*exec.Cmd),
+		supervisor: supervisor.NewManager(),
 	}
 }
 
@@ -35,6 +38,27 @@ func (a *App) startup(ctx context.Context) {
 // GetAgents returns the list of detected agents
 func (a *App) ListAgents() []agents.Agent {
 	return agents.Detect()
+}
+
+// CreateSupervisedSession initializes a new background task via the supervisor
+func (a *App) CreateSupervisedSession(id, command string, args []string, env map[string]string, cwd string, maxRestarts int) error {
+	_, err := a.supervisor.CreateSession(id, command, args, env, cwd, maxRestarts)
+	return err
+}
+
+// StartSupervisedSession starts the background task
+func (a *App) StartSupervisedSession(id string) error {
+	return a.supervisor.StartSession(a.ctx, id)
+}
+
+// StopSupervisedSession kills the background task
+func (a *App) StopSupervisedSession(id string) error {
+	return a.supervisor.StopSession(id)
+}
+
+// ListSupervisedSessions gets all active and stopped tasks
+func (a *App) ListSupervisedSessions() []supervisor.SupervisedSession {
+	return a.supervisor.ListSessions()
 }
 
 // ExecuteCommand runs a command and streams output to frontend

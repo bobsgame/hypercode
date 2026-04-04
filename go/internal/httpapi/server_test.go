@@ -3953,6 +3953,73 @@ func TestSwarmBridgeRoutes(t *testing.T) {
 	}
 }
 
+func TestSwarmFallsBackToLocalGoMissionState(t *testing.T) {
+	t.Setenv("HYPERCODE_TRPC_UPSTREAM", "http://127.0.0.1:1/trpc")
+	cfg := config.Default()
+	cfg.ConfigDir = t.TempDir()
+	server := New(cfg, stubDetector{})
+
+	startReq := httptest.NewRequest(http.MethodPost, "/api/swarm/start", strings.NewReader(`{"masterPrompt":"Implement feature","maxConcurrency":3}`))
+	startReq.Header.Set("content-type", "application/json")
+	startRecorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(startRecorder, startReq)
+	if startRecorder.Code != http.StatusOK {
+		t.Fatalf("expected swarm start fallback 200, got %d %s", startRecorder.Code, startRecorder.Body.String())
+	}
+	for _, needle := range []string{`"fallback":"go-local-swarm"`, `"procedure":"swarm.startSwarm"`, `"missionId":"mission-1"`, `"taskCount":3`} {
+		if !strings.Contains(startRecorder.Body.String(), needle) {
+			t.Fatalf("expected swarm start fallback to contain %s, got %s", needle, startRecorder.Body.String())
+		}
+	}
+
+	missionsRecorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(missionsRecorder, httptest.NewRequest(http.MethodGet, "/api/swarm/missions", nil))
+	if missionsRecorder.Code != http.StatusOK {
+		t.Fatalf("expected swarm missions fallback 200, got %d %s", missionsRecorder.Code, missionsRecorder.Body.String())
+	}
+	for _, needle := range []string{`"fallback":"go-local-swarm"`, `"procedure":"swarm.getMissionHistory"`, `"mission-1"`, `"Implement feature"`} {
+		if !strings.Contains(missionsRecorder.Body.String(), needle) {
+			t.Fatalf("expected swarm missions fallback to contain %s, got %s", needle, missionsRecorder.Body.String())
+		}
+	}
+
+	summaryRecorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(summaryRecorder, httptest.NewRequest(http.MethodGet, "/api/swarm/risk/summary", nil))
+	if summaryRecorder.Code != http.StatusOK {
+		t.Fatalf("expected swarm risk summary fallback 200, got %d %s", summaryRecorder.Code, summaryRecorder.Body.String())
+	}
+	if !strings.Contains(summaryRecorder.Body.String(), `"missionCount":1`) {
+		t.Fatalf("expected swarm risk summary payload, got %s", summaryRecorder.Body.String())
+	}
+
+	rowsRecorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(rowsRecorder, httptest.NewRequest(http.MethodGet, "/api/swarm/risk/rows?statusFilter=active&limit=10", nil))
+	if rowsRecorder.Code != http.StatusOK {
+		t.Fatalf("expected swarm risk rows fallback 200, got %d %s", rowsRecorder.Code, rowsRecorder.Body.String())
+	}
+	if !strings.Contains(rowsRecorder.Body.String(), `"missionRiskScore":`) {
+		t.Fatalf("expected swarm risk rows payload, got %s", rowsRecorder.Body.String())
+	}
+
+	facetsRecorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(facetsRecorder, httptest.NewRequest(http.MethodGet, "/api/swarm/risk/facets?minRisk=10", nil))
+	if facetsRecorder.Code != http.StatusOK {
+		t.Fatalf("expected swarm risk facets fallback 200, got %d %s", facetsRecorder.Code, facetsRecorder.Body.String())
+	}
+	if !strings.Contains(facetsRecorder.Body.String(), `"bands"`) {
+		t.Fatalf("expected swarm risk facets payload, got %s", facetsRecorder.Body.String())
+	}
+
+	meshRecorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(meshRecorder, httptest.NewRequest(http.MethodGet, "/api/swarm/mesh-capabilities", nil))
+	if meshRecorder.Code != http.StatusOK {
+		t.Fatalf("expected swarm mesh capabilities fallback 200, got %d %s", meshRecorder.Code, meshRecorder.Body.String())
+	}
+	if !strings.Contains(meshRecorder.Body.String(), `"hypercoded-go"`) {
+		t.Fatalf("expected swarm mesh capability payload, got %s", meshRecorder.Body.String())
+	}
+}
+
 func TestBillingBridgeRoutes(t *testing.T) {
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("content-type", "application/json")

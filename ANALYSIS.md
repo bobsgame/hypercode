@@ -2555,6 +2555,71 @@ Results:
 - Go build passed
 - full Go suite passed
 
+## Follow-up Go-primary backend slice (native swarm fallback for safest surfaces)
+The next orchestration-heavy backend family was swarm, but approached selectively instead of pretending to solve full swarm parity in one pass.
+
+### The gap before this step
+Before this step:
+- all swarm routes were effectively bridge-only to TypeScript
+- Go had no native mission history/risk view or local mission start/resume fallback at all
+
+### What changed
+- added `go/internal/httpapi/swarm_local_state.go`
+  - native persisted swarm mission state under Go config dir (`swarm_state.json`)
+  - native mission scaffolding
+  - native mission history
+  - native mission risk summary/rows/facets
+  - native mesh capability snapshot
+- updated `go/internal/httpapi/server.go`
+  - server now owns `swarmState`
+- replaced `go/internal/httpapi/swarm_handlers.go`
+  - the safest swarm surfaces now attempt TS first, then fall back natively in Go:
+    - start mission
+    - resume mission
+    - mission history
+    - mission risk summary
+    - mission risk rows
+    - mission risk facets
+    - mesh capabilities
+  - higher-risk mutation/orchestration routes still remain bridge-first:
+    - approve task
+    - decompose task
+    - update task priority
+    - debate
+    - consensus
+    - direct message
+- expanded `go/internal/httpapi/server_test.go`
+  - added regression coverage proving native swarm fallback works end-to-end for the supported local mission/risk surfaces
+  - preserved existing upstream bridge coverage
+
+### Important truthfulness note
+This is a **real Go-native swarm fallback slice**, but not full swarm parity.
+
+What is true now:
+- Go can start and persist a local swarm mission scaffold
+- Go can resume local swarm missions
+- Go can serve local mission history and mission-risk analytics when TS is unavailable
+- Go can serve a local mesh capability snapshot
+
+What is still not true yet:
+- this does not replicate full TS swarm orchestration parity
+- task approval/decomposition, debate, consensus, and direct messaging are still bridge-first
+- the local mission scaffold is a truthful fallback representation, not a full multi-agent orchestration engine parity replacement
+
+### Validation performed for this native swarm step
+```bash
+gofmt -w go/internal/httpapi/swarm_handlers.go go/internal/httpapi/swarm_local_state.go go/internal/httpapi/server.go go/internal/httpapi/server_test.go
+cd go && go test ./internal/httpapi ./internal/mcp
+cd go && go build -buildvcs=false ./cmd/hypercode
+cd go && go test ./...
+```
+
+Results:
+- targeted httpapi tests passed
+- targeted mcp tests passed
+- Go build passed
+- full Go suite passed
+
 ## Bottom line
 This pass meaningfully strengthened the **Go-primary migration path** and improved TypeScript survivability while the migration continues:
 - broader provider routing
@@ -2612,6 +2677,7 @@ This pass meaningfully strengthened the **Go-primary migration path** and improv
 - Darwin routes now have a native Go persisted local fallback for mutation/experiment/status behavior instead of remaining bridge-only
 - AutoDev routes now have a native Go persisted local loop-manager fallback instead of remaining bridge-only
 - squad routes now have a native Go persisted local squad/indexer state fallback instead of remaining bridge-only
+- the safest swarm mission/risk/mesh surfaces plus mission start/resume now have native Go persisted fallback ownership instead of remaining bridge-only
 - a tested Go-native replacement path for multiple TS-owned persistence surfaces, even though mixed-runtime cleanup is not fully finished yet
 - a small but real Maestro UX fix
 

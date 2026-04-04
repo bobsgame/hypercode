@@ -345,28 +345,27 @@ func inventoryLayerMeta(view *localMCPInventoryView, source string, defaultLayer
 		layer = defaultLayer
 		timestamp = ""
 	}
-	meta := map[string]any{
-		"originLayer": layer,
-	}
+	mirrors := map[string]any{"originLayer": layer}
 	for key, value := range freshnessBridgeMeta("layer", timestamp, staleAfter) {
-		meta[key] = value
+		mirrors[key] = value
 	}
-	meta["provenance"] = newRecordProvenanceObject(layer, source, nullableString(timestamp), meta["layerAgeMs"], meta["layerStaleHeuristic"])
-	return meta
+	mirrors["provenance"] = newRecordProvenanceObject(layer, source, nullableString(timestamp), mirrors["layerAgeMs"], mirrors["layerStaleHeuristic"], []string{"originLayer", "layerCachedAt", "layerAgeMs", "layerStaleHeuristic"})
+	return mirrors
 }
 
-func newRecordProvenanceObject(layer string, source string, cachedAt any, ageMs any, staleHeuristic any) map[string]any {
+func newRecordProvenanceObject(layer string, source string, cachedAt any, ageMs any, staleHeuristic any, legacyMirrorFields []string) map[string]any {
 	return map[string]any{
-		"schemaVersion":     1,
-		"primary":           true,
-		"compatibilityMode": "legacy-top-level-mirrors-retained",
-		"layer":             layer,
-		"source":            source,
-		"cachedAt":          cachedAt,
-		"ageMs":             ageMs,
-		"staleHeuristic":    staleHeuristic,
-		"cacheAuthority":    "go-local-live-sync",
-		"metadataAuthority": "mcp.jsonc",
+		"schemaVersion":      1,
+		"primary":            true,
+		"compatibilityMode":  "legacy-top-level-mirrors-retained",
+		"legacyMirrorFields": append([]string(nil), legacyMirrorFields...),
+		"layer":              layer,
+		"source":             source,
+		"cachedAt":           cachedAt,
+		"ageMs":              ageMs,
+		"staleHeuristic":     staleHeuristic,
+		"cacheAuthority":     "go-local-live-sync",
+		"metadataAuthority":  "mcp.jsonc",
 	}
 }
 

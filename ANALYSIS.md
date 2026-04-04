@@ -2046,6 +2046,59 @@ Results:
 - Go build passed
 - full Go suite passed
 
+## Follow-up provenance-compatibility cleanup step (explicit legacy mirror list)
+The next low-risk cleanup was to make compatibility mirroring explicit instead of merely implied.
+
+### The ambiguity before this step
+Before this step:
+- the nested `provenance` object was marked primary
+- but clients still had no explicit machine-readable list of which top-level fields were being retained only as compatibility mirrors
+
+That meant the compatibility boundary was clear in docs, but not as explicit in the payload contract itself.
+
+### What changed
+- updated `go/internal/httpapi/mcp_inventory_fallback.go`
+  - nested `provenance` objects now carry `legacyMirrorFields`
+  - tool/runtime-layer provenance now explicitly lists mirrored top-level fields such as:
+    - `originLayer`
+    - `layerCachedAt`
+    - `layerAgeMs`
+    - `layerStaleHeuristic`
+- updated `go/internal/httpapi/server.go`
+  - configured-server provenance now explicitly lists mirrored top-level fields such as:
+    - `originLayer`
+    - `metadataOrigin`
+    - `metadataCachedAt`
+    - `metadataAgeMs`
+    - `metadataStaleHeuristic`
+- expanded `go/internal/httpapi/server_test.go`
+  - tests now verify `legacyMirrorFields` in the primary nested provenance contract
+
+### Important truthfulness note
+What is true now:
+- the payload itself now states exactly which top-level provenance fields are compatibility mirrors
+- clients can reliably prioritize nested `provenance` while still understanding the compatibility surface
+- the contract is clearer without yet breaking consumers
+
+What is still not true yet:
+- legacy mirror fields still remain in payloads
+- this is still not final removal of duplicate provenance fields
+- TS and Go contract consolidation is still incomplete
+
+### Validation performed for this provenance-compatibility cleanup step
+```bash
+gofmt -w go/internal/httpapi/mcp_inventory_fallback.go go/internal/httpapi/server.go go/internal/httpapi/server_test.go
+cd go && go test ./internal/httpapi ./internal/mcp
+cd go && go build -buildvcs=false ./cmd/hypercode
+cd go && go test ./...
+```
+
+Results:
+- targeted httpapi tests passed
+- targeted mcp tests passed
+- Go build passed
+- full Go suite passed
+
 ## Bottom line
 This pass meaningfully strengthened the **Go-primary migration path** and improved TypeScript survivability while the migration continues:
 - broader provider routing
@@ -2093,6 +2146,7 @@ This pass meaningfully strengthened the **Go-primary migration path** and improv
 - runtime server fallback records now also carry server-level origin-layer and layer freshness metadata, and can recover from persisted runtime overlay cache when live summary detection is unavailable
 - configured-server fallback records now carry record-level definition-layer provenance plus metadata freshness/provenance fields across JSONC-backed and DB-backed fallback reads
 - MCP fallback records now expose a stable nested `provenance` object across tools, runtime servers, and configured servers, and that nested object is now explicitly marked as the primary contract while legacy top-level fields remain as compatibility mirrors
+- nested `provenance` now explicitly lists its `legacyMirrorFields`, making the compatibility boundary machine-readable as well as documented
 - a tested Go-native replacement path for multiple TS-owned persistence surfaces, even though mixed-runtime cleanup is not fully finished yet
 - a small but real Maestro UX fix
 

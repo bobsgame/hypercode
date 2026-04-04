@@ -15696,7 +15696,7 @@ func configuredServerProvenance(server map[string]any, originLayer string) map[s
 	for key, value := range freshnessBridgeMeta("metadata", metadataCachedAt, 24*time.Hour) {
 		result[key] = value
 	}
-	result["provenance"] = newRecordProvenanceObject(originLayer, metadataOrigin, nullableString(metadataCachedAt), result["metadataAgeMs"], result["metadataStaleHeuristic"])
+	result["provenance"] = newRecordProvenanceObject(originLayer, metadataOrigin, nullableString(metadataCachedAt), result["metadataAgeMs"], result["metadataStaleHeuristic"], []string{"originLayer", "metadataOrigin", "metadataCachedAt", "metadataAgeMs", "metadataStaleHeuristic"})
 	return result
 }
 

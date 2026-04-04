@@ -1313,6 +1313,95 @@ Results:
 - Go build passed
 - full Go suite passed
 
+## Follow-up MCP inventory durability step (persisted Go-owned tool inventory cache)
+The next recommended parity move was to give the native Go MCP inventory layer its own persisted cache so operator-facing tool list/search surfaces would not depend only on a live bridge, a live DB shape, or a currently hydrated JSONC metadata set.
+
+### What changed
+- rewrote `go/internal/mcp/inventory.go`
+  - added `LoadInventoryWithCache(workspaceRoot, mainConfigDir, cachePath)`
+  - retained existing `LoadInventory(...)` as a compatibility wrapper
+  - native inventory can now read from:
+    - local `mcp.jsonc` / `mcp.json`
+    - local `packages/core/metamcp.db`
+    - persisted Go-owned cache file
+  - live inventory loads now persist to `mcp_inventory_cache.json`
+  - cached inventory reloads now surface as `Source: "cache"`
+  - added deterministic sorting plus cloned cache persistence structures for safer/stabler snapshots
+- added `go/internal/httpapi/mcp_inventory_fallback.go`
+  - central Go helpers for:
+    - cache path resolution
+    - cache-backed inventory loading
+    - normalizing cached inventory tool names back to operator-facing tool names
+    - formatting MCP fallback tool list/search payloads
+    - formatting `/api/tools*` fallback payloads from cached inventory
+- updated `go/internal/httpapi/mcp_handlers.go`
+  - `/api/mcp/tools` now prefers Go-owned persisted inventory cache fallback when available
+  - `/api/mcp/tools/search` now prefers Go-owned persisted inventory cache fallback when available
+  - both still retain truthful lower-fidelity summary fallback behavior when cache-backed inventory is unavailable
+- updated `go/internal/httpapi/server.go`
+  - `/api/tools`
+  - `/api/tools/by-server`
+  - `/api/tools/search`
+  - `/api/tools/get`
+  now use the Go-owned inventory cache as a secondary fallback when local DB rows are unavailable or empty
+- expanded `go/internal/mcp/inventory_test.go`
+  - proves cache write-through from live config
+  - proves cache-only reload after live sources disappear
+- expanded `go/internal/httpapi/server_test.go`
+  - proves `/api/mcp/tools` and `/api/mcp/tools/search` can serve from persisted inventory cache
+  - proves `/api/tools`, `/api/tools/search`, and `/api/tools/get` can recover from persisted inventory cache without local DB rows
+
+### Real bugs / correctness issues found and fixed during this step
+#### 1. Source-label bug in inventory loading
+Initial cache implementation incorrectly labeled some config-only inventory loads as `database`.
+
+Root cause:
+- after the DB open path ran, the code checked whether `inventory.Tools` was non-empty
+- but that included tools already loaded from config, so the source label could become misleading even when the DB contributed nothing
+
+Fix:
+- track the tool count before DB ingestion
+- only switch `inventory.Source` to `database` if the DB path actually added tools beyond the pre-DB count
+
+#### 2. Empty-success masking bug in `/api/tools*` fallback behavior
+The local DB helper can truthfully return an empty result rather than an error when the DB file exists but the schema/tables are absent.
+
+Why that mattered:
+- the first version of the cache-backed `/api/tools*` recovery only activated on hard DB errors
+- that meant a perfectly good persisted inventory cache could remain unused while operators still saw empty lists
+
+Fix:
+- `/api/tools*` cache recovery now activates both when the local DB path errors **and** when it returns empty/no-match results
+
+### Important truthfulness note
+This materially improves Go-owned MCP inventory authority, but it is still not full end-state parity.
+
+What is true now:
+- Go has a persisted local MCP inventory cache file: `mcp_inventory_cache.json`
+- Go MCP list/search fallback can now prefer cache-backed inventory data instead of relying only on harness summary fallback
+- `/api/tools*` has a stronger secondary fallback path when local DB rows are missing or stale
+- cached inventory survives restart and can recover operator-facing tool discovery when live local sources are temporarily absent
+
+What is still not true yet:
+- this cache is still a local file-backed cache, not the final authoritative multi-runtime registry model
+- cache invalidation/freshness policy is still simple and opportunistic rather than fully lifecycle-managed
+- Go still does not own full MCP client sync/import/export parity
+- runtime lifecycle and transport parity remain only partial
+
+### Validation performed for this MCP inventory cache step
+```bash
+gofmt -w go/internal/mcp/inventory.go go/internal/mcp/inventory_test.go go/internal/httpapi/mcp_inventory_fallback.go go/internal/httpapi/mcp_handlers.go go/internal/httpapi/server.go go/internal/httpapi/server_test.go
+cd go && go test ./internal/mcp ./internal/httpapi
+cd go && go build -buildvcs=false ./cmd/hypercode
+cd go && go test ./...
+```
+
+Results:
+- targeted mcp tests passed
+- targeted httpapi tests passed
+- Go build passed
+- full Go suite passed
+
 ## Bottom line
 This pass meaningfully strengthened the **Go-primary migration path** and improved TypeScript survivability while the migration continues:
 - broader provider routing
@@ -1350,6 +1439,7 @@ This pass meaningfully strengthened the **Go-primary migration path** and improv
 - native MCP stdio metadata refresh can now perform live `tools/list` probing for probeable configured servers
 - native MCP runtime add/remove/list fallback now uses a real Go runtime registry instead of only config-shaped behavior
 - native MCP fallback mode now has persisted local working-set state, eviction history, and tool-selection telemetry via Go-owned `mcp_state.json`
+- native MCP inventory now has a Go-owned persisted cache layer via `mcp_inventory_cache.json`, and key MCP/control tool list/search fallbacks can recover from it
 - a tested Go-native replacement path for multiple TS-owned persistence surfaces, even though mixed-runtime cleanup is not fully finished yet
 - a small but real Maestro UX fix
 

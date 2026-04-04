@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
+	"time"
 
 	_ "modernc.org/sqlite"
 )
@@ -43,28 +45,40 @@ type ToolEntry struct {
 }
 
 type Inventory struct {
-	Servers []ServerEntry `json:"servers"`
-	Tools   []ToolEntry   `json:"tools"`
-	Source  string        `json:"source"`
+	Servers  []ServerEntry `json:"servers"`
+	Tools    []ToolEntry   `json:"tools"`
+	Source   string        `json:"source"`
+	CachedAt string        `json:"cachedAt,omitempty"`
+}
+
+type persistedInventoryCache struct {
+	Version   int       `json:"version"`
+	CachedAt  string    `json:"cachedAt"`
+	Inventory Inventory `json:"inventory"`
 }
 
 func LoadInventory(workspaceRoot, mainConfigDir string) (*Inventory, error) {
+	return LoadInventoryWithCache(workspaceRoot, mainConfigDir, "")
+}
+
+func LoadInventoryWithCache(workspaceRoot, mainConfigDir, cachePath string) (*Inventory, error) {
 	inventory := &Inventory{
 		Servers: []ServerEntry{},
 		Tools:   []ToolEntry{},
 		Source:  "empty",
 	}
+	loadedFromLiveSources := false
 
-	// 1. Load from mcp.jsonc/json
 	configServers, err := loadConfigServers(mainConfigDir)
 	if err == nil && len(configServers) > 0 {
+		loadedFromLiveSources = true
 		for name, server := range configServers {
 			sEntry := ServerEntry{
 				UUID:        "config:" + name,
 				Name:        name,
 				DisplayName: name,
 				Type:        "STDIO",
-				Enabled:     true,
+				Enabled:     !server.Disabled,
 			}
 			if server.URL != "" {
 				sEntry.URL = server.URL
@@ -73,11 +87,11 @@ func LoadInventory(workspaceRoot, mainConfigDir string) (*Inventory, error) {
 			if server.Command != "" {
 				sEntry.Command = server.Command
 			}
-			sEntry.Args = server.Args
-			sEntry.Env = server.Env
-			
+			sEntry.Args = append([]string(nil), server.Args...)
+			sEntry.Env = cloneStringMap(server.Env)
+			sEntry.Description = server.Description
 			inventory.Servers = append(inventory.Servers, sEntry)
-			
+
 			for _, tool := range server.Meta.Tools {
 				inventory.Tools = append(inventory.Tools, ToolEntry{
 					Name:              name + "__" + tool.Name,
@@ -93,22 +107,23 @@ func LoadInventory(workspaceRoot, mainConfigDir string) (*Inventory, error) {
 		inventory.Source = "config"
 	}
 
-	// 2. Load from Database
 	dbPath := filepath.Join(workspaceRoot, "packages", "core", "metamcp.db")
 	db, err := sql.Open("sqlite", dbPath)
 	if err == nil {
 		defer db.Close()
-		
+		dbToolCountBefore := len(inventory.Tools)
+
 		rows, err := db.Query("SELECT uuid, name, type, command, args, env, url, description, enabled, always_on FROM mcp_servers")
 		if err == nil {
+			loadedFromLiveSources = true
 			for rows.Next() {
 				var s ServerEntry
 				var argsRaw, envRaw []byte
 				var urlOpt, descOpt sql.NullString
 				err := rows.Scan(&s.UUID, &s.Name, &s.Type, &s.Command, &argsRaw, &envRaw, &urlOpt, &descOpt, &s.Enabled, &s.AlwaysOn)
 				if err == nil {
-					json.Unmarshal(argsRaw, &s.Args)
-					json.Unmarshal(envRaw, &s.Env)
+					_ = json.Unmarshal(argsRaw, &s.Args)
+					_ = json.Unmarshal(envRaw, &s.Env)
 					s.URL = urlOpt.String
 					s.Description = descOpt.String
 					s.DisplayName = s.Name
@@ -121,6 +136,7 @@ func LoadInventory(workspaceRoot, mainConfigDir string) (*Inventory, error) {
 
 		tRows, err := db.Query("SELECT name, description, mcp_server_uuid, always_on, tool_schema FROM tools")
 		if err == nil {
+			loadedFromLiveSources = true
 			serverMap := make(map[string]string)
 			for _, s := range inventory.Servers {
 				serverMap[s.UUID] = s.Name
@@ -140,18 +156,38 @@ func LoadInventory(workspaceRoot, mainConfigDir string) (*Inventory, error) {
 					t.ServerDisplayName = serverName
 					t.Name = serverName + "__" + t.OriginalName
 					t.AdvertisedName = t.Name
-					json.Unmarshal(schemaRaw, &t.InputSchema)
+					_ = json.Unmarshal(schemaRaw, &t.InputSchema)
 					inventory.Tools = append(inventory.Tools, t)
 				}
 			}
 			tRows.Close()
 		}
-		
-		if len(inventory.Tools) > 0 {
+
+		if len(inventory.Tools) > dbToolCountBefore {
 			inventory.Source = "database"
 		}
 	}
 
+	sortInventory(inventory)
+	if len(inventory.Servers) > 0 || len(inventory.Tools) > 0 {
+		if cachePath != "" {
+			persistedAt := time.Now().UTC().Format(time.RFC3339)
+			inventory.CachedAt = persistedAt
+			_ = saveInventoryCache(cachePath, inventory, persistedAt)
+		}
+		return inventory, nil
+	}
+
+	if cachePath != "" {
+		cached, err := loadInventoryCache(cachePath)
+		if err == nil && cached != nil {
+			return cached, nil
+		}
+	}
+
+	if loadedFromLiveSources {
+		return inventory, nil
+	}
 	return inventory, nil
 }
 
@@ -186,7 +222,6 @@ func loadConfigServers(configDir string) (map[string]configServer, error) {
 		}
 	}
 
-	// Simple comment stripping
 	lines := strings.Split(string(data), "\n")
 	var clean []string
 	for _, line := range lines {
@@ -196,7 +231,7 @@ func loadConfigServers(configDir string) (map[string]configServer, error) {
 		}
 		clean = append(clean, line)
 	}
-	
+
 	var config mcpConfig
 	err = json.Unmarshal([]byte(strings.Join(clean, "\n")), &config)
 	if err != nil {
@@ -204,4 +239,117 @@ func loadConfigServers(configDir string) (map[string]configServer, error) {
 	}
 
 	return config.McpServers, nil
+}
+
+func loadInventoryCache(cachePath string) (*Inventory, error) {
+	data, err := os.ReadFile(cachePath)
+	if err != nil {
+		return nil, err
+	}
+	var persisted persistedInventoryCache
+	if err := json.Unmarshal(data, &persisted); err != nil {
+		return nil, err
+	}
+	inventory := persisted.Inventory
+	inventory.Source = "cache"
+	if inventory.CachedAt == "" {
+		inventory.CachedAt = persisted.CachedAt
+	}
+	sortInventory(&inventory)
+	return &inventory, nil
+}
+
+func saveInventoryCache(cachePath string, inventory *Inventory, cachedAt string) error {
+	if strings.TrimSpace(cachePath) == "" || inventory == nil {
+		return nil
+	}
+	persisted := persistedInventoryCache{
+		Version:  1,
+		CachedAt: cachedAt,
+		Inventory: Inventory{
+			Servers:  cloneServerEntries(inventory.Servers),
+			Tools:    cloneToolEntries(inventory.Tools),
+			Source:   inventory.Source,
+			CachedAt: cachedAt,
+		},
+	}
+	data, err := json.MarshalIndent(persisted, "", "  ")
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(cachePath), 0o755); err != nil {
+		return err
+	}
+	return os.WriteFile(cachePath, data, 0o644)
+}
+
+func sortInventory(inventory *Inventory) {
+	if inventory == nil {
+		return
+	}
+	sort.Slice(inventory.Servers, func(i, j int) bool {
+		left := inventory.Servers[i]
+		right := inventory.Servers[j]
+		if left.Name == right.Name {
+			return left.UUID < right.UUID
+		}
+		return left.Name < right.Name
+	})
+	sort.Slice(inventory.Tools, func(i, j int) bool {
+		left := inventory.Tools[i]
+		right := inventory.Tools[j]
+		leftName := left.AdvertisedName
+		if strings.TrimSpace(leftName) == "" {
+			leftName = left.Name
+		}
+		rightName := right.AdvertisedName
+		if strings.TrimSpace(rightName) == "" {
+			rightName = right.Name
+		}
+		if leftName == rightName {
+			return left.Server < right.Server
+		}
+		return leftName < rightName
+	})
+}
+
+func cloneServerEntries(source []ServerEntry) []ServerEntry {
+	if len(source) == 0 {
+		return []ServerEntry{}
+	}
+	cloned := make([]ServerEntry, 0, len(source))
+	for _, entry := range source {
+		copyEntry := entry
+		copyEntry.Args = append([]string(nil), entry.Args...)
+		copyEntry.Env = cloneStringMap(entry.Env)
+		copyEntry.Tags = append([]string(nil), entry.Tags...)
+		cloned = append(cloned, copyEntry)
+	}
+	return cloned
+}
+
+func cloneToolEntries(source []ToolEntry) []ToolEntry {
+	if len(source) == 0 {
+		return []ToolEntry{}
+	}
+	cloned := make([]ToolEntry, 0, len(source))
+	for _, entry := range source {
+		copyEntry := entry
+		copyEntry.ServerTags = append([]string(nil), entry.ServerTags...)
+		copyEntry.ToolTags = append([]string(nil), entry.ToolTags...)
+		copyEntry.Keywords = append([]string(nil), entry.Keywords...)
+		cloned = append(cloned, copyEntry)
+	}
+	return cloned
+}
+
+func cloneStringMap(source map[string]string) map[string]string {
+	if len(source) == 0 {
+		return map[string]string{}
+	}
+	cloned := make(map[string]string, len(source))
+	for key, value := range source {
+		cloned[key] = value
+	}
+	return cloned
 }

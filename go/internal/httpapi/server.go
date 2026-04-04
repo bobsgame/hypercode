@@ -5384,11 +5384,39 @@ func (s *Server) handleToolsList(w http.ResponseWriter, r *http.Request) {
 
 	tools, fallbackErr := s.localDBTools()
 	if fallbackErr != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]any{
-			"success": false,
-			"error":   fallbackErr.Error(),
+		inventory, invErr := s.localMCPInventory()
+		if invErr != nil || len(inventory.Tools) == 0 {
+			writeJSON(w, http.StatusInternalServerError, map[string]any{
+				"success": false,
+				"error":   fallbackErr.Error(),
+			})
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"data":    fallbackControlToolsFromInventory(inventory),
+			"bridge": map[string]any{
+				"fallback":  "go-local-mcp-inventory-cache",
+				"procedure": "tools.list",
+				"reason":    "upstream unavailable; using local MCP inventory cache because metamcp.db is unavailable",
+			},
 		})
 		return
+	}
+	if len(tools) == 0 {
+		inventory, invErr := s.localMCPInventory()
+		if invErr == nil && len(inventory.Tools) > 0 {
+			writeJSON(w, http.StatusOK, map[string]any{
+				"success": true,
+				"data":    fallbackControlToolsFromInventory(inventory),
+				"bridge": map[string]any{
+					"fallback":  "go-local-mcp-inventory-cache",
+					"procedure": "tools.list",
+					"reason":    "upstream unavailable; using local MCP inventory cache because metamcp.db returned no local tool rows",
+				},
+			})
+			return
+		}
 	}
 
 	writeJSON(w, http.StatusOK, map[string]any{
@@ -5425,11 +5453,53 @@ func (s *Server) handleToolsByServer(w http.ResponseWriter, r *http.Request) {
 
 	filtered, fallbackErr := s.localDBToolsByServer(serverID)
 	if fallbackErr != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]any{
-			"success": false,
-			"error":   fallbackErr.Error(),
+		inventory, invErr := s.localMCPInventory()
+		if invErr != nil || len(inventory.Tools) == 0 {
+			writeJSON(w, http.StatusInternalServerError, map[string]any{
+				"success": false,
+				"error":   fallbackErr.Error(),
+			})
+			return
+		}
+		cacheTools := fallbackControlToolsFromInventory(inventory)
+		filteredCacheTools := make([]map[string]any, 0)
+		for _, tool := range cacheTools {
+			if stringValue(tool["mcpServerUuid"]) == serverID || stringValue(tool["server"]) == serverID {
+				filteredCacheTools = append(filteredCacheTools, tool)
+			}
+		}
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"data":    filteredCacheTools,
+			"bridge": map[string]any{
+				"fallback":  "go-local-mcp-inventory-cache",
+				"procedure": "tools.listByServer",
+				"reason":    "upstream unavailable; filtering local MCP inventory cache by server because metamcp.db is unavailable",
+			},
 		})
 		return
+	}
+	if len(filtered) == 0 {
+		inventory, invErr := s.localMCPInventory()
+		if invErr == nil && len(inventory.Tools) > 0 {
+			cacheTools := fallbackControlToolsFromInventory(inventory)
+			filteredCacheTools := make([]map[string]any, 0)
+			for _, tool := range cacheTools {
+				if stringValue(tool["mcpServerUuid"]) == serverID || stringValue(tool["server"]) == serverID {
+					filteredCacheTools = append(filteredCacheTools, tool)
+				}
+			}
+			writeJSON(w, http.StatusOK, map[string]any{
+				"success": true,
+				"data":    filteredCacheTools,
+				"bridge": map[string]any{
+					"fallback":  "go-local-mcp-inventory-cache",
+					"procedure": "tools.listByServer",
+					"reason":    "upstream unavailable; filtering local MCP inventory cache by server because metamcp.db returned no matching rows",
+				},
+			})
+			return
+		}
 	}
 
 	writeJSON(w, http.StatusOK, map[string]any{
@@ -5475,11 +5545,65 @@ func (s *Server) handleToolsSearch(w http.ResponseWriter, r *http.Request) {
 	}
 	results, fallbackErr := s.localDBToolSearch(query, limit)
 	if fallbackErr != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]any{
-			"success": false,
-			"error":   fallbackErr.Error(),
+		inventory, invErr := s.localMCPInventory()
+		if invErr != nil || len(inventory.Tools) == 0 {
+			writeJSON(w, http.StatusInternalServerError, map[string]any{
+				"success": false,
+				"error":   fallbackErr.Error(),
+			})
+			return
+		}
+		cacheResults := make([]map[string]any, 0)
+		queryLower := strings.ToLower(query)
+		for _, tool := range fallbackControlToolsFromInventory(inventory) {
+			name := strings.ToLower(stringValue(tool["name"]))
+			description := strings.ToLower(stringValue(tool["description"]))
+			server := strings.ToLower(stringValue(tool["server"]))
+			if strings.Contains(name, queryLower) || strings.Contains(description, queryLower) || strings.Contains(server, queryLower) {
+				cacheResults = append(cacheResults, tool)
+				if limit > 0 && len(cacheResults) >= limit {
+					break
+				}
+			}
+		}
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"data":    cacheResults,
+			"bridge": map[string]any{
+				"fallback":  "go-local-mcp-inventory-cache",
+				"procedure": "tools.search",
+				"reason":    "upstream unavailable; searching local MCP inventory cache because metamcp.db is unavailable",
+			},
 		})
 		return
+	}
+	if len(results) == 0 {
+		inventory, invErr := s.localMCPInventory()
+		if invErr == nil && len(inventory.Tools) > 0 {
+			cacheResults := make([]map[string]any, 0)
+			queryLower := strings.ToLower(query)
+			for _, tool := range fallbackControlToolsFromInventory(inventory) {
+				name := strings.ToLower(stringValue(tool["name"]))
+				description := strings.ToLower(stringValue(tool["description"]))
+				server := strings.ToLower(stringValue(tool["server"]))
+				if strings.Contains(name, queryLower) || strings.Contains(description, queryLower) || strings.Contains(server, queryLower) {
+					cacheResults = append(cacheResults, tool)
+					if limit > 0 && len(cacheResults) >= limit {
+						break
+					}
+				}
+			}
+			writeJSON(w, http.StatusOK, map[string]any{
+				"success": true,
+				"data":    cacheResults,
+				"bridge": map[string]any{
+					"fallback":  "go-local-mcp-inventory-cache",
+					"procedure": "tools.search",
+					"reason":    "upstream unavailable; searching local MCP inventory cache because metamcp.db returned no matching rows",
+				},
+			})
+			return
+		}
 	}
 
 	writeJSON(w, http.StatusOK, map[string]any{
@@ -5615,11 +5739,39 @@ func (s *Server) handleToolsGet(w http.ResponseWriter, r *http.Request) {
 
 	fallbackTool, fallbackErr := s.localDBTool(uuid)
 	if fallbackErr != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]any{
-			"success": false,
-			"error":   fallbackErr.Error(),
+		inventory, invErr := s.localMCPInventory()
+		if invErr != nil || len(inventory.Tools) == 0 {
+			writeJSON(w, http.StatusInternalServerError, map[string]any{
+				"success": false,
+				"error":   fallbackErr.Error(),
+			})
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"data":    fallbackControlToolFromInventory(inventory, uuid),
+			"bridge": map[string]any{
+				"fallback":  "go-local-mcp-inventory-cache",
+				"procedure": "tools.get",
+				"reason":    "upstream unavailable; using local MCP inventory cache because metamcp.db is unavailable",
+			},
 		})
 		return
+	}
+	if fallbackTool == nil {
+		inventory, invErr := s.localMCPInventory()
+		if invErr == nil && len(inventory.Tools) > 0 {
+			writeJSON(w, http.StatusOK, map[string]any{
+				"success": true,
+				"data":    fallbackControlToolFromInventory(inventory, uuid),
+				"bridge": map[string]any{
+					"fallback":  "go-local-mcp-inventory-cache",
+					"procedure": "tools.get",
+					"reason":    "upstream unavailable; using local MCP inventory cache because metamcp.db returned no matching row",
+				},
+			})
+			return
+		}
 	}
 
 	writeJSON(w, http.StatusOK, map[string]any{

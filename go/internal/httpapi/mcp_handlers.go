@@ -3,8 +3,6 @@ package httpapi
 import (
 	"net/http"
 	"strings"
-
-	"github.com/hypercodehq/hypercode-go/internal/mcp"
 )
 
 func (s *Server) handleMCPStatus(w http.ResponseWriter, r *http.Request) {
@@ -64,9 +62,35 @@ func (s *Server) handleMCPTools(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	inventory, invErr := s.localMCPInventory()
+	if invErr == nil && len(inventory.Tools) > 0 {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"data":    fallbackMCPInventoryTools(inventory),
+			"bridge": map[string]any{
+				"fallback":  "go-local-mcp",
+				"procedure": "mcp.listTools",
+				"reason":    "upstream unavailable; using local MCP inventory cache",
+			},
+		})
+		return
+	}
+
 	_, summary, localErr := s.localMCPSummary(r.Context())
 	if localErr != nil {
-		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"success": false, "error": localErr.Error()})
+		if invErr != nil {
+			writeJSON(w, http.StatusServiceUnavailable, map[string]any{"success": false, "error": localErr.Error()})
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"data":    []map[string]any{},
+			"bridge": map[string]any{
+				"fallback":  "go-local-mcp",
+				"procedure": "mcp.listTools",
+				"reason":    "upstream unavailable; local MCP inventory cache is empty",
+			},
+		})
 		return
 	}
 
@@ -101,21 +125,33 @@ func (s *Server) handleMCPSearchTools(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	inventory, invErr := s.localMCPInventory()
+	if invErr == nil && len(inventory.Tools) > 0 {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"data":    fallbackSearchMCPInventoryTools(query, inventory, 20),
+			"bridge": map[string]any{
+				"fallback":  "go-local-mcp",
+				"procedure": "mcp.searchTools",
+				"reason":    "upstream unavailable; using local MCP inventory cache",
+			},
+		})
+		return
+	}
+
 	_, summary, localErr := s.localMCPSummary(r.Context())
 	if localErr != nil {
-		// Secondary fallback to inventory ranking if summary loading fails.
-		inventory, invErr := mcp.LoadInventory(s.cfg.WorkspaceRoot, s.cfg.MainConfigDir)
 		if invErr != nil {
 			writeJSON(w, http.StatusServiceUnavailable, map[string]any{"success": false, "error": localErr.Error()})
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{
 			"success": true,
-			"data":    mcp.RankTools(query, inventory.Tools, 20),
+			"data":    []map[string]any{},
 			"bridge": map[string]any{
 				"fallback":  "go-local-mcp",
 				"procedure": "mcp.searchTools",
-				"reason":    "upstream unavailable; using local MCP inventory ranking",
+				"reason":    "upstream unavailable; local MCP inventory cache is empty",
 			},
 		})
 		return

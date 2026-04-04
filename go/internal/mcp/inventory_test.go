@@ -132,3 +132,58 @@ func TestLoadInventoryFromConfigAndDatabase(t *testing.T) {
 		t.Fatalf("expected both config and db tools, got %#v", inventory.Tools)
 	}
 }
+
+func TestLoadInventoryWithCachePersistsAndReloadsWithoutLiveSources(t *testing.T) {
+	workspace := t.TempDir()
+	configDir := t.TempDir()
+	cachePath := filepath.Join(t.TempDir(), "mcp_inventory_cache.json")
+
+	configContent := `{
+  "mcpServers": {
+    "cache-core": {
+      "command": "node",
+      "args": ["cache-server.js"],
+      "_meta": {
+        "tools": [
+          {"name": "search_tools", "description": "Cache search", "inputSchema": {"type": "object"}}
+        ]
+      }
+    }
+  }
+}`
+	if err := os.WriteFile(filepath.Join(configDir, "mcp.json"), []byte(configContent), 0o644); err != nil {
+		t.Fatalf("failed to write mcp.json: %v", err)
+	}
+
+	inventory, err := LoadInventoryWithCache(workspace, configDir, cachePath)
+	if err != nil {
+		t.Fatalf("LoadInventoryWithCache returned error: %v", err)
+	}
+	if inventory.Source != "config" {
+		t.Fatalf("expected live inventory source config, got %q", inventory.Source)
+	}
+	if len(inventory.Tools) != 1 || inventory.Tools[0].OriginalName != "search_tools" {
+		t.Fatalf("expected live inventory tool, got %#v", inventory.Tools)
+	}
+	if _, err := os.Stat(cachePath); err != nil {
+		t.Fatalf("expected inventory cache file to be written: %v", err)
+	}
+
+	if err := os.Remove(filepath.Join(configDir, "mcp.json")); err != nil {
+		t.Fatalf("failed to remove live config: %v", err)
+	}
+
+	reloaded, err := LoadInventoryWithCache(workspace, configDir, cachePath)
+	if err != nil {
+		t.Fatalf("LoadInventoryWithCache cache reload returned error: %v", err)
+	}
+	if reloaded.Source != "cache" {
+		t.Fatalf("expected cached inventory source, got %q", reloaded.Source)
+	}
+	if reloaded.CachedAt == "" {
+		t.Fatalf("expected cachedAt to be populated on cached inventory reload")
+	}
+	if len(reloaded.Tools) != 1 || reloaded.Tools[0].OriginalName != "search_tools" {
+		t.Fatalf("expected cached inventory tool after reload, got %#v", reloaded.Tools)
+	}
+}

@@ -6,6 +6,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -5996,6 +5997,110 @@ func TestToolsReadEndpointsFallBackToLocalDB(t *testing.T) {
 	server.Handler().ServeHTTP(getRecorder, httptest.NewRequest(http.MethodGet, "/api/tools/get?uuid=search_tools", nil))
 	if getRecorder.Code != http.StatusOK || !strings.Contains(getRecorder.Body.String(), `"fallback":"go-local-tool-db"`) || !strings.Contains(getRecorder.Body.String(), `"uuid":"search_tools"`) {
 		t.Fatalf("expected local tools DB get fallback, got %d %s", getRecorder.Code, getRecorder.Body.String())
+	}
+}
+
+func TestToolEndpointsFallBackToPersistedInventoryCache(t *testing.T) {
+	workspaceRoot := t.TempDir()
+	configDir := t.TempDir()
+	cacheContent := `{
+  "version": 1,
+  "cachedAt": "2026-04-04T00:00:00Z",
+  "inventory": {
+    "servers": [
+      {
+        "uuid": "config:cache-core",
+        "name": "cache-core",
+        "displayName": "cache-core",
+        "type": "STDIO",
+        "command": "node",
+        "args": ["cache-server.js"],
+        "env": {},
+        "url": "",
+        "description": "",
+        "enabled": true,
+        "alwaysOn": false,
+        "tags": [],
+        "alwaysOnAdvertised": false
+      }
+    ],
+    "tools": [
+      {
+        "name": "cache-core__search_tools",
+        "description": "Cache search",
+        "server": "cache-core",
+        "serverDisplayName": "cache-core",
+        "serverTags": [],
+        "toolTags": [],
+        "semanticGroup": "",
+        "semanticGroupLabel": "",
+        "advertisedName": "cache-core__search_tools",
+        "keywords": [],
+        "alwaysOn": true,
+        "originalName": "search_tools",
+        "inputSchema": {"type": "object", "properties": {"query": {"type": "string"}}}
+      }
+    ],
+    "source": "config",
+    "cachedAt": "2026-04-04T00:00:00Z"
+  }
+}`
+	if err := os.WriteFile(filepath.Join(configDir, "mcp_inventory_cache.json"), []byte(cacheContent), 0o644); err != nil {
+		t.Fatalf("failed to seed mcp inventory cache: %v", err)
+	}
+
+	t.Setenv("HYPERCODE_TRPC_UPSTREAM", "http://127.0.0.1:1/trpc")
+	cfg := config.Default()
+	cfg.WorkspaceRoot = workspaceRoot
+	cfg.ConfigDir = configDir
+	cfg.MainConfigDir = t.TempDir()
+	server := New(cfg, stubDetector{err: errors.New("detector unavailable")})
+
+	cases := []struct {
+		name     string
+		path     string
+		contains []string
+	}{
+		{
+			name:     "control tools list",
+			path:     "/api/tools",
+			contains: []string{`"fallback":"go-local-mcp-inventory-cache"`, `"name":"search_tools"`, `"server":"cache-core"`},
+		},
+		{
+			name:     "control tools search",
+			path:     "/api/tools/search?query=search",
+			contains: []string{`"fallback":"go-local-mcp-inventory-cache"`, `"name":"search_tools"`},
+		},
+		{
+			name:     "control tools get",
+			path:     "/api/tools/get?uuid=search_tools",
+			contains: []string{`"fallback":"go-local-mcp-inventory-cache"`, `"uuid":"search_tools"`},
+		},
+		{
+			name:     "mcp tools list",
+			path:     "/api/mcp/tools",
+			contains: []string{`"fallback":"go-local-mcp"`, `using local MCP inventory cache`, `"name":"search_tools"`, `"server":"cache-core"`},
+		},
+		{
+			name:     "mcp tools search",
+			path:     "/api/mcp/tools/search?query=search",
+			contains: []string{`"fallback":"go-local-mcp"`, `using local MCP inventory cache`, `"name":"search_tools"`},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			recorder := httptest.NewRecorder()
+			server.Handler().ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, tc.path, nil))
+			if recorder.Code != http.StatusOK {
+				t.Fatalf("expected fallback status 200, got %d with body %s", recorder.Code, recorder.Body.String())
+			}
+			for _, needle := range tc.contains {
+				if !strings.Contains(recorder.Body.String(), needle) {
+					t.Fatalf("expected response to contain %s, got %s", needle, recorder.Body.String())
+				}
+			}
+		})
 	}
 }
 

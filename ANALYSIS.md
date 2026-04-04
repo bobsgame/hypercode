@@ -2492,6 +2492,69 @@ Results:
 - Go build passed
 - full Go suite passed
 
+## Follow-up Go-primary backend slice (native squad fallback)
+The next orchestration-heavy backend family to pull out of bridge-only status was squad.
+
+### The gap before this step
+Before this step:
+- `/api/squad`
+- `/api/squad/spawn`
+- `/api/squad/kill`
+- `/api/squad/chat`
+- `/api/squad/indexer/toggle`
+- `/api/squad/indexer/status`
+were still bridge-only to TypeScript
+
+That meant Go could not own even basic persisted local squad/indexer state when TS was unavailable.
+
+### What changed
+- added `go/internal/httpapi/squad_local_state.go`
+  - native persisted squad member state
+  - native persisted squad indexer toggle/status state
+  - local squad “brain” snapshots with goal/history/message state
+  - persisted squad state under Go config dir (`squad_state.json`)
+- updated `go/internal/httpapi/server.go`
+  - server now owns `squadState`
+- replaced `go/internal/httpapi/squad_handlers.go`
+  - squad routes now attempt TS first, then fall back natively in Go
+  - local fallback supports:
+    - list
+    - spawn
+    - kill
+    - chat
+    - indexer toggle
+    - indexer status
+- expanded `go/internal/httpapi/server_test.go`
+  - added regression coverage proving native squad fallback works end-to-end when upstream is unavailable
+  - preserved existing upstream bridge coverage
+
+### Important truthfulness note
+This is a **real Go-native squad fallback**, but it is not full TS parity.
+
+What is true now:
+- squad routes are no longer bridge-only
+- Go can persist local squad member/indexer state and report it across requests/restarts
+- Go can maintain simple local squad “brain” state for messages/goals/status
+
+What is still not true yet:
+- this does not replicate TS worktree creation, Director execution, or richer squad autonomy parity
+- the Go fallback does not yet own the full squad worktree/director lifecycle
+- full swarm/squad orchestration parity remains incomplete
+
+### Validation performed for this native squad step
+```bash
+gofmt -w go/internal/httpapi/squad_handlers.go go/internal/httpapi/squad_local_state.go go/internal/httpapi/server.go go/internal/httpapi/server_test.go
+cd go && go test ./internal/httpapi ./internal/mcp
+cd go && go build -buildvcs=false ./cmd/hypercode
+cd go && go test ./...
+```
+
+Results:
+- targeted httpapi tests passed
+- targeted mcp tests passed
+- Go build passed
+- full Go suite passed
+
 ## Bottom line
 This pass meaningfully strengthened the **Go-primary migration path** and improved TypeScript survivability while the migration continues:
 - broader provider routing
@@ -2548,6 +2611,7 @@ This pass meaningfully strengthened the **Go-primary migration path** and improv
 - `/api/skills/assimilate` now has a native Go fallback that writes a real local starter skill scaffold instead of remaining bridge-only
 - Darwin routes now have a native Go persisted local fallback for mutation/experiment/status behavior instead of remaining bridge-only
 - AutoDev routes now have a native Go persisted local loop-manager fallback instead of remaining bridge-only
+- squad routes now have a native Go persisted local squad/indexer state fallback instead of remaining bridge-only
 - a tested Go-native replacement path for multiple TS-owned persistence surfaces, even though mixed-runtime cleanup is not fully finished yet
 - a small but real Maestro UX fix
 

@@ -4713,6 +4713,76 @@ func TestSquadBridgeRoutes(t *testing.T) {
 	}
 }
 
+func TestSquadFallsBackToLocalGoState(t *testing.T) {
+	t.Setenv("HYPERCODE_TRPC_UPSTREAM", "http://127.0.0.1:1/trpc")
+	cfg := config.Default()
+	cfg.WorkspaceRoot = t.TempDir()
+	cfg.ConfigDir = t.TempDir()
+	server := New(cfg, stubDetector{})
+
+	spawnReq := httptest.NewRequest(http.MethodPost, "/api/squad/spawn", strings.NewReader(`{"branch":"feature/alpha","goal":"Ship alpha"}`))
+	spawnReq.Header.Set("content-type", "application/json")
+	spawnRecorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(spawnRecorder, spawnReq)
+	if spawnRecorder.Code != http.StatusOK {
+		t.Fatalf("expected squad spawn fallback 200, got %d %s", spawnRecorder.Code, spawnRecorder.Body.String())
+	}
+	for _, needle := range []string{`"fallback":"go-local-squad"`, `"procedure":"squad.spawn"`, `"status":"spawned"`} {
+		if !strings.Contains(spawnRecorder.Body.String(), needle) {
+			t.Fatalf("expected squad spawn fallback to contain %s, got %s", needle, spawnRecorder.Body.String())
+		}
+	}
+
+	listRecorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(listRecorder, httptest.NewRequest(http.MethodGet, "/api/squad", nil))
+	if listRecorder.Code != http.StatusOK {
+		t.Fatalf("expected squad list fallback 200, got %d %s", listRecorder.Code, listRecorder.Body.String())
+	}
+	for _, needle := range []string{`"fallback":"go-local-squad"`, `"procedure":"squad.list"`, `"feature/alpha"`, `"Ship alpha"`} {
+		if !strings.Contains(listRecorder.Body.String(), needle) {
+			t.Fatalf("expected squad list fallback to contain %s, got %s", needle, listRecorder.Body.String())
+		}
+	}
+
+	chatReq := httptest.NewRequest(http.MethodPost, "/api/squad/chat", strings.NewReader(`{"branch":"feature/alpha","message":"Status?"}`))
+	chatReq.Header.Set("content-type", "application/json")
+	chatRecorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(chatRecorder, chatReq)
+	if chatRecorder.Code != http.StatusOK {
+		t.Fatalf("expected squad chat fallback 200, got %d %s", chatRecorder.Code, chatRecorder.Body.String())
+	}
+	if !strings.Contains(chatRecorder.Body.String(), `Native Go fallback squad member acknowledged`) {
+		t.Fatalf("expected squad chat fallback payload, got %s", chatRecorder.Body.String())
+	}
+
+	toggleReq := httptest.NewRequest(http.MethodPost, "/api/squad/indexer/toggle", strings.NewReader(`{"enabled":true}`))
+	toggleReq.Header.Set("content-type", "application/json")
+	toggleRecorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(toggleRecorder, toggleReq)
+	if toggleRecorder.Code != http.StatusOK {
+		t.Fatalf("expected squad toggle fallback 200, got %d %s", toggleRecorder.Code, toggleRecorder.Body.String())
+	}
+	statusRecorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(statusRecorder, httptest.NewRequest(http.MethodGet, "/api/squad/indexer/status", nil))
+	if statusRecorder.Code != http.StatusOK {
+		t.Fatalf("expected squad indexer status fallback 200, got %d %s", statusRecorder.Code, statusRecorder.Body.String())
+	}
+	if !strings.Contains(statusRecorder.Body.String(), `"running":true`) {
+		t.Fatalf("expected squad indexer status fallback payload, got %s", statusRecorder.Body.String())
+	}
+
+	killReq := httptest.NewRequest(http.MethodPost, "/api/squad/kill", strings.NewReader(`{"branch":"feature/alpha"}`))
+	killReq.Header.Set("content-type", "application/json")
+	killRecorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(killRecorder, killReq)
+	if killRecorder.Code != http.StatusOK {
+		t.Fatalf("expected squad kill fallback 200, got %d %s", killRecorder.Code, killRecorder.Body.String())
+	}
+	if !strings.Contains(killRecorder.Body.String(), `"data":true`) {
+		t.Fatalf("expected squad kill fallback payload, got %s", killRecorder.Body.String())
+	}
+}
+
 func TestSupervisorBridgeRoutes(t *testing.T) {
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("content-type", "application/json")

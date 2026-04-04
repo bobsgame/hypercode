@@ -69,5 +69,14 @@ if "%SKIP_BUILD%"=="1" (
 
 echo Starting Hub...
 echo Maestro is now launched separately. Use "pnpm -C apps/maestro start" when needed.
-pnpm start
+
+set CLI_ENTRY=packages\cli\dist\cli\src\index.js
+if exist "%CLI_ENTRY%" (
+    echo Launching HyperCode via built CLI entrypoint ^(%CLI_ENTRY%^)...
+    node "%CLI_ENTRY%" start %*
+    exit /b %errorlevel%
+)
+
+echo Built CLI entrypoint was not found; falling back to pnpm start.
+pnpm start -- %*
 exit /b %errorlevel%

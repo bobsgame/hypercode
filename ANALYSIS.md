@@ -97,6 +97,17 @@ Why this matters:
 - it reduces exposure to known non-blocking install-time failures like the Windows/Node 24 Maestro `electron-rebuild` issue when the workspace is already usable
 - it makes Go-primary startup faster and more truthful without pretending Node compatibility surfaces are validated when they were intentionally skipped
 
+#### Direct built-CLI startup handoff
+Updated the final `start.bat` launch step so it now:
+- launches `node packages/cli/dist/cli/src/index.js start` directly when the built CLI entrypoint exists
+- only falls back to `pnpm start` if that built CLI entrypoint is missing
+- forwards any extra command-line arguments through to the CLI entrypoint
+
+Why this matters:
+- it removes one more unnecessary package-manager hop from the Go-primary startup path
+- it makes the actual launch phase match the already-validated built CLI artifact
+- it reduces dependence on root script indirection after install/build decisions are already complete
+
 #### Lockfile hygiene
 - The refreshed `pnpm-lock.yaml` no longer contains legacy-name references for the main workspace packages.
 
@@ -117,6 +128,7 @@ pnpm -C packages/cli run build
 cd go && go build -buildvcs=false ./cmd/hypercode
 node scripts/build_startup.mjs --profile=go-primary
 node scripts/check_startup_install.mjs --profile=go-primary
+node packages/cli/dist/cli/src/index.js start --help
 ```
 
 Results:
@@ -124,10 +136,11 @@ Results:
 - Go control-plane build passed
 - new Go-primary startup build profile passed
 - install-skip readiness probe correctly reported the current workspace as already ready for Go-primary startup
+- direct built-CLI launch path resolved and printed `hypercode start --help` successfully
 
 Validation boundary:
 - `start.bat` itself was not executed end-to-end in this pass because doing so would intentionally launch the Hub and additional long-running runtime processes
-- instead, the startup contract was validated at the exact install/build decision points that `start.bat` now delegates to
+- instead, the startup contract was validated at the exact install/build/launch decision points that `start.bat` now delegates to
 
 #### Full workspace validation
 ```bash
@@ -144,8 +157,10 @@ Result:
 - `pnpm run build:workspace` now succeeds again
 - the new Go-primary startup build path succeeds
 - the new install-skip readiness probe succeeds for the current workspace state
+- the direct built-CLI launch path succeeds
 - `start.bat` now validates Go-first startup surfaces by default for `auto`/`go` runtime modes instead of always requiring a full workspace build first
 - `start.bat` can now skip `pnpm install` in Go-primary mode when the workspace is already ready
+- `start.bat` now launches directly through the built CLI when available instead of depending on `pnpm start` for the final handoff
 - the main monorepo (excluding archived content and external harness submodules) no longer contains textual legacy-name references
 
 #### Still non-blocking / still present

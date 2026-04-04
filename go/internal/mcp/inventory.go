@@ -62,16 +62,58 @@ func LoadInventory(workspaceRoot, mainConfigDir string) (*Inventory, error) {
 }
 
 func LoadInventoryWithCache(workspaceRoot, mainConfigDir, cachePath string) (*Inventory, error) {
+	liveInventory, err := loadLiveInventory(workspaceRoot, mainConfigDir)
+	if err != nil {
+		return nil, err
+	}
+	if hasInventoryContents(liveInventory) {
+		if cachePath != "" {
+			persistedAt := time.Now().UTC().Format(time.RFC3339)
+			liveInventory.CachedAt = persistedAt
+			_ = saveInventoryCache(cachePath, liveInventory, persistedAt)
+		}
+		return liveInventory, nil
+	}
+	if cachePath != "" {
+		cached, err := loadInventoryCache(cachePath)
+		if err == nil && cached != nil {
+			return cached, nil
+		}
+	}
+	return liveInventory, nil
+}
+
+func SyncInventoryCacheFromLiveSources(workspaceRoot, mainConfigDir, cachePath string) (*Inventory, error) {
+	liveInventory, err := loadLiveInventory(workspaceRoot, mainConfigDir)
+	if err != nil {
+		return nil, err
+	}
+	if strings.TrimSpace(cachePath) == "" {
+		return liveInventory, nil
+	}
+	if hasInventoryContents(liveInventory) {
+		persistedAt := time.Now().UTC().Format(time.RFC3339)
+		liveInventory.CachedAt = persistedAt
+		if err := saveInventoryCache(cachePath, liveInventory, persistedAt); err != nil {
+			return nil, err
+		}
+		return liveInventory, nil
+	}
+	if err := removeInventoryCache(cachePath); err != nil {
+		return nil, err
+	}
+	return liveInventory, nil
+}
+
+func loadLiveInventory(workspaceRoot, mainConfigDir string) (*Inventory, error) {
 	inventory := &Inventory{
 		Servers: []ServerEntry{},
 		Tools:   []ToolEntry{},
 		Source:  "empty",
 	}
-	loadedFromLiveSources := false
 
 	configServers, err := loadConfigServers(mainConfigDir)
 	if err == nil && len(configServers) > 0 {
-		loadedFromLiveSources = true
 		for name, server := range configServers {
 			sEntry := ServerEntry{
 				UUID:        "config:" + name,
@@ -115,7 +157,6 @@ func LoadInventoryWithCache(workspaceRoot, mainConfigDir, cachePath string) (*In
 
 		rows, err := db.Query("SELECT uuid, name, type, command, args, env, url, description, enabled, always_on FROM mcp_servers")
 		if err == nil {
-			loadedFromLiveSources = true
 			for rows.Next() {
 				var s ServerEntry
 				var argsRaw, envRaw []byte
@@ -136,7 +177,6 @@ func LoadInventoryWithCache(workspaceRoot, mainConfigDir, cachePath string) (*In
 
 		tRows, err := db.Query("SELECT name, description, mcp_server_uuid, always_on, tool_schema FROM tools")
 		if err == nil {
-			loadedFromLiveSources = true
 			serverMap := make(map[string]string)
 			for _, s := range inventory.Servers {
 				serverMap[s.UUID] = s.Name
@@ -169,25 +209,6 @@ func LoadInventoryWithCache(workspaceRoot, mainConfigDir, cachePath string) (*In
 	}
 
 	sortInventory(inventory)
-	if len(inventory.Servers) > 0 || len(inventory.Tools) > 0 {
-		if cachePath != "" {
-			persistedAt := time.Now().UTC().Format(time.RFC3339)
-			inventory.CachedAt = persistedAt
-			_ = saveInventoryCache(cachePath, inventory, persistedAt)
-		}
-		return inventory, nil
-	}
-
-	if cachePath != "" {
-		cached, err := loadInventoryCache(cachePath)
-		if err == nil && cached != nil {
-			return cached, nil
-		}
-	}
-
-	if loadedFromLiveSources {
-		return inventory, nil
-	}
 	return inventory, nil
 }
 
@@ -281,6 +302,24 @@ func saveInventoryCache(cachePath string, inventory *Inventory, cachedAt string)
 		return err
 	}
 	return os.WriteFile(cachePath, data, 0o644)
+}
+
+func removeInventoryCache(cachePath string) error {
+	if strings.TrimSpace(cachePath) == "" {
+		return nil
+	}
+	err := os.Remove(cachePath)
+	if err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	return nil
+}
+
+func hasInventoryContents(inventory *Inventory) bool {
+	if inventory == nil {
+		return false
+	}
+	return len(inventory.Servers) > 0 || len(inventory.Tools) > 0
 }
 
 func sortInventory(inventory *Inventory) {

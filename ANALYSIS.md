@@ -1474,6 +1474,77 @@ Results:
 - Go build passed
 - full Go suite passed
 
+## Follow-up MCP cache-write unification step (JSONC save path now resyncs inventory cache)
+The next issue to remove was a real divergence hazard between:
+- JSONC-configured server metadata writes
+- persisted inventory cache state
+
+### The drift problem
+Before this step:
+- local configured-server metadata refresh/clear/import flows updated `mcp.jsonc`
+- persisted inventory cache state in `mcp_inventory_cache.json` was updated later and opportunistically through inventory loading
+
+That meant a subtle but serious stale-cache risk:
+- metadata clear could remove `_meta.tools` from the JSONC truth source
+- but an older persisted inventory cache could still carry those tools
+- a later cache-backed fallback could then re-surface stale tool inventory that had already been cleared from the authoritative local JSONC state
+
+### What changed
+- rewrote `go/internal/mcp/inventory.go`
+  - extracted a live-source inventory path (`loadLiveInventory(...)`) that reads only:
+    - live `mcp.jsonc` / `mcp.json`
+    - live local `metamcp.db`
+  - added exported `SyncInventoryCacheFromLiveSources(workspaceRoot, mainConfigDir, cachePath)`
+    - rebuilds the inventory cache from live sources only
+    - overwrites the cache when live sources exist
+    - removes stale cache file state when live sources are empty
+  - `LoadInventoryWithCache(...)` still supports cache fallback for read-time recovery, but write-time sync is now explicitly separated from read-time cache fallback
+- updated `go/internal/httpapi/server.go`
+  - `saveLocalMCPJsonc(...)` now calls `mcp.SyncInventoryCacheFromLiveSources(...)` after writing:
+    - `mcp.jsonc`
+    - compatibility `mcp.json`
+  - this means JSONC write/mutation flows now actively keep `mcp_inventory_cache.json` aligned
+- expanded `go/internal/mcp/inventory_test.go`
+  - added regression coverage proving stale inventory cache files are removed when live sources are empty
+- expanded `go/internal/httpapi/server_test.go`
+  - metadata reload test now verifies the inventory cache is refreshed from JSONC metadata
+  - metadata clear test now verifies stale tool entries are removed from the persisted inventory cache
+
+### Real correctness issue found and fixed
+The important correctness point here is not a crash bug; it is a **truthfulness bug**.
+
+Without this separation between read-time cache fallback and write-time live-source synchronization, it would be possible for a write path to preserve stale cache truth by accidentally reloading from the old cache while attempting to refresh it.
+
+Fix:
+- read-time cache fallback remains in `LoadInventoryWithCache(...)`
+- write-time cache synchronization now uses `SyncInventoryCacheFromLiveSources(...)` so it never repopulates the cache from stale cached state during authoritative JSONC writes
+
+### Important truthfulness note
+What is true now:
+- JSONC save/mutation flows now actively synchronize the Go inventory cache
+- metadata clear actions no longer leave stale inventory cache tool rows behind
+- metadata refresh actions now update both local JSONC metadata and the persisted inventory cache layer
+- cache-backed fallback behavior is better aligned with the actual current local MCP configuration state
+
+What is still not true yet:
+- JSONC metadata cache and persisted inventory cache are still two related representations rather than one single stored object model
+- runtime overlay data is still not durably folded back into the persisted inventory cache automatically
+- broader MCP sync/import/export parity is still unfinished
+
+### Validation performed for this MCP cache-write unification step
+```bash
+gofmt -w go/internal/mcp/inventory.go go/internal/mcp/inventory_test.go go/internal/httpapi/server.go go/internal/httpapi/server_test.go
+cd go && go test ./internal/mcp ./internal/httpapi
+cd go && go build -buildvcs=false ./cmd/hypercode
+cd go && go test ./...
+```
+
+Results:
+- targeted mcp tests passed
+- targeted httpapi tests passed
+- Go build passed
+- full Go suite passed
+
 ## Bottom line
 This pass meaningfully strengthened the **Go-primary migration path** and improved TypeScript survivability while the migration continues:
 - broader provider routing
@@ -1513,6 +1584,7 @@ This pass meaningfully strengthened the **Go-primary migration path** and improv
 - native MCP fallback mode now has persisted local working-set state, eviction history, and tool-selection telemetry via Go-owned `mcp_state.json`
 - native MCP inventory now has a Go-owned persisted cache layer via `mcp_inventory_cache.json`, and key MCP/control tool list/search fallbacks can recover from it
 - cache-backed MCP/control fallback responses now expose source/freshness metadata and can overlay runtime-registry live-probed tools into the operator-visible fallback inventory view
+- JSONC metadata save/mutation flows now actively resync `mcp_inventory_cache.json` from live sources so metadata clear/refresh actions do not preserve stale cached tool inventory
 - a tested Go-native replacement path for multiple TS-owned persistence surfaces, even though mixed-runtime cleanup is not fully finished yet
 - a small but real Maestro UX fix
 

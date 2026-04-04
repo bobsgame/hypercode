@@ -14378,7 +14378,14 @@ func (s *Server) saveLocalMCPJsonc(content string) error {
 		}
 		compatibility[key] = value
 	}
-	return os.WriteFile(jsonPath, []byte(prettyJSON(compatibility)+"\n"), 0o644)
+	if err := os.WriteFile(jsonPath, []byte(prettyJSON(compatibility)+"\n"), 0o644); err != nil {
+		return err
+	}
+	if err := os.MkdirAll(s.cfg.ConfigDir, 0o755); err != nil {
+		return err
+	}
+	_, err := mcp.SyncInventoryCacheFromLiveSources(s.cfg.WorkspaceRoot, s.cfg.MainConfigDir, filepath.Join(s.cfg.ConfigDir, "mcp_inventory_cache.json"))
+	return err
 }
 
 func (s *Server) localMemoryContexts() ([]map[string]any, error) {

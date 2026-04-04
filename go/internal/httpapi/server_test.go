@@ -10408,6 +10408,15 @@ func TestMCPConfiguredServerMetadataMutationsFallBackToLocalJsonc(t *testing.T) 
 		t.Fatalf("expected cache-aware metadata refresh payload, got %s", reloadRecorder.Body.String())
 	}
 
+	cachePath := filepath.Join(cfg.ConfigDir, "mcp_inventory_cache.json")
+	cacheAfterReload, err := os.ReadFile(cachePath)
+	if err != nil {
+		t.Fatalf("expected refreshed inventory cache file after reload: %v", err)
+	}
+	if !strings.Contains(string(cacheAfterReload), `"originalName": "search"`) {
+		t.Fatalf("expected inventory cache to align with jsonc metadata after reload, got %s", string(cacheAfterReload))
+	}
+
 	clearRequest := httptest.NewRequest(http.MethodPost, "/api/mcp/servers/clear-metadata-cache", strings.NewReader(`{"uuid":"`+uuid+`"}`))
 	clearRequest.Header.Set("content-type", "application/json")
 	clearRecorder := httptest.NewRecorder()
@@ -10428,6 +10437,14 @@ func TestMCPConfiguredServerMetadataMutationsFallBackToLocalJsonc(t *testing.T) 
 	}
 	if !strings.Contains(string(written), `"status": "pending"`) || !strings.Contains(string(written), `"toolCount": 0`) || !strings.Contains(string(written), `Metadata cache cleared locally at`) {
 		t.Fatalf("expected cleared metadata cache state, got %s", string(written))
+	}
+
+	cacheAfterClear, err := os.ReadFile(cachePath)
+	if err != nil {
+		t.Fatalf("expected refreshed inventory cache file after clear: %v", err)
+	}
+	if strings.Contains(string(cacheAfterClear), `"originalName": "search"`) {
+		t.Fatalf("expected inventory cache to clear stale jsonc metadata, got %s", string(cacheAfterClear))
 	}
 }
 

@@ -187,3 +187,33 @@ func TestLoadInventoryWithCachePersistsAndReloadsWithoutLiveSources(t *testing.T
 		t.Fatalf("expected cached inventory tool after reload, got %#v", reloaded.Tools)
 	}
 }
+
+func TestSyncInventoryCacheFromLiveSourcesRemovesStaleCacheWhenSourcesAreEmpty(t *testing.T) {
+	workspace := t.TempDir()
+	configDir := t.TempDir()
+	cachePath := filepath.Join(t.TempDir(), "mcp_inventory_cache.json")
+	staleCache := `{
+  "version": 1,
+  "cachedAt": "2026-04-04T00:00:00Z",
+  "inventory": {
+    "servers": [{"uuid":"config:core","name":"core","displayName":"core","type":"STDIO","enabled":true}],
+    "tools": [{"name":"core__search_tools","description":"stale","server":"core","serverDisplayName":"core","advertisedName":"core__search_tools","originalName":"search_tools"}],
+    "source": "config",
+    "cachedAt": "2026-04-04T00:00:00Z"
+  }
+}`
+	if err := os.WriteFile(cachePath, []byte(staleCache), 0o644); err != nil {
+		t.Fatalf("failed to seed stale cache: %v", err)
+	}
+
+	inventory, err := SyncInventoryCacheFromLiveSources(workspace, configDir, cachePath)
+	if err != nil {
+		t.Fatalf("SyncInventoryCacheFromLiveSources returned error: %v", err)
+	}
+	if inventory.Source != "empty" || len(inventory.Tools) != 0 || len(inventory.Servers) != 0 {
+		t.Fatalf("expected empty live inventory after cache sync, got %#v", inventory)
+	}
+	if _, err := os.Stat(cachePath); !os.IsNotExist(err) {
+		t.Fatalf("expected stale cache file to be removed, stat err=%v", err)
+	}
+}

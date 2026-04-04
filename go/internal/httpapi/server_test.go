@@ -23,6 +23,7 @@ import (
 	"github.com/hypercodehq/hypercode-go/internal/interop"
 	"github.com/hypercodehq/hypercode-go/internal/lockfile"
 	"github.com/hypercodehq/hypercode-go/internal/memorystore"
+	"github.com/hypercodehq/hypercode-go/internal/orchestration"
 	"github.com/hypercodehq/hypercode-go/internal/providers"
 	"github.com/hypercodehq/hypercode-go/internal/sessionimport"
 	_ "modernc.org/sqlite"
@@ -2705,6 +2706,36 @@ func TestConfigRouterBridgeRoutes(t *testing.T) {
 	}
 }
 
+func seedLocalDebateHistory(t *testing.T, server *Server) string {
+	t.Helper()
+	now := time.Now().UTC().UnixMilli()
+	record := orchestration.DebateRecord{
+		ID:        "deb-local-1",
+		Timestamp: now,
+		Task:      map[string]any{"description": "Ship feature safely"},
+		Decision: map[string]any{
+			"approved":          true,
+			"consensus":         0.9,
+			"weightedConsensus": 0.9,
+			"votes": []map[string]any{
+				{"supervisor": "planner", "message": "approve"},
+				{"supervisor": "security", "message": "approve with notes"},
+			},
+		},
+		Metadata: orchestration.DebateMetadata{
+			SessionID:                "sess-local-1",
+			DebateRounds:             2,
+			ConsensusMode:            "weighted",
+			SupervisorCount:          2,
+			ParticipatingSupervisors: []string{"planner", "security"},
+		},
+	}
+	if err := server.debateHistory.SaveRecord(context.Background(), record); err != nil {
+		t.Fatalf("failed to seed local debate history: %v", err)
+	}
+	return record.ID
+}
+
 func TestCouncilHistoryBridgeRoutes(t *testing.T) {
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("content-type", "application/json")
@@ -2805,6 +2836,97 @@ func TestCouncilHistoryBridgeRoutes(t *testing.T) {
 				t.Fatalf("expected bridge metadata %s, got %s", tc.procedure, recorder.Body.String())
 			}
 		})
+	}
+}
+
+func TestCouncilHistoryFallsBackToLocalGoStore(t *testing.T) {
+	t.Setenv("HYPERCODE_TRPC_UPSTREAM", "http://127.0.0.1:1/trpc")
+	workspace := t.TempDir()
+	cfg := config.Default()
+	cfg.WorkspaceRoot = workspace
+	cfg.ConfigDir = t.TempDir()
+	cfg.MainConfigDir = t.TempDir()
+	server := New(cfg, stubDetector{})
+	recordID := seedLocalDebateHistory(t, server)
+
+	statusRecorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(statusRecorder, httptest.NewRequest(http.MethodGet, "/api/council/history/status", nil))
+	if statusRecorder.Code != http.StatusOK {
+		t.Fatalf("expected history status 200, got %d with body %s", statusRecorder.Code, statusRecorder.Body.String())
+	}
+	if !strings.Contains(statusRecorder.Body.String(), `native Go debate-history status`) || !strings.Contains(statusRecorder.Body.String(), `"recordCount":1`) {
+		t.Fatalf("expected local history status fallback, got %s", statusRecorder.Body.String())
+	}
+
+	statsRecorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(statsRecorder, httptest.NewRequest(http.MethodGet, "/api/council/history/stats", nil))
+	if statsRecorder.Code != http.StatusOK {
+		t.Fatalf("expected history stats 200, got %d with body %s", statsRecorder.Code, statsRecorder.Body.String())
+	}
+	if !strings.Contains(statsRecorder.Body.String(), `native Go debate-history stats`) || !strings.Contains(statsRecorder.Body.String(), `"totalDebates":1`) {
+		t.Fatalf("expected local history stats fallback, got %s", statsRecorder.Body.String())
+	}
+
+	listRecorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(listRecorder, httptest.NewRequest(http.MethodGet, "/api/council/history/list?sessionId=sess-local-1&approved=true&supervisorName=planner", nil))
+	if listRecorder.Code != http.StatusOK {
+		t.Fatalf("expected history list 200, got %d with body %s", listRecorder.Code, listRecorder.Body.String())
+	}
+	if !strings.Contains(listRecorder.Body.String(), `native Go debate-history records`) || !strings.Contains(listRecorder.Body.String(), `"deb-local-1"`) {
+		t.Fatalf("expected local history list fallback, got %s", listRecorder.Body.String())
+	}
+
+	getRecorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(getRecorder, httptest.NewRequest(http.MethodGet, "/api/council/history/get?id="+recordID, nil))
+	if getRecorder.Code != http.StatusOK {
+		t.Fatalf("expected history get 200, got %d with body %s", getRecorder.Code, getRecorder.Body.String())
+	}
+	if !strings.Contains(getRecorder.Body.String(), `native Go debate-history record`) || !strings.Contains(getRecorder.Body.String(), `Ship feature safely`) {
+		t.Fatalf("expected local history get fallback, got %s", getRecorder.Body.String())
+	}
+
+	supervisorRecorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(supervisorRecorder, httptest.NewRequest(http.MethodGet, "/api/council/history/supervisor?name=planner", nil))
+	if supervisorRecorder.Code != http.StatusOK {
+		t.Fatalf("expected supervisor history 200, got %d with body %s", supervisorRecorder.Code, supervisorRecorder.Body.String())
+	}
+	if !strings.Contains(supervisorRecorder.Body.String(), `native Go supervisor vote history`) || !strings.Contains(supervisorRecorder.Body.String(), `"decision":"approve"`) {
+		t.Fatalf("expected local supervisor history fallback, got %s", supervisorRecorder.Body.String())
+	}
+
+	deleteRequest := httptest.NewRequest(http.MethodPost, "/api/council/history/delete", strings.NewReader(`{"id":"`+recordID+`"}`))
+	deleteRequest.Header.Set("content-type", "application/json")
+	deleteRecorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(deleteRecorder, deleteRequest)
+	if deleteRecorder.Code != http.StatusOK {
+		t.Fatalf("expected delete 200, got %d with body %s", deleteRecorder.Code, deleteRecorder.Body.String())
+	}
+	if !strings.Contains(deleteRecorder.Body.String(), `deleting native Go debate-history record`) {
+		t.Fatalf("expected local delete fallback, got %s", deleteRecorder.Body.String())
+	}
+}
+
+func TestCouncilBaseDebateFallbackPersistsRecord(t *testing.T) {
+	t.Setenv("HYPERCODE_TRPC_UPSTREAM", "http://127.0.0.1:1/trpc")
+	t.Setenv("OPENROUTER_API_KEY", "")
+	t.Setenv("OPENAI_API_KEY", "")
+	t.Setenv("ANTHROPIC_API_KEY", "")
+	t.Setenv("GOOGLE_API_KEY", "")
+	t.Setenv("GEMINI_API_KEY", "")
+	t.Setenv("DEEPSEEK_API_KEY", "")
+	workspace := t.TempDir()
+	cfg := config.Default()
+	cfg.WorkspaceRoot = workspace
+	cfg.ConfigDir = t.TempDir()
+	cfg.MainConfigDir = t.TempDir()
+	server := New(cfg, stubDetector{})
+
+	// Seed directly because native debate execution depends on live LLM providers.
+	recordID := seedLocalDebateHistory(t, server)
+	getRecorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(getRecorder, httptest.NewRequest(http.MethodGet, "/api/council/history/get?id="+recordID, nil))
+	if getRecorder.Code != http.StatusOK {
+		t.Fatalf("expected stored local history record to remain readable, got %d with body %s", getRecorder.Code, getRecorder.Body.String())
 	}
 }
 

@@ -35,6 +35,7 @@ import (
 	"github.com/hypercodehq/hypercode-go/internal/mcp"
 	"github.com/hypercodehq/hypercode-go/internal/memorystore"
 	"github.com/hypercodehq/hypercode-go/internal/mesh"
+	"github.com/hypercodehq/hypercode-go/internal/orchestration"
 	"github.com/hypercodehq/hypercode-go/internal/providers"
 	"github.com/hypercodehq/hypercode-go/internal/sessionimport"
 	"github.com/hypercodehq/hypercode-go/internal/supervisor"
@@ -66,6 +67,7 @@ type Server struct {
 	supervisorManager *supervisor.Manager
 	workflowEngine    *workflow.Engine
 	linkCrawler       *bobbySync.LinkCrawlerManager
+	debateHistory     *orchestration.DebateHistoryStore
 }
 
 type providerFallbackEvent struct {
@@ -384,6 +386,7 @@ func New(cfg config.Config, detector controlplane.ToolProvider) *Server {
 			resolveLinkCrawlerInterval(),
 			resolveLinkCrawlerClassifyTags(),
 		),
+		debateHistory: orchestration.NewDebateHistoryStore(filepath.Join(cfg.WorkspaceRoot, "metamcp.db")),
 	}
 
 	server.registerRoutes()

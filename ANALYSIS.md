@@ -852,6 +852,67 @@ Results:
 - Go build passed
 - full Go suite passed
 
+## Follow-up Go persistence step (native debate history store)
+The next stateful migration slice targeted another TS-only critical persistence lane:
+- council debate history storage
+- council history read/query/delete flows
+- native fallback debate persistence when Go council execution is used
+
+### What changed
+- added `go/internal/orchestration/history.go`
+  - native debate-history store over `metamcp.db`
+  - native `council_debates` schema ensure/create path
+  - record count, status, storage size
+  - config/toggle state in the Go runtime
+  - stats aggregation
+  - list/get/delete/clear/supervisor-history operations
+  - save path for native Go debate fallback results
+- wired the Go server to own a native debate-history store
+- updated `go/internal/httpapi/council_history_handlers.go`
+  - native fallbacks for:
+    - `status`
+    - `getConfig`
+    - `updateConfig`
+    - `toggle`
+    - `stats`
+    - `list`
+    - `get`
+    - `delete`
+    - `supervisorHistory`
+    - `clear`
+    - `initialize`
+- updated `go/internal/httpapi/council_base_handlers.go`
+  - native Go `council.debate` fallback now persists the resulting debate into the native Go debate-history store
+- added/expanded regression coverage in `go/internal/httpapi/server_test.go`
+  - council-history routes now verify native local-store fallback behavior
+- full Go suite remained green after the change
+
+### Important truthfulness note
+This is a real native persistence upgrade, but not total parity yet.
+
+What is true now:
+- Go no longer needs the TS council history router for basic persisted council history reads/writes when upstream is unavailable
+- native fallback debates are now saved into persistent history instead of disappearing after the response
+- council history status/stats/list/get/delete/clear/supervisor-history all have a native Go fallback path
+
+What is not true yet:
+- TS and Go config semantics are not fully harmonized
+- broader council orchestration/policy/config parity is still mixed
+- the overall repo still has a mixed-runtime council world rather than total Go ownership
+
+### Validation performed for this debate-history step
+```bash
+gofmt -w go/internal/orchestration/history.go go/internal/httpapi/council_history_handlers.go go/internal/httpapi/council_base_handlers.go go/internal/httpapi/server.go go/internal/httpapi/server_test.go
+cd go && go test ./internal/orchestration ./internal/httpapi
+cd go && go build -buildvcs=false ./cmd/hypercode
+cd go && go test ./...
+```
+
+Results:
+- targeted orchestration/httpapi tests passed
+- Go build passed
+- full Go suite passed
+
 ## Bottom line
 This pass meaningfully strengthened the **Go-primary migration path** and improved TypeScript survivability while the migration continues:
 - broader provider routing
@@ -880,6 +941,8 @@ This pass meaningfully strengthened the **Go-primary migration path** and improv
 - Go-owned links backlog crawler background lifecycle in the Go server
 - native imported-session persistence, dedup, memory-row storage, docs generation, and maintenance stats in Go
 - Go read fallbacks for imported sessions now prefer persistent local state before archive-only/scan-only degradation
+- native Go debate-history persistence plus native council-history read/write fallbacks
+- native fallback council debates now persist into Go history instead of being transient-only
 - a tested Go-native replacement path for multiple TS-owned persistence surfaces, even though mixed-runtime cleanup is not fully finished yet
 - a small but real Maestro UX fix
 

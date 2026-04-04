@@ -78,13 +78,26 @@ func (s *Server) handleCouncilBaseDebate(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	savedRecord, saveErr := s.debateHistory.SaveNativeDebate(r.Context(), payload.ID, normalizedObjective, payload.Context, debateRes)
+	if saveErr != nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{
+			"success": false,
+			"error":   saveErr.Error(),
+			"detail":  saveErr.Error(),
+		})
+		return
+	}
+
 	writeJSON(w, http.StatusOK, map[string]any{
 		"success": true,
-		"data":    debateRes,
+		"data": map[string]any{
+			"result": debateRes,
+			"record": savedRecord,
+		},
 		"bridge": map[string]any{
 			"fallback":  "go-local-council-debate",
 			"procedure": "council.debate",
-			"reason":    "upstream unavailable; executing native Go multi-agent debate loop",
+			"reason":    "upstream unavailable; executing native Go multi-agent debate loop with native debate-history persistence",
 		},
 	})
 }

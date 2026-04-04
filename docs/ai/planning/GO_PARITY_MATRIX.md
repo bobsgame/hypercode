@@ -62,7 +62,7 @@ Status values:
 | Imported session docs/maintenance | Partial Native Go | Go now provides instruction-doc generation/listing and maintenance stats from the native store, though mixed-runtime cleanup is still ongoing |
 | Transcript dedup / retention maintenance | Partial Native Go | transcript-hash dedup now exists in the native Go imported-session store, but broader retention/backfill ownership is still incomplete |
 | Workspace/config/secret persistence | Mixed | some Go read surfaces, TS still owns many writes |
-| Debate history persistence | TS-only critical | TS service degrades gracefully, but ownership not ported |
+| Debate history persistence | Partial Native Go | Go now has a native debate-history store plus native council-history read/write fallbacks, but TS config/policy semantics and broader mixed-runtime cleanup are still incomplete |
 | Windows/Node SQLite reliability | Go-preferred | major motivation for migration away from TS `better-sqlite3` |
 
 ---
@@ -86,8 +86,8 @@ Status values:
 |---|---|---|
 | Native workflow engine | Native Go | DAG engine + built-ins implemented |
 | Workflow API parity | Partial Native Go | native endpoints exist, not yet full TS parity |
-| Council debate endpoint | Bridge-first with Native Go fallback | native Go council fallback exists |
-| Council history/persistence | TS-only critical | debate history storage still TS-owned |
+| Council debate endpoint | Bridge-first with Native Go fallback | native Go council fallback exists and now persists native fallback debates into the Go debate-history store |
+| Council history/persistence | Partial Native Go | Go history status/stats/list/get/delete/supervisor/clear/initialize fallbacks now use native persisted debate history when TS is unavailable |
 | Swarm/squad/autodev/darwin | Bridge-only / partial | many Go routes exist but still proxy to TS |
 | Director config/status | Bridge-only / partial | visibility exists, not full native ownership |
 

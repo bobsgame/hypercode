@@ -795,6 +795,63 @@ Results:
 - Go build passed
 - full Go suite passed
 
+## Follow-up Go persistence step (native imported-session store)
+The next migration slice targeted another TS-owned startup-critical persistence area:
+- imported-session storage
+- transcript-hash dedup
+- imported-session memory rows
+- instruction-doc generation
+- maintenance stats
+
+### What changed
+- added `go/internal/sessionimport/store.go`
+  - native imported-session store over `metamcp.db`
+  - ensures imported-session tables/indexes exist when accessed from Go
+  - transcript-hash dedup
+  - archived transcript + sidecar metadata gzip persistence
+  - imported-session memory row persistence
+  - native list/get/instruction-memory/maintenance APIs at the package layer
+  - native instruction-doc generation/listing
+- added `go/internal/httpapi/server.go` route:
+  - `POST /api/sessions/imported/persist-native`
+- updated existing imported-session fallback handlers to prefer the native Go store before archive-only or scan-only fallbacks:
+  - `/api/sessions/imported/list`
+  - `/api/sessions/imported/get`
+  - `/api/sessions/imported/instruction-docs`
+  - `/api/sessions/imported/maintenance-stats`
+  - `/api/sessions/imported/scan` summary fallback paths now merge/prefer locally persisted imported-session records when present
+- added regression coverage:
+  - `go/internal/sessionimport/store_test.go`
+  - expanded `go/internal/httpapi/server_test.go`
+
+### Important truthfulness note
+This is a major step toward Go ownership, but it is **not yet** full native imported-session parity.
+
+What is true now:
+- Go has a real imported-session persistence layer
+- Go owns transcript-hash dedup for this native lane
+- Go can persist imported-session memory rows and regenerate imported instruction docs
+- Go imported-session read fallbacks now prefer persistent local state instead of dropping immediately to archive-only/scan-only summaries
+- Go exposes a native write surface (`persist-native`) for imported sessions
+
+What is not true yet:
+- full native scan/import parsing with the same richness as the TS `SessionImportService` is not complete
+- broader retention-summary backfill/migration ownership is still partial
+- the repo still contains the TS imported-session pipeline in the mixed-runtime world
+
+### Validation performed for this imported-session step
+```bash
+gofmt -w go/internal/sessionimport/store.go go/internal/sessionimport/store_test.go go/internal/httpapi/server.go go/internal/httpapi/server_test.go
+cd go && go test ./internal/sessionimport ./internal/httpapi
+cd go && go build -buildvcs=false ./cmd/hypercode
+cd go && go test ./...
+```
+
+Results:
+- targeted sessionimport/httpapi tests passed
+- Go build passed
+- full Go suite passed
+
 ## Bottom line
 This pass meaningfully strengthened the **Go-primary migration path** and improved TypeScript survivability while the migration continues:
 - broader provider routing
@@ -821,7 +878,9 @@ This pass meaningfully strengthened the **Go-primary migration path** and improv
 - truthful dashboard skipping/warnings when Go runtime is selected but TS/tRPC compatibility is still required for the current web UI
 - native Go links backlog crawling/enrichment API surface
 - Go-owned links backlog crawler background lifecycle in the Go server
-- a tested Go-native replacement path for one TS-only HyperIngest feature, even though mixed-runtime cleanup is not fully finished yet
+- native imported-session persistence, dedup, memory-row storage, docs generation, and maintenance stats in Go
+- Go read fallbacks for imported sessions now prefer persistent local state before archive-only/scan-only degradation
+- a tested Go-native replacement path for multiple TS-owned persistence surfaces, even though mixed-runtime cleanup is not fully finished yet
 - a small but real Maestro UX fix
 
 It was validated by successful Go compilation, successful targeted Go tests for the new native surfaces, successful targeted regression tests for repaired bridge/fallback routes, a successful full Go test suite run (`go test ./...`), targeted CLI startup tests and type-checking, council/sync coverage, targeted AI/core validation, and repeated successful workspace builds. The new systems are real and integrated, but several of them should still be described as **Beta** or **Experimental**, not full parity.

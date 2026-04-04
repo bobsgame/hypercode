@@ -10455,6 +10455,96 @@ func TestImportedSessionListFallsBackToArchivedRecords(t *testing.T) {
 	}
 }
 
+func seedLocalImportedSessionStore(t *testing.T, workspaceRoot string) string {
+	t.Helper()
+	store := sessionimport.NewImportedSessionStore(workspaceRoot)
+	record, err := store.UpsertSession(context.Background(), sessionimport.ImportedSessionRecordInput{
+		SourceTool:        "go-native",
+		SourcePath:        filepath.Join(workspaceRoot, ".claude", "session.jsonl"),
+		ExternalSessionID: func() *string { v := "go-import-1"; return &v }(),
+		Title:             func() *string { v := "Go Persisted Import"; return &v }(),
+		SessionFormat:     "jsonl",
+		Transcript:        "Persisted imported transcript from Go store.",
+		Excerpt:           func() *string { v := "Persisted imported transcript from Go store."; return &v }(),
+		WorkingDirectory:  func() *string { v := workspaceRoot; return &v }(),
+		TranscriptHash:    "feedfacefeedfacefeedfacefeedface",
+		NormalizedSession: map[string]any{"sourceTool": "go-native"},
+		Metadata:          map[string]any{"retentionSummary": map[string]any{"archiveDisposition": "archive_only"}},
+		DiscoveredAt:      1712001000000,
+		ImportedAt:        1712001001000,
+		ParsedMemories: []sessionimport.ImportedSessionMemoryInput{
+			{Kind: sessionimport.ImportedSessionMemoryKindInstruction, Content: "Always keep the Go import lane truthful.", Tags: []string{"go", "imports"}, Source: sessionimport.ImportedSessionMemorySourceHeuristic, Metadata: map[string]any{"sourceTool": "go-native", "path": filepath.Join(workspaceRoot, ".claude", "session.jsonl")}},
+		},
+	})
+	if err != nil {
+		t.Fatalf("failed to seed local imported session store: %v", err)
+	}
+	if _, err := store.WriteInstructionDoc(context.Background(), 250); err != nil {
+		t.Fatalf("failed to write local imported instruction doc: %v", err)
+	}
+	return record.ID
+}
+
+func TestImportedSessionRoutesPreferLocalGoStoreFallback(t *testing.T) {
+	workspaceRoot := t.TempDir()
+	sessionID := seedLocalImportedSessionStore(t, workspaceRoot)
+
+	t.Setenv("HYPERCODE_TRPC_UPSTREAM", "http://127.0.0.1:1/trpc")
+
+	cfg := config.Default()
+	cfg.WorkspaceRoot = workspaceRoot
+	cfg.MainConfigDir = t.TempDir()
+	server := New(cfg, stubDetector{})
+
+	listRecorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(listRecorder, httptest.NewRequest(http.MethodGet, "/api/sessions/imported/list?limit=5", nil))
+	if listRecorder.Code != http.StatusOK {
+		t.Fatalf("expected list fallback status 200, got %d with body %s", listRecorder.Code, listRecorder.Body.String())
+	}
+	if !strings.Contains(listRecorder.Body.String(), `using locally persisted imported session records`) {
+		t.Fatalf("expected local store list fallback reason, got %s", listRecorder.Body.String())
+	}
+	if !strings.Contains(listRecorder.Body.String(), `"id":"`+sessionID+`"`) {
+		t.Fatalf("expected persisted imported session id, got %s", listRecorder.Body.String())
+	}
+
+	getRecorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(getRecorder, httptest.NewRequest(http.MethodGet, "/api/sessions/imported/get?id="+sessionID, nil))
+	if getRecorder.Code != http.StatusOK {
+		t.Fatalf("expected get fallback status 200, got %d with body %s", getRecorder.Code, getRecorder.Body.String())
+	}
+	if !strings.Contains(getRecorder.Body.String(), `using locally persisted imported session record`) {
+		t.Fatalf("expected local store get fallback reason, got %s", getRecorder.Body.String())
+	}
+	if !strings.Contains(getRecorder.Body.String(), `Persisted imported transcript from Go store.`) {
+		t.Fatalf("expected persisted transcript content, got %s", getRecorder.Body.String())
+	}
+
+	docsRecorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(docsRecorder, httptest.NewRequest(http.MethodGet, "/api/sessions/imported/instruction-docs", nil))
+	if docsRecorder.Code != http.StatusOK {
+		t.Fatalf("expected docs fallback status 200, got %d with body %s", docsRecorder.Code, docsRecorder.Body.String())
+	}
+	if !strings.Contains(docsRecorder.Body.String(), `using Go imported-session instruction documents`) {
+		t.Fatalf("expected local store docs fallback reason, got %s", docsRecorder.Body.String())
+	}
+	if !strings.Contains(docsRecorder.Body.String(), `auto-imported-agent-instructions.md`) {
+		t.Fatalf("expected generated instruction doc, got %s", docsRecorder.Body.String())
+	}
+
+	statsRecorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(statsRecorder, httptest.NewRequest(http.MethodGet, "/api/sessions/imported/maintenance-stats", nil))
+	if statsRecorder.Code != http.StatusOK {
+		t.Fatalf("expected stats fallback status 200, got %d with body %s", statsRecorder.Code, statsRecorder.Body.String())
+	}
+	if !strings.Contains(statsRecorder.Body.String(), `using locally persisted imported session maintenance stats`) {
+		t.Fatalf("expected local store maintenance fallback reason, got %s", statsRecorder.Body.String())
+	}
+	if !strings.Contains(statsRecorder.Body.String(), `"archivedTranscriptCount":1`) {
+		t.Fatalf("expected archived transcript count from local store, got %s", statsRecorder.Body.String())
+	}
+}
+
 func TestImportedSessionGetFallsBackToGoScanner(t *testing.T) {
 	workspaceRoot := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(workspaceRoot, ".claude"), 0o755); err != nil {
@@ -10608,8 +10698,8 @@ func TestImportedInstructionDocsFallsBackToWorkspaceDoc(t *testing.T) {
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("expected fallback status 200, got %d with body %s", recorder.Code, recorder.Body.String())
 	}
-	if !strings.Contains(recorder.Body.String(), `using workspace imported instruction documents`) {
-		t.Fatalf("expected workspace docs fallback reason, got %s", recorder.Body.String())
+	if !strings.Contains(recorder.Body.String(), `using Go imported-session instruction documents`) {
+		t.Fatalf("expected Go imported-session docs fallback reason, got %s", recorder.Body.String())
 	}
 	if !strings.Contains(recorder.Body.String(), `"auto-imported-agent-instructions.md"`) {
 		t.Fatalf("expected workspace imported instructions doc, got %s", recorder.Body.String())
@@ -10730,6 +10820,65 @@ func TestImportedSessionMaintenanceStatsFallsBackToArchivedRecords(t *testing.T)
 	}
 	if !strings.Contains(recorder.Body.String(), `"missingRetentionSummaryCount":0`) {
 		t.Fatalf("expected retention summary to be present, got %s", recorder.Body.String())
+	}
+}
+
+func TestImportedSessionPersistNativeStoresRecordAndDoc(t *testing.T) {
+	workspaceRoot := t.TempDir()
+	cfg := config.Default()
+	cfg.WorkspaceRoot = workspaceRoot
+	cfg.MainConfigDir = t.TempDir()
+	server := New(cfg, stubDetector{})
+
+	body := strings.NewReader(`{
+		"sourceTool":"go-native",
+		"sourcePath":"C:/tmp/session-native.jsonl",
+		"externalSessionId":"native-1",
+		"title":"Go Native Persist",
+		"sessionFormat":"jsonl",
+		"transcript":"Assistant: Keep native imports durable.",
+		"excerpt":"Keep native imports durable.",
+		"workingDirectory":"C:/tmp",
+		"transcriptHash":"bead1234ef567890bead1234ef567890",
+		"normalizedSession":{"sourceTool":"go-native"},
+		"metadata":{"retentionSummary":{"archiveDisposition":"archive_only"}},
+		"discoveredAt":1712002000000,
+		"importedAt":1712002001000,
+		"parsedMemories":[
+			{
+				"kind":"instruction",
+				"content":"Keep native imports durable.",
+				"tags":["go","imports"],
+				"source":"heuristic",
+				"metadata":{"sourceTool":"go-native","path":"C:/tmp/session-native.jsonl"}
+			}
+		]
+	}`)
+	request := httptest.NewRequest(http.MethodPost, "/api/sessions/imported/persist-native", body)
+	request.Header.Set("content-type", "application/json")
+	recorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected persist-native status 200, got %d with body %s", recorder.Code, recorder.Body.String())
+	}
+	if !strings.Contains(recorder.Body.String(), `"procedure":"session.importedPersistNative"`) {
+		t.Fatalf("expected native persist procedure metadata, got %s", recorder.Body.String())
+	}
+	if !strings.Contains(recorder.Body.String(), `"instructionDocPath":"`) {
+		t.Fatalf("expected instruction doc path in persist-native response, got %s", recorder.Body.String())
+	}
+	if !strings.Contains(recorder.Body.String(), `Keep native imports durable.`) {
+		t.Fatalf("expected persisted content in response, got %s", recorder.Body.String())
+	}
+
+	listRecorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(listRecorder, httptest.NewRequest(http.MethodGet, "/api/sessions/imported/list?limit=5", nil))
+	if listRecorder.Code != http.StatusOK {
+		t.Fatalf("expected list status 200 after persist-native, got %d with body %s", listRecorder.Code, listRecorder.Body.String())
+	}
+	if !strings.Contains(listRecorder.Body.String(), `Go Native Persist`) {
+		t.Fatalf("expected persisted session in list output, got %s", listRecorder.Body.String())
 	}
 }
 

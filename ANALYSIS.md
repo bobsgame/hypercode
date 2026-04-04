@@ -2278,6 +2278,46 @@ Results:
 - Go build passed
 - full Go suite passed
 
+## Follow-up detail-adjacent provenance-trim step (configured-server get)
+The next step after `/api/tools/get` was to trim the next remaining detail-style MCP fallback read that had become low enough risk: configured-server get fallback.
+
+### What changed
+- updated `go/internal/httpapi/server.go`
+  - JSONC-backed configured-server get fallback now returns the primary nested provenance form
+  - DB-backed configured-server get fallback now does the same
+- updated `go/internal/httpapi/mcp_inventory_fallback.go`
+  - configured-server primary-provenance-only trimming helper is now used by both list and get fallback responses
+- expanded `go/internal/httpapi/server_test.go`
+  - configured-server get fallback test now verifies:
+    - nested `provenance` remains present
+    - `compatibilityMode` is `legacy-top-level-mirrors-trimmed`
+    - `legacyMirrorFields` is empty
+    - top-level configured-server metadata mirror fields are absent from the get response
+
+### Important truthfulness note
+What is true now:
+- configured-server get fallback now joins search/list surfaces and `/api/tools/get` in preferring the primary nested provenance contract
+- the migration still remains selective rather than repo-wide
+
+What is still not true yet:
+- some higher-risk config/detail surfaces still retain compatibility-heavy top-level mirrors
+- full TS/Go contract consolidation is still incomplete
+- this is still not a global breaking cleanup
+
+### Validation performed for this configured-server get trim step
+```bash
+gofmt -w go/internal/httpapi/mcp_inventory_fallback.go go/internal/httpapi/server.go go/internal/httpapi/server_test.go
+cd go && go test ./internal/httpapi ./internal/mcp
+cd go && go build -buildvcs=false ./cmd/hypercode
+cd go && go test ./...
+```
+
+Results:
+- targeted httpapi tests passed
+- targeted mcp tests passed
+- Go build passed
+- full Go suite passed
+
 ## Bottom line
 This pass meaningfully strengthened the **Go-primary migration path** and improved TypeScript survivability while the migration continues:
 - broader provider routing
@@ -2330,6 +2370,7 @@ This pass meaningfully strengthened the **Go-primary migration path** and improv
 - low-risk tool list surfaces now join search surfaces in trimming redundant top-level provenance mirrors while higher-risk get/detail surfaces remain intact for now
 - low-risk runtime/configured server list surfaces now also use the trimmed primary nested `provenance` contract while corresponding get/detail responses remain compatibility-heavy for now
 - `/api/tools/get` is now the first detail-adjacent MCP fallback surface to adopt the trimmed primary nested `provenance` contract while higher-risk detail surfaces remain compatibility-heavy
+- configured-server get fallback now also adopts the trimmed primary nested `provenance` contract while the remaining highest-risk config/detail surfaces stay compatibility-heavy for now
 - a tested Go-native replacement path for multiple TS-owned persistence surfaces, even though mixed-runtime cleanup is not fully finished yet
 - a small but real Maestro UX fix
 

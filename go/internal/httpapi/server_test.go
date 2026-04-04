@@ -10263,9 +10263,14 @@ func TestMCPConfiguredServersFallBackToLocalJsonc(t *testing.T) {
 	if !strings.Contains(getRecorder.Body.String(), `"name":"core"`) {
 		t.Fatalf("expected configured server get payload, got %s", getRecorder.Body.String())
 	}
-	for _, needle := range []string{`"originLayer":"configured-jsonc"`, `"metadataOrigin":"jsonc-cache"`, `"metadataCachedAt":"2024-01-01T00:00:00Z"`, `"provenance":{"ageMs":`, `"compatibilityMode":"legacy-top-level-mirrors-retained"`, `"legacyMirrorFields":["originLayer","metadataOrigin","metadataCachedAt","metadataAgeMs","metadataStaleHeuristic"]`, `"layer":"configured-jsonc"`, `"primary":true`, `"schemaVersion":1`, `"source":"jsonc-cache"`} {
+	for _, needle := range []string{`"provenance":{"ageMs":`, `"compatibilityMode":"legacy-top-level-mirrors-trimmed"`, `"legacyMirrorFields":[]`, `"layer":"configured-jsonc"`, `"primary":true`, `"schemaVersion":1`, `"source":"jsonc-cache"`, `"cachedAt":"2024-01-01T00:00:00Z"`, `"staleHeuristic":true`} {
 		if !strings.Contains(getRecorder.Body.String(), needle) {
 			t.Fatalf("expected configured server get provenance %s, got %s", needle, getRecorder.Body.String())
+		}
+	}
+	for _, needle := range []string{`"originLayer":"configured-jsonc"`, `"metadataOrigin":"jsonc-cache"`, `"metadataCachedAt":"2024-01-01T00:00:00Z"`, `"metadataStaleHeuristic":true`} {
+		if strings.Contains(getRecorder.Body.String(), needle) {
+			t.Fatalf("expected configured server get to omit legacy field %s, got %s", needle, getRecorder.Body.String())
 		}
 	}
 }

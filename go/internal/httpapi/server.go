@@ -2328,7 +2328,7 @@ func (s *Server) handleMCPConfiguredServerGet(w http.ResponseWriter, r *http.Req
 	if fallbackErr == nil && fallbackServer != nil {
 		writeJSON(w, http.StatusOK, map[string]any{
 			"success": true,
-			"data":    fallbackServer,
+			"data":    primaryConfiguredServerProvenanceOnly(fallbackServer),
 			"bridge": map[string]any{
 				"fallback":  "go-local-jsonc",
 				"procedure": "mcpServers.get",
@@ -2350,7 +2350,7 @@ func (s *Server) handleMCPConfiguredServerGet(w http.ResponseWriter, r *http.Req
 	if fallbackServer != nil {
 		writeJSON(w, http.StatusOK, map[string]any{
 			"success": true,
-			"data":    fallbackServer,
+			"data":    primaryConfiguredServerProvenanceOnly(fallbackServer),
 			"bridge": map[string]any{
 				"fallback":  "go-local-mcp-db",
 				"procedure": "mcpServers.get",

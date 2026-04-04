@@ -959,6 +959,55 @@ Results:
 - Go build passed
 - full Go suite passed
 
+## Follow-up Go parser step (DB-backed imported-session parity)
+The next imported-session gap was the DB-backed artifact lane:
+- `llm-cli` `logs.db`
+- Prism `data.db`
+
+### What changed
+- added `go/internal/sessionimport/db_ingest.go`
+  - native Prism DB parsing for:
+    - `session_ledger`
+    - `session_handoffs`
+  - native `llm-cli` DB parsing for:
+    - `conversations`
+    - orphan `responses`
+    - `tool_calls`
+    - `tool_results`
+  - transcript stitching for tool call/result context
+  - metadata extraction for model ids, token counts, Prism fields, and working-directory hints
+- updated `go/internal/sessionimport/ingest.go`
+  - DB-backed candidates are no longer blanket-skipped
+  - native ingest now expands DB artifacts into one-or-more imported-session records and persists them through the Go store
+- added regression coverage:
+  - `go/internal/sessionimport/db_ingest_test.go`
+  - expanded `go/internal/httpapi/server_test.go` to exercise `ingest-native` against a real `llm-cli` SQLite DB
+
+### Important truthfulness note
+This meaningfully improves parity, but should still be described as **partial**, not complete.
+
+What is true now:
+- Go-native imported-session ingest now supports both file-based artifacts and key DB-backed artifacts
+- Go no longer has to skip `llm-cli` / Prism DB artifacts in the native ingest lane
+- Go can persist those imported sessions into the native store with heuristic memories and regenerated instruction docs
+
+What is not true yet:
+- the TS parser still contains broader ecosystem-specific richness and edge-case handling
+- additional niche formats and special-case extraction paths may still lag behind TS
+
+### Validation performed for this DB-backed parser step
+```bash
+gofmt -w go/internal/sessionimport/db_ingest.go go/internal/sessionimport/db_ingest_test.go go/internal/sessionimport/ingest.go go/internal/httpapi/server_test.go go/internal/httpapi/server.go
+cd go && go test ./internal/sessionimport ./internal/httpapi
+cd go && go build -buildvcs=false ./cmd/hypercode
+cd go && go test ./...
+```
+
+Results:
+- targeted sessionimport/httpapi tests passed
+- Go build passed
+- full Go suite passed
+
 ## Bottom line
 This pass meaningfully strengthened the **Go-primary migration path** and improved TypeScript survivability while the migration continues:
 - broader provider routing
@@ -990,6 +1039,7 @@ This pass meaningfully strengthened the **Go-primary migration path** and improv
 - native Go debate-history persistence plus native council-history read/write fallbacks
 - native fallback council debates now persist into Go history instead of being transient-only
 - native file-based imported-session ingest in Go with heuristic memory extraction and instruction-doc regeneration
+- native DB-backed imported-session parsing in Go for `llm-cli` and Prism artifacts
 - a tested Go-native replacement path for multiple TS-owned persistence surfaces, even though mixed-runtime cleanup is not fully finished yet
 - a small but real Maestro UX fix
 

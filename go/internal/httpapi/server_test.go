@@ -11019,9 +11019,33 @@ func TestImportedSessionIngestNativePersistsSupportedFileCandidates(t *testing.T
 	if err := os.MkdirAll(filepath.Join(workspaceRoot, ".llm"), 0o755); err != nil {
 		t.Fatalf("failed to create llm dir: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(workspaceRoot, ".llm", "logs.db"), []byte("SQLite format 3\x00fake llm db"), 0o644); err != nil {
-		t.Fatalf("failed to seed db candidate: %v", err)
+	llmDB, err := sql.Open("sqlite", filepath.Join(workspaceRoot, ".llm", "logs.db"))
+	if err != nil {
+		t.Fatalf("failed to open llm db: %v", err)
 	}
+	if _, err := llmDB.Exec(`
+		CREATE TABLE conversations (id TEXT, name TEXT, model TEXT);
+		CREATE TABLE responses (
+			id TEXT,
+			conversation_id TEXT,
+			model TEXT,
+			prompt TEXT,
+			system TEXT,
+			prompt_json TEXT,
+			response TEXT,
+			response_json TEXT,
+			datetime_utc TEXT,
+			input_tokens INTEGER,
+			output_tokens INTEGER,
+			resolved_model TEXT
+		);
+		INSERT INTO conversations VALUES ('conv-1','LLM Session','gpt-4');
+		INSERT INTO responses VALUES ('resp-1','conv-1','gpt-4','How should we route providers?','System prompt',NULL,'Use openrouter free defaults.',NULL,'2026-04-04T01:00:00Z',11,22,'gpt-4');
+	`); err != nil {
+		llmDB.Close()
+		t.Fatalf("failed to seed llm db: %v", err)
+	}
+	llmDB.Close()
 
 	cfg := config.Default()
 	cfg.WorkspaceRoot = workspaceRoot
@@ -11039,11 +11063,8 @@ func TestImportedSessionIngestNativePersistsSupportedFileCandidates(t *testing.T
 	if !strings.Contains(recorder.Body.String(), `"procedure":"session.importedIngestNative"`) {
 		t.Fatalf("expected ingest-native procedure metadata, got %s", recorder.Body.String())
 	}
-	if !strings.Contains(recorder.Body.String(), `"importedCount":1`) {
-		t.Fatalf("expected one imported candidate, got %s", recorder.Body.String())
-	}
-	if !strings.Contains(recorder.Body.String(), `database-log ingestion is not yet implemented natively`) {
-		t.Fatalf("expected explicit db skip reason, got %s", recorder.Body.String())
+	if !strings.Contains(recorder.Body.String(), `"importedCount":2`) {
+		t.Fatalf("expected two imported candidates, got %s", recorder.Body.String())
 	}
 	if !strings.Contains(recorder.Body.String(), `auto-imported-agent-instructions.md`) {
 		t.Fatalf("expected regenerated instruction doc path, got %s", recorder.Body.String())
@@ -11055,7 +11076,10 @@ func TestImportedSessionIngestNativePersistsSupportedFileCandidates(t *testing.T
 		t.Fatalf("expected list status 200 after ingest-native, got %d with body %s", listRecorder.Code, listRecorder.Body.String())
 	}
 	if !strings.Contains(listRecorder.Body.String(), `Always use port 4000 for HyperCode.`) {
-		t.Fatalf("expected ingested transcript in list output, got %s", listRecorder.Body.String())
+		t.Fatalf("expected ingested file transcript in list output, got %s", listRecorder.Body.String())
+	}
+	if !strings.Contains(listRecorder.Body.String(), `Use openrouter free defaults.`) {
+		t.Fatalf("expected ingested llm db transcript in list output, got %s", listRecorder.Body.String())
 	}
 }
 

@@ -45,39 +45,42 @@ func IngestDiscoveredSessions(ctx context.Context, workspaceRoot, homeDir string
 			}
 			continue
 		}
-		if validation.SourceType == "database-log" || candidate.SessionFormat == "db" {
-			summary.SkippedCount++
-			summary.Errors = append(summary.Errors, fmt.Sprintf("skip %s: database-log ingestion is not yet implemented natively", candidate.SourcePath))
-			continue
-		}
-
-		recordInput, err := buildImportedSessionRecordInput(candidate, validation)
+		recordInputs, err := buildImportedSessionRecordInputs(candidate, validation, ctx)
 		if err != nil {
 			summary.SkippedCount++
 			summary.Errors = append(summary.Errors, fmt.Sprintf("skip %s: %v", candidate.SourcePath, err))
 			continue
 		}
-		if !force {
-			exists, err := store.HasTranscriptHash(ctx, recordInput.TranscriptHash)
-			if err != nil {
-				summary.SkippedCount++
-				summary.Errors = append(summary.Errors, fmt.Sprintf("dedup %s: %v", candidate.SourcePath, err))
-				continue
-			}
-			if exists {
-				summary.SkippedCount++
-				continue
-			}
-		}
-
-		record, err := store.UpsertSession(ctx, recordInput)
-		if err != nil {
+		if len(recordInputs) == 0 {
 			summary.SkippedCount++
-			summary.Errors = append(summary.Errors, fmt.Sprintf("persist %s: %v", candidate.SourcePath, err))
 			continue
 		}
-		summary.ImportedCount++
-		summary.StoredMemoryCount += len(record.ParsedMemories)
+		importedForCandidate := 0
+		for _, recordInput := range recordInputs {
+			if !force {
+				exists, err := store.HasTranscriptHash(ctx, recordInput.TranscriptHash)
+				if err != nil {
+					summary.Errors = append(summary.Errors, fmt.Sprintf("dedup %s: %v", recordInput.SourcePath, err))
+					continue
+				}
+				if exists {
+					summary.SkippedCount++
+					continue
+				}
+			}
+
+			record, err := store.UpsertSession(ctx, recordInput)
+			if err != nil {
+				summary.Errors = append(summary.Errors, fmt.Sprintf("persist %s: %v", recordInput.SourcePath, err))
+				continue
+			}
+			importedForCandidate++
+			summary.ImportedCount++
+			summary.StoredMemoryCount += len(record.ParsedMemories)
+		}
+		if importedForCandidate == 0 {
+			summary.SkippedCount++
+		}
 	}
 
 	doc, err := store.WriteInstructionDoc(ctx, 250)
@@ -94,6 +97,17 @@ func IngestDiscoveredSessions(ctx context.Context, workspaceRoot, homeDir string
 	}
 	sort.Strings(summary.Tools)
 	return summary, nil
+}
+
+func buildImportedSessionRecordInputs(candidate Candidate, validation ValidationResult, ctx context.Context) ([]ImportedSessionRecordInput, error) {
+	if validation.SourceType == "database-log" || candidate.SessionFormat == "db" {
+		return buildImportedSessionRecordInputsFromDatabase(ctx, candidate)
+	}
+	recordInput, err := buildImportedSessionRecordInput(candidate, validation)
+	if err != nil {
+		return nil, err
+	}
+	return []ImportedSessionRecordInput{recordInput}, nil
 }
 
 func buildImportedSessionRecordInput(candidate Candidate, validation ValidationResult) (ImportedSessionRecordInput, error) {
@@ -434,6 +448,17 @@ func firstNonEmptyString(values ...string) string {
 		}
 	}
 	return ""
+}
+
+func stringValue(value any) string {
+	switch typed := value.(type) {
+	case string:
+		return typed
+	case []byte:
+		return string(typed)
+	default:
+		return ""
+	}
 }
 
 func firstString(values []string) string {

@@ -3,6 +3,7 @@ import { ModelSelector } from './ModelSelector.js';
 
 describe('ModelSelector', () => {
     beforeEach(() => {
+        process.env.OPENROUTER_API_KEY = 'test-openrouter-key';
         process.env.GOOGLE_API_KEY = 'test-google-key';
         process.env.OPENAI_API_KEY = 'test-openai-key';
         process.env.ANTHROPIC_API_KEY = 'test-anthropic-key';
@@ -28,8 +29,8 @@ describe('ModelSelector', () => {
 
         const result = await selector.selectModel({ taskType: 'worker' });
 
-        expect(result.provider).toBe('openai');
-        expect(result.modelId).toBe('codex-5.3');
+        expect(result.provider).toBe('openrouter');
+        expect(result.modelId).toBe('xiaomi/mimo-v2-flash:free');
     });
 
     it('forces a local fallback when the budget is exceeded', async () => {
@@ -72,6 +73,16 @@ describe('ModelSelector', () => {
         expect(entry).toBeDefined();
         expect(entry!.isPermanent).toBe(false);
         expect(entry!.retryAfter).toBeGreaterThan(Date.now());
+    });
+
+    it('prefers OpenRouter free by default for worker tasks when available', async () => {
+        const selector = new ModelSelector();
+        vi.spyOn(selector as any, 'getConfiguredChain').mockReturnValue(null);
+
+        const result = await selector.selectModel({ taskType: 'worker' });
+
+        expect(result.provider).toBe('openrouter');
+        expect(result.modelId).toBe('xiaomi/mimo-v2-flash:free');
     });
 
     it('getDepletedModels returns empty array when no failures have been reported', () => {

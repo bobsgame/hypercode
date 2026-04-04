@@ -1,5 +1,5 @@
 
-import { LLMService } from '@hypercode/ai';
+import { DEFAULT_OPENROUTER_FREE_MODEL, LLMService } from '@hypercode/ai';
 import type { MCPServer } from '../MCPServer.js';
 
 export interface Mutation {
@@ -76,7 +76,7 @@ export class DarwinService {
         }
         `;
 
-        const response = await this.llm.generateText("openai", "gpt-4o", "You are an expert prompt engineer. JSON only.", prompt, {});
+        const response = await this.llm.generateText("openrouter", DEFAULT_OPENROUTER_FREE_MODEL, "You are an expert prompt engineer. JSON only.", prompt, {});
 
         let result;
         try {
@@ -147,7 +147,7 @@ export class DarwinService {
         }
         `;
 
-        const judgeRes = await this.llm.generateText("openai", "gpt-4o", "", judgePrompt, {});
+        const judgeRes = await this.llm.generateText("openrouter", DEFAULT_OPENROUTER_FREE_MODEL, "", judgePrompt, {});
         try {
             const verdict = JSON.parse(extractLlmText(judgeRes));
             experiment.winner = verdict.winner;
@@ -164,7 +164,7 @@ export class DarwinService {
     private async runAgentExecution(sysPrompt: string, task: string): Promise<string> {
         // Run an agent executing a task with a specific system prompt
         // Using direct LLM invocation contextually
-        const res = await this.llm.generateText("openai", "gpt-4o", sysPrompt, task, {});
+        const res = await this.llm.generateText("openrouter", DEFAULT_OPENROUTER_FREE_MODEL, sysPrompt, task, {});
         return extractLlmText(res);
     }
 

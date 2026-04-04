@@ -542,8 +542,91 @@ This pass improved both operator UX and native-sidecar confidence:
 - council fallback logic is now testable without live model calls
 - BobbyBookmarks sync error handling is stricter and now covered by tests
 
+## Follow-up quota-default migration pass (OpenRouter Free)
+A later pass responded directly to real operator logs showing two independent problems in the TypeScript runtime:
+
+1. **Node SQLite addon fragility on Windows / Node 24**
+   - `better-sqlite3` failed to load
+   - this degraded DB-backed startup services such as:
+     - HyperIngest / `LinkCrawlerWorker`
+     - debate history initialization
+     - imported session persistence
+     - transcript deduplication
+2. **Hosted-provider quota exhaustion**
+   - OpenAI returned `429` quota errors
+   - Anthropic returned `400` insufficient credit errors
+   - startup/import flows were then forced through provider failover behavior
+
+### Design decision from those logs
+Quota-sensitive TypeScript services should no longer default to paid OpenAI/Anthropic models when a free OpenRouter path is available.
+
+### Runtime changes made in this pass
+- `packages/ai/src/ModelSelector.ts`
+  - introduced `DEFAULT_OPENROUTER_FREE_MODEL = 'xiaomi/mimo-v2-flash:free'`
+  - default worker/supervisor selection chains now prefer OpenRouter free before paid cloud providers
+  - OpenRouter credential detection added to the legacy selector (`OPENROUTER_API_KEY`)
+- `packages/ai/src/LLMService.ts`
+  - added executable OpenRouter support using the OpenAI-compatible API surface
+  - OpenRouter client is now initialized from `OPENROUTER_API_KEY`
+  - optional `OPENROUTER_BASE_URL`, `OPENROUTER_HTTP_REFERER`, and `OPENROUTER_X_TITLE` support included
+- `packages/core/src/providers/ProviderRegistry.ts`
+  - OpenRouter is now marked executable
+  - OpenRouter default model switched from `openrouter/auto` to `xiaomi/mimo-v2-flash:free`
+  - OpenRouter free model added as a first-class executable, zero-cost candidate
+  - OpenRouter preferred task coverage added for coding / research / general / worker
+
+### Hardcoded quota-sensitive service defaults switched to OpenRouter free
+The following direct service calls were changed from paid defaults to:
+- provider: `openrouter`
+- model: `xiaomi/mimo-v2-flash:free`
+
+Changed files:
+- `packages/core/src/daemons/hyperingest/LinkCrawlerWorker.ts`
+- `packages/core/src/services/SessionImportService.ts`
+- `packages/core/src/services/HealerService.ts`
+- `packages/core/src/services/DarwinService.ts`
+- `packages/core/src/services/SkillAssimilationService.ts`
+- `packages/core/src/reactors/MemoryHarvestReactor.ts`
+- `packages/core/src/services/PreemptiveToolAdvertiser.ts`
+- `packages/core/src/suggestions/SuggestionService.ts`
+- `packages/core/src/agents/swarm/SwarmOrchestrator.ts` (default model)
+
+### Council default-path support
+Basic OpenRouter support was also extended into the council supervisor path:
+- `packages/core/src/orchestrator/council/types.ts`
+- `packages/core/src/orchestrator/council/supervisors/index.ts`
+- `packages/core/src/orchestrator/council/services/config.ts`
+
+This does **not** mean every council policy/template is now fully OpenRouter-optimized, but it does mean the default env-driven council config can now include an OpenRouter free supervisor instead of being locked to paid-provider assumptions.
+
+### Validation performed in this pass
+Commands run:
+```bash
+pnpm -C packages/ai test
+pnpm -C packages/core exec vitest run src/providers/CoreModelSelector.test.ts src/routers/council/index.test.ts src/services/HealerService.test.ts src/services/SessionImportService.test.ts
+pnpm -C packages/ai build
+pnpm -C packages/core build
+pnpm -C apps/web build
+pnpm run build:workspace
+```
+
+Results:
+- `packages/ai` tests passed
+- targeted `packages/core` tests passed
+- `packages/ai` and `packages/core` builds passed
+- `apps/web` build passed
+- full workspace build passed
+
+### Important validation note
+A broad `packages/core` test run still has unrelated noisy/failing areas in other suites, so this migration was validated using the smallest truthful targeted set covering:
+- selector behavior
+- OpenRouter execution path
+- council config compatibility
+- direct-service regression guard (`HealerService`)
+- session import unchanged behavior under mocked LLM failures
+
 ## Bottom line
-This pass meaningfully strengthened the **Go sidecar as a truthful local fallback control plane** and improved CLI startup ergonomics:
+This pass meaningfully strengthened the **Go-primary migration path** and improved TypeScript survivability while the migration continues:
 - broader provider routing
 - native workflows
 - native supervisor endpoints
@@ -559,6 +642,7 @@ This pass meaningfully strengthened the **Go sidecar as a truthful local fallbac
 - regression coverage for council debate orchestration and BobbyBookmarks sync
 - deduplicated provider alias reporting for configured native providers
 - truthful CLI startup reuse when HyperCode is already running on port 4000
+- OpenRouter free as the new default for quota-sensitive TS services
 - a small but real Maestro UX fix
 
-It was validated by successful Go compilation, successful targeted Go tests for the new native surfaces, successful targeted regression tests for repaired bridge/fallback routes, a successful full Go test suite run (`go test ./...`), targeted CLI startup tests and type-checking, council/sync test coverage, and repeated successful workspace builds. The new systems are real and integrated, but several of them should still be described as **Beta** or **Experimental**, not full parity.
+It was validated by successful Go compilation, successful targeted Go tests for the new native surfaces, successful targeted regression tests for repaired bridge/fallback routes, a successful full Go test suite run (`go test ./...`), targeted CLI startup tests and type-checking, council/sync coverage, targeted AI/core validation, and repeated successful workspace builds. The new systems are real and integrated, but several of them should still be described as **Beta** or **Experimental**, not full parity.

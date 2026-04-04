@@ -1,3 +1,5 @@
+import { DEFAULT_OPENROUTER_FREE_MODEL } from '@hypercode/ai';
+
 import {
     type FallbackCandidateSnapshot,
     type ProviderAuthState,
@@ -135,9 +137,23 @@ export const DEFAULT_PROVIDER_CATALOG: ProviderDefinition[] = [
         name: 'OpenRouter',
         authMethod: 'api_key',
         envKeys: ['OPENROUTER_API_KEY'],
-        executable: false,
-        defaultModel: 'openrouter/auto',
+        executable: true,
+        defaultModel: DEFAULT_OPENROUTER_FREE_MODEL,
+        preferredTasks: ['coding', 'research', 'general', 'worker'],
         models: [
+            {
+                id: DEFAULT_OPENROUTER_FREE_MODEL,
+                provider: 'openrouter',
+                name: 'OpenRouter Free (Mimo Flash)',
+                inputPrice: 0,
+                outputPrice: 0,
+                contextWindow: null,
+                tier: 'free',
+                recommendedFor: ['coding', 'research', 'general', 'worker'],
+                capabilities: ['reasoning', 'coding', 'tools'],
+                executable: true,
+                qualityScore: 6,
+            },
             {
                 id: 'openrouter/auto',
                 provider: 'openrouter',
@@ -147,6 +163,7 @@ export const DEFAULT_PROVIDER_CATALOG: ProviderDefinition[] = [
                 contextWindow: null,
                 tier: 'meta',
                 capabilities: ['reasoning', 'coding', 'vision', 'tools'],
+                executable: true,
                 qualityScore: 5,
             },
         ],

@@ -55,7 +55,7 @@ export interface GenerateTextOptions {
     history?: { role: string; content: string }[];
 }
 
-import { ModelSelector, type ModelSelectionRequest, type SelectedModel } from "./ModelSelector.js";
+import { DEFAULT_OPENROUTER_FREE_MODEL, ModelSelector, type ModelSelectionRequest, type SelectedModel } from "./ModelSelector.js";
 import { ForgeService } from "./ForgeService.js";
 
 type ExtendedModelSelectionRequest = ModelSelectionRequest & {
@@ -72,6 +72,7 @@ export class LLMService {
     private googleClient?: GoogleGenerativeAI;
     private openaiClient?: OpenAI;
     private anthropicClient?: Anthropic;
+    private openrouterClient?: OpenAI;
     private forgeClient?: ForgeService;
     private totalUsage = { inputTokens: 0, outputTokens: 0, estimatedCostUSD: 0 };
     /** Ring buffer of the last ROUTING_HISTORY_LIMIT routing decisions (newest first). */
@@ -94,6 +95,12 @@ export class LLMService {
         }
         if (process.env.ANTHROPIC_API_KEY) {
             this.anthropicClient = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+        }
+        if (process.env.OPENROUTER_API_KEY) {
+            this.openrouterClient = new OpenAI({
+                apiKey: process.env.OPENROUTER_API_KEY,
+                baseURL: process.env.OPENROUTER_BASE_URL || 'https://openrouter.ai/api/v1'
+            });
         }
         // Initialize Forge (defaults to localhost:8080)
         this.forgeClient = new ForgeService({
@@ -398,6 +405,31 @@ export class LLMService {
                         ],
                         model: modelId,
                     });
+
+                    response = {
+                        content: completion.choices[0].message.content || "",
+                        usage: {
+                            inputTokens: completion.usage?.prompt_tokens || 0,
+                            outputTokens: completion.usage?.completion_tokens || 0
+                        }
+                    };
+                }
+
+                else if (provider === 'openrouter') {
+                    if (!this.openrouterClient) throw new Error("OpenRouter API Key not configured.");
+                    const completion = await this.openrouterClient.chat.completions.create({
+                        messages: [
+                            { role: "system", content: systemPrompt },
+                            ...(options?.history || []).map(h => ({ role: h.role as any, content: h.content })),
+                            { role: "user", content: userPrompt }
+                        ],
+                        model: modelId || DEFAULT_OPENROUTER_FREE_MODEL,
+                    }, {
+                        headers: {
+                            ...(process.env.OPENROUTER_HTTP_REFERER ? { 'HTTP-Referer': process.env.OPENROUTER_HTTP_REFERER } : {}),
+                            ...(process.env.OPENROUTER_X_TITLE ? { 'X-Title': process.env.OPENROUTER_X_TITLE } : {}),
+                        }
+                    } as any);
 
                     response = {
                         content: completion.choices[0].message.content || "",

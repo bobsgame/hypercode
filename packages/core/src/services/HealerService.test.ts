@@ -12,22 +12,23 @@ describe('Healer degraded startup handling', () => {
 
     it('parses fenced JSON diagnoses without logging a parse failure', async () => {
         const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+        const generateText = vi.fn(async () => ({
+            content: [
+                '```json',
+                '{',
+                '  "errorType": "RuntimeError",',
+                '  "description": "SQLite runtime is unavailable.",',
+                '  "file": "packages/core/src/db/index.ts",',
+                '  "line": 724,',
+                '  "suggestedFix": "Install or rebuild better-sqlite3.",',
+                '  "confidence": 0.92',
+                '}',
+                '```',
+            ].join('\n'),
+        }));
         const service = new HealerService(
             {
-                generateText: vi.fn(async () => ({
-                    content: [
-                        '```json',
-                        '{',
-                        '  "errorType": "RuntimeError",',
-                        '  "description": "SQLite runtime is unavailable.",',
-                        '  "file": "packages/core/src/db/index.ts",',
-                        '  "line": 724,',
-                        '  "suggestedFix": "Install or rebuild better-sqlite3.",',
-                        '  "confidence": 0.92',
-                        '}',
-                        '```',
-                    ].join('\n'),
-                })),
+                generateText,
             } as any,
             {} as any,
         );
@@ -45,6 +46,13 @@ describe('Healer degraded startup handling', () => {
         expect(consoleErrorSpy).not.toHaveBeenCalledWith(
             'Failed to parse Healer diagnosis',
             expect.anything(),
+        );
+        expect(generateText).toHaveBeenCalledWith(
+            'openrouter',
+            'xiaomi/mimo-v2-flash:free',
+            'You are a JSON-only debugging tool.',
+            expect.any(String),
+            {},
         );
     });
 });

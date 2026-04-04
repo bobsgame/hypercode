@@ -1,4 +1,4 @@
-import { LLMService } from '@hypercode/ai';
+import { DEFAULT_OPENROUTER_FREE_MODEL, LLMService } from '@hypercode/ai';
 import { SearchService, type SearchResult } from '@hypercode/search';
 
 export class PreemptiveToolAdvertiser {
@@ -23,8 +23,8 @@ export class PreemptiveToolAdvertiser {
         
         // 1. Analyze topic
         const topicResponse = await this.llmService.generateText(
-            'openai', 
-            'gpt-4o-mini',
+            'openrouter', 
+            DEFAULT_OPENROUTER_FREE_MODEL,
             'You are a tool orchestration assistant. Determine the core actionable technical topic or task from the user\'s recent messages. Output ONLY the topic keywords.',
             `Recent messages:\n${recentContext}`
         );

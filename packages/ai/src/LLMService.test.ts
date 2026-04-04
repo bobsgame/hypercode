@@ -61,6 +61,35 @@ describe('LLMService', () => {
         expect(quota.trackUsage).toHaveBeenCalledWith('gemini-2.0-flash', expect.any(Number), expect.any(Number));
     });
 
+    it('routes OpenRouter requests through the OpenAI-compatible client', async () => {
+        const quota = {
+            trackUsage: vi.fn(),
+            getSessionTotal: vi.fn().mockReturnValue(0.01)
+        };
+
+        const selector = {
+            getQuotaService: () => quota,
+            reportFailure: vi.fn(),
+            selectModel: vi.fn()
+        };
+
+        const llm = new LLMService(selector as any);
+        (llm as any).openrouterClient = {
+            chat: {
+                completions: {
+                    create: vi.fn().mockResolvedValue({
+                        choices: [{ message: { content: 'openrouter success' } }],
+                        usage: { prompt_tokens: 12, completion_tokens: 8 }
+                    })
+                }
+            }
+        };
+
+        const response = await llm.generateText('openrouter', 'xiaomi/mimo-v2-flash:free', 'sys', 'user');
+        expect(response.content).toBe('openrouter success');
+        expect(quota.trackUsage).toHaveBeenCalledWith('xiaomi/mimo-v2-flash:free', 12, 8);
+    });
+
     it('does not retry fatal unsupported-provider errors', async () => {
         const quota = {
             trackUsage: vi.fn(),

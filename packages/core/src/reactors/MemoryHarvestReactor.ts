@@ -1,5 +1,5 @@
 import { EventBus, SystemEvent } from '../services/EventBus.js';
-import { LLMService } from '@hypercode/ai';
+import { DEFAULT_OPENROUTER_FREE_MODEL, LLMService } from '@hypercode/ai';
 import AgentMemoryService from '../services/AgentMemoryService.js';
 import { contextHarvester } from '../services/ContextHarvester.js';
 import fs from 'fs/promises';
@@ -87,8 +87,8 @@ export class MemoryHarvestReactor {
 
             // Use the 'cheapest' strategy for background harvesting
             const response = await this.llmService.generateText(
-                'openai', 
-                'gpt-4o-mini', 
+                'openrouter', 
+                DEFAULT_OPENROUTER_FREE_MODEL, 
                 'You extract technical knowledge.', 
                 prompt,
                 { routingStrategy: 'cheapest' }

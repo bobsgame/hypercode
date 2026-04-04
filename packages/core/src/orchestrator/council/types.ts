@@ -5,7 +5,7 @@ export interface Message {
 
 export interface SupervisorConfig {
   name: string;
-  provider: 'openai' | 'anthropic' | 'google' | 'xai' | 'moonshot' | 'deepseek' | 'qwen' | 'custom' | 'gemini' | 'grok' | 'kimi';
+  provider: 'openai' | 'anthropic' | 'google' | 'xai' | 'moonshot' | 'deepseek' | 'qwen' | 'custom' | 'gemini' | 'grok' | 'kimi' | 'openrouter';
   apiKey?: string;
   model?: string;
   temperature?: number;

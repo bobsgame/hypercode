@@ -2,7 +2,7 @@ import { JSDOM } from 'jsdom';
 import { db } from '../../db/index.js';
 import { linksBacklogTable } from '../../db/metamcp-schema.js';
 import { eq, asc } from 'drizzle-orm';
-import { LLMService } from '@hypercode/ai';
+import { DEFAULT_OPENROUTER_FREE_MODEL, LLMService } from '@hypercode/ai';
 
 export class LinkCrawlerWorker {
     private isRunning = false;
@@ -102,7 +102,7 @@ export class LinkCrawlerWorker {
                     let tags = link.tags ?? [];
                     if (tags.length === 0 && bodyText.length > 50) {
                         try {
-                            const llmResultStr = await this.llmService.generateText('openai', 'gpt-4o-mini', 'Extract categories and tags.', 
+                            const llmResultStr = await this.llmService.generateText('openrouter', DEFAULT_OPENROUTER_FREE_MODEL, 'Extract categories and tags.', 
                                 `Extract 3-5 concise, specific tags or categories for this webpage. Focus on the tools, topics, and programming languages mentioned. Return a JSON object with a "tags" array of strings.\n\nTitle: ${pageTitle}\nDesc: ${pageDescription}\nContent: ${bodyText.slice(0, 2000)}`
                             );
                             const jsonStr = llmResultStr.content.replace(/```json/g, '').replace(/```/g, '').trim();

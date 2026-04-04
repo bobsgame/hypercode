@@ -1,6 +1,6 @@
 
 import { v4 as uuidv4 } from 'uuid';
-import { LLMService } from '@hypercode/ai';
+import { DEFAULT_OPENROUTER_FREE_MODEL, LLMService } from '@hypercode/ai';
 import fs from 'fs';
 import path from 'path';
 
@@ -159,8 +159,8 @@ export class SuggestionService {
             `;
 
             const response = await this.llmService.generateText(
-                'openai',
-                'gpt-4o-mini',
+                'openrouter',
+                DEFAULT_OPENROUTER_FREE_MODEL,
                 'You are a predictive intelligence agent.',
                 prompt,
                 { routingStrategy: 'cheapest' }
@@ -222,8 +222,8 @@ export class SuggestionService {
 
             // Simplified LLM call using defaults
             const response = await this.llmService.generateText(
-                'openai',
-                'gpt-4o',
+                'openrouter',
+                DEFAULT_OPENROUTER_FREE_MODEL,
                 'You are an expert pair programmer analyzing code context.',
                 prompt
             );

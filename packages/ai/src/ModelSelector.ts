@@ -30,19 +30,23 @@ interface ChainCandidate {
     systemPrompt?: string;
 }
 
+export const DEFAULT_OPENROUTER_FREE_MODEL = 'xiaomi/mimo-v2-flash:free';
+
 // Default Fallback - Robust Chain
 // Defines the priority order for model selection based on task type.
-// The selector iterates through this list, checking for API keys and depletion status.
+// OpenRouter free is preferred first for quota-sensitive cloud usage.
 const DEFAULT_CHAINS: Record<'worker' | 'supervisor', ChainCandidate[]> = {
     worker: [
+        { provider: 'openrouter', modelId: DEFAULT_OPENROUTER_FREE_MODEL },
         { provider: 'google', modelId: 'gemini-3.0-pro' },
+        { provider: 'deepseek', modelId: 'deepseek-chat' },
         { provider: 'openai', modelId: 'codex-5.3' },
         { provider: 'anthropic', modelId: 'claude-opus-4.6' },
-        { provider: 'deepseek', modelId: 'deepseek-chat' },
         { provider: 'lmstudio', modelId: 'local' },
         { provider: 'ollama', modelId: 'gemma:2b' }
     ],
     supervisor: [
+        { provider: 'openrouter', modelId: DEFAULT_OPENROUTER_FREE_MODEL },
         { provider: 'google', modelId: 'gemini-3.0-pro' },
         { provider: 'anthropic', modelId: 'claude-opus-4.6' },
         { provider: 'openai', modelId: 'codex-5.3' },
@@ -218,6 +222,7 @@ export class ModelSelector {
         if (provider === 'openai') return !!process.env.OPENAI_API_KEY;
         if (provider === 'anthropic') return !!process.env.ANTHROPIC_API_KEY;
         if (provider === 'deepseek') return !!process.env.DEEPSEEK_API_KEY;
+        if (provider === 'openrouter') return !!process.env.OPENROUTER_API_KEY;
         return true; // Local/No-Auth
     }
 

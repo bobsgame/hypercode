@@ -1,6 +1,6 @@
 import { DeepResearchService } from './DeepResearchService.js';
 import type { MCPServer } from '../MCPServer.js';
-import { LLMService } from '@hypercode/ai';
+import { DEFAULT_OPENROUTER_FREE_MODEL, LLMService } from '@hypercode/ai';
 import { SkillRegistry } from '../skills/SkillRegistry.js'; // Import
 import fs from 'fs/promises';
 import path from 'path';
@@ -65,7 +65,7 @@ Constraints:
 - NO placeholders. Real implementation using 'child_process' or 'fetch'.
 `;
 
-        const codeResponse = await this.llm.generateText("openai", "gpt-4o", systemPrompt, `Write an MCP tool for: ${request.topic}`);
+        const codeResponse = await this.llm.generateText("openrouter", DEFAULT_OPENROUTER_FREE_MODEL, systemPrompt, `Write an MCP tool for: ${request.topic}`);
         let code = codeResponse.content.replace(/```typescript/g, '').replace(/```/g, '').trim();
 
         // Basic validation/cleanup of code

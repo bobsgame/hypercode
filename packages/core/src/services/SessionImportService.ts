@@ -6,7 +6,7 @@ import path from 'path';
 import Database from 'better-sqlite3';
 import fg from 'fast-glob';
 
-import { LLMService } from '@hypercode/ai';
+import { DEFAULT_OPENROUTER_FREE_MODEL, LLMService } from '@hypercode/ai';
 import { formatOptionalSqliteFailure, isSqliteUnavailableError } from '../db/sqliteAvailability.js';
 
 import AgentMemoryService from './AgentMemoryService.js';
@@ -1839,7 +1839,7 @@ ${transcriptTail}
         `.trim();
 
         try {
-            const response = await this.llmService.generateText('openai', 'gpt-4o-mini', 'Extract durable memories and instructions.', prompt);
+            const response = await this.llmService.generateText('openrouter', DEFAULT_OPENROUTER_FREE_MODEL, 'Extract durable memories and instructions.', prompt);
             const jsonText = typeof response.content === 'string' ? response.content : '';
             const start = jsonText.indexOf('{');
             const end = jsonText.lastIndexOf('}');

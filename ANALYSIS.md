@@ -1625,6 +1625,81 @@ Results:
 - Go build passed
 - full Go suite passed
 
+## Follow-up MCP runtime-overlay durability step (persist durable runtime overlay in canonical cache)
+The next recommended step was to stop treating runtime-probed tool inventory as purely in-memory when it had already been successfully discovered and normalized.
+
+### The gap before this step
+Before this step:
+- runtime-registry live-probed tools could appear in fallback responses during the current process lifetime
+- but that runtime overlay disappeared with the process
+- the canonical inventory cache file did not retain any durable subset of successful runtime-probe results
+
+That meant a cold restart could lose operator-visible runtime-discovered tools even if they had already been successfully probed and normalized earlier.
+
+### What changed
+- rewrote `go/internal/mcp/inventory.go`
+  - added `RuntimeOverlayServer`
+  - added `InventoryCacheSnapshot`
+  - the canonical cache file now stores:
+    - base inventory snapshot
+    - persisted runtime overlay snapshot
+  - added `LoadInventoryCacheSnapshot(cachePath)`
+  - added `SyncRuntimeOverlayCache(cachePath, overlay)`
+  - `saveInventoryCache(...)` now preserves existing persisted runtime overlay when refreshing the base inventory section
+  - `SyncInventoryCacheFromLiveSources(...)` now preserves persisted runtime overlay while resyncing base live inventory from JSONC/DB
+  - when no base inventory exists but persisted runtime overlay does, the cache file is retained instead of being deleted
+- updated `go/internal/httpapi/mcp_inventory_fallback.go`
+  - local inventory views now load persisted runtime overlay from the canonical cache snapshot
+  - fallback inventory views now distinguish:
+    - persisted runtime overlay counts
+    - live in-memory runtime overlay counts
+  - persisted runtime overlay entries are surfaced with source `go-persisted-runtime-overlay`
+- updated `go/internal/httpapi/server.go`
+  - runtime server add/remove flows now call `syncRuntimeOverlayCache()` after updating the in-memory registry
+  - this keeps the durable runtime overlay section of the cache aligned with runtime-registry mutations
+- expanded `go/internal/mcp/inventory_test.go`
+  - added regression coverage proving runtime overlay can persist without base inventory
+  - added regression coverage proving overlay-only cache files are removed when overlay is cleared
+- expanded `go/internal/httpapi/server_test.go`
+  - added fallback coverage proving persisted runtime overlay is visible without a live in-memory runtime registry
+  - added bridge-metadata coverage for distinct persisted-vs-live overlay counts
+
+### Durable subset rule
+To stay truthful, this step persists only the durable subset of runtime overlay data:
+- runtime servers with a non-empty normalized tool list
+
+What is intentionally **not** durably persisted by this step:
+- failed probe attempts without tool data
+- transient runtime failure state as if it were authoritative inventory
+- a full runtime lifecycle/session model
+
+### Why this matters
+This materially improves restart behavior for operator-facing fallback inventory without pretending the runtime registry is fully durable.
+
+What is true now:
+- successful runtime-probed tool metadata can survive process restart via the canonical cache file
+- fallback responses can distinguish persisted runtime overlay from live in-memory runtime overlay
+- base inventory resync and runtime overlay persistence now share the same cache file instead of living in disconnected stores
+
+What is still not true yet:
+- this is still not full durable lifecycle parity for runtime servers themselves
+- persisted runtime overlay is a durable cache of discovered metadata, not a guarantee that the runtime server is currently alive or reconnectable
+- runtime add/remove execution semantics and transport lifecycle ownership are still only partial
+
+### Validation performed for this MCP runtime-overlay durability step
+```bash
+gofmt -w go/internal/mcp/inventory.go go/internal/mcp/inventory_test.go go/internal/httpapi/mcp_inventory_fallback.go go/internal/httpapi/server.go go/internal/httpapi/server_test.go
+cd go && go test ./internal/mcp ./internal/httpapi
+cd go && go build -buildvcs=false ./cmd/hypercode
+cd go && go test ./...
+```
+
+Results:
+- targeted mcp tests passed
+- targeted httpapi tests passed
+- Go build passed
+- full Go suite passed
+
 ## Bottom line
 This pass meaningfully strengthened the **Go-primary migration path** and improved TypeScript survivability while the migration continues:
 - broader provider routing
@@ -1666,6 +1741,7 @@ This pass meaningfully strengthened the **Go-primary migration path** and improv
 - cache-backed MCP/control fallback responses now expose source/freshness metadata and can overlay runtime-registry live-probed tools into the operator-visible fallback inventory view
 - JSONC metadata save/mutation flows now actively resync `mcp_inventory_cache.json` from live sources so metadata clear/refresh actions do not preserve stale cached tool inventory
 - canonical MCP metadata-tool normalization is now shared between JSONC metadata handling, inventory-cache generation, runtime overlay inventory views, and live metadata refresh serialization
+- the canonical MCP cache file now persists the durable subset of successful runtime overlay tool metadata and fallback responses distinguish persisted-vs-live runtime overlay counts
 - a tested Go-native replacement path for multiple TS-owned persistence surfaces, even though mixed-runtime cleanup is not fully finished yet
 - a small but real Maestro UX fix
 

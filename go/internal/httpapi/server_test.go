@@ -6120,6 +6120,58 @@ func TestToolEndpointsFallBackToPersistedInventoryCache(t *testing.T) {
 	}
 }
 
+func TestPersistedRuntimeOverlayFallbackWithoutLiveRegistry(t *testing.T) {
+	workspaceRoot := t.TempDir()
+	configDir := t.TempDir()
+	cacheContent := `{
+  "version": 1,
+  "cachedAt": "2026-04-04T00:00:00Z",
+  "inventory": {
+    "servers": [],
+    "tools": [],
+    "source": "empty",
+    "cachedAt": "2026-04-04T00:00:00Z"
+  },
+  "runtimeOverlay": [
+    {
+      "name": "runtime-core",
+      "command": "node",
+      "args": ["runtime-server.js"],
+      "runtimeConnected": true,
+      "toolCount": 1,
+      "toolInventoryStatus": "live-probed",
+      "integrationLevel": "runtime-added",
+      "source": "go-runtime-registry",
+      "lastCheckedAt": "2026-04-04T00:00:05Z",
+      "tools": [
+        {"name": "runtime_search", "description": "Runtime search", "inputSchema": {"type": "object"}}
+      ]
+    }
+  ]
+}`
+	if err := os.WriteFile(filepath.Join(configDir, "mcp_inventory_cache.json"), []byte(cacheContent), 0o644); err != nil {
+		t.Fatalf("failed to seed runtime overlay cache: %v", err)
+	}
+
+	t.Setenv("HYPERCODE_TRPC_UPSTREAM", "http://127.0.0.1:1/trpc")
+	cfg := config.Default()
+	cfg.WorkspaceRoot = workspaceRoot
+	cfg.ConfigDir = configDir
+	cfg.MainConfigDir = t.TempDir()
+	server := New(cfg, stubDetector{err: errors.New("detector unavailable")})
+
+	recorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/api/mcp/tools", nil))
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected fallback status 200, got %d with body %s", recorder.Code, recorder.Body.String())
+	}
+	for _, needle := range []string{`"name":"runtime_search"`, `"source":"go-persisted-runtime-overlay"`, `"persistedOverlayToolCount":1`, `"runtimeOverlayToolCount":0`} {
+		if !strings.Contains(recorder.Body.String(), needle) {
+			t.Fatalf("expected response to contain %s, got %s", needle, recorder.Body.String())
+		}
+	}
+}
+
 func TestFileBackedReadEndpointsFallBackLocally(t *testing.T) {
 	workspaceRoot := t.TempDir()
 	if err := os.WriteFile(filepath.Join(workspaceRoot, ".gitmodules"), []byte("[submodule \"hypercode\"]\npath = submodules/hypercode\nurl = https://github.com/example/hypercode.git\n"), 0o644); err != nil {

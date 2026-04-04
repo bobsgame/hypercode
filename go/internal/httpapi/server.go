@@ -3214,6 +3214,9 @@ func (s *Server) handleMCPAddServer(w http.ResponseWriter, r *http.Request) {
 		env := stringMap(payload["env"])
 		record := probeRuntimeServer(context.Background(), name, command, args, env)
 		s.runtimeServers.upsert(record)
+		if err := s.syncRuntimeOverlayCache(); err != nil {
+			return nil, err
+		}
 		return map[string]any{
 			"success":       true,
 			"name":          name,
@@ -3234,6 +3237,9 @@ func (s *Server) handleMCPRemoveServer(w http.ResponseWriter, r *http.Request) {
 			return nil, err
 		}
 		s.runtimeServers.remove(name)
+		if err := s.syncRuntimeOverlayCache(); err != nil {
+			return nil, err
+		}
 		return map[string]any{
 			"success": true,
 		}, nil

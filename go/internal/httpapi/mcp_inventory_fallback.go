@@ -9,14 +9,16 @@ import (
 )
 
 type localMCPInventoryView struct {
-	Inventory                 *mcp.Inventory
-	CachePath                 string
-	CachePresent              bool
-	InventorySource           string
-	CachedAt                  string
-	RuntimeOverlayServerCount int
-	RuntimeOverlayToolCount   int
-	ServerSources             map[string]string
+	Inventory                   *mcp.Inventory
+	CachePath                   string
+	CachePresent                bool
+	InventorySource             string
+	CachedAt                    string
+	PersistedOverlayServerCount int
+	PersistedOverlayToolCount   int
+	RuntimeOverlayServerCount   int
+	RuntimeOverlayToolCount     int
+	ServerSources               map[string]string
 }
 
 func (s *Server) localMCPInventoryCachePath() string {
@@ -25,6 +27,10 @@ func (s *Server) localMCPInventoryCachePath() string {
 
 func (s *Server) localMCPInventory() (*mcp.Inventory, error) {
 	return mcp.LoadInventoryWithCache(s.cfg.WorkspaceRoot, s.cfg.MainConfigDir, s.localMCPInventoryCachePath())
+}
+
+func (s *Server) syncRuntimeOverlayCache() error {
+	return mcp.SyncRuntimeOverlayCache(s.localMCPInventoryCachePath(), runtimeOverlayServersFromRecords(s.runtimeServers.list()))
 }
 
 func (s *Server) localMCPInventoryView() (*localMCPInventoryView, error) {
@@ -45,11 +51,25 @@ func (s *Server) localMCPInventoryView() (*localMCPInventoryView, error) {
 	for _, server := range view.Inventory.Servers {
 		view.ServerSources[server.Name] = inventory.Source
 	}
-	view.applyRuntimeOverlay(s.runtimeServers.list())
+	if snapshot, snapshotErr := mcp.LoadInventoryCacheSnapshot(cachePath); snapshotErr == nil && snapshot != nil {
+		view.applyPersistedRuntimeOverlay(snapshot.RuntimeOverlay)
+		if view.CachedAt == "" {
+			view.CachedAt = snapshot.CachedAt
+		}
+	}
+	view.applyRuntimeOverlay(runtimeOverlayServersFromRecords(s.runtimeServers.list()))
 	return view, nil
 }
 
-func (v *localMCPInventoryView) applyRuntimeOverlay(records []runtimeServerRecord) {
+func (v *localMCPInventoryView) applyPersistedRuntimeOverlay(records []mcp.RuntimeOverlayServer) {
+	v.applyOverlay(records, true)
+}
+
+func (v *localMCPInventoryView) applyRuntimeOverlay(records []mcp.RuntimeOverlayServer) {
+	v.applyOverlay(records, false)
+}
+
+func (v *localMCPInventoryView) applyOverlay(records []mcp.RuntimeOverlayServer, persisted bool) {
 	if v == nil || v.Inventory == nil || len(records) == 0 {
 		return
 	}
@@ -86,10 +106,18 @@ func (v *localMCPInventoryView) applyRuntimeOverlay(records []runtimeServerRecor
 				Enabled:     true,
 			})
 			serverIndex[record.Name] = len(v.Inventory.Servers) - 1
-			v.RuntimeOverlayServerCount++
+			if persisted {
+				v.PersistedOverlayServerCount++
+			} else {
+				v.RuntimeOverlayServerCount++
+			}
 		}
-		v.ServerSources[record.Name] = record.Source
-		for _, tool := range mcp.MetadataToolsFromAny(genericAnySlice(record.Tools)) {
+		source := record.Source
+		if persisted {
+			source = "go-persisted-runtime-overlay"
+		}
+		v.ServerSources[record.Name] = source
+		for _, tool := range record.Tools {
 			name := strings.TrimSpace(tool.Name)
 			if name == "" {
 				continue
@@ -101,10 +129,41 @@ func (v *localMCPInventoryView) applyRuntimeOverlay(records []runtimeServerRecor
 			} else {
 				v.Inventory.Tools = append(v.Inventory.Tools, entry)
 				toolIndex[toolKey] = len(v.Inventory.Tools) - 1
-				v.RuntimeOverlayToolCount++
+				if persisted {
+					v.PersistedOverlayToolCount++
+				} else {
+					v.RuntimeOverlayToolCount++
+				}
 			}
 		}
 	}
+}
+
+func runtimeOverlayServersFromRecords(records []runtimeServerRecord) []mcp.RuntimeOverlayServer {
+	if len(records) == 0 {
+		return []mcp.RuntimeOverlayServer{}
+	}
+	overlay := make([]mcp.RuntimeOverlayServer, 0, len(records))
+	for _, record := range records {
+		if strings.TrimSpace(record.Name) == "" || len(record.Tools) == 0 {
+			continue
+		}
+		overlay = append(overlay, mcp.RuntimeOverlayServer{
+			Name:                record.Name,
+			Command:             record.Command,
+			Args:                append([]string(nil), record.Args...),
+			Env:                 copyStringMap(record.Env),
+			RuntimeConnected:    record.RuntimeConnected,
+			ToolCount:           record.ToolCount,
+			ToolInventoryStatus: record.ToolInventoryStatus,
+			IntegrationLevel:    record.IntegrationLevel,
+			Source:              record.Source,
+			Tools:               mcp.MetadataToolsFromAny(genericAnySlice(record.Tools)),
+			LastCheckedAt:       record.LastCheckedAt,
+			LastError:           record.LastError,
+		})
+	}
+	return overlay
 }
 
 func cloneInventory(inventory *mcp.Inventory) *mcp.Inventory {
@@ -153,14 +212,16 @@ func inventoryBridgeMeta(view *localMCPInventoryView) map[string]any {
 		return map[string]any{}
 	}
 	return map[string]any{
-		"inventorySource":           view.InventorySource,
-		"cachedAt":                  nullableString(view.CachedAt),
-		"cachePath":                 view.CachePath,
-		"cachePresent":              view.CachePresent,
-		"cacheAuthority":            "go-local-live-sync",
-		"metadataAuthority":         "mcp.jsonc",
-		"runtimeOverlayServerCount": view.RuntimeOverlayServerCount,
-		"runtimeOverlayToolCount":   view.RuntimeOverlayToolCount,
+		"inventorySource":             view.InventorySource,
+		"cachedAt":                    nullableString(view.CachedAt),
+		"cachePath":                   view.CachePath,
+		"cachePresent":                view.CachePresent,
+		"cacheAuthority":              "go-local-live-sync",
+		"metadataAuthority":           "mcp.jsonc",
+		"persistedOverlayServerCount": view.PersistedOverlayServerCount,
+		"persistedOverlayToolCount":   view.PersistedOverlayToolCount,
+		"runtimeOverlayServerCount":   view.RuntimeOverlayServerCount,
+		"runtimeOverlayToolCount":     view.RuntimeOverlayToolCount,
 	}
 }
 

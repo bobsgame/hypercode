@@ -217,3 +217,39 @@ func TestSyncInventoryCacheFromLiveSourcesRemovesStaleCacheWhenSourcesAreEmpty(t
 		t.Fatalf("expected stale cache file to be removed, stat err=%v", err)
 	}
 }
+
+func TestSyncRuntimeOverlayCachePersistsOverlayWithoutInventory(t *testing.T) {
+	cachePath := filepath.Join(t.TempDir(), "mcp_inventory_cache.json")
+	overlay := []RuntimeOverlayServer{{
+		Name:                "runtime-core",
+		Command:             "node",
+		Args:                []string{"runtime-server.js"},
+		RuntimeConnected:    true,
+		ToolCount:           1,
+		ToolInventoryStatus: "live-probed",
+		IntegrationLevel:    "runtime-added",
+		Source:              "go-runtime-registry",
+		LastCheckedAt:       "2026-04-04T00:00:05Z",
+		Tools:               []MetadataTool{{Name: "runtime_search", Description: "Runtime search", InputSchema: map[string]any{"type": "object"}}},
+	}}
+	if err := SyncRuntimeOverlayCache(cachePath, overlay); err != nil {
+		t.Fatalf("SyncRuntimeOverlayCache returned error: %v", err)
+	}
+	snapshot, err := LoadInventoryCacheSnapshot(cachePath)
+	if err != nil {
+		t.Fatalf("LoadInventoryCacheSnapshot returned error: %v", err)
+	}
+	if len(snapshot.RuntimeOverlay) != 1 || snapshot.RuntimeOverlay[0].Name != "runtime-core" {
+		t.Fatalf("expected persisted runtime overlay, got %#v", snapshot.RuntimeOverlay)
+	}
+	if len(snapshot.Inventory.Tools) != 0 {
+		t.Fatalf("expected no persisted base inventory tools, got %#v", snapshot.Inventory.Tools)
+	}
+
+	if err := SyncRuntimeOverlayCache(cachePath, nil); err != nil {
+		t.Fatalf("SyncRuntimeOverlayCache clear returned error: %v", err)
+	}
+	if _, err := os.Stat(cachePath); !os.IsNotExist(err) {
+		t.Fatalf("expected overlay-only cache file to be removed after clear, stat err=%v", err)
+	}
+}

@@ -51,10 +51,26 @@ type Inventory struct {
 	CachedAt string        `json:"cachedAt,omitempty"`
 }
 
-type persistedInventoryCache struct {
-	Version   int       `json:"version"`
-	CachedAt  string    `json:"cachedAt"`
-	Inventory Inventory `json:"inventory"`
+type RuntimeOverlayServer struct {
+	Name                string            `json:"name"`
+	Command             string            `json:"command,omitempty"`
+	Args                []string          `json:"args,omitempty"`
+	Env                 map[string]string `json:"env,omitempty"`
+	RuntimeConnected    bool              `json:"runtimeConnected"`
+	ToolCount           int               `json:"toolCount"`
+	ToolInventoryStatus string            `json:"toolInventoryStatus"`
+	IntegrationLevel    string            `json:"integrationLevel"`
+	Source              string            `json:"source"`
+	Tools               []MetadataTool    `json:"tools,omitempty"`
+	LastCheckedAt       string            `json:"lastCheckedAt,omitempty"`
+	LastError           string            `json:"lastError,omitempty"`
+}
+
+type InventoryCacheSnapshot struct {
+	Version        int                    `json:"version"`
+	CachedAt       string                 `json:"cachedAt"`
+	Inventory      Inventory              `json:"inventory"`
+	RuntimeOverlay []RuntimeOverlayServer `json:"runtimeOverlay,omitempty"`
 }
 
 func LoadInventory(workspaceRoot, mainConfigDir string) (*Inventory, error) {
@@ -91,18 +107,85 @@ func SyncInventoryCacheFromLiveSources(workspaceRoot, mainConfigDir, cachePath s
 	if strings.TrimSpace(cachePath) == "" {
 		return liveInventory, nil
 	}
+	var preservedOverlay []RuntimeOverlayServer
+	if snapshot, err := LoadInventoryCacheSnapshot(cachePath); err == nil && snapshot != nil {
+		preservedOverlay = cloneRuntimeOverlayServers(snapshot.RuntimeOverlay)
+	}
 	if hasInventoryContents(liveInventory) {
 		persistedAt := time.Now().UTC().Format(time.RFC3339)
 		liveInventory.CachedAt = persistedAt
-		if err := saveInventoryCache(cachePath, liveInventory, persistedAt); err != nil {
+		if err := writeInventoryCacheSnapshot(cachePath, &InventoryCacheSnapshot{
+			Version:        1,
+			CachedAt:       persistedAt,
+			Inventory:      cloneInventoryValue(*liveInventory),
+			RuntimeOverlay: preservedOverlay,
+		}); err != nil {
 			return nil, err
 		}
+		return liveInventory, nil
+	}
+	if hasRuntimeOverlayContents(preservedOverlay) {
+		persistedAt := time.Now().UTC().Format(time.RFC3339)
+		if err := writeInventoryCacheSnapshot(cachePath, &InventoryCacheSnapshot{
+			Version:        1,
+			CachedAt:       persistedAt,
+			Inventory:      Inventory{Servers: []ServerEntry{}, Tools: []ToolEntry{}, Source: "empty", CachedAt: persistedAt},
+			RuntimeOverlay: preservedOverlay,
+		}); err != nil {
+			return nil, err
+		}
+		liveInventory.CachedAt = persistedAt
 		return liveInventory, nil
 	}
 	if err := removeInventoryCache(cachePath); err != nil {
 		return nil, err
 	}
 	return liveInventory, nil
+}
+
+func SyncRuntimeOverlayCache(cachePath string, overlay []RuntimeOverlayServer) error {
+	if strings.TrimSpace(cachePath) == "" {
+		return nil
+	}
+	var snapshot *InventoryCacheSnapshot
+	var err error
+	snapshot, err = LoadInventoryCacheSnapshot(cachePath)
+	if err != nil {
+		snapshot = &InventoryCacheSnapshot{
+			Version:   1,
+			CachedAt:  time.Now().UTC().Format(time.RFC3339),
+			Inventory: Inventory{Servers: []ServerEntry{}, Tools: []ToolEntry{}, Source: "empty"},
+		}
+	}
+	snapshot.Version = 1
+	snapshot.RuntimeOverlay = cloneRuntimeOverlayServers(overlay)
+	if snapshot.Inventory.CachedAt == "" {
+		snapshot.Inventory.CachedAt = snapshot.CachedAt
+	}
+	if hasInventoryContents(&snapshot.Inventory) || hasRuntimeOverlayContents(snapshot.RuntimeOverlay) {
+		snapshot.CachedAt = time.Now().UTC().Format(time.RFC3339)
+		if snapshot.Inventory.CachedAt == "" {
+			snapshot.Inventory.CachedAt = snapshot.CachedAt
+		}
+		return writeInventoryCacheSnapshot(cachePath, snapshot)
+	}
+	return removeInventoryCache(cachePath)
+}
+
+func LoadInventoryCacheSnapshot(cachePath string) (*InventoryCacheSnapshot, error) {
+	data, err := os.ReadFile(cachePath)
+	if err != nil {
+		return nil, err
+	}
+	var snapshot InventoryCacheSnapshot
+	if err := json.Unmarshal(data, &snapshot); err != nil {
+		return nil, err
+	}
+	if snapshot.Version == 0 {
+		snapshot.Version = 1
+	}
+	sortInventory(&snapshot.Inventory)
+	return &snapshot, nil
 }
 
 func loadLiveInventory(workspaceRoot, mainConfigDir string) (*Inventory, error) {
@@ -261,18 +344,14 @@ func loadConfigServers(configDir string) (map[string]configServer, error) {
 }
 
 func loadInventoryCache(cachePath string) (*Inventory, error) {
-	data, err := os.ReadFile(cachePath)
+	snapshot, err := LoadInventoryCacheSnapshot(cachePath)
 	if err != nil {
 		return nil, err
 	}
-	var persisted persistedInventoryCache
-	if err := json.Unmarshal(data, &persisted); err != nil {
-		return nil, err
-	}
-	inventory := persisted.Inventory
+	inventory := cloneInventoryValue(snapshot.Inventory)
 	inventory.Source = "cache"
 	if inventory.CachedAt == "" {
-		inventory.CachedAt = persisted.CachedAt
+		inventory.CachedAt = snapshot.CachedAt
 	}
 	sortInventory(&inventory)
 	return &inventory, nil
@@ -282,17 +361,32 @@ func saveInventoryCache(cachePath string, inventory *Inventory, cachedAt string)
 	if strings.TrimSpace(cachePath) == "" || inventory == nil {
 		return nil
 	}
-	persisted := persistedInventoryCache{
-		Version:  1,
-		CachedAt: cachedAt,
-		Inventory: Inventory{
-			Servers:  cloneServerEntries(inventory.Servers),
-			Tools:    cloneToolEntries(inventory.Tools),
-			Source:   inventory.Source,
-			CachedAt: cachedAt,
-		},
+	var preservedOverlay []RuntimeOverlayServer
+	if snapshot, err := LoadInventoryCacheSnapshot(cachePath); err == nil && snapshot != nil {
+		preservedOverlay = cloneRuntimeOverlayServers(snapshot.RuntimeOverlay)
 	}
-	data, err := json.MarshalIndent(persisted, "", "  ")
+	return writeInventoryCacheSnapshot(cachePath, &InventoryCacheSnapshot{
+		Version:        1,
+		CachedAt:       cachedAt,
+		Inventory:      cloneInventoryValue(*inventory),
+		RuntimeOverlay: preservedOverlay,
+	})
+}
+
+func writeInventoryCacheSnapshot(cachePath string, snapshot *InventoryCacheSnapshot) error {
+	if strings.TrimSpace(cachePath) == "" || snapshot == nil {
+		return nil
+	}
+	snapshot.Version = 1
+	if snapshot.CachedAt == "" {
+		snapshot.CachedAt = time.Now().UTC().Format(time.RFC3339)
+	}
+	if snapshot.Inventory.CachedAt == "" {
+		snapshot.Inventory.CachedAt = snapshot.CachedAt
+	}
+	snapshot.Inventory = cloneInventoryValue(snapshot.Inventory)
+	snapshot.RuntimeOverlay = cloneRuntimeOverlayServers(snapshot.RuntimeOverlay)
+	data, err := json.MarshalIndent(snapshot, "", "  ")
 	if err != nil {
 		return err
 	}
@@ -318,6 +412,19 @@ func hasInventoryContents(inventory *Inventory) bool {
 		return false
 	}
 	return len(inventory.Servers) > 0 || len(inventory.Tools) > 0
+}
+
+func hasRuntimeOverlayContents(overlay []RuntimeOverlayServer) bool {
+	for _, record := range overlay {
+		if strings.TrimSpace(record.Name) == "" {
+			continue
+		}
+		if len(record.Tools) == 0 {
+			continue
+		}
+		return true
+	}
+	return false
 }
 
 func sortInventory(inventory *Inventory) {
@@ -350,6 +457,15 @@ func sortInventory(inventory *Inventory) {
 	})
 }
 
+func cloneInventoryValue(source Inventory) Inventory {
+	return Inventory{
+		Servers:  cloneServerEntries(source.Servers),
+		Tools:    cloneToolEntries(source.Tools),
+		Source:   source.Source,
+		CachedAt: source.CachedAt,
+	}
+}
+
 func cloneServerEntries(source []ServerEntry) []ServerEntry {
 	if len(source) == 0 {
 		return []ServerEntry{}
@@ -376,6 +492,21 @@ func cloneToolEntries(source []ToolEntry) []ToolEntry {
 		copyEntry.ToolTags = append([]string(nil), entry.ToolTags...)
 		copyEntry.Keywords = append([]string(nil), entry.Keywords...)
 		cloned = append(cloned, copyEntry)
+	}
+	return cloned
+}
+
+func cloneRuntimeOverlayServers(source []RuntimeOverlayServer) []RuntimeOverlayServer {
+	if len(source) == 0 {
+		return []RuntimeOverlayServer{}
+	}
+	cloned := make([]RuntimeOverlayServer, 0, len(source))
+	for _, record := range source {
+		copyRecord := record
+		copyRecord.Args = append([]string(nil), record.Args...)
+		copyRecord.Env = cloneStringMap(record.Env)
+		copyRecord.Tools = append([]MetadataTool(nil), record.Tools...)
+		cloned = append(cloned, copyRecord)
 	}
 	return cloned
 }

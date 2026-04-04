@@ -199,35 +199,40 @@ func (s *Server) handleMCPRuntimeServers(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	view, invErr := s.localMCPInventoryView()
 	_, summary, localErr := s.localMCPSummary(r.Context())
 	if localErr != nil {
-		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"success": false, "error": localErr.Error()})
+		if invErr != nil || view == nil || (view.PersistedOverlayServerCount == 0 && view.RuntimeOverlayServerCount == 0) {
+			writeJSON(w, http.StatusServiceUnavailable, map[string]any{"success": false, "error": localErr.Error()})
+			return
+		}
+		bridge := map[string]any{
+			"fallback":  "go-local-mcp",
+			"procedure": "mcp.listServers",
+			"reason":    "upstream unavailable; using local MCP runtime overlay cache",
+		}
+		for key, value := range inventoryBridgeMeta(view) {
+			bridge[key] = value
+		}
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"data":    fallbackRuntimeServersWithProvenance(nil, view),
+			"bridge":  bridge,
+		})
 		return
 	}
-	baseServers := fallbackRuntimeServers(summary.InstalledHarnesses)
-	runtimeRecords := s.runtimeServers.list()
-	for _, record := range runtimeRecords {
-		baseServers = append(baseServers, map[string]any{
-			"name":                record.Name,
-			"runtimeConnected":    record.RuntimeConnected,
-			"toolCount":           record.ToolCount,
-			"toolInventoryStatus": record.ToolInventoryStatus,
-			"integrationLevel":    record.IntegrationLevel,
-			"source":              record.Source,
-			"command":             record.Command,
-			"args":                record.Args,
-			"lastCheckedAt":       record.LastCheckedAt,
-			"lastError":           nullableString(record.LastError),
-		})
+	baseServers := fallbackRuntimeServersWithProvenance(summary.InstalledHarnesses, view)
+	bridge := map[string]any{
+		"fallback":  "go-local-mcp",
+		"procedure": "mcp.listServers",
+		"reason":    "upstream unavailable; using local MCP runtime server summary",
 	}
-
+	for key, value := range inventoryBridgeMeta(view) {
+		bridge[key] = value
+	}
 	writeJSON(w, http.StatusOK, map[string]any{
 		"success": true,
 		"data":    baseServers,
-		"bridge": map[string]any{
-			"fallback":  "go-local-mcp",
-			"procedure": "mcp.listServers",
-			"reason":    "upstream unavailable; using local MCP runtime server summary",
-		},
+		"bridge":  bridge,
 	})
 }

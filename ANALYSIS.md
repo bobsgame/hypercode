@@ -1827,6 +1827,59 @@ Results:
 - Go build passed
 - full Go suite passed
 
+## Follow-up MCP server-level provenance step (runtime server origin layer + freshness)
+The next refinement was to bring `/api/mcp/servers/runtime` up to the same truthfulness standard as the tool fallback surfaces.
+
+### The gap before this step
+Before this step:
+- tool fallback records could explain their origin layer and layer freshness
+- but runtime server fallback records still relied on a thinner summary model
+- persisted runtime overlay could survive in cache, yet `/api/mcp/servers/runtime` did not surface that durable provenance cleanly when live summary detection was unavailable
+
+### What changed
+- updated `go/internal/httpapi/mcp_inventory_fallback.go`
+  - local inventory views now retain runtime overlay records in addition to counts
+  - added shared server-level provenance helpers
+  - added `fallbackRuntimeServersWithProvenance(...)`
+  - runtime server records now carry fields such as:
+    - `originLayer`
+    - `layerCachedAt`
+    - `layerAgeMs`
+    - `layerStaleHeuristic`
+- updated `go/internal/httpapi/mcp_handlers.go`
+  - `/api/mcp/servers/runtime` now uses the shared provenance-aware runtime server formatter
+  - when summary detection is unavailable, the route can still recover from persisted/live runtime overlay cache data instead of dropping directly to service-unavailable
+  - bridge metadata now stays aligned with the same cache/source/freshness model used elsewhere
+- expanded `go/internal/httpapi/server_test.go`
+  - summary-backed runtime server fallback now verifies `originLayer: "source-backed-summary"`
+  - live runtime overlay runtime-server fallback now verifies server-level freshness fields
+  - persisted runtime overlay runtime-server fallback now verifies recovery from cache without a live in-memory registry
+
+### Important truthfulness note
+What is true now:
+- runtime server fallback responses now carry server-level provenance and freshness metadata
+- persisted runtime overlay can recover `/api/mcp/servers/runtime` when live summary detection is unavailable
+- server-level and tool-level fallback truthfulness are now much more aligned
+
+What is still not true yet:
+- this does not make runtime server lifecycle fully durable or authoritative
+- persisted runtime overlay still represents cached discovered metadata, not a promise that the runtime server is alive now
+- full transport/session lifecycle parity remains incomplete
+
+### Validation performed for this MCP server-level provenance step
+```bash
+gofmt -w go/internal/httpapi/mcp_handlers.go go/internal/httpapi/mcp_inventory_fallback.go go/internal/httpapi/server_test.go
+cd go && go test ./internal/httpapi ./internal/mcp
+cd go && go build -buildvcs=false ./cmd/hypercode
+cd go && go test ./...
+```
+
+Results:
+- targeted httpapi tests passed
+- targeted mcp tests passed
+- Go build passed
+- full Go suite passed
+
 ## Bottom line
 This pass meaningfully strengthened the **Go-primary migration path** and improved TypeScript survivability while the migration continues:
 - broader provider routing
@@ -1871,6 +1924,7 @@ This pass meaningfully strengthened the **Go-primary migration path** and improv
 - the canonical MCP cache file now persists the durable subset of successful runtime overlay tool metadata and fallback responses distinguish persisted-vs-live runtime overlay counts
 - cache-backed fallback responses now expose per-layer age and stale heuristics for base inventory, persisted runtime overlay, and live runtime overlay
 - individual fallback tool records now carry origin-layer and layer freshness metadata so clients can explain per-tool provenance directly
+- runtime server fallback records now also carry server-level origin-layer and layer freshness metadata, and can recover from persisted runtime overlay cache when live summary detection is unavailable
 - a tested Go-native replacement path for multiple TS-owned persistence surfaces, even though mixed-runtime cleanup is not fully finished yet
 - a small but real Maestro UX fix
 

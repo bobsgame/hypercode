@@ -5905,6 +5905,7 @@ var AutoCallTool = struct{
 				`using local MCP runtime server summary`,
 				`"name":"hypercode"`,
 				`"toolInventoryStatus":"source-backed"`,
+				`"originLayer":"source-backed-summary"`,
 			},
 		},
 		{
@@ -6093,6 +6094,11 @@ func TestToolEndpointsFallBackToPersistedInventoryCache(t *testing.T) {
 			contains: []string{`"fallback":"go-local-mcp-inventory-cache"`, `"uuid":"search_tools"`, `"cachedAt":"2020-01-01T00:00:00Z"`, `"originLayer":"base-inventory"`, `"layerCachedAt":"2020-01-01T00:00:00Z"`, `"baseInventoryStaleHeuristic":true`},
 		},
 		{
+			name:     "mcp runtime servers",
+			path:     "/api/mcp/servers/runtime",
+			contains: []string{`"fallback":"go-local-mcp"`, `using local MCP runtime overlay cache`, `"name":"runtime-core"`, `"originLayer":"live-runtime-overlay"`, `"layerCachedAt":"2020-01-01T00:00:05Z"`, `"runtimeOverlayServerCount":1`, `"liveOverlayStaleHeuristic":true`, `"cacheAuthority":"go-local-live-sync"`},
+		},
+		{
 			name:     "mcp tools list",
 			path:     "/api/mcp/tools",
 			contains: []string{`"fallback":"go-local-mcp"`, `using local MCP inventory cache`, `"name":"search_tools"`, `"server":"cache-core"`, `"originLayer":"base-inventory"`, `"name":"runtime_search"`, `"server":"runtime-core"`, `"originLayer":"live-runtime-overlay"`, `"runtimeOverlayToolCount":1`, `"cachePresent":true`, `"cachedAt":"2020-01-01T00:00:00Z"`, `"cacheAuthority":"go-local-live-sync"`, `"metadataAuthority":"mcp.jsonc"`, `"baseInventoryStaleHeuristic":true`, `"liveOverlayStaleHeuristic":true`},
@@ -6160,14 +6166,25 @@ func TestPersistedRuntimeOverlayFallbackWithoutLiveRegistry(t *testing.T) {
 	cfg.MainConfigDir = t.TempDir()
 	server := New(cfg, stubDetector{err: errors.New("detector unavailable")})
 
-	recorder := httptest.NewRecorder()
-	server.Handler().ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/api/mcp/tools", nil))
-	if recorder.Code != http.StatusOK {
-		t.Fatalf("expected fallback status 200, got %d with body %s", recorder.Code, recorder.Body.String())
+	toolRecorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(toolRecorder, httptest.NewRequest(http.MethodGet, "/api/mcp/tools", nil))
+	if toolRecorder.Code != http.StatusOK {
+		t.Fatalf("expected fallback status 200, got %d with body %s", toolRecorder.Code, toolRecorder.Body.String())
 	}
 	for _, needle := range []string{`"name":"runtime_search"`, `"source":"go-persisted-runtime-overlay"`, `"originLayer":"persisted-runtime-overlay"`, `"layerCachedAt":"2020-01-01T00:00:05Z"`, `"persistedOverlayToolCount":1`, `"runtimeOverlayToolCount":0`, `"persistedOverlayCachedAt":"2020-01-01T00:00:05Z"`, `"persistedOverlayAgeMs":`, `"persistedOverlayStaleHeuristic":true`} {
-		if !strings.Contains(recorder.Body.String(), needle) {
-			t.Fatalf("expected response to contain %s, got %s", needle, recorder.Body.String())
+		if !strings.Contains(toolRecorder.Body.String(), needle) {
+			t.Fatalf("expected response to contain %s, got %s", needle, toolRecorder.Body.String())
+		}
+	}
+
+	serverRecorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(serverRecorder, httptest.NewRequest(http.MethodGet, "/api/mcp/servers/runtime", nil))
+	if serverRecorder.Code != http.StatusOK {
+		t.Fatalf("expected runtime server fallback status 200, got %d with body %s", serverRecorder.Code, serverRecorder.Body.String())
+	}
+	for _, needle := range []string{`"name":"runtime-core"`, `"source":"go-persisted-runtime-overlay"`, `"originLayer":"persisted-runtime-overlay"`, `"layerCachedAt":"2020-01-01T00:00:05Z"`, `"persistedOverlayServerCount":1`, `"runtimeOverlayServerCount":0`, `"persistedOverlayCachedAt":"2020-01-01T00:00:05Z"`, `"persistedOverlayStaleHeuristic":true`} {
+		if !strings.Contains(serverRecorder.Body.String(), needle) {
+			t.Fatalf("expected runtime server response to contain %s, got %s", needle, serverRecorder.Body.String())
 		}
 	}
 }

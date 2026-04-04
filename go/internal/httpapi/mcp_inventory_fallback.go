@@ -3,9 +3,11 @@ package httpapi
 import (
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
+	"github.com/hypercodehq/hypercode-go/internal/harnesses"
 	"github.com/hypercodehq/hypercode-go/internal/mcp"
 )
 
@@ -22,6 +24,8 @@ type localMCPInventoryView struct {
 	RuntimeOverlayServerCount   int
 	RuntimeOverlayToolCount     int
 	ServerSources               map[string]string
+	PersistedOverlayRecords     map[string]mcp.RuntimeOverlayServer
+	LiveOverlayRecords          map[string]mcp.RuntimeOverlayServer
 }
 
 func (s *Server) localMCPInventoryCachePath() string {
@@ -44,19 +48,23 @@ func (s *Server) localMCPInventoryView() (*localMCPInventoryView, error) {
 	cachePath := s.localMCPInventoryCachePath()
 	_, statErr := os.Stat(cachePath)
 	view := &localMCPInventoryView{
-		Inventory:       cloneInventory(inventory),
-		CachePath:       cachePath,
-		CachePresent:    statErr == nil,
-		InventorySource: inventory.Source,
-		CachedAt:        inventory.CachedAt,
-		ServerSources:   map[string]string{},
+		Inventory:               cloneInventory(inventory),
+		CachePath:               cachePath,
+		CachePresent:            statErr == nil,
+		InventorySource:         inventory.Source,
+		CachedAt:                inventory.CachedAt,
+		ServerSources:           map[string]string{},
+		PersistedOverlayRecords: map[string]mcp.RuntimeOverlayServer{},
+		LiveOverlayRecords:      map[string]mcp.RuntimeOverlayServer{},
 	}
 	for _, server := range view.Inventory.Servers {
 		view.ServerSources[server.Name] = inventory.Source
 	}
 	if snapshot, snapshotErr := mcp.LoadInventoryCacheSnapshot(cachePath); snapshotErr == nil && snapshot != nil {
 		view.applyPersistedRuntimeOverlay(snapshot.RuntimeOverlay)
-		view.PersistedOverlayCheckedAt = freshestRuntimeOverlayCheck(snapshot.RuntimeOverlay, snapshot.CachedAt)
+		if len(snapshot.RuntimeOverlay) > 0 {
+			view.PersistedOverlayCheckedAt = freshestRuntimeOverlayCheck(snapshot.RuntimeOverlay, snapshot.CachedAt)
+		}
 		if view.CachedAt == "" {
 			view.CachedAt = snapshot.CachedAt
 		}
@@ -121,6 +129,9 @@ func (v *localMCPInventoryView) applyOverlay(records []mcp.RuntimeOverlayServer,
 		source := record.Source
 		if persisted {
 			source = "go-persisted-runtime-overlay"
+			v.PersistedOverlayRecords[record.Name] = record
+		} else {
+			v.LiveOverlayRecords[record.Name] = record
 		}
 		v.ServerSources[record.Name] = source
 		for _, tool := range record.Tools {
@@ -310,9 +321,16 @@ func inventoryToolSource(view *localMCPInventoryView, serverName string) string 
 }
 
 func inventoryToolLayerMeta(view *localMCPInventoryView, serverName string) map[string]any {
-	source := inventoryToolSource(view, serverName)
-	layer := "base-inventory"
-	timestamp := ""
+	return inventoryLayerMeta(view, inventoryToolSource(view, serverName), "base-inventory")
+}
+
+func inventoryServerLayerMeta(view *localMCPInventoryView, source string) map[string]any {
+	return inventoryLayerMeta(view, source, "source-backed-summary")
+}
+
+func inventoryLayerMeta(view *localMCPInventoryView, source string, defaultLayer string) map[string]any {
+	layer := defaultLayer
+	timestamp := view.CachedAt
 	staleAfter := 24 * time.Hour
 	switch source {
 	case "go-persisted-runtime-overlay":
@@ -323,8 +341,9 @@ func inventoryToolLayerMeta(view *localMCPInventoryView, serverName string) map[
 		layer = "live-runtime-overlay"
 		timestamp = view.LiveOverlayCheckedAt
 		staleAfter = 15 * time.Minute
-	default:
-		timestamp = view.CachedAt
+	case "source-backed":
+		layer = defaultLayer
+		timestamp = ""
 	}
 	meta := map[string]any{
 		"originLayer": layer,
@@ -430,4 +449,67 @@ func fallbackControlToolFromInventory(view *localMCPInventoryView, uuid string) 
 		}
 	}
 	return nil
+}
+
+func fallbackRuntimeServersWithProvenance(definitions []harnesses.Definition, view *localMCPInventoryView) []map[string]any {
+	servers := make([]map[string]any, 0)
+	seen := map[string]struct{}{}
+	for _, definition := range sourceBackedInstalledHarnesses(definitions) {
+		item := map[string]any{
+			"name":                definition.ID,
+			"runtimeConnected":    false,
+			"toolCount":           definition.ToolCallCount,
+			"toolInventoryStatus": definition.ToolInventoryStatus,
+			"integrationLevel":    definition.IntegrationLevel,
+			"source":              definition.ToolSource,
+		}
+		for key, value := range inventoryServerLayerMeta(view, "source-backed") {
+			item[key] = value
+		}
+		servers = append(servers, item)
+		seen[definition.ID] = struct{}{}
+	}
+	if view != nil {
+		names := make([]string, 0, len(view.PersistedOverlayRecords)+len(view.LiveOverlayRecords))
+		for name := range view.PersistedOverlayRecords {
+			names = append(names, name)
+		}
+		for name := range view.LiveOverlayRecords {
+			if _, ok := view.PersistedOverlayRecords[name]; !ok {
+				names = append(names, name)
+			}
+		}
+		sort.Strings(names)
+		for _, name := range names {
+			record, source := view.PersistedOverlayRecords[name], "go-persisted-runtime-overlay"
+			if live, ok := view.LiveOverlayRecords[name]; ok {
+				record = live
+				source = "go-runtime-registry"
+			}
+			if strings.TrimSpace(record.Name) == "" {
+				continue
+			}
+			if _, exists := seen[record.Name]; exists && source == "source-backed" {
+				continue
+			}
+			item := map[string]any{
+				"name":                record.Name,
+				"runtimeConnected":    record.RuntimeConnected,
+				"toolCount":           record.ToolCount,
+				"toolInventoryStatus": record.ToolInventoryStatus,
+				"integrationLevel":    record.IntegrationLevel,
+				"source":              source,
+				"command":             record.Command,
+				"args":                record.Args,
+				"lastCheckedAt":       nullableString(record.LastCheckedAt),
+				"lastError":           nullableString(record.LastError),
+			}
+			for key, value := range inventoryServerLayerMeta(view, source) {
+				item[key] = value
+			}
+			servers = append(servers, item)
+			seen[record.Name] = struct{}{}
+		}
+	}
+	return servers
 }

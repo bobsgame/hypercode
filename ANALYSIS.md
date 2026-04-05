@@ -329,6 +329,13 @@ The next remaining operator-read placeholder cluster was `apiKeys.list`, `shell.
 
 This closes the remaining obvious operator-facing synthetic read placeholders in the shared compat layer for the AI Tools page, API Keys page, Shell History widget/tools page, Context Health widget, and Experts dashboard.
 
+After the operator-read cluster, the remaining obvious shared placeholder lane was tool catalog/search itself: `tools.list` and `mcp.searchTools`. Both now prefer existing Go/native truth instead of placeholders:
+- `tools.list` now prefers Go-native `/api/tools`, preserving the control-plane tool catalog shape used by AI Tools, MCP Catalog, Tool Sets, Super Assistant, and other tool inventory views
+- `mcp.searchTools` now prefers Go-backed tool search via `/api/tools/search`, preserving the search result contract used by `/dashboard/mcp/search` instead of returning `[]`
+- the search fallback preserves the existing minimum search contract (`name`, `description`, `server`, `inputSchema`) and forwards optional ranking/search metadata when present
+
+This means degraded tool inventory/search pages no longer collapse to empty catalog or search results when the TypeScript tool routes are unavailable while the Go control plane can still serve inventory/search truth.
+
 Why this matters:
 - it makes Go-primary launch use the same compiled artifact that the startup build profile already validates
 - it reduces repeated `go run` compilation overhead at runtime
@@ -389,10 +396,10 @@ Results:
 - a focused dashboard render test was added, but `vitest` is not directly installed in `apps/web`, so that new test was validated indirectly through the successful web build rather than executed as a standalone test command in this pass
 - a focused app-route compat regression was executed successfully through the root Vitest runner (`pnpm exec vitest run apps/web/src/app/api/trpc/[trpc]/route.test.ts`), validating Go-native `/api/startup/status` + `/api/runtime/status` preference when `startupStatus` is unavailable, Go-native `/api/mcp/status` preference when `mcp.getStatus` is unavailable, Go-native provider quota/fallback-chain preference when TypeScript billing procedures are unavailable, Go-native `/api/cli/harnesses` preference when `tools.detectCliHarnesses` is unavailable, Go-native `/api/sessions` preference when `session.list` is unavailable, and Go-derived `session.catalog` fallback from the native harness inventory
 - startup truthfulness validation also reproduced the exact operator path from `start.bat` without launching a long-lived process by using `start.bat --help`; after the fix, Go-primary startup now truthfully reports and executes the build when `scripts/check_startup_build.mjs` returns non-zero, and forced Go-primary installs now use `pnpm install --ignore-scripts` by default instead of tripping unrelated Maestro/Electron postinstall rebuilds
-- the execution-environment + install-surface + imported-maintenance + MCP-inspector + operator-read compat slice was validated with:
+- the execution-environment + install-surface + imported-maintenance + MCP-inspector + operator-read + tool-catalog/search compat slice was validated with:
   - `pnpm exec vitest run apps/web/src/app/api/trpc/[trpc]/route.test.ts`
   - `pnpm -C apps/web run build`
-  - the route regression now proves Go-native `/api/tools/detect-execution-environment` preference for `tools.detectExecutionEnvironment`, verifies that the same normalized summary is injected into degraded `startupStatus.checks.executionEnvironment`, validates Go-native `/api/tools/detect-install-surfaces` preference for `tools.detectInstallSurfaces`, validates both direct `session.importedMaintenanceStats` fallback plus degraded `startupStatus.checks.importedSessions` backfill from `/api/sessions/imported/maintenance-stats`, validates Go-native MCP inspector preference for `mcp.getWorkingSet`, `mcp.getToolSelectionTelemetry`, and `mcp.getToolPreferences`, and validates Go-native preference for `apiKeys.list`, `shell.getSystemHistory`, `agentMemory.stats`, and `expert.getStatus`
+  - the route regression now proves Go-native `/api/tools/detect-execution-environment` preference for `tools.detectExecutionEnvironment`, verifies that the same normalized summary is injected into degraded `startupStatus.checks.executionEnvironment`, validates Go-native `/api/tools/detect-install-surfaces` preference for `tools.detectInstallSurfaces`, validates both direct `session.importedMaintenanceStats` fallback plus degraded `startupStatus.checks.importedSessions` backfill from `/api/sessions/imported/maintenance-stats`, validates Go-native MCP inspector preference for `mcp.getWorkingSet`, `mcp.getToolSelectionTelemetry`, and `mcp.getToolPreferences`, validates Go-native preference for `apiKeys.list`, `shell.getSystemHistory`, `agentMemory.stats`, and `expert.getStatus`, and validates Go-native preference for `tools.list` and `mcp.searchTools`
 - concrete validation for the startup slice included:
   - `pnpm -C packages/cli run build`
   - `powershell.exe -NoProfile -Command '$env:HYPERCODE_FORCE_INSTALL="1"; $env:HYPERCODE_SKIP_NATIVE_PREFLIGHT="1"; $env:HYPERCODE_SKIP_BUILD="1"; cmd.exe /c "start.bat --help"'`
@@ -445,6 +452,7 @@ Result:
 - the web compat fallback now also prefers Go-native `/api/sessions/imported/maintenance-stats` when `session.importedMaintenanceStats` is unavailable, and uses that same maintenance data to backfill degraded `startupStatus.checks.importedSessions` when startup telemetry is incomplete
 - the web compat fallback now also prefers Go-native MCP inspector state for `mcp.getWorkingSet`, `mcp.getToolSelectionTelemetry`, and `mcp.getToolPreferences`, reducing reliance on synthetic empty working-set, telemetry, and preference placeholders in degraded mode
 - the web compat fallback now also prefers Go-native `/api/api-keys`, `/api/shell/history/system`, `/api/memory/agent-stats`, and `/api/expert/status` for `apiKeys.list`, `shell.getSystemHistory`, `agentMemory.stats`, and `expert.getStatus`, reducing reliance on synthetic empty operator-read placeholders in degraded mode
+- the web compat fallback now also prefers Go-native `/api/tools` and `/api/tools/search` for `tools.list` and `mcp.searchTools`, reducing reliance on synthetic empty tool-catalog and search placeholders in degraded mode
 - the Go-native `/api/runtime/status` surface now also exposes startup provenance, making the native backend itself self-describing
 - `start.bat` now validates Go-first startup surfaces by default for `auto`/`go` runtime modes instead of always requiring a full workspace build first
 - `start.bat` can now skip `pnpm install` in Go-primary mode when the workspace is already ready

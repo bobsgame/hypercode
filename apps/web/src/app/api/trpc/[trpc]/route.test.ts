@@ -289,13 +289,45 @@ describe('legacy MCP dashboard compatibility bridge', () => {
     ).toBe(true);
   });
 
-  it('prefers go-native MCP inspector state in local dashboard fallback mode', async () => {
+  it('prefers go-native tool catalog, MCP inspector state, and search in local dashboard fallback mode', async () => {
     process.env.HYPERCODE_TRPC_UPSTREAM = 'http://127.0.0.1:4300/trpc';
     global.fetch = vi.fn(async (input) => {
       const url = String(input);
 
       if (url.includes('/trpc/')) {
         throw new Error('connect ECONNREFUSED');
+      }
+      if (url === 'http://127.0.0.1:4300/api/tools') {
+        return new Response(JSON.stringify({
+          success: true,
+          data: [
+            {
+              uuid: 'search_tools',
+              name: 'search_tools',
+              description: 'Search all available tools',
+              server: 'hypercode-router',
+              inputSchema: { type: 'object' },
+              isDeferred: false,
+              schemaParamCount: 1,
+              mcpServerUuid: 'hypercode-router',
+              always_on: true,
+            },
+            {
+              uuid: 'read_file',
+              name: 'read_file',
+              description: 'Read files from the workspace',
+              server: 'hypercode-router',
+              inputSchema: { type: 'object' },
+              isDeferred: false,
+              schemaParamCount: 2,
+              mcpServerUuid: 'hypercode-router',
+              always_on: false,
+            },
+          ],
+        }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        });
       }
       if (url === 'http://127.0.0.1:4300/api/mcp/working-set') {
         return new Response(JSON.stringify({
@@ -372,12 +404,35 @@ describe('legacy MCP dashboard compatibility bridge', () => {
           headers: { 'content-type': 'application/json' },
         });
       }
+      if (url === 'http://127.0.0.1:4300/api/tools/search?query=search&limit=5') {
+        return new Response(JSON.stringify({
+          success: true,
+          data: [
+            {
+              name: 'search_tools',
+              description: 'Search all available tools',
+              server: 'hypercode-router',
+              inputSchema: { type: 'object' },
+              loaded: true,
+              hydrated: true,
+              alwaysOn: true,
+              important: true,
+              score: 0.98,
+              rank: 1,
+              matchReason: 'name-token match',
+            },
+          ],
+        }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        });
+      }
 
       throw new Error(`Unexpected fetch: ${url}`);
     }) as typeof fetch;
 
     const request = new Request(
-      'http://localhost:3010/api/trpc/startupStatus,mcp.getWorkingSet,mcp.getToolSelectionTelemetry,mcp.getToolPreferences,mcp.searchTools,mcp.getJsoncEditor,serverHealth.check?batch=1',
+      'http://localhost:3010/api/trpc/startupStatus,tools.list,mcp.getWorkingSet,mcp.getToolSelectionTelemetry,mcp.getToolPreferences,mcp.searchTools,mcp.getJsoncEditor,serverHealth.check?batch=1',
       {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
@@ -386,9 +441,10 @@ describe('legacy MCP dashboard compatibility bridge', () => {
           1: { json: null },
           2: { json: null },
           3: { json: null },
-          4: { json: { query: 'search', limit: 5 } },
-          5: { json: null },
+          4: { json: null },
+          5: { json: { query: 'search', limit: 5 } },
           6: { json: null },
+          7: { json: null },
         }),
       },
     );
@@ -399,7 +455,7 @@ describe('legacy MCP dashboard compatibility bridge', () => {
     expect(response.status).toBe(200);
     expect(response.headers.get('x-hypercode-trpc-compat')).toBe('local-dashboard-fallback');
     expect(Array.isArray(payload)).toBe(true);
-    expect(payload).toHaveLength(7);
+    expect(payload).toHaveLength(8);
 
     expect(payload[0]?.result?.data).toEqual(expect.objectContaining({
       status: expect.stringMatching(/^(starting|degraded)$/),
@@ -424,7 +480,23 @@ describe('legacy MCP dashboard compatibility bridge', () => {
     expect(payload[0].result.data.checks.configSync.status.lastServerCount)
       .toBe(payload[0].result.data.checks.mcpAggregator.persistedServerCount);
 
-    expect(payload[1]?.result?.data).toEqual({
+    expect(payload[1]?.result?.data).toEqual([
+      expect.objectContaining({
+        uuid: 'search_tools',
+        name: 'search_tools',
+        server: 'hypercode-router',
+        schemaParamCount: 1,
+        always_on: true,
+      }),
+      expect.objectContaining({
+        uuid: 'read_file',
+        name: 'read_file',
+        server: 'hypercode-router',
+        schemaParamCount: 2,
+        always_on: false,
+      }),
+    ]);
+    expect(payload[2]?.result?.data).toEqual({
       tools: [
         {
           name: 'search_tools',
@@ -447,7 +519,7 @@ describe('legacy MCP dashboard compatibility bridge', () => {
         idleEvictionThresholdMs: 300000,
       },
     });
-    expect(payload[2]?.result?.data).toEqual([
+    expect(payload[3]?.result?.data).toEqual([
       expect.objectContaining({
         id: 'telemetry-1',
         type: 'search',
@@ -460,7 +532,7 @@ describe('legacy MCP dashboard compatibility bridge', () => {
         autoLoadOutcome: 'loaded',
       }),
     ]);
-    expect(payload[3]?.result?.data).toEqual({
+    expect(payload[4]?.result?.data).toEqual({
       importantTools: ['search_tools'],
       alwaysLoadedTools: ['search_tools', 'read_file'],
       autoLoadMinConfidence: 0.85,
@@ -468,19 +540,34 @@ describe('legacy MCP dashboard compatibility bridge', () => {
       maxHydratedSchemas: 8,
       idleEvictionThresholdMs: 300000,
     });
-    expect(payload[4]?.result?.data).toEqual([]);
-    expect(payload[5]?.result?.data).toEqual(expect.objectContaining({
+    expect(payload[5]?.result?.data).toEqual([
+      expect.objectContaining({
+        name: 'search_tools',
+        description: 'Search all available tools',
+        server: 'hypercode-router',
+        loaded: true,
+        hydrated: true,
+        alwaysOn: true,
+        important: true,
+        score: 0.98,
+        rank: 1,
+        matchReason: 'name-token match',
+      }),
+    ]);
+    expect(payload[6]?.result?.data).toEqual(expect.objectContaining({
       path: expect.stringMatching(/mcp\.jsonc?$|mcp\.json$/),
       content: expect.stringContaining('mcpServers'),
     }));
-    expect(payload[6]?.result?.data).toEqual({
+    expect(payload[7]?.result?.data).toEqual({
       status: 'unavailable',
       crashCount: 0,
       maxAttempts: 0,
     });
+    expect((global.fetch as ReturnType<typeof vi.fn>).mock.calls.some(([url]) => String(url) === 'http://127.0.0.1:4300/api/tools')).toBe(true);
     expect((global.fetch as ReturnType<typeof vi.fn>).mock.calls.some(([url]) => String(url) === 'http://127.0.0.1:4300/api/mcp/working-set')).toBe(true);
     expect((global.fetch as ReturnType<typeof vi.fn>).mock.calls.some(([url]) => String(url) === 'http://127.0.0.1:4300/api/mcp/tool-selection-telemetry')).toBe(true);
     expect((global.fetch as ReturnType<typeof vi.fn>).mock.calls.some(([url]) => String(url) === 'http://127.0.0.1:4300/api/mcp/preferences')).toBe(true);
+    expect((global.fetch as ReturnType<typeof vi.fn>).mock.calls.some(([url]) => String(url) === 'http://127.0.0.1:4300/api/tools/search?query=search&limit=5')).toBe(true);
   });
 
   it('prefers go-native startup and runtime status when local dashboard fallback is active', async () => {

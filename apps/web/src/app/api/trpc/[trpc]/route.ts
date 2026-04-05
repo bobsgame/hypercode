@@ -992,6 +992,118 @@ async function buildPreferredExecutionEnvironment(cliHarnessDetections: unknown[
   };
 }
 
+async function buildPreferredToolsList(): Promise<unknown[]> {
+  for (const base of resolveNativeStatusBases()) {
+    try {
+      const response = await fetch(`${base}/api/tools`, { cache: 'no-store' });
+      if (!response.ok) {
+        continue;
+      }
+
+      const payload = await response.json() as { success?: unknown; data?: unknown };
+      if (payload.success !== true || !Array.isArray(payload.data)) {
+        continue;
+      }
+
+      return payload.data
+        .map((entry) => {
+          const record = asObjectRecord(entry);
+          const uuid = readString(record?.uuid);
+          const name = readString(record?.name);
+          const server = readString(record?.server);
+          if (!uuid || !name || !server) {
+            return null;
+          }
+
+          return {
+            uuid,
+            name,
+            description: readString(record?.description) ?? '',
+            server,
+            inputSchema: asObjectRecord(record?.inputSchema),
+            isDeferred: readBoolean(record?.isDeferred) ?? false,
+            schemaParamCount: readNumber(record?.schemaParamCount) ?? 0,
+            mcpServerUuid: readString(record?.mcpServerUuid) ?? server,
+            always_on: readBoolean(record?.always_on) ?? false,
+          };
+        })
+        .filter((entry): entry is NonNullable<typeof entry> => entry !== null);
+    } catch {
+      // Try the next native control-plane base.
+    }
+  }
+
+  return LEGACY_COMPAT_RESPONSES['tools.list'] as unknown[];
+}
+
+async function buildPreferredToolSearch(query?: string | null, limit?: number | null): Promise<unknown[]> {
+  const normalizedQuery = query?.trim();
+  if (!normalizedQuery) {
+    return [];
+  }
+
+  for (const base of resolveNativeStatusBases()) {
+    try {
+      const endpoint = new URL(`${base}/api/tools/search`);
+      endpoint.searchParams.set('query', normalizedQuery);
+      if (typeof limit === 'number' && Number.isFinite(limit) && limit > 0) {
+        endpoint.searchParams.set('limit', String(limit));
+      }
+
+      const response = await fetch(endpoint.toString(), { cache: 'no-store' });
+      if (!response.ok) {
+        continue;
+      }
+
+      const payload = await response.json() as { success?: unknown; data?: unknown };
+      if (payload.success !== true || !Array.isArray(payload.data)) {
+        continue;
+      }
+
+      return payload.data
+        .map((entry) => {
+          const record = asObjectRecord(entry);
+          const name = readString(record?.name);
+          const server = readString(record?.server);
+          if (!name || !server) {
+            return null;
+          }
+
+          return {
+            name,
+            description: readString(record?.description) ?? '',
+            server,
+            inputSchema: asObjectRecord(record?.inputSchema),
+            ...(readString(record?.serverDisplayName) ? { serverDisplayName: readString(record?.serverDisplayName) } : {}),
+            ...(readStringArray(record?.serverTags).length > 0 ? { serverTags: readStringArray(record?.serverTags) } : {}),
+            ...(readStringArray(record?.toolTags).length > 0 ? { toolTags: readStringArray(record?.toolTags) } : {}),
+            ...(readString(record?.semanticGroup) ? { semanticGroup: readString(record?.semanticGroup) } : {}),
+            ...(readString(record?.semanticGroupLabel) ? { semanticGroupLabel: readString(record?.semanticGroupLabel) } : {}),
+            ...(readString(record?.advertisedName) ? { advertisedName: readString(record?.advertisedName) } : {}),
+            ...(readStringArray(record?.keywords).length > 0 ? { keywords: readStringArray(record?.keywords) } : {}),
+            ...(readBoolean(record?.alwaysOn) !== null ? { alwaysOn: readBoolean(record?.alwaysOn) } : {}),
+            ...(readString(record?.originalName) ? { originalName: readString(record?.originalName) } : {}),
+            ...(readBoolean(record?.loaded) !== null ? { loaded: readBoolean(record?.loaded) } : {}),
+            ...(readBoolean(record?.hydrated) !== null ? { hydrated: readBoolean(record?.hydrated) } : {}),
+            ...(readBoolean(record?.deferred) !== null ? { deferred: readBoolean(record?.deferred) } : {}),
+            ...(readBoolean(record?.requiresSchemaHydration) !== null ? { requiresSchemaHydration: readBoolean(record?.requiresSchemaHydration) } : {}),
+            ...(readString(record?.matchReason) ? { matchReason: readString(record?.matchReason) } : {}),
+            ...(readNumber(record?.score) !== null ? { score: readNumber(record?.score) } : {}),
+            ...(readNumber(record?.rank) !== null ? { rank: readNumber(record?.rank) } : {}),
+            ...(readBoolean(record?.important) !== null ? { important: readBoolean(record?.important) } : {}),
+            ...(readBoolean(record?.alwaysShow) !== null ? { alwaysShow: readBoolean(record?.alwaysShow) } : {}),
+            ...(readBoolean(record?.alwaysLoaded) !== null ? { alwaysLoaded: readBoolean(record?.alwaysLoaded) } : {}),
+          };
+        })
+        .filter((entry): entry is NonNullable<typeof entry> => entry !== null);
+    } catch {
+      // Try the next native control-plane base.
+    }
+  }
+
+  return [];
+}
+
 async function buildPreferredWorkingSet(): Promise<Record<string, unknown>> {
   const nativeWorkingSet = await fetchNativeStatusPayload<Record<string, unknown>>('/api/mcp/working-set');
   if (!nativeWorkingSet) {
@@ -1839,12 +1951,13 @@ async function tryResolveLegacyMcpResponse(
   const normalizedServers = normalizeServerList(rawServers);
   const effectiveServers = normalizedServers.length > 0 ? normalizedServers : mapConfigToServerList(localConfig);
   const status = await buildPreferredMcpStatus(effectiveServers);
+  const toolsList = await buildPreferredToolsList();
   const providerQuotas = await buildPreferredProviderQuotas();
   const sessionList = await buildPreferredSessionList();
 
   const dataByResponseKey: Record<LegacyCompatResponseKey, unknown> = {
     'mcpServers.list': effectiveServers,
-    'tools.list': LEGACY_COMPAT_RESPONSES['tools.list'],
+    'tools.list': toolsList,
     'mcp.getStatus': status,
     'mcp.traffic': LEGACY_COMPAT_RESPONSES['mcp.traffic'],
     'session.list': sessionList,
@@ -1898,6 +2011,7 @@ async function buildLocalCompatResponse(req: Request, body?: string): Promise<Re
   const localConfigSource = await readLocalMcpSource();
   const localServers = mapConfigToServerList(localConfig);
   const localStatus = await buildPreferredMcpStatus(localServers);
+  const toolsList = await buildPreferredToolsList();
   const providerQuotas = await buildPreferredProviderQuotas();
   const apiKeys = await buildPreferredApiKeys();
   const cliHarnessDetections = await buildPreferredCliHarnessDetections();
@@ -1915,7 +2029,7 @@ async function buildLocalCompatResponse(req: Request, body?: string): Promise<Re
 
   const dataByResponseKey: Record<LocalCompatResponseKey, unknown> = {
     'mcpServers.list': localServers,
-    'tools.list': LEGACY_COMPAT_RESPONSES['tools.list'],
+    'tools.list': toolsList,
     'mcp.getStatus': localStatus,
     'mcp.traffic': LEGACY_COMPAT_RESPONSES['mcp.traffic'],
     'session.list': sessionList,
@@ -1982,6 +2096,13 @@ async function buildLocalCompatResponse(req: Request, body?: string): Promise<Re
       const input = procedureInputs[index];
       const taskType = input && typeof input === 'object' ? readString((input as { taskType?: unknown }).taskType) : null;
       data = await buildPreferredFallbackChain(taskType);
+    }
+
+    if (responseKey === 'mcp.searchTools') {
+      const input = procedureInputs[index];
+      const query = input && typeof input === 'object' ? readString((input as { query?: unknown }).query) : null;
+      const limit = input && typeof input === 'object' ? readNumber((input as { limit?: unknown }).limit) : null;
+      data = await buildPreferredToolSearch(query, limit);
     }
 
     if (responseKey === 'shell.getSystemHistory') {

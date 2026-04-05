@@ -142,6 +142,7 @@ const LOCAL_COMPAT_RESPONSE_KEYS = {
   'tools.detectExecutionEnvironment': 'tools.detectExecutionEnvironment',
   'tools.detectInstallSurfaces': 'tools.detectInstallSurfaces',
   'expert.getStatus': 'expert.getStatus',
+  'session.catalog': 'session.catalog',
   'session.getState': 'session.getState',
   'agentMemory.stats': 'agentMemory.stats',
   'shell.getSystemHistory': 'shell.getSystemHistory',
@@ -874,6 +875,44 @@ async function buildPreferredCliHarnessDetections(): Promise<unknown[]> {
   return [];
 }
 
+function buildPreferredSessionCatalog(cliHarnessDetections: unknown[]): unknown[] {
+  return (Array.isArray(cliHarnessDetections) ? cliHarnessDetections : [])
+    .map((entry) => {
+      const record = asObjectRecord(entry);
+      const id = readString(record?.id);
+      if (!id) {
+        return null;
+      }
+
+      const name = readString(record?.name) ?? id;
+      const command = readString(record?.command);
+      const homepage = readString(record?.homepage);
+      const docsUrl = readString(record?.docsUrl);
+      const installHint = readString(record?.installHint);
+      const installed = readBoolean(record?.installed);
+      const resolvedPath = readString(record?.resolvedPath);
+      const version = readString(record?.version);
+      const detectionError = readString(record?.detectionError);
+
+      return {
+        id,
+        name,
+        ...(command ? { command } : {}),
+        ...(homepage ? { homepage } : {}),
+        ...(docsUrl ? { docsUrl } : {}),
+        ...(installHint ? { installHint } : {}),
+        category: 'cli',
+        sessionCapable: true,
+        versionArgs: ['--version'],
+        installed: installed ?? false,
+        resolvedPath: resolvedPath ?? null,
+        version: version ?? null,
+        detectionError: detectionError ?? null,
+      };
+    })
+    .filter((entry): entry is NonNullable<typeof entry> => entry !== null);
+}
+
 async function buildPreferredSessionList(): Promise<unknown[]> {
   for (const base of resolveNativeStatusBases()) {
     try {
@@ -1391,6 +1430,7 @@ async function buildLocalCompatResponse(req: Request, body?: string): Promise<Re
   const localStartupStatus = await buildLocalStartupStatus(localServers);
   const providerQuotas = await buildPreferredProviderQuotas();
   const cliHarnessDetections = await buildPreferredCliHarnessDetections();
+  const sessionCatalog = buildPreferredSessionCatalog(cliHarnessDetections);
   const sessionList = await buildPreferredSessionList();
 
   const dataByResponseKey: Record<LocalCompatResponseKey, unknown> = {
@@ -1444,6 +1484,7 @@ async function buildLocalCompatResponse(req: Request, body?: string): Promise<Re
     },
     'tools.detectInstallSurfaces': [],
     'expert.getStatus': {},
+    'session.catalog': sessionCatalog,
     'session.getState': {
       isAutoDriveActive: false,
       activeGoal: null,

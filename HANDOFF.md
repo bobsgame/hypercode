@@ -22,8 +22,9 @@
 6. Upgraded the same web compat layer again to prefer Go-native `/api/billing/provider-quotas` and `/api/billing/fallback-chain` when the TypeScript billing procedures are unavailable. This replaces empty degraded-mode provider/fallback placeholders with native Go provider-routing previews in both the legacy bridge path and the richer local dashboard fallback path.
 7. Upgraded the local dashboard compat path to prefer Go-native `/api/cli/harnesses` for `tools.detectCliHarnesses` when the TypeScript harness-detection procedure is unavailable. This replaces empty degraded-mode harness detections with native Go harness inventory for integration/operator views without overstating full execution-environment parity.
 8. Upgraded both compat paths to prefer Go-native `/api/sessions` for `session.list` when the TypeScript session-list procedure is unavailable. This replaces empty degraded-mode session inventories with native Go-discovered session rows, improving dashboard-home and session/operator visibility without claiming full supervised-session mutation parity.
-9. Updated planning/analysis docs to record the new coverage and narrowed the next recommendation to reducing remaining TypeScript compatibility dependence where Go-native status already exists.
-10. Committed and pushed:
+9. Upgraded the local dashboard compat path to derive `session.catalog` from Go-native `/api/cli/harnesses` when the TypeScript session catalog is unavailable. This preserves a truthful harness selector for session creation in degraded mode without pretending the full TypeScript catalog runtime has been ported.
+10. Updated planning/analysis docs to record the new coverage and narrowed the next recommendation to reducing remaining TypeScript compatibility dependence where Go-native status already exists.
+11. Committed and pushed:
    - `7785a9a3` — `feat: surface startup provenance in system dashboards`
    - `38b10684` — `feat: surface startup provenance in orchestrator dashboard`
    - `590d8848` — `feat: prefer go startup truth in web compat fallback`
@@ -48,7 +49,7 @@
 - `pnpm -C packages/core exec vitest run src/routers/startupStatus.test.ts`
 - `pnpm -C packages/cli exec vitest run src/commands/start.test.ts src/commands/status.test.ts`
 
-Those passed for the startup-status compat slice. Subsequent focused `mcp.getStatus`, provider-routing, CLI-harness, and session-list compat upgrades in the same route layer were also validated with:
+Those passed for the startup-status compat slice. Subsequent focused `mcp.getStatus`, provider-routing, CLI-harness, session-list, and session-catalog compat upgrades in the same route layer were also validated with:
 - `pnpm exec vitest run apps/web/src/app/api/trpc/[trpc]/route.test.ts`
 - `pnpm -C apps/web run build`
 - `pnpm -C packages/core exec vitest run src/routers/startupStatus.test.ts`
@@ -62,7 +63,7 @@ Those passed for the startup-status compat slice. Subsequent focused `mcp.getSta
 
 ### Recommended next steps
 1. Keep reducing dashboard dependence on TypeScript compatibility reads where Go-native runtime/status surfaces already exist.
-   - highest-value next shared candidates now: import summary / imported-session maintenance surfaces and, after that, a truthful Go-backed replacement strategy for the broader execution-environment query
+   - highest-value next shared candidates now: a truthful Go-backed replacement strategy for the broader execution-environment query, then any remaining imported-session maintenance reads that bypass the already-upgraded startup-status path
 2. Deepen Go-native orchestration parity beyond current truthful fallbacks, especially:
    - Darwin parity
    - AutoDev director-loop parity

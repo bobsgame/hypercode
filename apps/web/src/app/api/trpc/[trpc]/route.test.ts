@@ -663,7 +663,7 @@ describe('legacy MCP dashboard compatibility bridge', () => {
     expect((global.fetch as ReturnType<typeof vi.fn>).mock.calls.some(([url]) => String(url) === 'http://127.0.0.1:4100/api/billing/fallback-chain?taskType=coding')).toBe(true);
   });
 
-  it('prefers go-native provider quotas, fallback chain, cli harnesses, and sessions in local dashboard fallback mode', async () => {
+  it('prefers go-native provider quotas, fallback chain, cli harnesses, session catalog, and sessions in local dashboard fallback mode', async () => {
     process.env.HYPERCODE_TRPC_UPSTREAM = 'http://127.0.0.1:4200/trpc';
     global.fetch = vi.fn(async (input) => {
       const url = String(input);
@@ -775,11 +775,11 @@ describe('legacy MCP dashboard compatibility bridge', () => {
     }) as typeof fetch;
 
     const response = await POST(new Request(
-      'http://localhost:3010/api/trpc/billing.getProviderQuotas,billing.getFallbackChain,tools.detectCliHarnesses,session.list?batch=1',
+      'http://localhost:3010/api/trpc/billing.getProviderQuotas,billing.getFallbackChain,tools.detectCliHarnesses,session.catalog,session.list?batch=1',
       {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ 0: { json: null }, 1: { json: null }, 2: { json: null }, 3: { json: null } }),
+        body: JSON.stringify({ 0: { json: null }, 1: { json: null }, 2: { json: null }, 3: { json: null }, 4: { json: null } }),
       },
     ));
     const payload = await response.json();
@@ -827,6 +827,22 @@ describe('legacy MCP dashboard compatibility bridge', () => {
       }),
     ]);
     expect(payload?.[3]?.result?.data).toEqual([
+      expect.objectContaining({
+        id: 'hypercode',
+        name: 'hypercode',
+        sessionCapable: true,
+        installed: true,
+        category: 'cli',
+      }),
+      expect.objectContaining({
+        id: 'claude-code',
+        name: 'claude-code',
+        sessionCapable: true,
+        installed: false,
+        category: 'cli',
+      }),
+    ]);
+    expect(payload?.[4]?.result?.data).toEqual([
       expect.objectContaining({
         id: 'sess-1',
         name: 'Refactor startup fallback',

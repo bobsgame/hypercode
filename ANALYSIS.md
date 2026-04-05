@@ -1,5 +1,61 @@
 # HyperCode Stabilization Analysis — 2026-04-03
 
+## Latest stabilization pass — Hyperharness update, saved-scripts parity, and build-drift repair (2026-04-05)
+
+### Scope
+This pass focused on a small but high-value stabilization cluster:
+- move the tracked harness gitlink forward by updating `submodules/hyperharness` to the latest upstream HEAD
+- keep `superai` absent from tracked submodule configuration
+- finish truthful Go fallback ownership for saved-scripts create/delete/execute
+- expose saved-scripts reads and mutations through the shared degraded-mode Next.js compat route
+- repair the TypeScript/core/web build drift uncovered while validating that slice
+
+### Submodule findings
+- `.gitmodules` already pointed at `submodules/hyperharness` on the remote baseline, so no tracked `superai` submodule reappeared.
+- The tracked `hyperharness` gitlink was still behind the latest upstream head.
+- Updated gitlink target for `submodules/hyperharness` to `98785f5c95c0c870e71aa4c635dd293017504802`.
+
+### Saved-scripts Go fallback work
+Updated `go/internal/httpapi/server.go` so these routes now have truthful native fallback ownership when `/trpc` is unavailable:
+- `POST /api/scripts/create`
+- `POST /api/scripts/delete`
+- `POST /api/scripts/execute`
+
+Behavior:
+- upstream TypeScript still wins when available
+- create persists scripts into workspace `.hypercode/config.json`
+- execute uses local `node -e` honestly instead of pretending a richer TypeScript executor exists
+- delete removes the saved script from local config
+- fallback responses explicitly return `fallback: "go-local-operator"` with the original `savedScripts.*` procedure names
+
+### Saved-scripts web compat work
+Updated `apps/web/src/app/api/trpc/[trpc]/route.ts` so degraded/local dashboard mode now supports:
+- `savedScripts.list` via `GET /api/scripts`
+- `savedScripts.create` via `POST /api/scripts/create`
+- `savedScripts.delete` via `POST /api/scripts/delete`
+- `savedScripts.execute` via `POST /api/scripts/execute`
+
+The shared compat route now treats saved-scripts as operator mutations rather than pretending they belong to the MCP managed-server mutation path.
+
+### Additional build-drift fixes
+Validation surfaced two real build drifts that were fixed as part of the tranche:
+- restored the intended `series` field inside `packages/core/src/services/MetricsService.ts#getStats()` so `packages/core` builds cleanly again
+- standardized the typed context router surface on `hypercodeContext`, keeping core and UI/dashboard consumers aligned
+
+### Validation performed
+Executed without killing any processes:
+- `cd go && go test ./internal/httpapi -run 'TestSavedScriptsCreateDeleteAndExecuteFallBackToLocalConfig' -count=1`
+- `pnpm exec vitest run apps/web/src/app/api/trpc/[trpc]/route.test.ts`
+- `pnpm -C packages/core run build`
+- `pnpm -C apps/web run build`
+
+### Why this matters
+This tranche closes another operator-visible degraded-mode gap:
+- saved scripts no longer become mutation-dead when `/trpc` is down
+- Go now owns a truthful local fallback path for the highest-value saved-script actions
+- the dashboard inherits that truth automatically through the shared compat layer
+- the related core/web typed build drift is repaired instead of papered over
+
 ## Latest stabilization pass — Go-backed tool-set dashboard compatibility in degraded mode
 
 ### Context

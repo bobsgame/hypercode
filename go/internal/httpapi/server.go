@@ -7202,7 +7202,41 @@ func (s *Server) handleSavedScriptsGet(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleSavedScriptsCreate(w http.ResponseWriter, r *http.Request) {
-	s.handleTRPCBridgeBodyCall(w, r, "savedScripts.create")
+	var payload map[string]any
+	if err := decodeJSONBody(r, &payload); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"success": false, "error": "invalid JSON body"})
+		return
+	}
+
+	var result any
+	upstreamBase, err := s.callUpstreamJSON(r.Context(), "savedScripts.create", payload, &result)
+	if err == nil {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"data":    result,
+			"bridge": map[string]any{
+				"upstreamBase": upstreamBase,
+				"procedure":    "savedScripts.create",
+			},
+		})
+		return
+	}
+
+	script, fallbackErr := s.localCreateSavedScript(payload)
+	if fallbackErr != nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"success": false, "error": fallbackErr.Error(), "detail": fallbackErr.Error()})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"data":    script,
+		"bridge": map[string]any{
+			"fallback":  "go-local-operator",
+			"procedure": "savedScripts.create",
+			"reason":    "upstream unavailable; saved script to local HyperCode config",
+		},
+	})
 }
 
 func (s *Server) handleSavedScriptsUpdate(w http.ResponseWriter, r *http.Request) {
@@ -7210,11 +7244,79 @@ func (s *Server) handleSavedScriptsUpdate(w http.ResponseWriter, r *http.Request
 }
 
 func (s *Server) handleSavedScriptsDelete(w http.ResponseWriter, r *http.Request) {
-	s.handleTRPCBridgeBodyCall(w, r, "savedScripts.delete")
+	var payload map[string]any
+	if err := decodeJSONBody(r, &payload); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"success": false, "error": "invalid JSON body"})
+		return
+	}
+
+	var result any
+	upstreamBase, err := s.callUpstreamJSON(r.Context(), "savedScripts.delete", payload, &result)
+	if err == nil {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"data":    result,
+			"bridge": map[string]any{
+				"upstreamBase": upstreamBase,
+				"procedure":    "savedScripts.delete",
+			},
+		})
+		return
+	}
+
+	deleteResult, fallbackErr := s.localDeleteSavedScript(strings.TrimSpace(stringValue(payload["uuid"])))
+	if fallbackErr != nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"success": false, "error": fallbackErr.Error(), "detail": fallbackErr.Error()})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"data":    deleteResult,
+		"bridge": map[string]any{
+			"fallback":  "go-local-operator",
+			"procedure": "savedScripts.delete",
+			"reason":    "upstream unavailable; deleted saved script from local HyperCode config",
+		},
+	})
 }
 
 func (s *Server) handleSavedScriptsExecute(w http.ResponseWriter, r *http.Request) {
-	s.handleTRPCBridgeBodyCall(w, r, "savedScripts.execute")
+	var payload map[string]any
+	if err := decodeJSONBody(r, &payload); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"success": false, "error": "invalid JSON body"})
+		return
+	}
+
+	var result any
+	upstreamBase, err := s.callUpstreamJSON(r.Context(), "savedScripts.execute", payload, &result)
+	if err == nil {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"data":    result,
+			"bridge": map[string]any{
+				"upstreamBase": upstreamBase,
+				"procedure":    "savedScripts.execute",
+			},
+		})
+		return
+	}
+
+	executionResult, fallbackErr := s.localExecuteSavedScript(strings.TrimSpace(stringValue(payload["uuid"])))
+	if fallbackErr != nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"success": false, "error": fallbackErr.Error(), "detail": fallbackErr.Error()})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"data":    executionResult,
+		"bridge": map[string]any{
+			"fallback":  "go-local-operator",
+			"procedure": "savedScripts.execute",
+			"reason":    "upstream unavailable; executed saved script through local node runtime without TypeScript code-executor services",
+		},
+	})
 }
 
 func (s *Server) handleLinksBacklogList(w http.ResponseWriter, r *http.Request) {
@@ -13255,6 +13357,19 @@ func localSettingsConfig(workspaceRoot string) map[string]any {
 	return parsed
 }
 
+func writeLocalSettingsConfig(workspaceRoot string, config map[string]any) error {
+	configDir := filepath.Join(workspaceRoot, ".hypercode")
+	if err := os.MkdirAll(configDir, 0o755); err != nil {
+		return err
+	}
+	configPath := filepath.Join(configDir, "config.json")
+	encoded, err := json.MarshalIndent(config, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(configPath, append(encoded, '\n'), 0o644)
+}
+
 func (s *Server) localSavedScripts() ([]map[string]any, error) {
 	config := localSettingsConfig(s.cfg.WorkspaceRoot)
 	rawScripts, ok := config["scripts"].([]any)
@@ -13272,6 +13387,105 @@ func (s *Server) localSavedScripts() ([]map[string]any, error) {
 	}
 
 	return scripts, nil
+}
+
+func (s *Server) localCreateSavedScript(payload map[string]any) (any, error) {
+	name := strings.TrimSpace(stringValue(payload["name"]))
+	code := stringValue(payload["code"])
+	if name == "" || strings.TrimSpace(code) == "" {
+		return nil, fmt.Errorf("missing script name or code")
+	}
+	description := nullableString(payload["description"])
+	config := localSettingsConfig(s.cfg.WorkspaceRoot)
+	rawScripts, _ := config["scripts"].([]any)
+	newScript := map[string]any{
+		"uuid":        uuid.NewString(),
+		"name":        name,
+		"description": description,
+		"code":        code,
+	}
+	config["scripts"] = append(rawScripts, newScript)
+	if err := writeLocalSettingsConfig(s.cfg.WorkspaceRoot, config); err != nil {
+		return nil, err
+	}
+	return newScript, nil
+}
+
+func (s *Server) localDeleteSavedScript(targetUUID string) (any, error) {
+	if strings.TrimSpace(targetUUID) == "" {
+		return nil, fmt.Errorf("missing script uuid")
+	}
+	config := localSettingsConfig(s.cfg.WorkspaceRoot)
+	rawScripts, _ := config["scripts"].([]any)
+	filtered := make([]any, 0, len(rawScripts))
+	deleted := false
+	for _, entry := range rawScripts {
+		script, ok := entry.(map[string]any)
+		if !ok {
+			continue
+		}
+		if stringValue(script["uuid"]) == targetUUID {
+			deleted = true
+			continue
+		}
+		filtered = append(filtered, script)
+	}
+	config["scripts"] = filtered
+	if err := writeLocalSettingsConfig(s.cfg.WorkspaceRoot, config); err != nil {
+		return nil, err
+	}
+	return map[string]any{"success": deleted}, nil
+}
+
+func (s *Server) localExecuteSavedScript(targetUUID string) (any, error) {
+	if strings.TrimSpace(targetUUID) == "" {
+		return nil, fmt.Errorf("missing script uuid")
+	}
+	scripts, err := s.localSavedScripts()
+	if err != nil {
+		return nil, err
+	}
+	var script map[string]any
+	for _, entry := range scripts {
+		if stringValue(entry["uuid"]) == targetUUID {
+			script = entry
+			break
+		}
+	}
+	if script == nil {
+		return nil, fmt.Errorf("script not found")
+	}
+	if _, err := exec.LookPath("node"); err != nil {
+		return nil, fmt.Errorf("node runtime not available for local script execution")
+	}
+
+	code := stringValue(script["code"])
+	startedAt := time.Now().UTC()
+	wrapper := "(async () => {\n" + code + "\n})().catch((error) => {\n  console.error(error instanceof Error ? error.stack || error.message : String(error));\n  process.exitCode = 1;\n});\n"
+
+	cmd := exec.Command("node", "-e", wrapper)
+	cmd.Dir = s.cfg.WorkspaceRoot
+	output, runErr := cmd.CombinedOutput()
+	finishedAt := time.Now().UTC()
+	message := strings.TrimSpace(string(output))
+	if message == "" && runErr == nil {
+		message = "Script executed without console output."
+	}
+	result := map[string]any{
+		"success": runErr == nil,
+		"result":  message,
+		"execution": map[string]any{
+			"scriptUuid": stringValue(script["uuid"]),
+			"scriptName": stringValue(script["name"]),
+			"startedAt":  startedAt.Format(time.RFC3339),
+			"finishedAt": finishedAt.Format(time.RFC3339),
+			"durationMs": finishedAt.Sub(startedAt).Milliseconds(),
+		},
+	}
+	if runErr != nil {
+		result["error"] = runErr.Error()
+	}
+	return result, nil
 }
 
 func (s *Server) localToolSets() ([]map[string]any, error) {

@@ -140,6 +140,7 @@ const LOCAL_COMPAT_RESPONSE_KEYS = {
   'apiKeys.list': 'apiKeys.list',
   'secrets.list': 'secrets.list',
   'policies.list': 'policies.list',
+  'savedScripts.list': 'savedScripts.list',
   'tools.detectCliHarnesses': 'tools.detectCliHarnesses',
   'tools.detectExecutionEnvironment': 'tools.detectExecutionEnvironment',
   'tools.detectInstallSurfaces': 'tools.detectInstallSurfaces',
@@ -187,6 +188,9 @@ const LOCAL_OPERATOR_MUTATION_PROCEDURES = new Set([
   'policies.delete',
   'toolSets.create',
   'toolSets.delete',
+  'savedScripts.create',
+  'savedScripts.delete',
+  'savedScripts.execute',
 ]);
 const LOCAL_TOOL_MUTATION_PROCEDURES = new Set([
   'tools.setAlwaysOn',
@@ -1419,6 +1423,11 @@ async function buildPreferredToolSetsList(): Promise<unknown[]> {
   return Array.isArray(toolSets) ? toolSets : [];
 }
 
+async function buildPreferredSavedScriptsList(): Promise<unknown[]> {
+  const scripts = await fetchNativeControlPlaneData<unknown[]>('/api/scripts');
+  return Array.isArray(scripts) ? scripts : [];
+}
+
 async function buildPreferredExpertStatus(): Promise<Record<string, unknown>> {
   const nativeExpertStatus = await fetchNativeStatusPayload<Record<string, unknown>>('/api/expert/status');
   if (!nativeExpertStatus) {
@@ -2308,6 +2317,7 @@ async function buildLocalCompatResponse(req: Request, body?: string): Promise<Re
     'apiKeys.list': apiKeys,
     'secrets.list': await buildPreferredSecretsList(),
     'policies.list': await buildPreferredPoliciesList(),
+    'savedScripts.list': await buildPreferredSavedScriptsList(),
     'tools.detectCliHarnesses': cliHarnessDetections,
     'tools.detectExecutionEnvironment': executionEnvironment,
     'tools.detectInstallSurfaces': installSurfaces,
@@ -2833,6 +2843,12 @@ async function tryLocalOperatorMutation(req: Request, body: string | undefined):
     endpointPath = '/api/tool-sets/create';
   } else if (procedureName === 'toolSets.delete') {
     endpointPath = '/api/tool-sets/delete';
+  } else if (procedureName === 'savedScripts.create') {
+    endpointPath = '/api/scripts/create';
+  } else if (procedureName === 'savedScripts.delete') {
+    endpointPath = '/api/scripts/delete';
+  } else if (procedureName === 'savedScripts.execute') {
+    endpointPath = '/api/scripts/execute';
   }
 
   if (!endpointPath) {

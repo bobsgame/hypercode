@@ -15459,6 +15459,85 @@ func demo() {
 	}
 }
 
+func TestSavedScriptsCreateDeleteAndExecuteFallBackToLocalConfig(t *testing.T) {
+	t.Setenv("HYPERCODE_TRPC_UPSTREAM", "http://127.0.0.1:1/trpc")
+	if _, err := exec.LookPath("node"); err != nil {
+		t.Skip("node runtime not available")
+	}
+
+	workspace := t.TempDir()
+	cfg := config.Default()
+	cfg.WorkspaceRoot = workspace
+	cfg.ConfigDir = t.TempDir()
+	cfg.MainConfigDir = t.TempDir()
+	server := New(cfg, stubDetector{})
+
+	createReq := httptest.NewRequest(http.MethodPost, "/api/scripts/create", strings.NewReader(`{"name":"Hello Script","description":"demo","code":"console.log('hello-from-script')"}`))
+	createReq.Header.Set("content-type", "application/json")
+	createRecorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(createRecorder, createReq)
+	if createRecorder.Code != http.StatusOK {
+		t.Fatalf("expected 200 from savedScripts.create fallback, got %d with body %s", createRecorder.Code, createRecorder.Body.String())
+	}
+	for _, needle := range []string{`"fallback":"go-local-operator"`, `"procedure":"savedScripts.create"`, `"name":"Hello Script"`} {
+		if !strings.Contains(createRecorder.Body.String(), needle) {
+			t.Fatalf("expected savedScripts.create fallback to contain %s, got %s", needle, createRecorder.Body.String())
+		}
+	}
+	configRaw, err := os.ReadFile(filepath.Join(workspace, ".hypercode", "config.json"))
+	if err != nil {
+		t.Fatalf("failed to read local config after saved script create: %v", err)
+	}
+	if !strings.Contains(string(configRaw), `"Hello Script"`) {
+		t.Fatalf("expected local config to contain saved script, got %s", string(configRaw))
+	}
+	var created struct {
+		Success bool `json:"success"`
+		Data    struct {
+			UUID string `json:"uuid"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(createRecorder.Body.Bytes(), &created); err != nil {
+		t.Fatalf("failed to parse create response: %v", err)
+	}
+	if strings.TrimSpace(created.Data.UUID) == "" {
+		t.Fatalf("expected created saved script uuid, got %s", createRecorder.Body.String())
+	}
+
+	executeReq := httptest.NewRequest(http.MethodPost, "/api/scripts/execute", strings.NewReader(`{"uuid":"`+created.Data.UUID+`"}`))
+	executeReq.Header.Set("content-type", "application/json")
+	executeRecorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(executeRecorder, executeReq)
+	if executeRecorder.Code != http.StatusOK {
+		t.Fatalf("expected 200 from savedScripts.execute fallback, got %d with body %s", executeRecorder.Code, executeRecorder.Body.String())
+	}
+	for _, needle := range []string{`"fallback":"go-local-operator"`, `"procedure":"savedScripts.execute"`, `hello-from-script`, `"success":true`} {
+		if !strings.Contains(executeRecorder.Body.String(), needle) {
+			t.Fatalf("expected savedScripts.execute fallback to contain %s, got %s", needle, executeRecorder.Body.String())
+		}
+	}
+
+	deleteReq := httptest.NewRequest(http.MethodPost, "/api/scripts/delete", strings.NewReader(`{"uuid":"`+created.Data.UUID+`"}`))
+	deleteReq.Header.Set("content-type", "application/json")
+	deleteRecorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(deleteRecorder, deleteReq)
+	if deleteRecorder.Code != http.StatusOK {
+		t.Fatalf("expected 200 from savedScripts.delete fallback, got %d with body %s", deleteRecorder.Code, deleteRecorder.Body.String())
+	}
+	for _, needle := range []string{`"fallback":"go-local-operator"`, `"procedure":"savedScripts.delete"`, `"success":true`} {
+		if !strings.Contains(deleteRecorder.Body.String(), needle) {
+			t.Fatalf("expected savedScripts.delete fallback to contain %s, got %s", needle, deleteRecorder.Body.String())
+		}
+	}
+	configAfterDelete, err := os.ReadFile(filepath.Join(workspace, ".hypercode", "config.json"))
+	if err != nil {
+		t.Fatalf("failed to read local config after saved script delete: %v", err)
+	}
+	if strings.Contains(string(configAfterDelete), created.Data.UUID) {
+		t.Fatalf("expected deleted saved script to be removed from config, got %s", string(configAfterDelete))
+	}
+}
+
 func TestRuntimeStatusEndpointReportsDetectorFailure(t *testing.T) {
 	tempDir := t.TempDir()
 	cfg := config.Default()

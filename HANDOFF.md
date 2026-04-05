@@ -3,6 +3,35 @@
 ## Current status
 **Version:** `1.0.0-alpha.1`
 
+### Latest incremental pass — Hyperharness refresh + saved-scripts degraded-mode parity
+This follow-up advanced the tracked harness submodule and completed the saved-scripts degraded-mode parity slice.
+
+#### What changed
+- Advanced tracked gitlink `submodules/hyperharness` to upstream HEAD `98785f5c95c0c870e71aa4c635dd293017504802`.
+- Confirmed `superai` is not present in tracked `.gitmodules` configuration.
+- Updated `go/internal/httpapi/server.go` so these routes now have truthful local Go fallback ownership when `/trpc` is unavailable:
+  - `POST /api/scripts/create`
+  - `POST /api/scripts/delete`
+  - `POST /api/scripts/execute`
+- Added focused Go coverage in `go/internal/httpapi/server_test.go`:
+  - `TestSavedScriptsCreateDeleteAndExecuteFallBackToLocalConfig`
+- Updated `apps/web/src/app/api/trpc/[trpc]/route.ts` so the shared Next.js compat route now supports:
+  - `savedScripts.list`
+  - `savedScripts.create`
+  - `savedScripts.delete`
+  - `savedScripts.execute`
+- Added focused web compat regression coverage in `apps/web/src/app/api/trpc/[trpc]/route.test.ts`.
+- Repaired build drift by restoring `MetricsService.getStats().series` and keeping the typed context-router surface aligned on `hypercodeContext`.
+
+#### Validation performed
+- `cd go && go test ./internal/httpapi -run 'TestSavedScriptsCreateDeleteAndExecuteFallBackToLocalConfig' -count=1`
+- `pnpm exec vitest run apps/web/src/app/api/trpc/[trpc]/route.test.ts`
+- `pnpm -C packages/core run build`
+- `pnpm -C apps/web run build`
+
+#### Recommended next step after this pass
+Continue attacking remaining operator-facing degraded-mode gaps in narrow slices, especially remaining dashboard mutation families that can reuse existing Go `/api/*` ownership before inventing new bridges.
+
 ### Latest incremental pass — Go-backed tool-set dashboard compatibility in degraded mode
 This follow-up added native Go fallback ownership plus shared dashboard compat support for the Tool Sets dashboard cluster.
 

@@ -45,6 +45,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Saved Scripts Go Fallback Parity**: Go now owns truthful local fallback behavior for saved script create/delete/execute when `/trpc` is unavailable, including workspace `.hypercode/config.json` persistence, local node-backed execution, focused Go HTTP coverage, and degraded dashboard compat routing through `/api/scripts*`.
+- **Hyperharness Submodule Refresh**: advanced the tracked `submodules/hyperharness` gitlink from `37830d726a39988cdb54f073c21c1a0924dfea0b` to upstream HEAD `98785f5c95c0c870e71aa4c635dd293017504802` while keeping `superai` absent from tracked submodule configuration.
+
+### Fixed
+- **Core Metrics Build Drift**: restored the intended `series` field inside `MetricsService.getStats()` so `packages/core` builds cleanly again.
+- **Context Router Typing Drift**: standardized the typed dashboard/client surface on `hypercodeContext`, removing a real core/web mismatch that was breaking the `apps/web` production build.
+
+### Added
 - **Go-Backed Tool-Set Dashboard Compatibility**: Go now owns native fallback behavior for `toolSets.create` and `toolSets.delete` through the HTTP layer when `/trpc` is unavailable, and the shared Next.js `/api/trpc/[trpc]` compat route now exposes `toolSets.list` plus tool-set create/delete mutations to the Tool Sets dashboard in degraded Go-primary mode.
 - **Go-Backed Policy Dashboard Compatibility**: Go now owns native fallback behavior for `policies.create`, `policies.update`, and `policies.delete` through the HTTP layer when `/trpc` is unavailable, and the shared Next.js `/api/trpc/[trpc]` compat route now exposes `policies.list` plus policy CRUD mutations to the Policies dashboard in degraded Go-primary mode.
 - **Go-Backed Tool Always-On Mutation Compatibility**: Go now owns native fallback behavior for `tools.setAlwaysOn` through `/api/tools/always-on` when `/trpc` is unavailable, and the shared Next.js `/api/trpc/[trpc]` compat route now exposes the MCP Catalog / MCP Inspector always-on toggle in degraded Go-primary mode.

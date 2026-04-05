@@ -1,5 +1,83 @@
 # HyperCode Stabilization Analysis — 2026-04-03
 
+## Latest stabilization pass — execution-policy parity for Go fallback sessions
+
+### Context
+After the recent Go supervisor lifecycle and restore work, fallback sessions were durable and operator-usable, but they still lacked one major piece of session metadata that the dashboard and session details views already expected from the TypeScript supervisor:
+- `executionPolicy`
+
+That meant Go fallback sessions could exist, start, stop, restore, and execute shell commands, but they still looked structurally thinner than TypeScript-owned sessions in operator-visible views. It also meant the native `execute-shell` fallback was choosing a generic shell path instead of using a session-specific execution policy.
+
+### What changed
+#### 1. Added execution-policy metadata to Go supervised-session snapshots
+Updated:
+- `go/internal/supervisor/supervisor.go`
+- `go/internal/supervisor/supervisor_test.go`
+
+Go fallback sessions now carry a truthful `executionPolicy` payload with the same high-signal fields the dashboard already expects:
+- `requestedProfile`
+- `effectiveProfile`
+- `shellId`
+- `shellLabel`
+- `shellFamily`
+- `shellPath`
+- `supportsPowerShell`
+- `supportsPosixShell`
+- `reason`
+
+The current Go selection logic is intentionally narrower than the TypeScript implementation, but it is now honest, explicit, and persisted across restore.
+
+#### 2. Added execution-policy environment propagation for Go fallback sessions
+The Go supervisor now injects execution-policy env markers into the supervised session environment, including values such as:
+- `HYPERCODE_EXECUTION_PROFILE_REQUESTED`
+- `HYPERCODE_EXECUTION_PROFILE_EFFECTIVE`
+- `HYPERCODE_EXECUTION_SHELL_ID`
+- `HYPERCODE_EXECUTION_SHELL_LABEL`
+- `HYPERCODE_EXECUTION_SHELL_FAMILY`
+- `HYPERCODE_EXECUTION_SHELL_PATH`
+- `HYPERCODE_EXECUTION_POLICY_REASON`
+- `HYPERCODE_SUPPORTS_POWERSHELL`
+- `HYPERCODE_SUPPORTS_POSIX_SHELL`
+
+This keeps the Go fallback aligned with the operator-visible shell posture instead of only exposing that information indirectly.
+
+#### 3. Native `execute-shell` fallback now uses the session execution policy
+Updated:
+- `go/internal/httpapi/session_supervisor_handlers.go`
+
+The native Go `session.executeShell` fallback now prefers the session's own execution policy to choose how one-shot shell commands are invoked:
+- PowerShell policy → PowerShell invocation
+- cmd policy → cmd invocation
+- POSIX policy → shell `-lc`
+- WSL policy → WSL/bash invocation
+- fallback → existing generic shell behavior
+
+This means the shell-execution fallback now reflects the session's own declared runtime posture instead of always using one global default.
+
+#### 4. Added focused regression coverage for execution-policy visibility
+Updated:
+- `go/internal/supervisor/supervisor_test.go`
+- `go/internal/httpapi/server_test.go`
+
+Added/validated:
+- manager-level checks that created sessions include execution-policy env markers
+- route-level checks that fallback session create/get payloads now surface `executionPolicy`
+- route-level checks that native `execute-shell` responses now include shell-family/path metadata derived from the chosen policy
+
+### Validation
+Executed truthfully without killing any processes:
+- `cd go && gofmt -w internal/supervisor/supervisor.go internal/supervisor/supervisor_test.go internal/httpapi/session_supervisor_handlers.go internal/httpapi/server_test.go`
+- `cd go && go test ./internal/supervisor ./internal/httpapi -run 'TestCreateSessionCapturesMetadata|TestManagerPersistsAndRestoresCreatedSessions|TestSupervisorSessionRoutesFallBackToLocalGoSupervisor|TestSupervisorSessionRoutesPersistAcrossServerRestart|TestSupervisorSessionRestoreFallsBackToLocalGoPersistence' -count=1`
+- `cd go && go test ./internal/httpapi ./internal/supervisor ./internal/git -count=1`
+
+### Why this matters
+This does not complete full execution-policy parity with the TypeScript supervisor, but it closes a very visible structural gap:
+- Go fallback sessions now look and behave more like real supervised sessions in the dashboard
+- native shell execution is now tied to session-specific policy instead of a generic fallback shell
+- restore no longer strips away the operator-facing shell posture metadata for Go-owned fallback sessions
+
+The highest-value remaining supervisor parity gap after this slice is still worktree/isolation ownership.
+
 ## Latest stabilization pass — native Go restore fallback for persisted supervisor sessions
 
 ### Context

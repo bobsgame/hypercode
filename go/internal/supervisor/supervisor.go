@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 	"sync"
@@ -61,6 +62,18 @@ type SessionAttachInfo struct {
 	AttachReadinessReason string   `json:"attachReadinessReason"`
 }
 
+type ExecutionPolicy struct {
+	RequestedProfile   string  `json:"requestedProfile"`
+	EffectiveProfile   string  `json:"effectiveProfile"`
+	ShellID            *string `json:"shellId,omitempty"`
+	ShellLabel         *string `json:"shellLabel,omitempty"`
+	ShellFamily        *string `json:"shellFamily,omitempty"`
+	ShellPath          *string `json:"shellPath,omitempty"`
+	SupportsPowerShell bool    `json:"supportsPowerShell"`
+	SupportsPosixShell bool    `json:"supportsPosixShell"`
+	Reason             string  `json:"reason"`
+}
+
 type CreateSessionOptions struct {
 	ID                  string
 	Name                string
@@ -104,6 +117,7 @@ type SupervisedSession struct {
 	Args                      []string          `json:"args"`
 	Env                       map[string]string `json:"env"`
 	ExecutionProfile          string            `json:"executionProfile"`
+	ExecutionPolicy           *ExecutionPolicy  `json:"executionPolicy,omitempty"`
 	RequestedWorkingDirectory string            `json:"requestedWorkingDirectory"`
 	WorkingDirectory          string            `json:"workingDirectory"`
 	WorktreePath              string            `json:"worktreePath,omitempty"`
@@ -240,6 +254,11 @@ func (m *Manager) CreateSessionWithOptions(input CreateSessionOptions) (*Supervi
 	} else if input.AutoRestart || input.MaxRestarts > 0 {
 		autoRestart = true
 	}
+	executionPolicy := detectExecutionPolicy(executionProfile)
+	mergedEnv := cloneEnv(input.Env)
+	for key, value := range buildExecutionPolicyEnv(executionPolicy) {
+		mergedEnv[key] = value
+	}
 	now := nowMillis()
 	session := &SupervisedSession{
 		ID:                        id,
@@ -247,8 +266,9 @@ func (m *Manager) CreateSessionWithOptions(input CreateSessionOptions) (*Supervi
 		CliType:                   cliType,
 		Command:                   command,
 		Args:                      append([]string(nil), input.Args...),
-		Env:                       cloneEnv(input.Env),
+		Env:                       mergedEnv,
 		ExecutionProfile:          executionProfile,
+		ExecutionPolicy:           executionPolicy,
 		RequestedWorkingDirectory: requestedWorkingDirectory,
 		WorkingDirectory:          workingDirectory,
 		AutoRestart:               autoRestart,
@@ -269,6 +289,9 @@ func (m *Manager) CreateSessionWithOptions(input CreateSessionOptions) (*Supervi
 	}
 	m.sessions[id] = session
 	m.appendLogLocked(session, "system", fmt.Sprintf("Session created for %s in %s", session.CliType, session.WorkingDirectory))
+	if executionPolicy != nil && strings.TrimSpace(executionPolicy.Reason) != "" {
+		m.appendLogLocked(session, "system", fmt.Sprintf("Execution policy %s selected%s (%s)", executionPolicy.EffectiveProfile, executionPolicyLogShellSuffix(executionPolicy), executionPolicy.Reason))
+	}
 	clone := m.cloneSessionLocked(session)
 	m.persistLocked()
 	return clone, nil
@@ -559,6 +582,7 @@ func (m *Manager) normalizeRestoredSession(session SupervisedSession) (*Supervis
 		}
 	}
 	now := nowMillis()
+	normalizedPolicy := normalizeExecutionPolicy(session.ExecutionPolicy)
 	restored := &SupervisedSession{
 		ID:                        strings.TrimSpace(session.ID),
 		Name:                      strings.TrimSpace(session.Name),
@@ -567,6 +591,7 @@ func (m *Manager) normalizeRestoredSession(session SupervisedSession) (*Supervis
 		Args:                      append([]string(nil), session.Args...),
 		Env:                       cloneEnv(session.Env),
 		ExecutionProfile:          defaultString(session.ExecutionProfile, "auto"),
+		ExecutionPolicy:           normalizedPolicy,
 		RequestedWorkingDirectory: defaultString(session.RequestedWorkingDirectory, session.WorkingDirectory),
 		WorkingDirectory:          defaultString(session.WorkingDirectory, session.RequestedWorkingDirectory),
 		WorktreePath:              strings.TrimSpace(session.WorktreePath),
@@ -800,6 +825,7 @@ func (m *Manager) cloneSessionLocked(session *SupervisedSession) *SupervisedSess
 	clone := *session
 	clone.Args = append([]string(nil), session.Args...)
 	clone.Env = cloneEnv(session.Env)
+	clone.ExecutionPolicy = cloneExecutionPolicy(session.ExecutionPolicy)
 	clone.Metadata = cloneMetadata(session.Metadata)
 	clone.Logs = append([]SessionLogEntry(nil), session.Logs...)
 	clone.cmd = nil
@@ -915,6 +941,197 @@ func cloneMetadata(source map[string]any) map[string]any {
 		cloned[key] = value
 	}
 	return cloned
+}
+
+func cloneExecutionPolicy(source *ExecutionPolicy) *ExecutionPolicy {
+	if source == nil {
+		return nil
+	}
+	clone := *source
+	clone.ShellID = cloneStringPointer(source.ShellID)
+	clone.ShellLabel = cloneStringPointer(source.ShellLabel)
+	clone.ShellFamily = cloneStringPointer(source.ShellFamily)
+	clone.ShellPath = cloneStringPointer(source.ShellPath)
+	return &clone
+}
+
+func normalizeExecutionPolicy(source *ExecutionPolicy) *ExecutionPolicy {
+	if source == nil {
+		return detectExecutionPolicy("auto")
+	}
+	clone := cloneExecutionPolicy(source)
+	if clone == nil {
+		return detectExecutionPolicy("auto")
+	}
+	clone.RequestedProfile = defaultString(clone.RequestedProfile, "auto")
+	clone.EffectiveProfile = defaultString(clone.EffectiveProfile, "fallback")
+	clone.Reason = defaultString(clone.Reason, "Restored from Go supervisor persistence.")
+	return clone
+}
+
+func detectExecutionPolicy(requestedProfile string) *ExecutionPolicy {
+	requested := defaultString(requestedProfile, "auto")
+	powerShell := firstAvailableShell([]shellCandidate{{ID: "pwsh", Label: "PowerShell 7", Family: "powershell", Command: "pwsh"}, {ID: "powershell", Label: "Windows PowerShell", Family: "powershell", Command: "powershell"}})
+	posix := firstAvailableShell([]shellCandidate{{ID: "bash", Label: "Bash", Family: "posix", Command: "bash"}, {ID: "sh", Label: "POSIX sh", Family: "posix", Command: "sh"}, {ID: "wsl", Label: "Windows Subsystem for Linux", Family: "wsl", Command: "wsl"}})
+	compatibility := firstAvailableShell([]shellCandidate{{ID: "cmd", Label: "Command Prompt", Family: "cmd", Command: envOrDefault("COMSPEC", "cmd")}, {ID: "powershell", Label: "Windows PowerShell", Family: "powershell", Command: "powershell"}})
+	preferred := powerShell
+	if preferred == nil {
+		preferred = posix
+	}
+	if preferred == nil {
+		preferred = compatibility
+	}
+	supportsPowerShell := powerShell != nil
+	supportsPosixShell := posix != nil
+
+	toPolicy := func(effective string, shell *shellCandidate, reason string) *ExecutionPolicy {
+		return &ExecutionPolicy{
+			RequestedProfile:   requested,
+			EffectiveProfile:   effective,
+			ShellID:            nullablePolicyString(shellField(shell, func(candidate *shellCandidate) string { return candidate.ID })),
+			ShellLabel:         nullablePolicyString(shellField(shell, func(candidate *shellCandidate) string { return candidate.Label })),
+			ShellFamily:        nullablePolicyString(shellField(shell, func(candidate *shellCandidate) string { return candidate.Family })),
+			ShellPath:          nullablePolicyString(shellField(shell, func(candidate *shellCandidate) string { return candidate.Path })),
+			SupportsPowerShell: supportsPowerShell,
+			SupportsPosixShell: supportsPosixShell,
+			Reason:             reason,
+		}
+	}
+
+	switch requested {
+	case "powershell":
+		if powerShell != nil {
+			return toPolicy("powershell", powerShell, powerShell.Label+" selected because the session explicitly requested a PowerShell-native execution profile.")
+		}
+		return toPolicy("fallback", preferred, fallbackReason("A PowerShell shell was requested, but none verified", preferred))
+	case "posix":
+		if posix != nil {
+			return toPolicy("posix", posix, posix.Label+" selected because the session requested POSIX-style pipelines or Unix-first tooling.")
+		}
+		return toPolicy("fallback", preferred, fallbackReason("A POSIX shell was requested, but none verified", preferred))
+	case "compatibility":
+		if runtime.GOOS == "windows" && compatibility != nil && compatibility.Family == "cmd" {
+			return toPolicy("compatibility", compatibility, compatibility.Label+" selected for the most conservative compatibility posture on this host.")
+		}
+		return toPolicy("fallback", preferred, fallbackReason("Compatibility mode was requested, but no conservative shell profile was verified", preferred))
+	default:
+		if runtime.GOOS == "windows" && powerShell != nil {
+			return toPolicy("powershell", powerShell, powerShell.Label+" selected automatically as HyperCode's preferred Windows execution shell for general harness supervision.")
+		}
+		if posix != nil {
+			return toPolicy("posix", posix, posix.Label+" selected automatically because no verified PowerShell shell was preferred for this host.")
+		}
+		return toPolicy("fallback", preferred, fallbackReason("Auto execution profile could not verify a strongly preferred shell", preferred))
+	}
+}
+
+type shellCandidate struct {
+	ID      string
+	Label   string
+	Family  string
+	Command string
+	Path    string
+}
+
+func firstAvailableShell(candidates []shellCandidate) *shellCandidate {
+	for _, candidate := range candidates {
+		command := strings.TrimSpace(candidate.Command)
+		if command == "" {
+			continue
+		}
+		resolved, err := exec.LookPath(command)
+		if err != nil {
+			continue
+		}
+		candidate.Path = resolved
+		copy := candidate
+		return &copy
+	}
+	return nil
+}
+
+func buildExecutionPolicyEnv(policy *ExecutionPolicy) map[string]string {
+	if policy == nil {
+		return map[string]string{}
+	}
+	env := map[string]string{
+		"HYPERCODE_EXECUTION_PROFILE_REQUESTED": policy.RequestedProfile,
+		"HYPERCODE_EXECUTION_PROFILE_EFFECTIVE": policy.EffectiveProfile,
+		"HYPERCODE_EXECUTION_SHELL_ID":          derefPolicyString(policy.ShellID),
+		"HYPERCODE_EXECUTION_SHELL_LABEL":       derefPolicyString(policy.ShellLabel),
+		"HYPERCODE_EXECUTION_SHELL_FAMILY":      derefPolicyString(policy.ShellFamily),
+		"HYPERCODE_EXECUTION_SHELL_PATH":        derefPolicyString(policy.ShellPath),
+		"HYPERCODE_EXECUTION_POLICY_REASON":     policy.Reason,
+		"HYPERCODE_SUPPORTS_POWERSHELL":         boolEnvValue(policy.SupportsPowerShell),
+		"HYPERCODE_SUPPORTS_POSIX_SHELL":        boolEnvValue(policy.SupportsPosixShell),
+	}
+	if policy.ShellPath != nil && strings.TrimSpace(*policy.ShellPath) != "" {
+		env["SHELL"] = strings.TrimSpace(*policy.ShellPath)
+		env["npm_config_script_shell"] = strings.TrimSpace(*policy.ShellPath)
+		if policy.ShellFamily != nil && strings.TrimSpace(*policy.ShellFamily) == "cmd" {
+			env["COMSPEC"] = strings.TrimSpace(*policy.ShellPath)
+		}
+	}
+	return env
+}
+
+func executionPolicyLogShellSuffix(policy *ExecutionPolicy) string {
+	if policy == nil || policy.ShellLabel == nil || strings.TrimSpace(*policy.ShellLabel) == "" {
+		return ""
+	}
+	return " using " + strings.TrimSpace(*policy.ShellLabel)
+}
+
+func fallbackReason(prefix string, preferred *shellCandidate) string {
+	if preferred == nil {
+		return prefix + "; HyperCode could not verify any shell on this host."
+	}
+	return prefix + "; falling back to " + preferred.Label + "."
+}
+
+func shellField(shell *shellCandidate, getter func(*shellCandidate) string) string {
+	if shell == nil {
+		return ""
+	}
+	return getter(shell)
+}
+
+func nullablePolicyString(value string) *string {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return nil
+	}
+	return &trimmed
+}
+
+func derefPolicyString(value *string) string {
+	if value == nil {
+		return ""
+	}
+	return strings.TrimSpace(*value)
+}
+
+func cloneStringPointer(value *string) *string {
+	if value == nil {
+		return nil
+	}
+	copy := strings.TrimSpace(*value)
+	return &copy
+}
+
+func boolEnvValue(value bool) string {
+	if value {
+		return "1"
+	}
+	return "0"
+}
+
+func envOrDefault(key, fallback string) string {
+	value := strings.TrimSpace(os.Getenv(key))
+	if value != "" {
+		return value
+	}
+	return fallback
 }
 
 func nowMillis() int64 {

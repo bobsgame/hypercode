@@ -5735,7 +5735,7 @@ func TestSupervisorSessionRoutesFallBackToLocalGoSupervisor(t *testing.T) {
 	if createRecorder.Code != http.StatusOK {
 		t.Fatalf("expected status 200 from local create fallback, got %d %s", createRecorder.Code, createRecorder.Body.String())
 	}
-	for _, needle := range []string{`"fallback":"go-local-supervisor"`, `"procedure":"session.create"`, `"name":"Local Go Session"`, `"cliType":"custom"`, `"status":"created"`} {
+	for _, needle := range []string{`"fallback":"go-local-supervisor"`, `"procedure":"session.create"`, `"name":"Local Go Session"`, `"cliType":"custom"`, `"status":"created"`, `"executionPolicy":{`, `"requestedProfile":"auto"`} {
 		if !strings.Contains(createRecorder.Body.String(), needle) {
 			t.Fatalf("expected local create payload to contain %s, got %s", needle, createRecorder.Body.String())
 		}
@@ -5762,7 +5762,7 @@ func TestSupervisorSessionRoutesFallBackToLocalGoSupervisor(t *testing.T) {
 	if getRecorder.Code != http.StatusOK {
 		t.Fatalf("expected status 200 from local get fallback, got %d %s", getRecorder.Code, getRecorder.Body.String())
 	}
-	for _, needle := range []string{`"fallback":"go-local-supervisor"`, `"procedure":"session.get"`, `"requestedWorkingDirectory":"`} {
+	for _, needle := range []string{`"fallback":"go-local-supervisor"`, `"procedure":"session.get"`, `"requestedWorkingDirectory":"`, `"executionPolicy":{`, `"effectiveProfile":"`} {
 		if !strings.Contains(getRecorder.Body.String(), needle) {
 			t.Fatalf("expected local get payload to contain %s, got %s", needle, getRecorder.Body.String())
 		}
@@ -5823,7 +5823,7 @@ func TestSupervisorSessionRoutesFallBackToLocalGoSupervisor(t *testing.T) {
 	if executeRecorder.Code != http.StatusOK {
 		t.Fatalf("expected status 200 from local execute-shell fallback, got %d %s", executeRecorder.Code, executeRecorder.Body.String())
 	}
-	for _, needle := range []string{`"fallback":"go-local-supervisor"`, `"procedure":"session.executeShell"`, `"command":"echo native-shell-ok"`, `"succeeded":true`} {
+	for _, needle := range []string{`"fallback":"go-local-supervisor"`, `"procedure":"session.executeShell"`, `"command":"echo native-shell-ok"`, `"succeeded":true`, `"shellFamily":"`, `"shellPath":"`} {
 		if !strings.Contains(executeRecorder.Body.String(), needle) {
 			t.Fatalf("expected local execute-shell payload to contain %s, got %s", needle, executeRecorder.Body.String())
 		}

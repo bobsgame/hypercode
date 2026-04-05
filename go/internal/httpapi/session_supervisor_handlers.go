@@ -383,7 +383,7 @@ func (s *Server) handleSupervisorSessionExecuteShell(w http.ResponseWriter, r *h
 	ctx, cancel := context.WithTimeout(r.Context(), time.Duration(timeoutMs)*time.Millisecond)
 	defer cancel()
 
-	shellCommand, shellArgs, shellFamily, shellPath := localShellCommand(commandText)
+	shellCommand, shellArgs, shellFamily, shellPath := localShellCommand(commandText, session.ExecutionPolicy)
 	cmd := exec.CommandContext(ctx, shellCommand, shellArgs...)
 	cmd.Dir = session.WorkingDirectory
 	cmd.Env = append([]string{}, os.Environ()...)
@@ -690,7 +690,23 @@ func localOptionalBool(payload map[string]any, key string, fallback bool) bool {
 	return boolValue
 }
 
-func localShellCommand(command string) (string, []string, string, any) {
+func localShellCommand(command string, policy *supervisor.ExecutionPolicy) (string, []string, string, any) {
+	if policy != nil && policy.ShellPath != nil && policy.ShellFamily != nil {
+		shellPath := strings.TrimSpace(*policy.ShellPath)
+		shellFamily := strings.TrimSpace(*policy.ShellFamily)
+		if shellPath != "" && shellFamily != "" {
+			switch shellFamily {
+			case "powershell":
+				return shellPath, []string{"-NoProfile", "-Command", command}, shellFamily, shellPath
+			case "cmd":
+				return shellPath, []string{"/C", command}, shellFamily, shellPath
+			case "wsl":
+				return shellPath, []string{"bash", "-lc", command}, shellFamily, shellPath
+			default:
+				return shellPath, []string{"-lc", command}, shellFamily, shellPath
+			}
+		}
+	}
 	if runtime.GOOS == "windows" {
 		comspec := strings.TrimSpace(os.Getenv("COMSPEC"))
 		if comspec == "" {

@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -107,6 +108,12 @@ func TestCreateSessionCapturesMetadata(t *testing.T) {
 	}
 	if session.State != StateCreated {
 		t.Fatalf("expected initial created state, got %#v", session)
+	}
+	if session.ExecutionPolicy == nil {
+		t.Fatalf("expected execution policy on created session, got %#v", session)
+	}
+	if strings.TrimSpace(session.Env["HYPERCODE_EXECUTION_PROFILE_REQUESTED"]) == "" || strings.TrimSpace(session.Env["HYPERCODE_EXECUTION_PROFILE_EFFECTIVE"]) == "" {
+		t.Fatalf("expected execution policy env vars, got %#v", session.Env)
 	}
 }
 

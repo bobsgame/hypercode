@@ -3,6 +3,36 @@
 ## Current status
 **Version:** `1.0.0-alpha.1`
 
+### Latest incremental pass — execution-policy parity for Go fallback sessions
+This follow-up gave Go fallback sessions a truthful `executionPolicy` payload and made native `execute-shell` respect that policy instead of using only a generic shell fallback.
+
+#### What changed
+- Added persisted `executionPolicy` metadata to Go fallback supervised-session snapshots in `go/internal/supervisor/supervisor.go`
+- Added execution-policy env propagation for Go fallback sessions
+- Updated native `session.executeShell` fallback in `go/internal/httpapi/session_supervisor_handlers.go` to choose its shell from the session execution policy when available
+- Added focused regression coverage in:
+  - `go/internal/supervisor/supervisor_test.go`
+  - `go/internal/httpapi/server_test.go`
+
+#### Fallback semantics
+When TS is unavailable, Go fallback sessions now surface:
+- `executionProfile`
+- `executionPolicy.requestedProfile`
+- `executionPolicy.effectiveProfile`
+- shell id/label/family/path
+- support flags for PowerShell/POSIX shell availability
+- human-readable policy reason
+
+And native one-shot shell execution now follows that session policy rather than always using one generic runtime shell choice.
+
+#### Validation performed
+- `cd go && gofmt -w internal/supervisor/supervisor.go internal/supervisor/supervisor_test.go internal/httpapi/session_supervisor_handlers.go internal/httpapi/server_test.go`
+- `cd go && go test ./internal/supervisor ./internal/httpapi -run 'TestCreateSessionCapturesMetadata|TestManagerPersistsAndRestoresCreatedSessions|TestSupervisorSessionRoutesFallBackToLocalGoSupervisor|TestSupervisorSessionRoutesPersistAcrossServerRestart|TestSupervisorSessionRestoreFallsBackToLocalGoPersistence' -count=1`
+- `cd go && go test ./internal/httpapi ./internal/supervisor ./internal/git -count=1`
+
+#### Recommended next step after this pass
+Continue deeper Go-native supervisor parity by narrowing the remaining higher-value worktree/isolation gap, since execution-policy visibility is now much closer to the TypeScript supervisor contract.
+
 ### Latest incremental pass — native Go restore fallback for persisted supervisor sessions
 This follow-up made the public supervisor restore route truthful in degraded mode by letting Go explicitly reload its own persisted supervisor inventory when TypeScript is unavailable.
 

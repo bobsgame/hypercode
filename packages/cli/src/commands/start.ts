@@ -413,6 +413,46 @@ export function describeGoRuntimeLaunchMode(usingPrebuiltBinary: boolean): strin
     : 'source fallback via go run';
 }
 
+export function describeStartupModeSummary(options: {
+  runtime: Exclude<HypercodeRuntimeMode, 'auto'>;
+  dashboardRequested: boolean;
+  mcpRequested: boolean;
+  supervisorRequested: boolean;
+  autoDriveRequested: boolean;
+}): string[] {
+  if (options.runtime === 'go') {
+    return [
+      options.dashboardRequested
+        ? 'Dashboard integration: compatibility-only (use --runtime node for the integrated dashboard).'
+        : 'Dashboard integration: disabled by request.',
+      options.mcpRequested
+        ? 'MCP surfaces: Go-native/default API path active.'
+        : 'MCP flag compatibility: --no-mcp is not yet mapped for Go startup.',
+      options.supervisorRequested
+        ? 'Supervisor startup flag: Go exposes native supervisor APIs, but the startup flag is not yet mapped 1:1.'
+        : 'Supervisor APIs: native Go endpoints available.',
+      options.autoDriveRequested
+        ? 'Auto-Drive startup: not yet implemented for Go runtime startup.'
+        : 'Auto-Drive startup: inactive.',
+    ];
+  }
+
+  return [
+    options.dashboardRequested
+      ? 'Dashboard integration: supported by the Node compatibility runtime.'
+      : 'Dashboard integration: disabled by request.',
+    options.mcpRequested
+      ? 'MCP bridge: enabled for this run.'
+      : 'MCP bridge: disabled by --no-mcp.',
+    options.supervisorRequested
+      ? 'Supervisor startup: enabled for this run.'
+      : 'Supervisor startup: disabled for this run.',
+    options.autoDriveRequested
+      ? 'Auto-Drive startup: enabled for this run.'
+      : 'Auto-Drive startup: disabled for this run.',
+  ];
+}
+
 export function runtimeSupportsIntegratedDashboard(runtime: Exclude<HypercodeRuntimeMode, 'auto'>): boolean {
   return runtime === 'node';
 }
@@ -982,15 +1022,6 @@ Examples:
           console.log(chalk.dim(`  Launch mode: ${describeGoRuntimeLaunchMode(goRuntimeMode === 'prebuilt-binary')}`));
           console.log(chalk.green(`  ✓ Go control plane running at http://${resolveBrowserHost(runtime.host)}:${runtime.trpcPort}`));
           console.log(chalk.dim(`  API index: http://${resolveBrowserHost(runtime.host)}:${runtime.trpcPort}/api/index`));
-          if (!opts.mcp) {
-            console.log(chalk.yellow('  ⚠ --no-mcp is currently a Node-runtime option; Go runtime startup does not yet disable MCP-related API surfaces.'));
-          }
-          if (opts.supervisor) {
-            console.log(chalk.yellow('  ⚠ --supervisor currently maps to Node startup behavior; Go runtime already exposes native supervisor APIs but does not yet mirror that startup flag.'));
-          }
-          if (opts.autoDrive) {
-            console.log(chalk.yellow('  ⚠ --auto-drive currently maps to Node startup behavior and is not yet implemented as a Go startup flag.'));
-          }
         } else {
           console.log(chalk.dim('  Core loaded: orchestrator started'));
           console.log(chalk.dim(`  Launch mode: ${nodeRuntimeMode === 'go-fallback' ? 'Node compatibility runtime (Go fallback)' : 'Node compatibility runtime (explicit selection)'}`));
@@ -998,9 +1029,17 @@ Examples:
           if (opts.mcp) {
             console.log(chalk.green(`  ✓ MCP bridge target ws://127.0.0.1:${runtime.bridgePort ?? 3001} (+ HTTP health on /health when available)`));
           }
-          if (opts.supervisor) {
-            console.log(chalk.green('  ✓ Supervisor startup enabled for this run'));
-          }
+        }
+
+        console.log(chalk.dim('  Startup mode summary:'));
+        for (const line of describeStartupModeSummary({
+          runtime: runtimeKind,
+          dashboardRequested: Boolean(opts.dashboard),
+          mcpRequested: Boolean(opts.mcp),
+          supervisorRequested: Boolean(opts.supervisor),
+          autoDriveRequested: Boolean(opts.autoDrive),
+        })) {
+          console.log(chalk.dim(`    • ${line}`));
         }
         if (opts.dashboard) {
           if (!runtimeSupportsIntegratedDashboard(runtimeKind)) {

@@ -107,6 +107,7 @@ Make Go the default runtime started by operator entrypoints.
 - `start.bat` now launches through the built CLI entrypoint directly instead of relying on `pnpm start` for the final handoff path
 - the CLI Go runtime launcher now prefers the prebuilt `go/hypercode(.exe)` binary and only falls back to `go run ./cmd/hypercode` when the binary is absent or source launch is explicitly forced
 - startup output now reports whether Go is running via the prebuilt binary, via source fallback, or whether Node compatibility runtime is active due to explicit selection or Go fallback
+- the CLI now also prints a concise startup mode summary block describing which surfaces are actually active/compatibility-only in the chosen runtime
 - explicit Node compatibility mode still uses the full workspace build path and still defaults to a full install/build posture
 - full builds remain available via `HYPERCODE_FULL_BUILD=1`
 

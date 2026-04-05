@@ -160,11 +160,18 @@ Additionally, startup output now reports the runtime provenance explicitly:
 - `Launch mode: Node compatibility runtime (explicit selection)`
 - `Launch mode: Node compatibility runtime (Go fallback)`
 
+The CLI also now emits a concise `Startup mode summary:` block describing actual surface availability for the chosen runtime. That summary intentionally distinguishes:
+- Go dashboard support as compatibility-only
+- Go `--no-mcp` flag behavior as not yet mapped 1:1
+- Go supervisor/auto-drive startup flag semantics vs actual native API availability
+- full Node compatibility runtime support for integrated dashboard/MCP/supervisor/auto-drive flags
+
 Why this matters:
 - it makes Go-primary launch use the same compiled artifact that the startup build profile already validates
 - it reduces repeated `go run` compilation overhead at runtime
 - it moves the actual control-plane launch path closer to a real production-style Go-primary binary handoff
 - it makes the runtime choice operator-visible instead of implicit
+- it makes post-launch surface availability explicit instead of forcing operators to infer it from scattered warnings
 
 #### Lockfile hygiene
 - The refreshed `pnpm-lock.yaml` no longer contains legacy-name references for the main workspace packages.
@@ -201,6 +208,7 @@ Results:
 - build-skip artifact freshness probe correctly reported the current workspace artifacts as already current for Go-primary startup
 - direct built-CLI launch path resolved and printed `hypercode start --help` successfully
 - runtime provenance helper coverage passed in the CLI regression suite
+- startup mode summary helper coverage passed in the CLI regression suite
 - a short-lived `start.bat --help` run also completed and showed the new install/build phase summary lines before exiting through CLI help output
 
 Validation boundary:
@@ -228,6 +236,7 @@ Result:
 - the CLI Go runtime launcher now prefers the prebuilt Go binary when available
 - startup output now truthfully reports runtime provenance for Go and Node compatibility paths
 - startup output now truthfully reports whether install/build phases ran or were skipped and why
+- startup output now also provides a concise startup-mode surface summary for the selected runtime
 - `start.bat` now validates Go-first startup surfaces by default for `auto`/`go` runtime modes instead of always requiring a full workspace build first
 - `start.bat` can now skip `pnpm install` in Go-primary mode when the workspace is already ready
 - `start.bat` can now also skip the Go-primary startup build when the built CLI and Go binary artifacts are already current

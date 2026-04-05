@@ -16,6 +16,7 @@ import {
     resolveDashboardUrl,
     resolveDataDir,
     describeGoRuntimeLaunchMode,
+    describeStartupModeSummary,
     resolveGoConfigDir,
     resolveGoRuntimeSpawnSpec,
     resolveRuntimePreference,
@@ -412,6 +413,36 @@ describe('runtime selection helpers', () => {
     it('describes Go runtime launch provenance truthfully', () => {
         expect(describeGoRuntimeLaunchMode(true)).toBe('prebuilt Go binary');
         expect(describeGoRuntimeLaunchMode(false)).toBe('source fallback via go run');
+    });
+
+    it('summarizes Go runtime startup surfaces truthfully', () => {
+        expect(describeStartupModeSummary({
+            runtime: 'go',
+            dashboardRequested: true,
+            mcpRequested: false,
+            supervisorRequested: true,
+            autoDriveRequested: true,
+        })).toEqual([
+            'Dashboard integration: compatibility-only (use --runtime node for the integrated dashboard).',
+            'MCP flag compatibility: --no-mcp is not yet mapped for Go startup.',
+            'Supervisor startup flag: Go exposes native supervisor APIs, but the startup flag is not yet mapped 1:1.',
+            'Auto-Drive startup: not yet implemented for Go runtime startup.',
+        ]);
+    });
+
+    it('summarizes Node compatibility runtime startup surfaces truthfully', () => {
+        expect(describeStartupModeSummary({
+            runtime: 'node',
+            dashboardRequested: true,
+            mcpRequested: true,
+            supervisorRequested: false,
+            autoDriveRequested: false,
+        })).toEqual([
+            'Dashboard integration: supported by the Node compatibility runtime.',
+            'MCP bridge: enabled for this run.',
+            'Supervisor startup: disabled for this run.',
+            'Auto-Drive startup: disabled for this run.',
+        ]);
     });
 });
 

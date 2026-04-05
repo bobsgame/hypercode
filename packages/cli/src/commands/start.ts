@@ -966,7 +966,7 @@ Examples:
         console.log(chalk.dim(`  Supervisor: ${opts.supervisor ? 'enabled' : 'disabled'}`));
         console.log(chalk.dim(`  Auto-Drive: ${opts.autoDrive ? 'enabled' : 'disabled'}`));
         console.log(chalk.dim(`  Runtime preference: ${requestedRuntime}`));
-        console.log(chalk.dim(`  Dashboard: ${opts.dashboard ? 'enabled' : 'disabled'}`));
+        console.log(chalk.dim(`  Dashboard request: ${opts.dashboard ? 'requested' : 'disabled'}`));
         console.log(chalk.dim(`  Lock: ${acquiredLockHandle.lockPath}`));
         if (acquiredLockHandle.clearedStaleLock) {
           console.log(chalk.yellow(`  ↺ Cleared stale HyperCode lock${acquiredLockHandle.reusedStalePort ? ` and reused port ${port}` : ''}`));
@@ -1096,6 +1096,7 @@ Examples:
 
         if (opts.dashboard) {
           if (!runtimeSupportsIntegratedDashboard(runtimeKind)) {
+            console.log(chalk.dim(`  Dashboard mode: ${dashboardMode}`));
             console.log(chalk.yellow('  ⚠ Dashboard startup is being skipped because the current web UI still depends heavily on the Node/tRPC compatibility backend.'));
             console.log(chalk.yellow('  ⚠ Use --runtime node when you need the full integrated dashboard during the migration to Go-primary control-plane ownership.'));
           } else {
@@ -1114,6 +1115,7 @@ Examples:
 
             if (dashboardSelection.reusedExisting) {
               dashboardMode = 'reused existing integrated dashboard runtime';
+              console.log(chalk.dim(`  Dashboard mode: ${dashboardMode}`));
               console.log(chalk.green(`  ✓ Reusing dashboard runtime at ${dashboardUrl}`));
             } else {
               const { command, args, cwd } = getDashboardSpawnSpec(
@@ -1160,15 +1162,19 @@ Examples:
 
               if (dashboardReady) {
                 dashboardMode = 'started integrated dashboard runtime';
+                console.log(chalk.dim(`  Dashboard mode: ${dashboardMode}`));
                 console.log(chalk.green(`  ✓ Dashboard runtime ready at ${dashboardUrl}`));
               } else if (dashboardLaunchErrorMessage) {
                 dashboardMode = 'dashboard launch attempted but failed';
+                console.log(chalk.dim(`  Dashboard mode: ${dashboardMode}`));
                 console.log(chalk.yellow(`  ⚠ Dashboard runtime failed to launch: ${dashboardLaunchErrorMessage}`));
               } else if (dashboardExited) {
                 dashboardMode = 'dashboard launch attempted but exited early';
+                console.log(chalk.dim(`  Dashboard mode: ${dashboardMode}`));
                 console.log(chalk.yellow(`  ⚠ Dashboard runtime exited before ${dashboardUrl} became ready.`));
               } else {
                 dashboardMode = 'dashboard launch attempted and still starting';
+                console.log(chalk.dim(`  Dashboard mode: ${dashboardMode}`));
                 console.log(chalk.yellow(`  ⚠ Dashboard runtime is still starting. Visit ${dashboardUrl} in a moment.`));
               }
             }

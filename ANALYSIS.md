@@ -1,5 +1,87 @@
 # HyperCode Stabilization Analysis — 2026-04-03
 
+## Latest stabilization pass — startup dashboard truthfulness and harness submodule maintenance
+
+### Context
+The newest real operator startup logs confirmed that the Go-primary startup probes are now behaving truthfully on repeated runs:
+- install was skipped when Go-primary dependencies were already ready
+- build was skipped on the later run when the Go-primary artifacts were already current
+- port reuse/fall-forward remained explicit (`4000` occupied → `4001` used)
+
+But the same logs also exposed one remaining contradiction in the CLI banner:
+- the startup banner still printed `Dashboard: enabled`
+- later lines correctly said the integrated dashboard was being skipped in Go-primary mode because the current web UI still depends on the Node/tRPC compatibility backend
+
+This pass fixed that contradiction and completed the requested submodule maintenance work at the same time.
+
+### What changed
+#### 1. Fixed the startup banner so dashboard output reflects request-vs-actual runtime truth
+Updated:
+- `packages/cli/src/commands/start.ts`
+- generated CLI build output via `pnpm -C packages/cli run build`
+
+The startup banner now says:
+- `Dashboard request: requested`
+- or `Dashboard request: disabled`
+
+instead of incorrectly claiming the dashboard was already enabled before the runtime decision had actually been resolved.
+
+The CLI also now prints an explicit runtime-resolved dashboard mode line later in startup, such as:
+- `Dashboard mode: compatibility-only; skipped for Go runtime`
+- `Dashboard mode: started integrated dashboard runtime`
+- `Dashboard mode: reused existing integrated dashboard runtime`
+
+That keeps the early banner honest while still making the eventual active dashboard posture operator-visible.
+
+#### 2. Incorporated the newer startup logs as current truth evidence
+The two pasted `start.bat` runs now clearly show the current intended Go-primary behavior:
+- first run after sources changed:
+  - install skipped
+  - build ran because Go sources were newer than the Go binary
+- later repeat run:
+  - install skipped
+  - build skipped because artifacts were already current
+- both runs:
+  - preserved the occupied-port fallback from `4000` to `4001`
+  - started the Go control plane via the prebuilt binary
+  - warned explicitly that integrated dashboard startup is still skipped for Go runtime
+
+That newer evidence supersedes the older contradictory pre-fix startup logs as the current runtime truth.
+
+#### 3. Fast-forwarded `submodules/hyperharness` to current upstream and removed the tracked `submodules/superai` submodule
+Updated:
+- `submodules/hyperharness` gitlink
+- `.gitmodules`
+- removed tracked submodule path:
+  - `submodules/superai`
+
+The `hyperharness` submodule was advanced from:
+- `d6775ed7cb776791a3d370723bdb17d76d017495`
+
+to:
+- `37830d726a39988cdb54f073c21c1a0924dfea0b`
+
+That upstream fast-forward brings in a large new tranche of Go-first harness work, including expanded Cobra/TUI/foundation/session/tool surfaces inside the harness upstream.
+
+The `superai` submodule was removed from the tracked workspace configuration as requested. This does **not** remove support for the `superai-cli` harness identity from HyperCode's own session/harness catalogs; it only removes the separate tracked upstream checkout.
+
+### Validation
+Executed truthfully without killing any processes:
+- `git -C submodules/hyperharness fetch origin main`
+- `git -C submodules/hyperharness pull --ff-only origin main`
+- `git submodule deinit -f -- submodules/superai`
+- `git rm -f submodules/superai`
+- `pnpm -C packages/cli run build`
+- `pnpm exec vitest run packages/cli/src/commands/start.test.ts`
+
+### Why this matters
+This pass did not attempt another broad orchestration rewrite. Instead, it tightened a directly operator-visible truth surface and aligned the tracked harness references with the current Go-primary direction:
+- startup output no longer over-claims dashboard availability in Go-primary mode
+- repeated `start.bat` evidence now matches the current documented behavior
+- HyperCode keeps `hyperharness` as the primary tracked harness upstream while dropping the separate `superai` submodule checkout
+
+The highest-value next step after this pass is to continue shrinking the remaining Go-primary/dashboard compatibility gap so more dashboard surfaces can move from "compatibility-only" toward direct Go-owned truth.
+
 ## Latest stabilization pass — worktree/isolation parity for Go fallback sessions
 
 ### Context
@@ -975,7 +1057,6 @@ Result:
 #### Still outside the main workspace boundary
 A repo-wide legacy-name search still finds many references inside:
 - `submodules/hyperharness`
-- `submodules/superai`
 - archived/vendor content under `archive/`
 - binary/generated artifacts
 

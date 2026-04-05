@@ -3,6 +3,39 @@
 ## Current status
 **Version:** `1.0.0-alpha.1`
 
+### Latest incremental pass — startup dashboard truthfulness and harness submodule maintenance
+This follow-up fixed one remaining startup-truth contradiction exposed by real operator logs and completed the requested harness-submodule maintenance work.
+
+#### What changed
+- Updated `packages/cli/src/commands/start.ts` so the pre-runtime banner now says:
+  - `Dashboard request: requested`
+  - or `Dashboard request: disabled`
+  instead of falsely asserting `Dashboard: enabled` before the runtime had resolved whether the dashboard could actually be started
+- Added an explicit runtime-resolved dashboard mode line later in startup output, e.g.:
+  - `Dashboard mode: compatibility-only; skipped for Go runtime`
+  - `Dashboard mode: started integrated dashboard runtime`
+- Fast-forwarded `submodules/hyperharness` from `d6775ed7cb776791a3d370723bdb17d76d017495` to `37830d726a39988cdb54f073c21c1a0924dfea0b`
+- Removed the tracked `submodules/superai` submodule from `.gitmodules` and the workspace checkout
+
+#### Runtime truth confirmed by operator logs
+The latest pasted `start.bat` evidence now shows current intended behavior clearly:
+- repeated Go-primary runs skip `pnpm install` when startup dependencies are already ready
+- the first run rebuilt only because the Go control-plane artifact was stale
+- the later repeat run skipped the startup build because artifacts were current
+- both runs truthfully fell forward from occupied port `4000` to `4001`
+- both runs explicitly warned that integrated dashboard startup is still skipped in Go-primary mode
+
+#### Validation performed
+- `git -C submodules/hyperharness fetch origin main`
+- `git -C submodules/hyperharness pull --ff-only origin main`
+- `git submodule deinit -f -- submodules/superai`
+- `git rm -f submodules/superai`
+- `pnpm -C packages/cli run build`
+- `pnpm exec vitest run packages/cli/src/commands/start.test.ts`
+
+#### Recommended next step after this pass
+Continue shrinking the remaining Go-primary/dashboard compatibility gap so more dashboard/runtime truth can come directly from Go-owned surfaces instead of compatibility-only Node expectations.
+
 ### Latest incremental pass — worktree/isolation parity for Go fallback sessions
 This follow-up gave Go fallback sessions truthful worktree allocation behavior when multiple active sessions target the same requested working directory.
 

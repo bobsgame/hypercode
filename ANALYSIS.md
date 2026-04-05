@@ -189,10 +189,12 @@ In this follow-up slice, the dashboard startup-readiness section now renders a v
 That same operator truth is now also propagated into additional dashboard surfaces:
 - **Health** now includes a `Startup mode` card in its right-hand detail column
 - **Integrations** now includes a top-level `Startup mode` card near its overview stats
+- **System Overview** now includes a `Startup mode` card alongside its system status sections
+- **MCP System** now includes a `Startup mode` card alongside its environment/startup checks
 
 This reduces the need to return to the dashboard home page just to recover runtime provenance.
 
-The next candidate pages (`/dashboard/system`, `/dashboard/mcp/system`, `/dashboard/orchestrator`) remain valid follow-up targets, but this pass intentionally shipped the two most operator-relevant secondary pages first.
+The remaining high-value follow-up target in this cluster is now the Orchestrator view.
 
 The Go-native `/api/runtime/status` surface now also exposes equivalent startup provenance by reading startup metadata from the main CLI lock first and falling back to the Go lock. That means the native backend is now self-describing for:
 - requested runtime / active runtime
@@ -259,10 +261,10 @@ Results:
 - persisted startup-provenance status coverage passed in the CLI regression suite
 - startupStatus snapshot coverage now also verifies persisted startup provenance propagation through the server/API-visible status payload
 - Go-native runtime status coverage now also verifies startup provenance propagation through `/api/runtime/status`
-- web build/type-check passed with the new dashboard `startupMode` rendering, the new Health/Integrations startup-mode cards, and local-compat startup fallback support
+- web build/type-check passed with the new dashboard `startupMode` rendering, the new Health / Integrations / System / MCP System startup-mode cards, and local-compat startup fallback support
 - a focused dashboard render test was added, but `vitest` is not directly installed in `apps/web`, so that new test was validated indirectly through the successful web build rather than executed as a standalone test command in this pass
 - a focused app-route compat test assertion was added for `startupMode`, but the same `apps/web` local `vitest` command limitation applies there too; validation for that slice came from the successful web build and typed route compilation
-- Health/Integrations runtime-provenance propagation was validated through the successful `apps/web` production build, plus the already-green core/CLI startup provenance suites
+- Health / Integrations / System / MCP System runtime-provenance propagation was validated through the successful `apps/web` production build, plus the already-green core/CLI startup provenance suites
 - a short-lived `start.bat --help` run also completed and showed the new install/build phase summary lines before exiting through CLI help output
 
 Validation boundary:
@@ -294,7 +296,7 @@ Result:
 - startup provenance is now persisted into the local startup lock and exposed by `hypercode status` when available
 - the TypeScript `startupStatus` API surface now also exposes that persisted startup provenance to dashboard/API consumers
 - the dashboard startup-readiness section now visibly renders the persisted startup mode block instead of leaving the new payload hidden
-- the Health and Integrations dashboard pages now also visibly render startup/runtime provenance instead of limiting it to the home dashboard
+- the Health, Integrations, System, and MCP System dashboard pages now also visibly render startup/runtime provenance instead of limiting it to the home dashboard
 - the web local-compat startup fallback now also carries `startupMode` from the local lock when upstream startup telemetry is unavailable
 - the Go-native `/api/runtime/status` surface now also exposes startup provenance, making the native backend itself self-describing
 - `start.bat` now validates Go-first startup surfaces by default for `auto`/`go` runtime modes instead of always requiring a full workspace build first
@@ -302,7 +304,7 @@ Result:
 - `start.bat` can now also skip the Go-primary startup build when the built CLI and Go binary artifacts are already current
 - `start.bat` now launches directly through the built CLI when available instead of depending on `pnpm start` for the final handoff
 - the main monorepo (excluding archived content and external harness submodules) no longer contains textual legacy-name references
-- the next dashboard propagation targets are now narrowed to System / MCP System / Orchestrator rather than the broader dashboard shell
+- the next dashboard propagation target is now narrowed to the Orchestrator view rather than the broader dashboard shell
 
 #### Still non-blocking / still present
 - `apps/maestro` postinstall still reports an `electron-rebuild` failure under Node 24 on Windows during install

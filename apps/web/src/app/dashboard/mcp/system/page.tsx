@@ -22,6 +22,36 @@ function getStatusCardColor(status: string): string {
     return 'text-yellow-500';
 }
 
+function getStartupModeRows(startupStatus?: DashboardStartupStatus): Array<{ label: string; value: string; detail?: string }> {
+    const startupMode = startupStatus?.startupMode;
+    if (!startupMode) {
+        return [];
+    }
+
+    return [
+        {
+            label: 'Requested runtime',
+            value: startupMode.requestedRuntime?.trim() || '—',
+            detail: startupMode.activeRuntime ? `Active runtime: ${startupMode.activeRuntime}` : undefined,
+        },
+        {
+            label: 'Launch mode',
+            value: startupMode.launchMode?.trim() || '—',
+            detail: startupMode.dashboardMode?.trim() ? `Dashboard: ${startupMode.dashboardMode}` : undefined,
+        },
+        {
+            label: 'Install decision',
+            value: startupMode.installDecision?.trim() || '—',
+            detail: startupMode.installReason?.trim() || undefined,
+        },
+        {
+            label: 'Build decision',
+            value: startupMode.buildDecision?.trim() || '—',
+            detail: startupMode.buildReason?.trim() || undefined,
+        },
+    ];
+}
+
 export default function SystemStatusDashboard() {
     const [dashboardPort, setDashboardPort] = useState<number | null>(null);
     const { data: status, error: statusError, refetch } = trpc.mcp.getStatus.useQuery();
@@ -48,6 +78,8 @@ export default function SystemStatusDashboard() {
     };
 
     const startupSnapshot = startupStatus as DashboardStartupStatus | undefined;
+    const startupModeRows = getStartupModeRows(startupSnapshot);
+    const startupModeUpdatedAt = startupSnapshot?.startupMode?.updatedAt ? Date.parse(startupSnapshot.startupMode.updatedAt) : Number.NaN;
     const startupChecks = startupSnapshot ? buildSystemStartupChecks(startupSnapshot, installArtifactsQuery.data) : [];
     const componentHealthRows = buildSystemComponentHealthRows(startupSnapshot, browserStatus ?? undefined, installArtifactsQuery.data);
     const environmentRows = buildSystemEnvironmentRows(startupSnapshot);
@@ -231,6 +263,33 @@ export default function SystemStatusDashboard() {
                         </div>
                     </CardContent>
                 </Card>
+
+                {startupModeRows.length > 0 ? (
+                    <Card className="bg-zinc-900 border-zinc-800">
+                        <CardContent className="p-6 space-y-4">
+                            <div className="flex items-start justify-between gap-3">
+                                <div>
+                                    <h3 className="text-lg font-medium text-white">Startup mode</h3>
+                                    <p className="text-xs text-zinc-500 mt-1">Persisted runtime provenance from the latest startup handoff.</p>
+                                </div>
+                                {Number.isFinite(startupModeUpdatedAt) ? (
+                                    <span className="rounded-full border border-zinc-700 bg-zinc-900 px-2.5 py-1 text-xs text-zinc-300">
+                                        Updated {Math.max(0, Math.floor((Date.now() - startupModeUpdatedAt) / 60000)) < 1 ? 'just now' : `${Math.max(1, Math.floor((Date.now() - startupModeUpdatedAt) / 60000))}m ago`}
+                                    </span>
+                                ) : null}
+                            </div>
+                            <div className="space-y-3">
+                                {startupModeRows.map((row) => (
+                                    <div key={row.label} className="rounded border border-zinc-800 bg-zinc-950/50 p-3">
+                                        <div className="text-[10px] uppercase tracking-wide text-zinc-500">{row.label}</div>
+                                        <div className="mt-1 text-sm font-medium text-white">{row.value}</div>
+                                        {row.detail ? <div className="mt-1 text-xs text-zinc-400">{row.detail}</div> : null}
+                                    </div>
+                                ))}
+                            </div>
+                        </CardContent>
+                    </Card>
+                ) : null}
             </div>
         </div>
     );

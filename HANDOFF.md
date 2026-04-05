@@ -51,6 +51,7 @@
    - `87f601eb` — `feat: prefer go operator reads in web compat fallback`
    - `1f1b85e9` — `feat: prefer go tool catalog in web compat fallback`
    - `a187362e` — `feat: prefer go mcp traffic in web compat fallback`
+   - `df19636a` — `feat: prefer go session state in web compat fallback`
 
 ### Files changed in this slice
 - `apps/web/src/app/dashboard/system/page.tsx`

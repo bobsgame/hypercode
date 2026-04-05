@@ -36,6 +36,7 @@ import (
 	"github.com/borghq/hypercode-go/internal/mesh"
 	"github.com/borghq/hypercode-go/internal/providers"
 	"github.com/borghq/hypercode-go/internal/sessionimport"
+	"github.com/google/uuid"
 	_ "modernc.org/sqlite"
 )
 

@@ -868,4 +868,91 @@ describe('legacy MCP dashboard compatibility bridge', () => {
       expect(bridgeBody.mcpServers).toHaveProperty('bridge_stdio_test');
       expect(bridgeBody.mcpServers).toHaveProperty('bridge_http_test');
     });
+
+    it('prefers go-native saved script reads and mutations in local dashboard fallback mode', async () => {
+      process.env.HYPERCODE_TRPC_UPSTREAM = 'http://127.0.0.1:4590/trpc';
+      global.fetch = vi.fn(async (input, init) => {
+        const url = String(input);
+
+        if (url.includes('/trpc/')) {
+          throw new Error('connect ECONNREFUSED');
+        }
+
+        if (url === 'http://127.0.0.1:4590/api/scripts') {
+          return new Response(JSON.stringify({
+            success: true,
+            data: [
+              { uuid: 'script-1', name: 'Deploy', description: 'ship it', code: 'console.log("deploy")' },
+            ],
+          }), { status: 200, headers: { 'content-type': 'application/json' } });
+        }
+
+        if (url === 'http://127.0.0.1:4590/api/scripts/create' && init?.method === 'POST') {
+          return new Response(JSON.stringify({
+            success: true,
+            data: { uuid: 'script-created-1', name: 'Hello Script', description: 'demo', code: 'console.log("hello")' },
+          }), { status: 200, headers: { 'content-type': 'application/json' } });
+        }
+
+        if (url === 'http://127.0.0.1:4590/api/scripts/delete' && init?.method === 'POST') {
+          return new Response(JSON.stringify({ success: true, data: { success: true } }), { status: 200, headers: { 'content-type': 'application/json' } });
+        }
+
+        if (url === 'http://127.0.0.1:4590/api/scripts/execute' && init?.method === 'POST') {
+          return new Response(JSON.stringify({
+            success: true,
+            data: {
+              success: true,
+              result: 'hello-from-script',
+              execution: {
+                scriptUuid: 'script-1',
+                scriptName: 'Deploy',
+                startedAt: '2026-04-05T16:00:00.000Z',
+                finishedAt: '2026-04-05T16:00:00.050Z',
+                durationMs: 50,
+              },
+            },
+          }), { status: 200, headers: { 'content-type': 'application/json' } });
+        }
+
+        throw new Error(`Unexpected fetch: ${url}`);
+      }) as typeof fetch;
+
+      const listResponse = await POST(new Request('http://localhost:3010/api/trpc/savedScripts.list', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ json: null }),
+      }));
+      expect(listResponse.headers.get('x-hypercode-trpc-compat')).toBe('local-dashboard-fallback');
+      expect((await listResponse.json())?.result?.data).toEqual([
+        expect.objectContaining({ uuid: 'script-1', name: 'Deploy' }),
+      ]);
+
+      const createResponse = await POST(new Request('http://localhost:3010/api/trpc/savedScripts.create', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ json: { name: 'Hello Script', description: 'demo', code: 'console.log("hello")' } }),
+      }));
+      expect(createResponse.headers.get('x-hypercode-trpc-compat')).toBe('local-operator-action');
+      expect((await createResponse.json())?.result?.data).toEqual(expect.objectContaining({ uuid: 'script-created-1', name: 'Hello Script' }));
+
+      const executeResponse = await POST(new Request('http://localhost:3010/api/trpc/savedScripts.execute', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ json: { uuid: 'script-1' } }),
+      }));
+      expect((await executeResponse.json())?.result?.data).toEqual(expect.objectContaining({ success: true, result: 'hello-from-script' }));
+
+      const deleteResponse = await POST(new Request('http://localhost:3010/api/trpc/savedScripts.delete', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ json: { uuid: 'script-created-1' } }),
+      }));
+      expect((await deleteResponse.json())?.result?.data).toEqual({ success: true });
+
+      expect((global.fetch as ReturnType<typeof vi.fn>).mock.calls.some(([url]) => String(url) === 'http://127.0.0.1:4590/api/scripts')).toBe(true);
+      expect((global.fetch as ReturnType<typeof vi.fn>).mock.calls.some(([url]) => String(url) === 'http://127.0.0.1:4590/api/scripts/create')).toBe(true);
+      expect((global.fetch as ReturnType<typeof vi.fn>).mock.calls.some(([url]) => String(url) === 'http://127.0.0.1:4590/api/scripts/execute')).toBe(true);
+      expect((global.fetch as ReturnType<typeof vi.fn>).mock.calls.some(([url]) => String(url) === 'http://127.0.0.1:4590/api/scripts/delete')).toBe(true);
+    });
   });

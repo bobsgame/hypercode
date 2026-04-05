@@ -173,13 +173,16 @@ const LOCAL_OPERATOR_MUTATION_PROCEDURES = new Set([
   'savedScripts.delete',
   'savedScripts.execute',
 ]);
-const LOCAL_COMPAT_MUTATION_PROCEDURES = new Set([
+const LOCAL_MCP_MUTATION_PROCEDURES = new Set([
   'mcpServers.create',
   'mcpServers.update',
   'mcpServers.delete',
   'mcpServers.reloadMetadata',
   'mcpServers.clearMetadataCache',
   'serverHealth.reset',
+]);
+const LOCAL_COMPAT_MUTATION_PROCEDURES = new Set([
+  ...LOCAL_MCP_MUTATION_PROCEDURES,
   ...LOCAL_OPERATOR_MUTATION_PROCEDURES,
 ]);
 
@@ -690,6 +693,39 @@ function buildLocalStartupStatus(servers: unknown[]): {
   };
 }
 
+function resolveNativeStatusBases(): string[] {
+  return Array.from(new Set(
+    resolveUpstreamBases()
+      .map((base) => base.replace(/\/trpc\/?$/i, '').trim())
+      .filter(Boolean),
+  ));
+}
+
+async function fetchNativeControlPlaneData<T>(endpointPath: string, init?: RequestInit): Promise<T | null> {
+  for (const base of resolveNativeStatusBases()) {
+    try {
+      const response = await fetch(`${base}${endpointPath}`, {
+        cache: 'no-store',
+        ...init,
+      });
+      if (!response.ok) {
+        continue;
+      }
+
+      const payload = await response.json() as { success?: unknown; data?: unknown };
+      if (payload.success !== true) {
+        continue;
+      }
+
+      return (payload.data as T | undefined) ?? null;
+    } catch {
+      // Try the next native control-plane base.
+    }
+  }
+
+  return null;
+}
+
 async function fetchProcedureData(
   upstreamBases: string[],
   headers: Headers,
@@ -773,6 +809,11 @@ function buildLegacyCompatResponse(req: Request): Response | null {
   return null;
 }
 
+async function buildPreferredSavedScriptsList(): Promise<unknown[]> {
+  const scripts = await fetchNativeControlPlaneData<unknown[]>('/api/scripts');
+  return Array.isArray(scripts) ? scripts : [];
+}
+
 async function buildLocalCompatResponse(req: Request, body?: string): Promise<Response | null> {
   const procedureNames = getProcedureNames(req);
   if (procedureNames.length === 0) {
@@ -786,6 +827,7 @@ async function buildLocalCompatResponse(req: Request, body?: string): Promise<Re
   const localServers = mapConfigToServerList(localConfig);
   const localStatus = buildStatusFromServers(localServers);
   const localStartupStatus = buildLocalStartupStatus(localServers);
+  const savedScripts = await buildPreferredSavedScriptsList();
 
   const dataByResponseKey: Record<LocalCompatResponseKey, unknown> = {
     'mcpServers.list': localServers,
@@ -815,6 +857,7 @@ async function buildLocalCompatResponse(req: Request, body?: string): Promise<Re
     },
     'mcpServers.get': undefined,
     'apiKeys.list': [],
+    'savedScripts.list': savedScripts,
     'tools.detectCliHarnesses': [],
     'tools.detectExecutionEnvironment': {
       os: 'unknown',
@@ -1224,9 +1267,101 @@ async function tryLocalBulkImport(req: Request, body: string | undefined): Promi
   });
 }
 
+async function tryLocalOperatorMutation(req: Request, body: string | undefined): Promise<Response | null> {
+  const procedures = getProcedureNames(req);
+  const procedureName = procedures[0] ?? '';
+  if (req.method !== 'POST' || procedures.length !== 1 || !LOCAL_OPERATOR_MUTATION_PROCEDURES.has(procedureName)) {
+    return null;
+  }
+
+  const input = extractTrpcRequestInput(body, req);
+  if (!input || typeof input !== 'object') {
+    return buildTrpcResponse(req, undefined, {
+      status: 400,
+      statusText: 'Invalid local operator compat input',
+      headers: { 'x-hypercode-trpc-compat': 'local-operator-action' },
+    });
+  }
+
+  let endpointPath = '';
+  if (procedureName === 'savedScripts.create') {
+    endpointPath = '/api/scripts/create';
+  } else if (procedureName === 'savedScripts.delete') {
+    endpointPath = '/api/scripts/delete';
+  } else if (procedureName === 'savedScripts.execute') {
+    endpointPath = '/api/scripts/execute';
+  }
+
+  if (!endpointPath) {
+    return null;
+  }
+
+  const data = await fetchNativeControlPlaneData<unknown>(endpointPath, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify(input),
+  });
+  if (data === null) {
+    return null;
+  }
+
+  return buildTrpcResponse(req, data, {
+    status: 200,
+    headers: { 'x-hypercode-trpc-compat': 'local-operator-action' },
+  });
+}
+
+async function tryLocalOperatorMutation(req: Request, body: string | undefined): Promise<Response | null> {
+  const procedures = getProcedureNames(req);
+  const procedureName = procedures[0] ?? '';
+  if (req.method !== 'POST' || procedures.length !== 1 || !LOCAL_OPERATOR_MUTATION_PROCEDURES.has(procedureName)) {
+    return null;
+  }
+
+  const input = extractTrpcRequestInput(body, req);
+  if (!input || typeof input !== 'object') {
+    return buildTrpcResponse(req, undefined, {
+      status: 400,
+      statusText: 'Invalid local operator compat input',
+      headers: { 'x-hypercode-trpc-compat': 'local-operator-action' },
+    });
+  }
+
+  let endpointPath = '';
+  if (procedureName === 'savedScripts.create') {
+    endpointPath = '/api/scripts/create';
+  } else if (procedureName === 'savedScripts.delete') {
+    endpointPath = '/api/scripts/delete';
+  } else if (procedureName === 'savedScripts.execute') {
+    endpointPath = '/api/scripts/execute';
+  }
+
+  if (!endpointPath) {
+    return null;
+  }
+
+  const data = await fetchNativeControlPlaneData<unknown>(endpointPath, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify(input),
+  });
+  if (data === null) {
+    return null;
+  }
+
+  return buildTrpcResponse(req, data, {
+    status: 200,
+    headers: { 'x-hypercode-trpc-compat': 'local-operator-action' },
+  });
+}
+
 async function tryLocalManagedServerMutation(req: Request, body: string | undefined): Promise<Response | null> {
   const procedures = getProcedureNames(req);
-  if (req.method !== 'POST' || procedures.length !== 1 || !LOCAL_COMPAT_MUTATION_PROCEDURES.has(procedures[0] ?? '')) {
+  if (req.method !== 'POST' || procedures.length !== 1 || !LOCAL_MCP_MUTATION_PROCEDURES.has(procedures[0] ?? '')) {
     return null;
   }
 
@@ -1476,6 +1611,16 @@ async function handler(req: Request): Promise<Response> {
     const bulkImportBridgeResponse = await tryBridgeBulkImport(req, upstreamBases, headers, body);
     if (bulkImportBridgeResponse) {
       return bulkImportBridgeResponse;
+    }
+
+    const localOperatorMutationResponse = await tryLocalOperatorMutation(req, body);
+    if (localOperatorMutationResponse) {
+      return localOperatorMutationResponse;
+    }
+
+    const localOperatorMutationResponse = await tryLocalOperatorMutation(req, body);
+    if (localOperatorMutationResponse) {
+      return localOperatorMutationResponse;
     }
 
     const localManagedMutationResponse = await tryLocalManagedServerMutation(req, body);

@@ -45,6 +45,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Go Supervised-Session Lifecycle Fallback**: the public `/api/sessions/supervisor/{list,get,create,start,stop,restart,logs,attach-info,health,execute-shell}` routes now preserve truthful operator behavior when the TypeScript runtime is unavailable by falling back to a native Go supervised-session manager with in-memory lifecycle ownership, log buffering, attach readiness, health tracking, and one-shot shell execution in the session working directory.
 - **Go Session-State Fallback Ownership**: `/api/sessions/supervisor/state`, `/update-state`, `/clear`, and `/heartbeat` now preserve truthful session-state behavior when the TypeScript runtime is unavailable by using a native Go persisted `.hypercode-session.json` fallback, while explicitly returning reduced local semantics instead of pretending TS memory/bootstrap enrichment still ran.
 - **Supervisor Chat-State Resolver Extraction**: the decision that classifies a chat as `awaiting_action`, `ready_for_input`, or `unknown` now lives in the tested `decision_logic` layer instead of only inside `detectChatState`, with direct Node coverage for all three outcomes.
 - **Supervisor Surface Resolution Extraction**: the final surface-resolution rule for override handling, targeted-window heuristics, browser-family fallback, and Antigravity inspection promotion now lives in the tested `decision_logic` layer instead of being embedded inline in `detectChatSurface`.

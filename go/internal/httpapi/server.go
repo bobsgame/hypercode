@@ -1080,20 +1080,20 @@ func (s *Server) handleAPIIndex(w http.ResponseWriter, _ *http.Request) {
 				{Path: "/api/sessions/summary", Category: "sessions", Description: "Compact summary of discovered sessions by tool, format, task, and model hint."},
 				{Path: "/api/sessions/context", Category: "sessions", Description: "Go-owned session context summary combining startup readiness, memory bootstrap, and tool advertisements."},
 				{Path: "/api/sessions/supervisor/catalog", Category: "sessions", Description: "Bridge to the TypeScript session harness catalog."},
-				{Path: "/api/sessions/supervisor/list", Category: "sessions", Description: "Bridge to the TypeScript supervised session list."},
-				{Path: "/api/sessions/supervisor/get", Category: "sessions", Description: "Bridge to a specific TypeScript supervised session snapshot."},
-				{Path: "/api/sessions/supervisor/create", Category: "sessions", Description: "Create a supervised session through the TypeScript control plane."},
-				{Path: "/api/sessions/supervisor/start", Category: "sessions", Description: "Start a supervised session through the TypeScript control plane."},
-				{Path: "/api/sessions/supervisor/stop", Category: "sessions", Description: "Stop a supervised session through the TypeScript control plane."},
-				{Path: "/api/sessions/supervisor/restart", Category: "sessions", Description: "Restart a supervised session through the TypeScript control plane."},
-				{Path: "/api/sessions/supervisor/logs", Category: "sessions", Description: "Bridge to buffered logs for a specific TypeScript supervised session."},
-				{Path: "/api/sessions/supervisor/execute-shell", Category: "sessions", Description: "Execute a contextual shell command in a TypeScript supervised session."},
-				{Path: "/api/sessions/supervisor/attach-info", Category: "sessions", Description: "Bridge to supervised-session readiness and process metadata."},
-				{Path: "/api/sessions/supervisor/health", Category: "sessions", Description: "Bridge to health details for a TypeScript supervised session."},
-				{Path: "/api/sessions/supervisor/state", Category: "sessions", Description: "Bridge to the shared TypeScript session-manager state."},
-				{Path: "/api/sessions/supervisor/update-state", Category: "sessions", Description: "Update the shared TypeScript session-manager state."},
-				{Path: "/api/sessions/supervisor/clear", Category: "sessions", Description: "Clear the shared TypeScript session-manager state."},
-				{Path: "/api/sessions/supervisor/heartbeat", Category: "sessions", Description: "Touch the shared TypeScript session-manager heartbeat."},
+				{Path: "/api/sessions/supervisor/list", Category: "sessions", Description: "List supervised sessions through the TypeScript control plane when available, with native Go in-memory supervisor fallback when unavailable."},
+				{Path: "/api/sessions/supervisor/get", Category: "sessions", Description: "Read a supervised session snapshot through TypeScript when available, with native Go supervisor fallback when unavailable."},
+				{Path: "/api/sessions/supervisor/create", Category: "sessions", Description: "Create a supervised session through the TypeScript control plane when available, with native Go in-memory supervisor fallback when unavailable."},
+				{Path: "/api/sessions/supervisor/start", Category: "sessions", Description: "Start a supervised session through TypeScript when available, with native Go supervised runtime fallback when unavailable."},
+				{Path: "/api/sessions/supervisor/stop", Category: "sessions", Description: "Stop a supervised session through TypeScript when available, with native Go supervised runtime fallback when unavailable."},
+				{Path: "/api/sessions/supervisor/restart", Category: "sessions", Description: "Restart a supervised session through TypeScript when available, with native Go supervised runtime fallback when unavailable."},
+				{Path: "/api/sessions/supervisor/logs", Category: "sessions", Description: "Read buffered logs for a supervised session through TypeScript when available, with native Go supervisor log-buffer fallback when unavailable."},
+				{Path: "/api/sessions/supervisor/execute-shell", Category: "sessions", Description: "Execute a contextual shell command in a supervised session through TypeScript when available, with native Go one-shot shell fallback when unavailable."},
+				{Path: "/api/sessions/supervisor/attach-info", Category: "sessions", Description: "Read supervised-session readiness and process metadata through TypeScript when available, with native Go attach-readiness fallback when unavailable."},
+				{Path: "/api/sessions/supervisor/health", Category: "sessions", Description: "Read supervised-session health through TypeScript when available, with native Go supervisor health fallback when unavailable."},
+				{Path: "/api/sessions/supervisor/state", Category: "sessions", Description: "Read the shared session-manager state through TypeScript when available, with native Go persisted session-state fallback when unavailable."},
+				{Path: "/api/sessions/supervisor/update-state", Category: "sessions", Description: "Update the shared session-manager state through TypeScript when available, with native Go persisted session-state fallback when unavailable."},
+				{Path: "/api/sessions/supervisor/clear", Category: "sessions", Description: "Clear the shared session-manager state through TypeScript when available, with native Go persisted session-state fallback when unavailable."},
+				{Path: "/api/sessions/supervisor/heartbeat", Category: "sessions", Description: "Touch the shared session-manager heartbeat through TypeScript when available, with native Go persisted session-state fallback when unavailable."},
 				{Path: "/api/sessions/supervisor/restore", Category: "sessions", Description: "Restore supervised sessions through the TypeScript control plane."},
 				{Path: "/api/sessions/imported/list", Category: "sessions", Description: "Bridge to imported sessions already processed by the TypeScript control plane, with local Go persistence fallback."},
 				{Path: "/api/sessions/imported/get", Category: "sessions", Description: "Bridge to a specific imported session record from the TypeScript control plane, with local Go persistence fallback."},
@@ -1666,38 +1666,6 @@ func (s *Server) handleSessionSummary(w http.ResponseWriter, _ *http.Request) {
 
 func (s *Server) handleSupervisorSessionCatalog(w http.ResponseWriter, r *http.Request) {
 	s.handleSessionBridgeCall(w, r, http.MethodGet, "session.catalog", nil)
-}
-
-func (s *Server) handleSupervisorSessionList(w http.ResponseWriter, r *http.Request) {
-	s.handleSessionBridgeCall(w, r, http.MethodGet, "session.list", nil)
-}
-
-func (s *Server) handleSupervisorSessionGet(w http.ResponseWriter, r *http.Request) {
-	sessionID := strings.TrimSpace(r.URL.Query().Get("id"))
-	if sessionID == "" {
-		writeJSON(w, http.StatusBadRequest, map[string]any{
-			"success": false,
-			"error":   "missing id query parameter",
-		})
-		return
-	}
-	s.handleSessionBridgeCall(w, r, http.MethodGet, "session.get", map[string]any{"id": sessionID})
-}
-
-func (s *Server) handleSupervisorSessionCreate(w http.ResponseWriter, r *http.Request) {
-	s.handleSessionBridgeBodyCall(w, r, "session.create")
-}
-
-func (s *Server) handleSupervisorSessionStart(w http.ResponseWriter, r *http.Request) {
-	s.handleSessionBridgeBodyCall(w, r, "session.start")
-}
-
-func (s *Server) handleSupervisorSessionStop(w http.ResponseWriter, r *http.Request) {
-	s.handleSessionBridgeBodyCall(w, r, "session.stop")
-}
-
-func (s *Server) handleSupervisorSessionRestart(w http.ResponseWriter, r *http.Request) {
-	s.handleSessionBridgeBodyCall(w, r, "session.restart")
 }
 
 func (s *Server) handleImportedSessionList(w http.ResponseWriter, r *http.Request) {

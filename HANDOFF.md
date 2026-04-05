@@ -3,6 +3,59 @@
 ## Current status
 **Version:** `1.0.0-alpha.1`
 
+### Latest incremental pass — native Go supervised-session lifecycle fallback ownership
+This follow-up moved the public supervised-session lifecycle routes from bridge-only behavior into truthful upstream-first / native-Go-fallback ownership.
+
+#### What changed
+- Upgraded `go/internal/supervisor/supervisor.go` from a thin process map into a richer native supervised-session manager with:
+  - session status lifecycle
+  - buffered logs
+  - attach readiness
+  - health snapshots
+  - restart/error tracking
+  - one-shot shell execution support at the HTTP layer
+- Reworked these public handlers in `go/internal/httpapi/session_supervisor_handlers.go` so they now behave as upstream-first with native Go fallback instead of bridge-only:
+  - `/api/sessions/supervisor/list`
+  - `/api/sessions/supervisor/get`
+  - `/api/sessions/supervisor/create`
+  - `/api/sessions/supervisor/start`
+  - `/api/sessions/supervisor/stop`
+  - `/api/sessions/supervisor/restart`
+  - `/api/sessions/supervisor/logs`
+  - `/api/sessions/supervisor/attach-info`
+  - `/api/sessions/supervisor/health`
+  - `/api/sessions/supervisor/execute-shell`
+- Kept the prior persisted session-state fallback for:
+  - `/api/sessions/supervisor/state`
+  - `/api/sessions/supervisor/update-state`
+  - `/api/sessions/supervisor/clear`
+  - `/api/sessions/supervisor/heartbeat`
+- Updated API index descriptions in `go/internal/httpapi/server.go` to reflect upstream-first / native-fallback truth instead of bridge-only wording
+- Added focused regression coverage in `go/internal/httpapi/server_test.go`
+- Fixed stale renamed-submodule test fixtures in:
+  - `go/internal/httpapi/server_test.go`
+  - `go/internal/git/submodules_test.go`
+
+#### Fallback semantics
+When TS is unavailable, Go now truthfully owns an in-memory supervised-session runtime for the public operator route family:
+- lifecycle routes create/start/stop/restart native Go sessions
+- `logs` returns native buffered logs
+- `attach-info` returns native readiness/PID metadata
+- `health` returns native restart/failure tracking
+- `execute-shell` runs a truthful native one-shot shell command in the session working directory/environment
+
+Important limitation is explicit in the current architecture:
+- this new lifecycle fallback is **in-memory**, not yet restart-persistent
+- it does **not** yet claim TypeScript execution-policy/worktree/memory-bootstrap parity
+
+#### Validation performed
+- `cd go && gofmt -w internal/supervisor/supervisor.go internal/supervisor/supervisor_test.go internal/httpapi/session_supervisor_handlers.go internal/httpapi/server.go internal/httpapi/server_test.go internal/git/submodules_test.go`
+- `cd go && go test ./internal/httpapi ./internal/supervisor -run 'TestSupervisorSessionBridgeRoutes|TestSupervisorSessionRoutesFallBackToLocalGoSupervisor|TestSupervisorSessionStateFallsBackToLocalGoState|Test(CreateSessionRejectsDuplicates|StartSessionRunsShortLivedProcessToStopped|StartSessionMissingReturnsError|FailingProcessRestartsAndEventuallyFails|CreateSessionCapturesMetadata|StartSessionWithCustomEnvCanRunProcess)' -count=1`
+- `cd go && go test ./internal/httpapi ./internal/supervisor ./internal/git -count=1`
+
+#### Recommended next step after this pass
+Continue deeper Go-native supervisor ownership by making the new Go supervised-session lifecycle fallback durable across runtime restarts and then narrowing the remaining TS-only gaps around execution-policy/worktree parity.
+
 ### Latest incremental pass — native Go session-state fallback ownership
 This follow-up moved one supervisor/session slice from bridge-only behavior into truthful native fallback ownership.
 

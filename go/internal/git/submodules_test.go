@@ -11,7 +11,7 @@ func TestParseSubmoduleStatusLine(t *testing.T) {
 	}{
 		{name: "space prefix", line: " 0123456789abcdef apps/maestro (heads/main)", want: "apps/maestro", ok: true},
 		{name: "dash prefix", line: "-0123456789abcdef packages/claude-mem (heads/main)", want: "packages/claude-mem", ok: true},
-		{name: "plus prefix", line: "+0123456789abcdef submodules/hypercode (remotes/origin/main)", want: "submodules/hypercode", ok: true},
+		{name: "plus prefix", line: "+0123456789abcdef submodules/hyperharness (remotes/origin/main)", want: "submodules/hyperharness", ok: true},
 		{name: "conflict prefix", line: "U0123456789abcdef archive/OmniRoute (v1.0.0)", want: "archive/OmniRoute", ok: true},
 		{name: "blank", line: "   ", want: "", ok: false},
 		{name: "malformed", line: "abcdefonly", want: "", ok: false},
@@ -31,9 +31,9 @@ func TestParseSubmoduleStatusLine(t *testing.T) {
 }
 
 func TestParseSubmoduleStatusOutputSortsPaths(t *testing.T) {
-	output := "+0123 submodules/hypercode (heads/main)\n 4567 apps/maestro (heads/main)\n-89ab packages/claude-mem (heads/main)\n"
+	output := "+0123 submodules/hyperharness (heads/main)\n 4567 apps/maestro (heads/main)\n-89ab packages/claude-mem (heads/main)\n"
 	got := parseSubmoduleStatusOutput(output)
-	want := []string{"apps/maestro", "packages/claude-mem", "submodules/hypercode"}
+	want := []string{"apps/maestro", "packages/claude-mem", "submodules/hyperharness"}
 
 	if len(got) != len(want) {
 		t.Fatalf("expected %d paths, got %d: %#v", len(want), len(got), got)
@@ -51,7 +51,7 @@ func TestFilepathBaseSupportsSlashAndBackslash(t *testing.T) {
 		want  string
 	}{
 		{input: "apps/maestro", want: "maestro"},
-		{input: `submodules\hypercode`, want: "hypercode"},
+		{input: `submodules\hyperharness`, want: "hyperharness"},
 		{input: "", want: ""},
 	}
 

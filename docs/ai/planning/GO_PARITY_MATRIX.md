@@ -74,9 +74,9 @@ Status values:
 | Session summary/discovery | Native Go / Bridge mix | scanner and summary routes exist |
 | Session import scan | Partial Native Go | Go scanner/import routes exist |
 | Session export | Native Go | native export path implemented |
-| Session supervisor lifecycle | Native Go (beta) | create/start/stop/status/list native endpoints exist |
-| Session state/log parity | Bridge-first with Partial Native Go fallback | Go now has native persisted fallback ownership for the session-state core (`getState`, `updateState`, `clear`, `heartbeat`) via workspace `.hypercode-session.json`, but richer supervisor/session log and TS memory/bootstrap parity is still incomplete |
-| Session CRUD authority | Mixed / bridge-heavy | still not fully Go-owned end-to-end |
+| Session supervisor lifecycle | Bridge-first with Partial Native Go fallback | the public supervisor route family now tries TS first and falls back natively in Go for `list/get/create/start/stop/restart/logs/attach-info/health/execute-shell`; the current native Go lifecycle fallback is useful and operator-visible but still in-memory rather than restart-persistent |
+| Session state/log parity | Bridge-first with Partial Native Go fallback | Go now has native persisted fallback ownership for the shared session-state core (`getState`, `updateState`, `clear`, `heartbeat`) via workspace `.hypercode-session.json`, plus native log/attach/health/session-shell fallback behavior for public supervised sessions; richer execution-policy/worktree/memory-bootstrap parity is still incomplete |
+| Session CRUD authority | Mixed / bridge-heavy | Go now owns more public supervisor CRUD/read behavior during TS outage, but full end-to-end authority and durable restore semantics are still incomplete |
 
 ---
 

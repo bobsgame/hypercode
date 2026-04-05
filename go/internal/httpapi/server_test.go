@@ -27,6 +27,7 @@ import (
 	"github.com/hypercodehq/hypercode-go/internal/orchestration"
 	"github.com/hypercodehq/hypercode-go/internal/providers"
 	"github.com/hypercodehq/hypercode-go/internal/sessionimport"
+	"github.com/hypercodehq/hypercode-go/internal/supervisor"
 	_ "modernc.org/sqlite"
 )
 
@@ -5599,6 +5600,20 @@ func TestSupervisorSessionBridgeRoutes(t *testing.T) {
 	}
 }
 
+func extractJSONFieldString(payload string, field string) string {
+	needle := `"` + field + `":"`
+	index := strings.Index(payload, needle)
+	if index < 0 {
+		return ""
+	}
+	start := index + len(needle)
+	end := strings.Index(payload[start:], `"`)
+	if end < 0 {
+		return ""
+	}
+	return payload[start : start+end]
+}
+
 func TestSupervisorSessionStateFallsBackToLocalGoState(t *testing.T) {
 	t.Setenv("HYPERCODE_TRPC_UPSTREAM", "http://127.0.0.1:1/trpc")
 	workspaceRoot := t.TempDir()
@@ -5691,6 +5706,149 @@ func TestSupervisorSessionStateFallsBackToLocalGoState(t *testing.T) {
 		if !strings.Contains(clearedStateRecorder.Body.String(), needle) {
 			t.Fatalf("expected cleared local state payload to contain %s, got %s", needle, clearedStateRecorder.Body.String())
 		}
+	}
+}
+
+func TestSupervisorSessionRoutesFallBackToLocalGoSupervisor(t *testing.T) {
+	t.Setenv("HYPERCODE_TRPC_UPSTREAM", "http://127.0.0.1:1/trpc")
+	cfg := config.Default()
+	cfg.WorkspaceRoot = t.TempDir()
+	cfg.ConfigDir = t.TempDir()
+	cfg.MainConfigDir = t.TempDir()
+	server := New(cfg, stubDetector{})
+
+	command := "sh"
+	argsJSON := `["-lc","sleep 5"]`
+	if runtime.GOOS == "windows" {
+		command = "cmd"
+		argsJSON = `["/C","ping 127.0.0.1 -n 6 >nul"]`
+	}
+	sessionWorkingDirectory, err := os.Getwd()
+	if err != nil || strings.TrimSpace(sessionWorkingDirectory) == "" {
+		sessionWorkingDirectory = cfg.WorkspaceRoot
+	}
+
+	createReq := httptest.NewRequest(http.MethodPost, "/api/sessions/supervisor/create", strings.NewReader(`{"name":"Local Go Session","cliType":"custom","workingDirectory":"`+strings.ReplaceAll(sessionWorkingDirectory, `\`, `\\`)+`","command":"`+command+`","args":`+argsJSON+`,"autoRestart":false,"maxRestartAttempts":0}`))
+	createReq.Header.Set("content-type", "application/json")
+	createRecorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(createRecorder, createReq)
+	if createRecorder.Code != http.StatusOK {
+		t.Fatalf("expected status 200 from local create fallback, got %d %s", createRecorder.Code, createRecorder.Body.String())
+	}
+	for _, needle := range []string{`"fallback":"go-local-supervisor"`, `"procedure":"session.create"`, `"name":"Local Go Session"`, `"cliType":"custom"`, `"status":"created"`} {
+		if !strings.Contains(createRecorder.Body.String(), needle) {
+			t.Fatalf("expected local create payload to contain %s, got %s", needle, createRecorder.Body.String())
+		}
+	}
+
+	sessionID := extractJSONFieldString(createRecorder.Body.String(), "id")
+	if strings.TrimSpace(sessionID) == "" {
+		t.Fatalf("expected session id in create payload, got %s", createRecorder.Body.String())
+	}
+
+	listRecorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(listRecorder, httptest.NewRequest(http.MethodGet, "/api/sessions/supervisor/list", nil))
+	if listRecorder.Code != http.StatusOK {
+		t.Fatalf("expected status 200 from local list fallback, got %d %s", listRecorder.Code, listRecorder.Body.String())
+	}
+	for _, needle := range []string{`"fallback":"go-local-supervisor"`, `"procedure":"session.list"`, `"` + sessionID + `"`} {
+		if !strings.Contains(listRecorder.Body.String(), needle) {
+			t.Fatalf("expected local list payload to contain %s, got %s", needle, listRecorder.Body.String())
+		}
+	}
+
+	getRecorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(getRecorder, httptest.NewRequest(http.MethodGet, "/api/sessions/supervisor/get?id="+sessionID, nil))
+	if getRecorder.Code != http.StatusOK {
+		t.Fatalf("expected status 200 from local get fallback, got %d %s", getRecorder.Code, getRecorder.Body.String())
+	}
+	for _, needle := range []string{`"fallback":"go-local-supervisor"`, `"procedure":"session.get"`, `"requestedWorkingDirectory":"`} {
+		if !strings.Contains(getRecorder.Body.String(), needle) {
+			t.Fatalf("expected local get payload to contain %s, got %s", needle, getRecorder.Body.String())
+		}
+	}
+
+	startReq := httptest.NewRequest(http.MethodPost, "/api/sessions/supervisor/start", strings.NewReader(`{"id":"`+sessionID+`"}`))
+	startReq.Header.Set("content-type", "application/json")
+	startRecorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(startRecorder, startReq)
+	if startRecorder.Code != http.StatusOK {
+		t.Fatalf("expected status 200 from local start fallback, got %d %s", startRecorder.Code, startRecorder.Body.String())
+	}
+	for _, needle := range []string{`"fallback":"go-local-supervisor"`, `"procedure":"session.start"`} {
+		if !strings.Contains(startRecorder.Body.String(), needle) {
+			t.Fatalf("expected local start payload to contain %s, got %s", needle, startRecorder.Body.String())
+		}
+	}
+
+	time.Sleep(200 * time.Millisecond)
+
+	attachRecorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(attachRecorder, httptest.NewRequest(http.MethodGet, "/api/sessions/supervisor/attach-info?id="+sessionID, nil))
+	if attachRecorder.Code != http.StatusOK {
+		t.Fatalf("expected status 200 from local attach fallback, got %d %s", attachRecorder.Code, attachRecorder.Body.String())
+	}
+	for _, needle := range []string{`"fallback":"go-local-supervisor"`, `"procedure":"session.attachInfo"`, `"attachReadiness":"ready"`, `"command":"` + command + `"`} {
+		if !strings.Contains(attachRecorder.Body.String(), needle) {
+			t.Fatalf("expected local attach payload to contain %s, got %s", needle, attachRecorder.Body.String())
+		}
+	}
+
+	healthRecorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(healthRecorder, httptest.NewRequest(http.MethodGet, "/api/sessions/supervisor/health?id="+sessionID, nil))
+	if healthRecorder.Code != http.StatusOK {
+		t.Fatalf("expected status 200 from local health fallback, got %d %s", healthRecorder.Code, healthRecorder.Body.String())
+	}
+	for _, needle := range []string{`"fallback":"go-local-supervisor"`, `"procedure":"session.health"`, `"status":"healthy"`, `"consecutiveFailures":0`} {
+		if !strings.Contains(healthRecorder.Body.String(), needle) {
+			t.Fatalf("expected local health payload to contain %s, got %s", needle, healthRecorder.Body.String())
+		}
+	}
+
+	logsRecorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(logsRecorder, httptest.NewRequest(http.MethodGet, "/api/sessions/supervisor/logs?id="+sessionID+"&limit=50", nil))
+	if logsRecorder.Code != http.StatusOK {
+		t.Fatalf("expected status 200 from local logs fallback, got %d %s", logsRecorder.Code, logsRecorder.Body.String())
+	}
+	for _, needle := range []string{`"fallback":"go-local-supervisor"`, `"procedure":"session.logs"`, `Session created for custom`, `Starting ` + command} {
+		if !strings.Contains(logsRecorder.Body.String(), needle) {
+			t.Fatalf("expected local logs payload to contain %s, got %s", needle, logsRecorder.Body.String())
+		}
+	}
+
+	executeReq := httptest.NewRequest(http.MethodPost, "/api/sessions/supervisor/execute-shell", strings.NewReader(`{"id":"`+sessionID+`","command":"echo native-shell-ok"}`))
+	executeReq.Header.Set("content-type", "application/json")
+	executeRecorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(executeRecorder, executeReq)
+	if executeRecorder.Code != http.StatusOK {
+		t.Fatalf("expected status 200 from local execute-shell fallback, got %d %s", executeRecorder.Code, executeRecorder.Body.String())
+	}
+	for _, needle := range []string{`"fallback":"go-local-supervisor"`, `"procedure":"session.executeShell"`, `"command":"echo native-shell-ok"`, `"succeeded":true`} {
+		if !strings.Contains(executeRecorder.Body.String(), needle) {
+			t.Fatalf("expected local execute-shell payload to contain %s, got %s", needle, executeRecorder.Body.String())
+		}
+	}
+
+	stopReq := httptest.NewRequest(http.MethodPost, "/api/sessions/supervisor/stop", strings.NewReader(`{"id":"`+sessionID+`","force":true}`))
+	stopReq.Header.Set("content-type", "application/json")
+	stopRecorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(stopRecorder, stopReq)
+	if stopRecorder.Code != http.StatusOK {
+		t.Fatalf("expected status 200 from local stop fallback, got %d %s", stopRecorder.Code, stopRecorder.Body.String())
+	}
+	for _, needle := range []string{`"fallback":"go-local-supervisor"`, `"procedure":"session.stop"`} {
+		if !strings.Contains(stopRecorder.Body.String(), needle) {
+			t.Fatalf("expected local stop payload to contain %s, got %s", needle, stopRecorder.Body.String())
+		}
+	}
+
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		snapshot, ok := server.supervisorManager.GetSession(sessionID)
+		if !ok || snapshot == nil || (snapshot.State != supervisor.StateRunning && snapshot.State != supervisor.StateStopping && snapshot.State != supervisor.StateRestarting) {
+			break
+		}
+		time.Sleep(50 * time.Millisecond)
 	}
 }
 
@@ -13545,7 +13703,7 @@ func TestUIHelperBridgeRoutes(t *testing.T) {
 		{name: "submodule install deps", method: http.MethodPost, path: "/api/submodules/install-dependencies", body: `{"path":"submodules/hyperharness"}`, contains: `"success":true`, procedure: `"procedure":"submodule.installDependencies"`},
 		{name: "submodule build", method: http.MethodPost, path: "/api/submodules/build", body: `{"path":"submodules/hyperharness"}`, contains: `"success":true`, procedure: `"procedure":"submodule.build"`},
 		{name: "submodule enable", method: http.MethodPost, path: "/api/submodules/enable", body: `{"path":"submodules/hyperharness"}`, contains: `"success":true`, procedure: `"procedure":"submodule.enable"`},
-		{name: "submodule capabilities", method: http.MethodGet, path: "/api/submodules/capabilities?path=submodules%2Fhypercode", contains: `"build"`, procedure: `"procedure":"submodule.detectCapabilities"`},
+		{name: "submodule capabilities", method: http.MethodGet, path: "/api/submodules/capabilities?path=submodules%2Fhyperharness", contains: `"build"`, procedure: `"procedure":"submodule.detectCapabilities"`},
 		{name: "suggestions list", method: http.MethodGet, path: "/api/suggestions", contains: `"sug-1"`, procedure: `"procedure":"suggestions.list"`},
 		{name: "suggestions resolve", method: http.MethodPost, path: "/api/suggestions/resolve", body: `{"id":"sug-1","status":"APPROVED"}`, contains: `"APPROVED"`, procedure: `"procedure":"suggestions.resolve"`},
 		{name: "suggestions clear", method: http.MethodPost, path: "/api/suggestions/clear", body: `{}`, contains: `"data":true`, procedure: `"procedure":"suggestions.clearAll"`},

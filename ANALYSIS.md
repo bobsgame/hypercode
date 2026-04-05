@@ -1,5 +1,121 @@
 # HyperCode Stabilization Analysis — 2026-04-03
 
+## Latest stabilization pass — native Go fallback for public supervised session lifecycle routes
+
+### Context
+After the previous session-state work, Go could truthfully own the shared session-state core during a TypeScript outage, but the **public supervised session lifecycle** still remained mostly bridge-first at the operator route layer:
+- `session.list`
+- `session.get`
+- `session.create`
+- `session.start`
+- `session.stop`
+- `session.restart`
+- `session.logs`
+- `session.attachInfo`
+- `session.health`
+- `session.executeShell`
+
+That meant the dashboard/session operator surfaces could preserve some shared state truth, but they still could not fully create/start/inspect supervised sessions through the Go HTTP surface when the TypeScript control plane was unavailable.
+
+### What changed
+#### 1. Upgraded the native Go supervisor runtime from a thin process record into a truthful supervised-session manager
+Updated:
+- `go/internal/supervisor/supervisor.go`
+- `go/internal/supervisor/supervisor_test.go`
+
+The Go supervisor manager now tracks enough operator-visible state to back the public session routes truthfully:
+- session identity and naming
+- `cliType`
+- requested vs effective working directory
+- execution profile string
+- auto-restart configuration and restart counters
+- session status lifecycle:
+  - `created`
+  - `starting`
+  - `running`
+  - `stopping`
+  - `stopped`
+  - `restarting`
+  - `error`
+- buffered session logs (`stdout`, `stderr`, `system`)
+- attach readiness metadata
+- health snapshots with restart/failure tracking
+- last exit code / signal / error message
+- scheduled restart timestamps for restartable failures
+
+This is still intentionally lighter than the full TypeScript `SessionSupervisor` world:
+- no persisted supervisor inventory yet
+- no execution-policy/worktree parity yet
+- no TypeScript memory-bootstrap enrichment
+
+But it is now a real native Go supervised-session runtime instead of only a thin in-memory process map.
+
+#### 2. Reworked the public supervised-session HTTP routes from bridge-only to upstream-first with native Go fallback
+Updated:
+- `go/internal/httpapi/session_supervisor_handlers.go`
+- `go/internal/httpapi/server.go`
+- `go/internal/httpapi/server_test.go`
+
+These public routes now try TypeScript first and fall back natively in Go when the upstream is unavailable:
+- `GET /api/sessions/supervisor/list`
+- `GET /api/sessions/supervisor/get`
+- `POST /api/sessions/supervisor/create`
+- `POST /api/sessions/supervisor/start`
+- `POST /api/sessions/supervisor/stop`
+- `POST /api/sessions/supervisor/restart`
+- `GET /api/sessions/supervisor/logs`
+- `GET /api/sessions/supervisor/attach-info`
+- `GET /api/sessions/supervisor/health`
+- `POST /api/sessions/supervisor/execute-shell`
+
+Fallback semantics are explicit:
+- lifecycle routes use the native Go in-memory supervisor manager
+- `logs` uses the native Go session log buffer
+- `attach-info` uses native Go PID/readiness inference
+- `health` uses native Go failure/restart tracking
+- `execute-shell` uses a truthful native Go one-shot shell execution fallback in the supervised session working directory and environment
+
+All these fallback responses now expose:
+- `fallback: "go-local-supervisor"`
+
+#### 3. Kept the earlier persisted session-state fallback and layered the new lifecycle fallback alongside it
+The prior session-state slice remains intact:
+- `/api/sessions/supervisor/state`
+- `/api/sessions/supervisor/update-state`
+- `/api/sessions/supervisor/clear`
+- `/api/sessions/supervisor/heartbeat`
+
+So the Go session story is now split truthfully into two native fallback lanes:
+1. **persisted shared session state** via `.hypercode-session.json`
+2. **in-memory supervised process lifecycle** via the Go supervisor manager
+
+That distinction matters because the new lifecycle fallback is useful and operator-visible, but it is not yet restart-persistent.
+
+#### 4. Added focused regression coverage for both the new native route path and the broader package validation drift it exposed
+Updated:
+- `go/internal/httpapi/server_test.go`
+- `go/internal/git/submodules_test.go`
+
+Added/validated:
+- a new public-route fallback test covering create/list/get/start/logs/attach-info/health/execute-shell/stop through the native Go supervisor path
+- the existing bridge-path test still passing for the same route family
+- renamed stale `submodules/hypercode` test fixtures to `submodules/hyperharness` after a broader package run surfaced unrelated test drift
+
+### Validation
+Executed truthfully without killing any processes:
+- `cd go && gofmt -w internal/supervisor/supervisor.go internal/supervisor/supervisor_test.go internal/httpapi/session_supervisor_handlers.go internal/httpapi/server.go internal/httpapi/server_test.go internal/git/submodules_test.go`
+- `cd go && go test ./internal/httpapi ./internal/supervisor -run 'TestSupervisorSessionBridgeRoutes|TestSupervisorSessionRoutesFallBackToLocalGoSupervisor|TestSupervisorSessionStateFallsBackToLocalGoState|Test(CreateSessionRejectsDuplicates|StartSessionRunsShortLivedProcessToStopped|StartSessionMissingReturnsError|FailingProcessRestartsAndEventuallyFails|CreateSessionCapturesMetadata|StartSessionWithCustomEnvCanRunProcess)' -count=1`
+- `cd go && go test ./internal/httpapi ./internal/supervisor ./internal/git -count=1`
+
+### Why this matters
+This moves the Go backend one layer deeper from:
+- "dashboard compat can sometimes read Go session truth"
+
+into:
+- "the public Go session-supervisor HTTP surface can now actually create/start/inspect/stop supervised sessions itself when TS is unavailable"
+
+It is still not full parity with the TypeScript `SessionSupervisor` implementation. The most important remaining limitation is that the new Go supervisor lifecycle fallback is still **in-memory**, not yet durable across runtime restarts. But this is a meaningful and operator-visible reduction in bridge dependence, and it unlocks the next logical step: adding persistence and richer execution/worktree parity to the Go supervisor path itself.
+
 ## Latest stabilization pass — native Go session-state fallback for supervisor state routes
 
 ### Context

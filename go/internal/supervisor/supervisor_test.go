@@ -104,8 +104,8 @@ func TestCreateSessionCapturesMetadata(t *testing.T) {
 	if session.WorkingDirectory != workspace || session.MaxRestarts != 3 || session.Env["HYPERCODE_TEST"] != "1" {
 		t.Fatalf("unexpected session metadata: %#v", session)
 	}
-	if session.State != StateStopped {
-		t.Fatalf("expected initial stopped state, got %#v", session)
+	if session.State != StateCreated {
+		t.Fatalf("expected initial created state, got %#v", session)
 	}
 }
 

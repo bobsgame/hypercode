@@ -1795,6 +1795,46 @@ describe('legacy MCP dashboard compatibility bridge', () => {
     expect((global.fetch as ReturnType<typeof vi.fn>).mock.calls.some(([url]) => String(url) === 'http://127.0.0.1:4550/api/secrets/delete')).toBe(true);
   });
 
+  it('prefers go-native tool always-on mutations in local dashboard fallback mode', async () => {
+    process.env.HYPERCODE_TRPC_UPSTREAM = 'http://127.0.0.1:4560/trpc';
+    global.fetch = vi.fn(async (input, init) => {
+      const url = String(input);
+
+      if (url.includes('/trpc/')) {
+        throw new Error('connect ECONNREFUSED');
+      }
+
+      if (url === 'http://127.0.0.1:4560/api/tools/always-on' && init?.method === 'POST') {
+        return new Response(JSON.stringify({
+          success: true,
+          data: {
+            success: true,
+            tool: {
+              uuid: 'tool-1',
+              name: 'search_tools',
+              always_on: true,
+            },
+          },
+        }), { status: 200, headers: { 'content-type': 'application/json' } });
+      }
+
+      throw new Error(`Unexpected fetch: ${url}`);
+    }) as typeof fetch;
+
+    const response = await POST(new Request('http://localhost:3010/api/trpc/tools.setAlwaysOn', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ json: { uuid: 'tool-1', alwaysOn: true } }),
+    }));
+    expect(response.headers.get('x-hypercode-trpc-compat')).toBe('local-tool-action');
+    expect((await response.json())?.result?.data).toEqual(expect.objectContaining({
+      success: true,
+      tool: expect.objectContaining({ uuid: 'tool-1', always_on: true }),
+    }));
+
+    expect((global.fetch as ReturnType<typeof vi.fn>).mock.calls.some(([url]) => String(url) === 'http://127.0.0.1:4560/api/tools/always-on')).toBe(true);
+  });
+
   it('prefers go-native MCP runtime mutations in local dashboard fallback mode', async () => {
     process.env.HYPERCODE_TRPC_UPSTREAM = 'http://127.0.0.1:4500/trpc';
     global.fetch = vi.fn(async (input, init) => {

@@ -181,6 +181,9 @@ const LOCAL_OPERATOR_MUTATION_PROCEDURES = new Set([
   'secrets.set',
   'secrets.delete',
 ]);
+const LOCAL_TOOL_MUTATION_PROCEDURES = new Set([
+  'tools.setAlwaysOn',
+]);
 const LOCAL_MCP_CONFIG_MUTATION_PROCEDURES = new Set([
   'mcpServers.create',
   'mcpServers.update',
@@ -208,6 +211,7 @@ const LOCAL_SESSION_MUTATION_PROCEDURES = new Set([
 ]);
 const LOCAL_COMPAT_MUTATION_PROCEDURES = new Set([
   ...LOCAL_OPERATOR_MUTATION_PROCEDURES,
+  ...LOCAL_TOOL_MUTATION_PROCEDURES,
   ...LOCAL_MCP_CONFIG_MUTATION_PROCEDURES,
   ...LOCAL_MCP_RUNTIME_MUTATION_PROCEDURES,
   ...LOCAL_SESSION_MUTATION_PROCEDURES,
@@ -2823,6 +2827,39 @@ async function tryLocalOperatorMutation(req: Request, body: string | undefined):
   });
 }
 
+async function tryLocalToolMutation(req: Request, body: string | undefined): Promise<Response | null> {
+  const procedures = getProcedureNames(req);
+  const procedureName = procedures[0] ?? '';
+  if (req.method !== 'POST' || procedures.length !== 1 || !LOCAL_TOOL_MUTATION_PROCEDURES.has(procedureName)) {
+    return null;
+  }
+
+  const input = extractTrpcRequestInput(body, req);
+  if (!input || typeof input !== 'object') {
+    return buildTrpcResponse(req, undefined, {
+      status: 400,
+      statusText: 'Invalid local tool compat input',
+      headers: { 'x-hypercode-trpc-compat': 'local-tool-action' },
+    });
+  }
+
+  const data = await fetchNativeControlPlaneData<unknown>('/api/tools/always-on', {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify(input),
+  });
+  if (data === null) {
+    return null;
+  }
+
+  return buildTrpcResponse(req, data, {
+    status: 200,
+    headers: { 'x-hypercode-trpc-compat': 'local-tool-action' },
+  });
+}
+
 async function tryLocalMCPRuntimeMutation(req: Request, body: string | undefined): Promise<Response | null> {
   const procedures = getProcedureNames(req);
   const procedureName = procedures[0] ?? '';
@@ -3146,6 +3183,11 @@ async function handler(req: Request): Promise<Response> {
     const localOperatorMutationResponse = await tryLocalOperatorMutation(req, body);
     if (localOperatorMutationResponse) {
       return localOperatorMutationResponse;
+    }
+
+    const localToolMutationResponse = await tryLocalToolMutation(req, body);
+    if (localToolMutationResponse) {
+      return localToolMutationResponse;
     }
 
     const localMCPRuntimeMutationResponse = await tryLocalMCPRuntimeMutation(req, body);

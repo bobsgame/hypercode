@@ -1,5 +1,75 @@
 # HyperCode Stabilization Analysis — 2026-04-03
 
+## Latest stabilization pass — Go-backed tool always-on mutation compatibility for MCP dashboards
+
+### Context
+After the previous slices, Go-primary degraded-mode dashboard compatibility already covered:
+- supervised session lifecycle/details/state actions
+- MCP inspector/runtime-control mutations
+- API key and secret admin reads/writes
+
+The next operator-facing gap was the database-backed tool preference toggle used by the MCP Catalog and MCP Inspector:
+- both pages use `trpc.tools.setAlwaysOn`
+- Go already had strong local tool inventory reads from `metamcp.db`
+- but the write path behind `/api/tools/always-on` was still bridge-only
+- and the shared Next.js compat route did not yet translate `tools.setAlwaysOn` onto the Go HTTP surface when `/trpc` was unavailable
+
+That meant one common operator action — toggling whether a tool is advertised as always-on — could still fail in Go-primary degraded mode even though the local Go runtime already had durable `always_on` state in `metamcp.db`.
+
+### What changed
+#### 1. Added native Go fallback ownership for the always-on tool toggle
+Updated:
+- `go/internal/httpapi/server.go`
+- `go/internal/httpapi/server_test.go`
+
+The Go HTTP server now falls back natively for:
+- `POST /api/tools/always-on`
+
+Native fallback behavior:
+- updates the local `tools.always_on` field in `metamcp.db`
+- updates the `updated_at` timestamp
+- returns the updated local tool record through the same Go fallback lane
+
+While implementing this, a real correctness issue was also fixed in the local tool scanner:
+- local Go fallback tool payloads now preserve the actual tool `uuid`
+- they no longer incorrectly mirrored `name` into the `uuid` field
+
+That bug fix improves the truthfulness of the local tool fallback path beyond this one mutation slice.
+
+#### 2. Extended the shared Next.js compat route for `tools.setAlwaysOn`
+Updated:
+- `apps/web/src/app/api/trpc/[trpc]/route.ts`
+- `apps/web/src/app/api/trpc/[trpc]/route.test.ts`
+
+The shared compat route now supports:
+- `tools.setAlwaysOn`
+
+When `/trpc` is unavailable, it now maps onto:
+- `/api/tools/always-on`
+
+This makes the MCP Catalog and MCP Inspector's always-on toggle work in Go-primary degraded mode using the same shared compat strategy as the earlier session, MCP runtime, and governance/admin slices.
+
+### Validation
+Executed truthfully without killing any processes:
+- `cd go && gofmt -w internal/httpapi/server.go internal/httpapi/server_test.go`
+- `cd go && go test ./internal/httpapi -run 'TestToolsAlwaysOnFallsBackToLocalDB' -count=1`
+- `pnpm exec vitest run apps/web/src/app/api/trpc/[trpc]/route.test.ts`
+- `pnpm -C apps/web run build`
+
+### Why this matters
+This continues the same high-value migration pattern:
+- reuse existing durable Go state
+- reduce another real dashboard dependency on TS `/trpc`
+- make Go-primary dashboard mode more operational, not just more visible
+
+At this point, the compatibility-backed dashboard running on top of the Go control plane covers another common MCP operator action cluster:
+- toggling tool always-on advertisement state in DB-backed tool inventory
+
+The remaining best slices are still the same kind of work:
+- other operator-critical mutations still gated on `/trpc`
+- bridge-only Go HTTP routes that already have enough local state to gain truthful fallback ownership
+- deeper Go-native ownership where the backend surface does not yet exist at all
+
 ## Latest stabilization pass — Go-backed operator admin write compatibility for API keys and secrets
 
 ### Context

@@ -5830,7 +5830,64 @@ func (s *Server) handleToolsDelete(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleToolsAlwaysOn(w http.ResponseWriter, r *http.Request) {
-	s.handleTRPCBridgeBodyCall(w, r, "tools.setAlwaysOn")
+	var payload map[string]any
+	if err := decodeJSONBody(r, &payload); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"success": false, "error": "invalid JSON body"})
+		return
+	}
+
+	var result any
+	upstreamBase, err := s.callUpstreamJSON(r.Context(), "tools.setAlwaysOn", payload, &result)
+	if err == nil {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"data":    result,
+			"bridge": map[string]any{
+				"upstreamBase": upstreamBase,
+				"procedure":    "tools.setAlwaysOn",
+			},
+		})
+		return
+	}
+
+	toolUUID := strings.TrimSpace(stringValue(payload["uuid"]))
+	alwaysOn, ok := payload["alwaysOn"].(bool)
+	if toolUUID == "" || !ok {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"success": false, "error": "missing uuid or alwaysOn"})
+		return
+	}
+
+	tool, fallbackErr := s.localSetToolAlwaysOn(toolUUID, alwaysOn)
+	if fallbackErr != nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"success": false, "error": fallbackErr.Error(), "detail": fallbackErr.Error()})
+		return
+	}
+	if tool == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{
+			"success": false,
+			"error":   "tool unavailable",
+			"detail":  "upstream unavailable; tool was not found in local metamcp tool catalog",
+			"bridge": map[string]any{
+				"fallback":  "go-local-tool-db",
+				"procedure": "tools.setAlwaysOn",
+				"reason":    "upstream unavailable; tool was not found in local metamcp tool catalog",
+			},
+		})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"data": map[string]any{
+			"success": true,
+			"tool":    tool,
+		},
+		"bridge": map[string]any{
+			"fallback":  "go-local-tool-db",
+			"procedure": "tools.setAlwaysOn",
+			"reason":    "upstream unavailable; updated local metamcp tool always-on state",
+		},
+	})
 }
 
 func (s *Server) handleToolSetsList(w http.ResponseWriter, r *http.Request) {
@@ -13269,7 +13326,7 @@ func scanLocalDBTool(scanner localDBToolScanner) (map[string]any, error) {
 	}
 
 	return map[string]any{
-		"uuid":             name,
+		"uuid":             uuid,
 		"name":             name,
 		"description":      nullStringToAny(description),
 		"server":           server,
@@ -13362,6 +13419,28 @@ func (s *Server) localDBTool(uuid string) (any, error) {
 		}
 	}
 	return nil, nil
+}
+
+func (s *Server) localSetToolAlwaysOn(toolUUID string, alwaysOn bool) (any, error) {
+	db, err := sql.Open("sqlite", s.localMetaMCPDBPath())
+	if err != nil {
+		return nil, err
+	}
+	defer db.Close()
+
+	result, err := db.Exec(`
+		UPDATE tools
+		SET always_on = ?, updated_at = ?
+		WHERE uuid = ?
+	`, alwaysOn, time.Now().UTC().Unix(), toolUUID)
+	if err != nil {
+		return nil, err
+	}
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		return nil, nil
+	}
+	return s.localDBTool(toolUUID)
 }
 
 func (s *Server) localShellQueryHistory(query string, limit int) ([]map[string]any, error) {

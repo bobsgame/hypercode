@@ -7870,6 +7870,74 @@ func TestAPIKeysCreateAndDeleteFallBackToLocalDB(t *testing.T) {
 	}
 }
 
+func TestToolsAlwaysOnFallsBackToLocalDB(t *testing.T) {
+	t.Setenv("HYPERCODE_TRPC_UPSTREAM", "http://127.0.0.1:1/trpc")
+
+	workspace := t.TempDir()
+	dbPath := filepath.Join(workspace, "metamcp.db")
+	db, err := sql.Open("sqlite", dbPath)
+	if err != nil {
+		t.Fatalf("failed to open sqlite db: %v", err)
+	}
+	defer db.Close()
+
+	if _, err := db.Exec(`
+		CREATE TABLE mcp_servers (
+			uuid TEXT PRIMARY KEY,
+			name TEXT NOT NULL
+		);
+		CREATE TABLE tools (
+			uuid TEXT PRIMARY KEY,
+			name TEXT NOT NULL,
+			description TEXT,
+			tool_schema TEXT NOT NULL,
+			is_deferred INTEGER NOT NULL DEFAULT 0,
+			always_on INTEGER NOT NULL DEFAULT 0,
+			created_at INTEGER NOT NULL,
+			updated_at INTEGER NOT NULL,
+			mcp_server_uuid TEXT NOT NULL
+		);
+		INSERT INTO mcp_servers (uuid, name) VALUES ('server-1', 'local-server');
+		INSERT INTO tools (uuid, name, description, tool_schema, is_deferred, always_on, created_at, updated_at, mcp_server_uuid)
+		VALUES ('tool-1', 'search_tools', 'Search tools', '{"type":"object"}', 0, 0, 1711958400, 1711958460, 'server-1');
+	`); err != nil {
+		t.Fatalf("failed to seed sqlite db: %v", err)
+	}
+
+	cfg := config.Default()
+	cfg.WorkspaceRoot = workspace
+	cfg.ConfigDir = t.TempDir()
+	cfg.MainConfigDir = t.TempDir()
+	server := New(cfg, stubDetector{})
+
+	req := httptest.NewRequest(http.MethodPost, "/api/tools/always-on", strings.NewReader(`{"uuid":"tool-1","alwaysOn":true}`))
+	req.Header.Set("content-type", "application/json")
+	recorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(recorder, req)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d with body %s", recorder.Code, recorder.Body.String())
+	}
+	for _, needle := range []string{
+		`"fallback":"go-local-tool-db"`,
+		`"procedure":"tools.setAlwaysOn"`,
+		`"success":true`,
+		`"always_on":true`,
+	} {
+		if !strings.Contains(recorder.Body.String(), needle) {
+			t.Fatalf("expected tools always-on fallback to contain %s, got %s", needle, recorder.Body.String())
+		}
+	}
+
+	var alwaysOn bool
+	if err := db.QueryRow(`SELECT always_on FROM tools WHERE uuid = 'tool-1'`).Scan(&alwaysOn); err != nil {
+		t.Fatalf("failed to verify tool always_on value: %v", err)
+	}
+	if !alwaysOn {
+		t.Fatalf("expected tool always_on to be true after fallback mutation")
+	}
+}
+
 func TestLinksBacklogGetFallsBackToLocalDB(t *testing.T) {
 	t.Setenv("HYPERCODE_TRPC_UPSTREAM", "http://127.0.0.1:1/trpc")
 

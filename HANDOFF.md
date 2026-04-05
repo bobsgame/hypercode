@@ -3,6 +3,27 @@
 ## Current status
 **Version:** `1.0.0-alpha.1`
 
+### Latest incremental pass — Go-backed tool always-on mutation compatibility for MCP dashboards
+This follow-up added native Go fallback ownership plus shared dashboard compat support for `tools.setAlwaysOn`, which is used by the MCP Catalog and MCP Inspector.
+
+#### What changed
+- Updated `go/internal/httpapi/server.go` so `POST /api/tools/always-on` now has native Go fallback ownership when upstream `/trpc` is unavailable
+- Added focused Go coverage in `go/internal/httpapi/server_test.go`:
+  - `TestToolsAlwaysOnFallsBackToLocalDB`
+- Updated `apps/web/src/app/api/trpc/[trpc]/route.ts` so the shared Next.js compat route now supports:
+  - `tools.setAlwaysOn`
+- Added focused web compat regression coverage in `apps/web/src/app/api/trpc/[trpc]/route.test.ts`
+- Also fixed a real local fallback correctness bug so DB-backed Go tool payloads now preserve the real tool `uuid` instead of incorrectly mirroring the tool `name`
+
+#### Validation performed
+- `cd go && gofmt -w internal/httpapi/server.go internal/httpapi/server_test.go`
+- `cd go && go test ./internal/httpapi -run 'TestToolsAlwaysOnFallsBackToLocalDB' -count=1`
+- `pnpm exec vitest run apps/web/src/app/api/trpc/[trpc]/route.test.ts`
+- `pnpm -C apps/web run build`
+
+#### Recommended next step after this pass
+Keep targeting remaining operator-critical dashboard mutations that still rely on `/trpc`, especially routes where the Go backend already has durable local state and only lacks truthful fallback ownership or compat-layer plumbing.
+
 ### Latest incremental pass — Go-backed operator admin write compatibility for API keys and secrets
 This follow-up added native Go fallback ownership plus shared dashboard compat support for the API key and secrets admin surfaces.
 

@@ -1,5 +1,69 @@
 # HyperCode Stabilization Analysis — 2026-04-03
 
+## Latest stabilization pass — Go-backed MCP dashboard mutation compatibility in web fallback mode
+
+### Context
+After the previous pass, Go-primary dashboard startup was confirmed by real operator logs and the session dashboard's core supervisor actions were wired onto the Go `/api/sessions/supervisor/*` routes.
+
+That left the next high-value operator gap inside the MCP dashboards:
+- MCP inspector/search/system pages use several mutation-heavy `trpc.mcp.*` actions
+- the Go backend already had real endpoints and truthful local fallback behavior for many of them
+- but the shared Next.js `/api/trpc/[trpc]` compat route still did **not** translate those mutation procedures onto the Go `/api/mcp/*` surface when `/trpc` was unavailable
+
+So the UI could read Go-backed MCP state in degraded mode, yet still fail on some of the most important operator actions:
+- changing tool preferences
+- loading/unloading tools
+- clearing telemetry/eviction history
+- changing lifecycle modes
+
+### What changed
+#### 1. Extended the shared dashboard compat route for Go-backed MCP runtime mutations
+Updated:
+- `apps/web/src/app/api/trpc/[trpc]/route.ts`
+
+The local compat mutation layer now translates these procedures onto the existing Go MCP HTTP surface when `/trpc` is unavailable:
+- `mcp.setToolPreferences` → `/api/mcp/preferences`
+- `mcp.loadTool` → `/api/mcp/working-set/load`
+- `mcp.unloadTool` → `/api/mcp/working-set/unload`
+- `mcp.clearToolSelectionTelemetry` → `/api/mcp/tool-selection-telemetry/clear`
+- `mcp.clearWorkingSetEvictionHistory` → `/api/mcp/working-set/evictions/clear`
+- `mcp.setLifecycleModes` → `/api/mcp/lifecycle-modes`
+
+This follows the same pattern as the session-dashboard slice:
+- prefer existing Go-owned truth
+- avoid page-by-page one-off logic
+- keep the compat route as the shared place where degraded-mode UI behavior becomes truthful
+
+#### 2. Added focused regression coverage for the MCP inspector/search mutation cluster
+Updated:
+- `apps/web/src/app/api/trpc/[trpc]/route.test.ts`
+
+Added a regression proving that when `/trpc` is unavailable, the local compat layer now prefers Go-native MCP mutation routes for:
+- `mcp.setToolPreferences`
+- `mcp.loadTool`
+- `mcp.unloadTool`
+- `mcp.clearToolSelectionTelemetry`
+- `mcp.clearWorkingSetEvictionHistory`
+- `mcp.setLifecycleModes`
+
+### Validation
+Executed truthfully without killing any processes:
+- `pnpm exec vitest run apps/web/src/app/api/trpc/[trpc]/route.test.ts`
+- `pnpm -C apps/web run build`
+
+### Why this matters
+This is another meaningful reduction in the practical Go-primary dashboard gap:
+- MCP dashboards can now perform more of their core operator actions in degraded mode on top of the Go control plane
+- Go-primary startup plus compatibility-backed dashboard mode now covers both:
+  - supervised session lifecycle/details/state actions
+  - MCP inspector/runtime-control mutation actions
+- the dashboard is becoming more operationally useful against the Go backend without pretending the whole TS-era contract is gone yet
+
+The next best slices remain the same pattern:
+- identify other operator-critical dashboard mutations that still fail without `/trpc`
+- map them onto already-existing Go `/api/*` endpoints where possible
+- only add new Go ownership when the backend surface does not already exist
+
 ## Latest stabilization pass — Go-backed session dashboard compatibility in web fallback mode
 
 ### Context

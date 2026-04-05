@@ -3,6 +3,27 @@
 ## Current status
 **Version:** `1.0.0-alpha.1`
 
+### Latest incremental pass — Go-backed MCP dashboard mutation compatibility in web fallback mode
+This follow-up taught the shared Next.js compat route to use the already-existing Go `/api/mcp/*` mutation surface for key MCP inspector/search/system actions when `/trpc` is unavailable.
+
+#### What changed
+- Updated `apps/web/src/app/api/trpc/[trpc]/route.ts` so local fallback now supports Go-backed MCP runtime/operator mutations for:
+  - `mcp.setToolPreferences`
+  - `mcp.loadTool`
+  - `mcp.unloadTool`
+  - `mcp.clearToolSelectionTelemetry`
+  - `mcp.clearWorkingSetEvictionHistory`
+  - `mcp.setLifecycleModes`
+- These now map onto the existing Go endpoints under `/api/mcp/*` instead of failing only because the TypeScript `/trpc` backend is unavailable
+- Added focused regression coverage in `apps/web/src/app/api/trpc/[trpc]/route.test.ts`
+
+#### Validation performed
+- `pnpm exec vitest run apps/web/src/app/api/trpc/[trpc]/route.test.ts`
+- `pnpm -C apps/web run build`
+
+#### Recommended next step after this pass
+Keep shrinking the remaining Go-primary dashboard compatibility gap by targeting other operator-critical mutation clusters that still fail without `/trpc`, preferring existing Go `/api/*` ownership wherever it already exists.
+
 ### Latest incremental pass — Go-backed session dashboard compatibility in web fallback mode
 This follow-up made the Go-primary dashboard materially more usable by teaching the local dashboard compat route to use the already-existing Go session-supervisor HTTP surface for key session reads/mutations.
 

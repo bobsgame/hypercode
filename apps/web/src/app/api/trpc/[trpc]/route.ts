@@ -174,13 +174,21 @@ const LEGACY_COMPAT_RESPONSES: Record<LegacyCompatResponseKey, unknown> = {
 
 const LEGACY_MCP_PROCEDURES = new Set(Object.keys(LEGACY_COMPAT_RESPONSE_KEYS));
 const LOCAL_COMPAT_PROCEDURES = new Set(Object.keys(LOCAL_COMPAT_RESPONSE_KEYS));
-const LOCAL_MCP_MUTATION_PROCEDURES = new Set([
+const LOCAL_MCP_CONFIG_MUTATION_PROCEDURES = new Set([
   'mcpServers.create',
   'mcpServers.update',
   'mcpServers.delete',
   'mcpServers.reloadMetadata',
   'mcpServers.clearMetadataCache',
   'serverHealth.reset',
+]);
+const LOCAL_MCP_RUNTIME_MUTATION_PROCEDURES = new Set([
+  'mcp.setToolPreferences',
+  'mcp.loadTool',
+  'mcp.unloadTool',
+  'mcp.clearToolSelectionTelemetry',
+  'mcp.clearWorkingSetEvictionHistory',
+  'mcp.setLifecycleModes',
 ]);
 const LOCAL_SESSION_MUTATION_PROCEDURES = new Set([
   'session.create',
@@ -192,7 +200,8 @@ const LOCAL_SESSION_MUTATION_PROCEDURES = new Set([
   'session.clear',
 ]);
 const LOCAL_COMPAT_MUTATION_PROCEDURES = new Set([
-  ...LOCAL_MCP_MUTATION_PROCEDURES,
+  ...LOCAL_MCP_CONFIG_MUTATION_PROCEDURES,
+  ...LOCAL_MCP_RUNTIME_MUTATION_PROCEDURES,
   ...LOCAL_SESSION_MUTATION_PROCEDURES,
 ]);
 
@@ -2752,9 +2761,70 @@ async function tryLocalSessionMutation(req: Request, body: string | undefined): 
   });
 }
 
+async function tryLocalMCPRuntimeMutation(req: Request, body: string | undefined): Promise<Response | null> {
+  const procedures = getProcedureNames(req);
+  const procedureName = procedures[0] ?? '';
+  if (req.method !== 'POST' || procedures.length !== 1 || !LOCAL_MCP_RUNTIME_MUTATION_PROCEDURES.has(procedureName)) {
+    return null;
+  }
+
+  const input = extractTrpcRequestInput(body, req);
+  if ((input === null || input === undefined || typeof input === 'object')) {
+    let endpointPath = '';
+    let requestBody: string | undefined;
+
+    if (procedureName === 'mcp.setToolPreferences') {
+      endpointPath = '/api/mcp/preferences';
+      requestBody = JSON.stringify(input ?? {});
+    } else if (procedureName === 'mcp.loadTool') {
+      endpointPath = '/api/mcp/working-set/load';
+      requestBody = JSON.stringify(input ?? {});
+    } else if (procedureName === 'mcp.unloadTool') {
+      endpointPath = '/api/mcp/working-set/unload';
+      requestBody = JSON.stringify(input ?? {});
+    } else if (procedureName === 'mcp.clearToolSelectionTelemetry') {
+      endpointPath = '/api/mcp/tool-selection-telemetry/clear';
+      requestBody = JSON.stringify(input ?? {});
+    } else if (procedureName === 'mcp.clearWorkingSetEvictionHistory') {
+      endpointPath = '/api/mcp/working-set/evictions/clear';
+      requestBody = JSON.stringify(input ?? {});
+    } else if (procedureName === 'mcp.setLifecycleModes') {
+      endpointPath = '/api/mcp/lifecycle-modes';
+      requestBody = JSON.stringify(input ?? {});
+    }
+
+    if (!endpointPath) {
+      return null;
+    }
+
+    const data = await fetchNativeControlPlaneData<unknown>(endpointPath, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+      },
+      ...(requestBody ? { body: requestBody } : {}),
+    });
+
+    if (data === null) {
+      return null;
+    }
+
+    return buildTrpcResponse(req, data, {
+      status: 200,
+      headers: { 'x-hypercode-trpc-compat': 'local-mcp-runtime-action' },
+    });
+  }
+
+  return buildTrpcResponse(req, undefined, {
+    status: 400,
+    statusText: 'Invalid local MCP runtime compat input',
+    headers: { 'x-hypercode-trpc-compat': 'local-mcp-runtime-action' },
+  });
+}
+
 async function tryLocalManagedServerMutation(req: Request, body: string | undefined): Promise<Response | null> {
   const procedures = getProcedureNames(req);
-  if (req.method !== 'POST' || procedures.length !== 1 || !LOCAL_MCP_MUTATION_PROCEDURES.has(procedures[0] ?? '')) {
+  if (req.method !== 'POST' || procedures.length !== 1 || !LOCAL_MCP_CONFIG_MUTATION_PROCEDURES.has(procedures[0] ?? '')) {
     return null;
   }
 
@@ -3009,6 +3079,11 @@ async function handler(req: Request): Promise<Response> {
     const localSessionMutationResponse = await tryLocalSessionMutation(req, body);
     if (localSessionMutationResponse) {
       return localSessionMutationResponse;
+    }
+
+    const localMCPRuntimeMutationResponse = await tryLocalMCPRuntimeMutation(req, body);
+    if (localMCPRuntimeMutationResponse) {
+      return localMCPRuntimeMutationResponse;
     }
 
     const localManagedMutationResponse = await tryLocalManagedServerMutation(req, body);

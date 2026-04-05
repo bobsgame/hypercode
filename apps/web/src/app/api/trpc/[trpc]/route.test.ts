@@ -1699,6 +1699,116 @@ describe('legacy MCP dashboard compatibility bridge', () => {
     expect((global.fetch as ReturnType<typeof vi.fn>).mock.calls.some(([url]) => String(url) === 'http://127.0.0.1:4400/api/sessions/supervisor/clear')).toBe(true);
   });
 
+  it('prefers go-native MCP runtime mutations in local dashboard fallback mode', async () => {
+    process.env.HYPERCODE_TRPC_UPSTREAM = 'http://127.0.0.1:4500/trpc';
+    global.fetch = vi.fn(async (input, init) => {
+      const url = String(input);
+
+      if (url.includes('/trpc/')) {
+        throw new Error('connect ECONNREFUSED');
+      }
+
+      if (url === 'http://127.0.0.1:4500/api/mcp/preferences' && init?.method === 'POST') {
+        return new Response(JSON.stringify({
+          success: true,
+          data: {
+            importantTools: ['search_tools', 'list_all_tools'],
+            alwaysLoadedTools: ['search_tools'],
+          },
+        }), { status: 200, headers: { 'content-type': 'application/json' } });
+      }
+
+      if (url === 'http://127.0.0.1:4500/api/mcp/working-set/load' && init?.method === 'POST') {
+        return new Response(JSON.stringify({ success: true, data: { ok: true, message: 'loaded' } }), { status: 200, headers: { 'content-type': 'application/json' } });
+      }
+
+      if (url === 'http://127.0.0.1:4500/api/mcp/working-set/unload' && init?.method === 'POST') {
+        return new Response(JSON.stringify({ success: true, data: { ok: true, message: 'unloaded' } }), { status: 200, headers: { 'content-type': 'application/json' } });
+      }
+
+      if (url === 'http://127.0.0.1:4500/api/mcp/tool-selection-telemetry/clear' && init?.method === 'POST') {
+        return new Response(JSON.stringify({ success: true, data: { ok: true } }), { status: 200, headers: { 'content-type': 'application/json' } });
+      }
+
+      if (url === 'http://127.0.0.1:4500/api/mcp/working-set/evictions/clear' && init?.method === 'POST') {
+        return new Response(JSON.stringify({ success: true, data: { ok: true, message: 'cleared' } }), { status: 200, headers: { 'content-type': 'application/json' } });
+      }
+
+      if (url === 'http://127.0.0.1:4500/api/mcp/lifecycle-modes' && init?.method === 'POST') {
+        return new Response(JSON.stringify({
+          success: true,
+          data: {
+            ok: true,
+            lifecycle: {
+              lazySessionMode: true,
+              singleActiveServerMode: false,
+            },
+          },
+        }), { status: 200, headers: { 'content-type': 'application/json' } });
+      }
+
+      throw new Error(`Unexpected fetch: ${url}`);
+    }) as typeof fetch;
+
+    const setPreferencesResponse = await POST(new Request('http://localhost:3010/api/trpc/mcp.setToolPreferences', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ json: { importantTools: ['search_tools', 'list_all_tools'] } }),
+    }));
+    expect(setPreferencesResponse.headers.get('x-hypercode-trpc-compat')).toBe('local-mcp-runtime-action');
+    expect((await setPreferencesResponse.json())?.result?.data).toEqual(expect.objectContaining({
+      importantTools: ['search_tools', 'list_all_tools'],
+    }));
+
+    const loadResponse = await POST(new Request('http://localhost:3010/api/trpc/mcp.loadTool', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ json: { name: 'search_tools' } }),
+    }));
+    expect((await loadResponse.json())?.result?.data).toEqual({ ok: true, message: 'loaded' });
+
+    const unloadResponse = await POST(new Request('http://localhost:3010/api/trpc/mcp.unloadTool', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ json: { name: 'search_tools' } }),
+    }));
+    expect((await unloadResponse.json())?.result?.data).toEqual({ ok: true, message: 'unloaded' });
+
+    const clearTelemetryResponse = await POST(new Request('http://localhost:3010/api/trpc/mcp.clearToolSelectionTelemetry', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ json: null }),
+    }));
+    expect((await clearTelemetryResponse.json())?.result?.data).toEqual({ ok: true });
+
+    const clearEvictionsResponse = await POST(new Request('http://localhost:3010/api/trpc/mcp.clearWorkingSetEvictionHistory', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ json: null }),
+    }));
+    expect((await clearEvictionsResponse.json())?.result?.data).toEqual({ ok: true, message: 'cleared' });
+
+    const setLifecycleResponse = await POST(new Request('http://localhost:3010/api/trpc/mcp.setLifecycleModes', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ json: { lazySessionMode: true, singleActiveServerMode: false } }),
+    }));
+    expect((await setLifecycleResponse.json())?.result?.data).toEqual(expect.objectContaining({
+      ok: true,
+      lifecycle: {
+        lazySessionMode: true,
+        singleActiveServerMode: false,
+      },
+    }));
+
+    expect((global.fetch as ReturnType<typeof vi.fn>).mock.calls.some(([url]) => String(url) === 'http://127.0.0.1:4500/api/mcp/preferences')).toBe(true);
+    expect((global.fetch as ReturnType<typeof vi.fn>).mock.calls.some(([url]) => String(url) === 'http://127.0.0.1:4500/api/mcp/working-set/load')).toBe(true);
+    expect((global.fetch as ReturnType<typeof vi.fn>).mock.calls.some(([url]) => String(url) === 'http://127.0.0.1:4500/api/mcp/working-set/unload')).toBe(true);
+    expect((global.fetch as ReturnType<typeof vi.fn>).mock.calls.some(([url]) => String(url) === 'http://127.0.0.1:4500/api/mcp/tool-selection-telemetry/clear')).toBe(true);
+    expect((global.fetch as ReturnType<typeof vi.fn>).mock.calls.some(([url]) => String(url) === 'http://127.0.0.1:4500/api/mcp/working-set/evictions/clear')).toBe(true);
+    expect((global.fetch as ReturnType<typeof vi.fn>).mock.calls.some(([url]) => String(url) === 'http://127.0.0.1:4500/api/mcp/lifecycle-modes')).toBe(true);
+  });
+
   it('normalizes batched bulk import payloads before proxying them upstream', async () => {
     process.env.HYPERCODE_TRPC_UPSTREAM = 'http://127.0.0.1:3100/trpc';
     const upstreamResponse = [

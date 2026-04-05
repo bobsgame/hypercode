@@ -136,6 +136,7 @@ Make Go the default runtime started by operator entrypoints.
 - Go-primary startup no longer has to hard-skip the web dashboard: `hypercode start --runtime auto|go` can now launch the Next.js dashboard in a compatibility-backed mode against the live Go control plane, while still warning explicitly that some mutation-heavy surfaces remain compatibility-dependent during the migration
 - the shared Next.js compat route now also maps the session dashboard's key supervisor reads/mutations onto Go `/api/sessions/supervisor/*` routes when `/trpc` is unavailable, making Go-primary dashboard startup materially more usable for supervised-session workflows instead of only launching the shell UI
 - the shared Next.js compat route now also maps key MCP inspector/search/system mutations onto Go `/api/mcp/*` routes when `/trpc` is unavailable, reducing degraded-mode dependence on TS-era MCP mutation contracts for operator runtime control
+- Go now also owns native fallback behavior for API key and workspace-secret writes in the HTTP layer, and the shared Next.js compat route exposes `secrets.list` plus API key/secret admin mutations during `/trpc` outage, making the governance/admin dashboard cluster more usable in Go-primary degraded mode
 - explicit Node compatibility mode still uses the full workspace build path and still defaults to a full install/build posture
 - full builds remain available via `HYPERCODE_FULL_BUILD=1`
 

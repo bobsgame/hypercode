@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	crand "crypto/rand"
 	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
@@ -27,6 +28,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/hypercodehq/hypercode-go/internal/buildinfo"
 	"github.com/hypercodehq/hypercode-go/internal/config"
 	"github.com/hypercodehq/hypercode-go/internal/controlplane"
@@ -6803,7 +6805,41 @@ func (s *Server) handleAPIKeysGet(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleAPIKeysCreate(w http.ResponseWriter, r *http.Request) {
-	s.handleTRPCBridgeBodyCall(w, r, "apiKeys.create")
+	var payload map[string]any
+	if err := decodeJSONBody(r, &payload); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"success": false, "error": "invalid JSON body"})
+		return
+	}
+
+	var result any
+	upstreamBase, err := s.callUpstreamJSON(r.Context(), "apiKeys.create", payload, &result)
+	if err == nil {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"data":    result,
+			"bridge": map[string]any{
+				"upstreamBase": upstreamBase,
+				"procedure":    "apiKeys.create",
+			},
+		})
+		return
+	}
+
+	apiKey, fallbackErr := s.localCreateAPIKey(payload)
+	if fallbackErr != nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"success": false, "error": fallbackErr.Error(), "detail": fallbackErr.Error()})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"data":    apiKey,
+		"bridge": map[string]any{
+			"fallback":  "go-local-policy-db",
+			"procedure": "apiKeys.create",
+			"reason":    "upstream unavailable; created local metamcp API key record",
+		},
+	})
 }
 
 func (s *Server) handleAPIKeysUpdate(w http.ResponseWriter, r *http.Request) {
@@ -6811,7 +6847,41 @@ func (s *Server) handleAPIKeysUpdate(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleAPIKeysDelete(w http.ResponseWriter, r *http.Request) {
-	s.handleTRPCBridgeBodyCall(w, r, "apiKeys.delete")
+	var payload map[string]any
+	if err := decodeJSONBody(r, &payload); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"success": false, "error": "invalid JSON body"})
+		return
+	}
+
+	var result any
+	upstreamBase, err := s.callUpstreamJSON(r.Context(), "apiKeys.delete", payload, &result)
+	if err == nil {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"data":    result,
+			"bridge": map[string]any{
+				"upstreamBase": upstreamBase,
+				"procedure":    "apiKeys.delete",
+			},
+		})
+		return
+	}
+
+	deleteResult, fallbackErr := s.localDeleteAPIKey(strings.TrimSpace(stringValue(payload["uuid"])))
+	if fallbackErr != nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"success": false, "error": fallbackErr.Error(), "detail": fallbackErr.Error()})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"data":    deleteResult,
+		"bridge": map[string]any{
+			"fallback":  "go-local-policy-db",
+			"procedure": "apiKeys.delete",
+			"reason":    "upstream unavailable; deleted local metamcp API key record",
+		},
+	})
 }
 
 func (s *Server) handleAPIKeysValidate(w http.ResponseWriter, r *http.Request) {
@@ -7531,11 +7601,79 @@ func (s *Server) handleSecretsList(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleSecretsSet(w http.ResponseWriter, r *http.Request) {
-	s.handleTRPCBridgeBodyCall(w, r, "secrets.set")
+	var payload map[string]any
+	if err := decodeJSONBody(r, &payload); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"success": false, "error": "invalid JSON body"})
+		return
+	}
+
+	var result any
+	upstreamBase, err := s.callUpstreamJSON(r.Context(), "secrets.set", payload, &result)
+	if err == nil {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"data":    result,
+			"bridge": map[string]any{
+				"upstreamBase": upstreamBase,
+				"procedure":    "secrets.set",
+			},
+		})
+		return
+	}
+
+	setResult, fallbackErr := s.localSetSecret(strings.TrimSpace(stringValue(payload["key"])), stringValue(payload["value"]))
+	if fallbackErr != nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"success": false, "error": fallbackErr.Error(), "detail": fallbackErr.Error()})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"data":    setResult,
+		"bridge": map[string]any{
+			"fallback":  "go-local-policy-db",
+			"procedure": "secrets.set",
+			"reason":    "upstream unavailable; saved local metamcp workspace secret",
+		},
+	})
 }
 
 func (s *Server) handleSecretsDelete(w http.ResponseWriter, r *http.Request) {
-	s.handleTRPCBridgeBodyCall(w, r, "secrets.delete")
+	var payload map[string]any
+	if err := decodeJSONBody(r, &payload); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"success": false, "error": "invalid JSON body"})
+		return
+	}
+
+	var result any
+	upstreamBase, err := s.callUpstreamJSON(r.Context(), "secrets.delete", payload, &result)
+	if err == nil {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"data":    result,
+			"bridge": map[string]any{
+				"upstreamBase": upstreamBase,
+				"procedure":    "secrets.delete",
+			},
+		})
+		return
+	}
+
+	deleteResult, fallbackErr := s.localDeleteSecret(strings.TrimSpace(stringValue(payload["key"])))
+	if fallbackErr != nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"success": false, "error": fallbackErr.Error(), "detail": fallbackErr.Error()})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"data":    deleteResult,
+		"bridge": map[string]any{
+			"fallback":  "go-local-policy-db",
+			"procedure": "secrets.delete",
+			"reason":    "upstream unavailable; deleted local metamcp workspace secret",
+		},
+	})
 }
 
 func (s *Server) handleMarketplaceList(w http.ResponseWriter, r *http.Request) {
@@ -10340,6 +10478,7 @@ func (s *Server) localAPIKeys() ([]map[string]any, error) {
 			"uuid":       keyUUID,
 			"name":       name,
 			"key":        keyValue,
+			"key_prefix": apiKeyPrefix(keyValue),
 			"created_at": unixTimestampToRFC3339(createdAtRaw),
 			"is_active":  isActive,
 			"user_id":    nullStringToAny(userID),
@@ -10385,10 +10524,166 @@ func (s *Server) localAPIKey(uuid string) (any, error) {
 		"uuid":       keyUUID,
 		"name":       name,
 		"key":        keyValue,
+		"key_prefix": apiKeyPrefix(keyValue),
 		"created_at": unixTimestampToRFC3339(createdAtRaw),
 		"is_active":  isActive,
 		"user_id":    nullStringToAny(userID),
 	}, nil
+}
+
+func (s *Server) ensureLocalOperatorTables(db *sql.DB) error {
+	_, err := db.Exec(`
+		CREATE TABLE IF NOT EXISTS api_keys (
+			uuid TEXT PRIMARY KEY,
+			name TEXT NOT NULL,
+			key TEXT NOT NULL UNIQUE,
+			user_id TEXT,
+			created_at INTEGER NOT NULL,
+			is_active INTEGER NOT NULL DEFAULT 1
+		);
+		CREATE TABLE IF NOT EXISTS workspace_secrets (
+			key TEXT PRIMARY KEY,
+			value TEXT NOT NULL,
+			created_at INTEGER NOT NULL,
+			updated_at INTEGER NOT NULL
+		);
+	`)
+	return err
+}
+
+func apiKeyPrefix(keyValue string) string {
+	trimmed := strings.TrimSpace(keyValue)
+	if trimmed == "" {
+		return "sk-..."
+	}
+	if len(trimmed) <= 8 {
+		return trimmed
+	}
+	return trimmed[:8]
+}
+
+func generateLocalAPIKeyValue() (string, error) {
+	randomBytes := make([]byte, 18)
+	if _, err := crand.Read(randomBytes); err != nil {
+		return "", err
+	}
+	return "sk_" + hex.EncodeToString(randomBytes), nil
+}
+
+func (s *Server) localCreateAPIKey(payload map[string]any) (any, error) {
+	name := strings.TrimSpace(stringValue(payload["name"]))
+	if name == "" {
+		return nil, fmt.Errorf("missing API key name")
+	}
+	isActive := true
+	if raw, ok := payload["is_active"].(bool); ok {
+		isActive = raw
+	}
+
+	db, err := sql.Open("sqlite", s.localMetaMCPDBPath())
+	if err != nil {
+		return nil, err
+	}
+	defer db.Close()
+	if err := s.ensureLocalOperatorTables(db); err != nil {
+		return nil, err
+	}
+
+	keyUUID := uuid.NewString()
+	keyValue, err := generateLocalAPIKeyValue()
+	if err != nil {
+		return nil, err
+	}
+	createdAt := time.Now().UTC().Unix()
+	if _, err := db.Exec(`
+		INSERT INTO api_keys (uuid, name, key, user_id, created_at, is_active)
+		VALUES (?, ?, ?, NULL, ?, ?)
+	`, keyUUID, name, keyValue, createdAt, isActive); err != nil {
+		return nil, err
+	}
+
+	return map[string]any{
+		"uuid":       keyUUID,
+		"name":       name,
+		"key":        keyValue,
+		"key_prefix": apiKeyPrefix(keyValue),
+		"created_at": unixTimestampToRFC3339(createdAt),
+		"is_active":  isActive,
+		"user_id":    nil,
+	}, nil
+}
+
+func (s *Server) localDeleteAPIKey(keyUUID string) (any, error) {
+	if strings.TrimSpace(keyUUID) == "" {
+		return nil, fmt.Errorf("missing API key uuid")
+	}
+
+	db, err := sql.Open("sqlite", s.localMetaMCPDBPath())
+	if err != nil {
+		return nil, err
+	}
+	defer db.Close()
+	if err := s.ensureLocalOperatorTables(db); err != nil {
+		return nil, err
+	}
+
+	result, err := db.Exec(`DELETE FROM api_keys WHERE uuid = ? AND user_id IS NULL`, keyUUID)
+	if err != nil {
+		return nil, err
+	}
+	deleted, _ := result.RowsAffected()
+	return map[string]any{
+		"success": deleted > 0,
+	}, nil
+}
+
+func (s *Server) localSetSecret(key string, value string) (any, error) {
+	key = strings.TrimSpace(key)
+	if key == "" {
+		return nil, fmt.Errorf("missing secret key")
+	}
+
+	db, err := sql.Open("sqlite", s.localMetaMCPDBPath())
+	if err != nil {
+		return nil, err
+	}
+	defer db.Close()
+	if err := s.ensureLocalOperatorTables(db); err != nil {
+		return nil, err
+	}
+
+	now := time.Now().UTC().Unix()
+	if _, err := db.Exec(`
+		INSERT INTO workspace_secrets (key, value, created_at, updated_at)
+		VALUES (?, ?, ?, ?)
+		ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
+	`, key, value, now, now); err != nil {
+		return nil, err
+	}
+
+	return map[string]any{"success": true}, nil
+}
+
+func (s *Server) localDeleteSecret(key string) (any, error) {
+	key = strings.TrimSpace(key)
+	if key == "" {
+		return nil, fmt.Errorf("missing secret key")
+	}
+
+	db, err := sql.Open("sqlite", s.localMetaMCPDBPath())
+	if err != nil {
+		return nil, err
+	}
+	defer db.Close()
+	if err := s.ensureLocalOperatorTables(db); err != nil {
+		return nil, err
+	}
+
+	if _, err := db.Exec(`DELETE FROM workspace_secrets WHERE key = ?`, key); err != nil {
+		return nil, err
+	}
+
+	return map[string]any{"success": true}, nil
 }
 
 func (s *Server) localLinksBacklogItem(uuid string) (any, error) {

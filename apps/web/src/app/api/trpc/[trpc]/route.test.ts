@@ -1699,6 +1699,102 @@ describe('legacy MCP dashboard compatibility bridge', () => {
     expect((global.fetch as ReturnType<typeof vi.fn>).mock.calls.some(([url]) => String(url) === 'http://127.0.0.1:4400/api/sessions/supervisor/clear')).toBe(true);
   });
 
+  it('prefers go-native operator reads and mutations in local dashboard fallback mode', async () => {
+    process.env.HYPERCODE_TRPC_UPSTREAM = 'http://127.0.0.1:4550/trpc';
+    global.fetch = vi.fn(async (input, init) => {
+      const url = String(input);
+
+      if (url.includes('/trpc/')) {
+        throw new Error('connect ECONNREFUSED');
+      }
+
+      if (url === 'http://127.0.0.1:4550/api/secrets') {
+        return new Response(JSON.stringify({
+          success: true,
+          data: [
+            { key: 'OPENAI_API_KEY', updated_at: '2026-04-05T16:00:00.000Z' },
+          ],
+        }), { status: 200, headers: { 'content-type': 'application/json' } });
+      }
+
+      if (url === 'http://127.0.0.1:4550/api/api-keys/create' && init?.method === 'POST') {
+        return new Response(JSON.stringify({
+          success: true,
+          data: {
+            uuid: 'key-created-1',
+            name: 'Dashboard Key',
+            key: 'sk_local_created_123456',
+            key_prefix: 'sk_local_',
+            created_at: '2026-04-05T16:00:00.000Z',
+            is_active: true,
+          },
+        }), { status: 200, headers: { 'content-type': 'application/json' } });
+      }
+
+      if (url === 'http://127.0.0.1:4550/api/api-keys/delete' && init?.method === 'POST') {
+        return new Response(JSON.stringify({ success: true, data: { success: true } }), { status: 200, headers: { 'content-type': 'application/json' } });
+      }
+
+      if (url === 'http://127.0.0.1:4550/api/secrets/set' && init?.method === 'POST') {
+        return new Response(JSON.stringify({ success: true, data: { success: true } }), { status: 200, headers: { 'content-type': 'application/json' } });
+      }
+
+      if (url === 'http://127.0.0.1:4550/api/secrets/delete' && init?.method === 'POST') {
+        return new Response(JSON.stringify({ success: true, data: { success: true } }), { status: 200, headers: { 'content-type': 'application/json' } });
+      }
+
+      throw new Error(`Unexpected fetch: ${url}`);
+    }) as typeof fetch;
+
+    const secretsListResponse = await POST(new Request('http://localhost:3010/api/trpc/secrets.list', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ json: null }),
+    }));
+    expect(secretsListResponse.headers.get('x-hypercode-trpc-compat')).toBe('local-dashboard-fallback');
+    expect((await secretsListResponse.json())?.result?.data).toEqual([
+      expect.objectContaining({ key: 'OPENAI_API_KEY' }),
+    ]);
+
+    const createApiKeyResponse = await POST(new Request('http://localhost:3010/api/trpc/apiKeys.create', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ json: { name: 'Dashboard Key', type: 'MCP' } }),
+    }));
+    expect(createApiKeyResponse.headers.get('x-hypercode-trpc-compat')).toBe('local-operator-action');
+    expect((await createApiKeyResponse.json())?.result?.data).toEqual(expect.objectContaining({
+      uuid: 'key-created-1',
+      key: 'sk_local_created_123456',
+    }));
+
+    const deleteApiKeyResponse = await POST(new Request('http://localhost:3010/api/trpc/apiKeys.delete', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ json: { uuid: 'key-created-1' } }),
+    }));
+    expect((await deleteApiKeyResponse.json())?.result?.data).toEqual({ success: true });
+
+    const setSecretResponse = await POST(new Request('http://localhost:3010/api/trpc/secrets.set', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ json: { key: 'OPENAI_API_KEY', value: 'secret-value' } }),
+    }));
+    expect((await setSecretResponse.json())?.result?.data).toEqual({ success: true });
+
+    const deleteSecretResponse = await POST(new Request('http://localhost:3010/api/trpc/secrets.delete', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ json: { key: 'OPENAI_API_KEY' } }),
+    }));
+    expect((await deleteSecretResponse.json())?.result?.data).toEqual({ success: true });
+
+    expect((global.fetch as ReturnType<typeof vi.fn>).mock.calls.some(([url]) => String(url) === 'http://127.0.0.1:4550/api/secrets')).toBe(true);
+    expect((global.fetch as ReturnType<typeof vi.fn>).mock.calls.some(([url]) => String(url) === 'http://127.0.0.1:4550/api/api-keys/create')).toBe(true);
+    expect((global.fetch as ReturnType<typeof vi.fn>).mock.calls.some(([url]) => String(url) === 'http://127.0.0.1:4550/api/api-keys/delete')).toBe(true);
+    expect((global.fetch as ReturnType<typeof vi.fn>).mock.calls.some(([url]) => String(url) === 'http://127.0.0.1:4550/api/secrets/set')).toBe(true);
+    expect((global.fetch as ReturnType<typeof vi.fn>).mock.calls.some(([url]) => String(url) === 'http://127.0.0.1:4550/api/secrets/delete')).toBe(true);
+  });
+
   it('prefers go-native MCP runtime mutations in local dashboard fallback mode', async () => {
     process.env.HYPERCODE_TRPC_UPSTREAM = 'http://127.0.0.1:4500/trpc';
     global.fetch = vi.fn(async (input, init) => {

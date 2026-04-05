@@ -7668,6 +7668,77 @@ func TestSecretsListFallsBackToLocalDB(t *testing.T) {
 	}
 }
 
+func TestSecretsSetAndDeleteFallBackToLocalDB(t *testing.T) {
+	t.Setenv("HYPERCODE_TRPC_UPSTREAM", "http://127.0.0.1:1/trpc")
+
+	workspace := t.TempDir()
+	dbPath := filepath.Join(workspace, "metamcp.db")
+	db, err := sql.Open("sqlite", dbPath)
+	if err != nil {
+		t.Fatalf("failed to open sqlite db: %v", err)
+	}
+	defer db.Close()
+
+	if _, err := db.Exec(`
+		CREATE TABLE workspace_secrets (
+			key TEXT PRIMARY KEY,
+			value TEXT NOT NULL,
+			created_at INTEGER NOT NULL,
+			updated_at INTEGER NOT NULL
+		);
+	`); err != nil {
+		t.Fatalf("failed to create sqlite db schema: %v", err)
+	}
+
+	cfg := config.Default()
+	cfg.WorkspaceRoot = workspace
+	cfg.ConfigDir = t.TempDir()
+	cfg.MainConfigDir = t.TempDir()
+	server := New(cfg, stubDetector{})
+
+	setReq := httptest.NewRequest(http.MethodPost, "/api/secrets/set", strings.NewReader(`{"key":"OPENAI_API_KEY","value":"secret-one"}`))
+	setReq.Header.Set("content-type", "application/json")
+	setRecorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(setRecorder, setReq)
+	if setRecorder.Code != http.StatusOK {
+		t.Fatalf("expected 200 from secrets.set fallback, got %d with body %s", setRecorder.Code, setRecorder.Body.String())
+	}
+	for _, needle := range []string{`"fallback":"go-local-policy-db"`, `"procedure":"secrets.set"`, `"success":true`} {
+		if !strings.Contains(setRecorder.Body.String(), needle) {
+			t.Fatalf("expected secrets.set fallback to contain %s, got %s", needle, setRecorder.Body.String())
+		}
+	}
+
+	var storedValue string
+	if err := db.QueryRow(`SELECT value FROM workspace_secrets WHERE key = 'OPENAI_API_KEY'`).Scan(&storedValue); err != nil {
+		t.Fatalf("failed to verify stored secret: %v", err)
+	}
+	if storedValue != "secret-one" {
+		t.Fatalf("expected stored secret value secret-one, got %s", storedValue)
+	}
+
+	deleteReq := httptest.NewRequest(http.MethodPost, "/api/secrets/delete", strings.NewReader(`{"key":"OPENAI_API_KEY"}`))
+	deleteReq.Header.Set("content-type", "application/json")
+	deleteRecorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(deleteRecorder, deleteReq)
+	if deleteRecorder.Code != http.StatusOK {
+		t.Fatalf("expected 200 from secrets.delete fallback, got %d with body %s", deleteRecorder.Code, deleteRecorder.Body.String())
+	}
+	for _, needle := range []string{`"fallback":"go-local-policy-db"`, `"procedure":"secrets.delete"`, `"success":true`} {
+		if !strings.Contains(deleteRecorder.Body.String(), needle) {
+			t.Fatalf("expected secrets.delete fallback to contain %s, got %s", needle, deleteRecorder.Body.String())
+		}
+	}
+
+	var remaining int
+	if err := db.QueryRow(`SELECT count(*) FROM workspace_secrets WHERE key = 'OPENAI_API_KEY'`).Scan(&remaining); err != nil {
+		t.Fatalf("failed to count remaining secrets: %v", err)
+	}
+	if remaining != 0 {
+		t.Fatalf("expected deleted secret to be removed, found %d rows", remaining)
+	}
+}
+
 func TestAPIKeysGetFallsBackToLocalDB(t *testing.T) {
 	t.Setenv("HYPERCODE_TRPC_UPSTREAM", "http://127.0.0.1:1/trpc")
 
@@ -7723,6 +7794,79 @@ func TestAPIKeysGetFallsBackToLocalDB(t *testing.T) {
 	}
 	if strings.Contains(recorder.Body.String(), "key-2") || strings.Contains(recorder.Body.String(), "sk_private_456") {
 		t.Fatalf("expected api key fallback to exclude non-public keys, got %s", recorder.Body.String())
+	}
+}
+
+func TestAPIKeysCreateAndDeleteFallBackToLocalDB(t *testing.T) {
+	t.Setenv("HYPERCODE_TRPC_UPSTREAM", "http://127.0.0.1:1/trpc")
+
+	workspace := t.TempDir()
+	dbPath := filepath.Join(workspace, "metamcp.db")
+	db, err := sql.Open("sqlite", dbPath)
+	if err != nil {
+		t.Fatalf("failed to open sqlite db: %v", err)
+	}
+	defer db.Close()
+
+	if _, err := db.Exec(`
+		CREATE TABLE api_keys (
+			uuid TEXT PRIMARY KEY,
+			name TEXT NOT NULL,
+			key TEXT NOT NULL UNIQUE,
+			user_id TEXT,
+			created_at INTEGER NOT NULL,
+			is_active INTEGER NOT NULL DEFAULT 1
+		);
+	`); err != nil {
+		t.Fatalf("failed to create sqlite db schema: %v", err)
+	}
+
+	cfg := config.Default()
+	cfg.WorkspaceRoot = workspace
+	cfg.ConfigDir = t.TempDir()
+	cfg.MainConfigDir = t.TempDir()
+	server := New(cfg, stubDetector{})
+
+	createReq := httptest.NewRequest(http.MethodPost, "/api/api-keys/create", strings.NewReader(`{"name":"Dashboard Key","type":"MCP","is_active":true}`))
+	createReq.Header.Set("content-type", "application/json")
+	createRecorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(createRecorder, createReq)
+	if createRecorder.Code != http.StatusOK {
+		t.Fatalf("expected 200 from apiKeys.create fallback, got %d with body %s", createRecorder.Code, createRecorder.Body.String())
+	}
+	for _, needle := range []string{`"fallback":"go-local-policy-db"`, `"procedure":"apiKeys.create"`, `"name":"Dashboard Key"`, `"key_prefix":"`} {
+		if !strings.Contains(createRecorder.Body.String(), needle) {
+			t.Fatalf("expected apiKeys.create fallback to contain %s, got %s", needle, createRecorder.Body.String())
+		}
+	}
+
+	var createdUUID, createdKey string
+	if err := db.QueryRow(`SELECT uuid, key FROM api_keys WHERE name = 'Dashboard Key'`).Scan(&createdUUID, &createdKey); err != nil {
+		t.Fatalf("failed to verify created API key: %v", err)
+	}
+	if strings.TrimSpace(createdUUID) == "" || !strings.HasPrefix(createdKey, "sk_") {
+		t.Fatalf("expected created API key row with uuid and sk_ key, got uuid=%q key=%q", createdUUID, createdKey)
+	}
+
+	deleteReq := httptest.NewRequest(http.MethodPost, "/api/api-keys/delete", strings.NewReader(`{"uuid":"`+createdUUID+`"}`))
+	deleteReq.Header.Set("content-type", "application/json")
+	deleteRecorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(deleteRecorder, deleteReq)
+	if deleteRecorder.Code != http.StatusOK {
+		t.Fatalf("expected 200 from apiKeys.delete fallback, got %d with body %s", deleteRecorder.Code, deleteRecorder.Body.String())
+	}
+	for _, needle := range []string{`"fallback":"go-local-policy-db"`, `"procedure":"apiKeys.delete"`, `"success":true`} {
+		if !strings.Contains(deleteRecorder.Body.String(), needle) {
+			t.Fatalf("expected apiKeys.delete fallback to contain %s, got %s", needle, deleteRecorder.Body.String())
+		}
+	}
+
+	var remaining int
+	if err := db.QueryRow(`SELECT count(*) FROM api_keys WHERE uuid = ?`, createdUUID).Scan(&remaining); err != nil {
+		t.Fatalf("failed to count remaining API keys: %v", err)
+	}
+	if remaining != 0 {
+		t.Fatalf("expected deleted API key to be removed, found %d rows", remaining)
 	}
 }
 

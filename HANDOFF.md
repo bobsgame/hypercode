@@ -3,6 +3,35 @@
 ## Current status
 **Version:** `1.0.0-alpha.1`
 
+### Latest incremental pass — Go-backed operator admin write compatibility for API keys and secrets
+This follow-up added native Go fallback ownership plus shared dashboard compat support for the API key and secrets admin surfaces.
+
+#### What changed
+- Updated `go/internal/httpapi/server.go` so these routes now have native Go fallback ownership instead of bridge-only behavior when upstream `/trpc` is unavailable:
+  - `POST /api/api-keys/create`
+  - `POST /api/api-keys/delete`
+  - `POST /api/secrets/set`
+  - `POST /api/secrets/delete`
+- Added focused Go coverage in `go/internal/httpapi/server_test.go` for:
+  - `TestSecretsSetAndDeleteFallBackToLocalDB`
+  - `TestAPIKeysCreateAndDeleteFallBackToLocalDB`
+- Updated `apps/web/src/app/api/trpc/[trpc]/route.ts` so the shared Next.js compat route now supports:
+  - `secrets.list`
+  - `apiKeys.create`
+  - `apiKeys.delete`
+  - `secrets.set`
+  - `secrets.delete`
+- Added focused web compat regression coverage in `apps/web/src/app/api/trpc/[trpc]/route.test.ts`
+
+#### Validation performed
+- `cd go && gofmt -w internal/httpapi/server.go internal/httpapi/server_test.go`
+- `cd go && go test ./internal/httpapi -run 'TestSecretsSetAndDeleteFallBackToLocalDB|TestAPIKeysCreateAndDeleteFallBackToLocalDB|TestSecretsListFallsBackToLocalDB|TestAPIKeysGetFallsBackToLocalDB' -count=1`
+- `pnpm exec vitest run apps/web/src/app/api/trpc/[trpc]/route.test.ts`
+- `pnpm -C apps/web run build`
+
+#### Recommended next step after this pass
+Continue targeting other operator-critical dashboard mutation clusters that still depend on `/trpc`, especially places where the Go backend already has a truthful local `/api/*` route or can cheaply gain one.
+
 ### Latest incremental pass — Go-backed MCP dashboard mutation compatibility in web fallback mode
 This follow-up taught the shared Next.js compat route to use the already-existing Go `/api/mcp/*` mutation surface for key MCP inspector/search/system actions when `/trpc` is unavailable.
 

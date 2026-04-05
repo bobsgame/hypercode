@@ -138,6 +138,7 @@ const LOCAL_COMPAT_RESPONSE_KEYS = {
   'mcp.getJsoncEditor': 'mcp.getJsoncEditor',
   'mcpServers.get': 'mcpServers.get',
   'apiKeys.list': 'apiKeys.list',
+  'secrets.list': 'secrets.list',
   'tools.detectCliHarnesses': 'tools.detectCliHarnesses',
   'tools.detectExecutionEnvironment': 'tools.detectExecutionEnvironment',
   'tools.detectInstallSurfaces': 'tools.detectInstallSurfaces',
@@ -174,6 +175,12 @@ const LEGACY_COMPAT_RESPONSES: Record<LegacyCompatResponseKey, unknown> = {
 
 const LEGACY_MCP_PROCEDURES = new Set(Object.keys(LEGACY_COMPAT_RESPONSE_KEYS));
 const LOCAL_COMPAT_PROCEDURES = new Set(Object.keys(LOCAL_COMPAT_RESPONSE_KEYS));
+const LOCAL_OPERATOR_MUTATION_PROCEDURES = new Set([
+  'apiKeys.create',
+  'apiKeys.delete',
+  'secrets.set',
+  'secrets.delete',
+]);
 const LOCAL_MCP_CONFIG_MUTATION_PROCEDURES = new Set([
   'mcpServers.create',
   'mcpServers.update',
@@ -200,6 +207,7 @@ const LOCAL_SESSION_MUTATION_PROCEDURES = new Set([
   'session.clear',
 ]);
 const LOCAL_COMPAT_MUTATION_PROCEDURES = new Set([
+  ...LOCAL_OPERATOR_MUTATION_PROCEDURES,
   ...LOCAL_MCP_CONFIG_MUTATION_PROCEDURES,
   ...LOCAL_MCP_RUNTIME_MUTATION_PROCEDURES,
   ...LOCAL_SESSION_MUTATION_PROCEDURES,
@@ -1385,6 +1393,11 @@ async function buildPreferredApiKeys(): Promise<unknown[]> {
   return [];
 }
 
+async function buildPreferredSecretsList(): Promise<unknown[]> {
+  const secrets = await fetchNativeControlPlaneData<unknown[]>('/api/secrets');
+  return Array.isArray(secrets) ? secrets : [];
+}
+
 async function buildPreferredExpertStatus(): Promise<Record<string, unknown>> {
   const nativeExpertStatus = await fetchNativeStatusPayload<Record<string, unknown>>('/api/expert/status');
   if (!nativeExpertStatus) {
@@ -2272,6 +2285,7 @@ async function buildLocalCompatResponse(req: Request, body?: string): Promise<Re
     },
     'mcpServers.get': undefined,
     'apiKeys.list': apiKeys,
+    'secrets.list': await buildPreferredSecretsList(),
     'tools.detectCliHarnesses': cliHarnessDetections,
     'tools.detectExecutionEnvironment': executionEnvironment,
     'tools.detectInstallSurfaces': installSurfaces,
@@ -2761,6 +2775,54 @@ async function tryLocalSessionMutation(req: Request, body: string | undefined): 
   });
 }
 
+async function tryLocalOperatorMutation(req: Request, body: string | undefined): Promise<Response | null> {
+  const procedures = getProcedureNames(req);
+  const procedureName = procedures[0] ?? '';
+  if (req.method !== 'POST' || procedures.length !== 1 || !LOCAL_OPERATOR_MUTATION_PROCEDURES.has(procedureName)) {
+    return null;
+  }
+
+  const input = extractTrpcRequestInput(body, req);
+  if (!input || typeof input !== 'object') {
+    return buildTrpcResponse(req, undefined, {
+      status: 400,
+      statusText: 'Invalid local operator compat input',
+      headers: { 'x-hypercode-trpc-compat': 'local-operator-action' },
+    });
+  }
+
+  let endpointPath = '';
+  if (procedureName === 'apiKeys.create') {
+    endpointPath = '/api/api-keys/create';
+  } else if (procedureName === 'apiKeys.delete') {
+    endpointPath = '/api/api-keys/delete';
+  } else if (procedureName === 'secrets.set') {
+    endpointPath = '/api/secrets/set';
+  } else if (procedureName === 'secrets.delete') {
+    endpointPath = '/api/secrets/delete';
+  }
+
+  if (!endpointPath) {
+    return null;
+  }
+
+  const data = await fetchNativeControlPlaneData<unknown>(endpointPath, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify(input),
+  });
+  if (data === null) {
+    return null;
+  }
+
+  return buildTrpcResponse(req, data, {
+    status: 200,
+    headers: { 'x-hypercode-trpc-compat': 'local-operator-action' },
+  });
+}
+
 async function tryLocalMCPRuntimeMutation(req: Request, body: string | undefined): Promise<Response | null> {
   const procedures = getProcedureNames(req);
   const procedureName = procedures[0] ?? '';
@@ -3079,6 +3141,11 @@ async function handler(req: Request): Promise<Response> {
     const localSessionMutationResponse = await tryLocalSessionMutation(req, body);
     if (localSessionMutationResponse) {
       return localSessionMutationResponse;
+    }
+
+    const localOperatorMutationResponse = await tryLocalOperatorMutation(req, body);
+    if (localOperatorMutationResponse) {
+      return localOperatorMutationResponse;
     }
 
     const localMCPRuntimeMutationResponse = await tryLocalMCPRuntimeMutation(req, body);

@@ -1,5 +1,102 @@
 # HyperCode Stabilization Analysis — 2026-04-03
 
+## Latest stabilization pass — Go-backed operator admin write compatibility for API keys and secrets
+
+### Context
+After the previous dashboard slices, Go-primary mode already had:
+- compatibility-backed dashboard startup
+- Go-backed supervised-session dashboard reads/mutations in degraded mode
+- Go-backed MCP inspector/runtime-control mutations in degraded mode
+
+The next operator-facing gap was the admin-governance cluster:
+- the API Keys dashboard (`/dashboard/mcp/api-keys`)
+- the Secrets Vault (`/dashboard/settings/secrets`)
+
+Before this pass, Go already had some local read fallback here:
+- `apiKeys.list`
+- `apiKeys.get`
+- `secrets.list`
+
+But the write surfaces were still materially weaker:
+- Go HTTP routes for `apiKeys.create` / `apiKeys.delete` were still bridge-only
+- Go HTTP routes for `secrets.set` / `secrets.delete` were still bridge-only
+- the shared Next.js compat route did not yet expose `secrets.list` or bridge these write mutations onto Go-owned HTTP fallback behavior
+
+That meant the governance/admin dashboard cluster could still become partially unusable when `/trpc` was unavailable, even though the local Go runtime already had enough `metamcp.db` state to own the durable subset truthfully.
+
+### What changed
+#### 1. Added native Go fallback ownership for API key writes
+Updated:
+- `go/internal/httpapi/server.go`
+- `go/internal/httpapi/server_test.go`
+
+The Go HTTP server now falls back natively for:
+- `POST /api/api-keys/create`
+- `POST /api/api-keys/delete`
+
+Native fallback behavior:
+- creates/deletes API key rows in local `metamcp.db`
+- scopes fallback to local/public (`user_id IS NULL`) records, matching the existing local list/get posture
+- returns truthful local fallback metadata instead of pretending the TypeScript router handled the mutation
+
+The local fallback now also surfaces `key_prefix` in the Go API-key payloads, which aligns better with the dashboard's existing API-key normalizer/UI expectations.
+
+#### 2. Added native Go fallback ownership for secret writes
+Updated:
+- `go/internal/httpapi/server.go`
+- `go/internal/httpapi/server_test.go`
+
+The Go HTTP server now falls back natively for:
+- `POST /api/secrets/set`
+- `POST /api/secrets/delete`
+
+Native fallback behavior:
+- persists/removes records in local `workspace_secrets` inside `metamcp.db`
+- uses an upsert path for secret writes
+- keeps list responses value-redacted while still allowing truthful mutation success/failure behavior
+
+#### 3. Extended the shared Next.js compat route for operator admin reads/writes
+Updated:
+- `apps/web/src/app/api/trpc/[trpc]/route.ts`
+- `apps/web/src/app/api/trpc/[trpc]/route.test.ts`
+
+The shared compat route now supports:
+- `secrets.list`
+- `apiKeys.create`
+- `apiKeys.delete`
+- `secrets.set`
+- `secrets.delete`
+
+These now map onto the Go HTTP surface when `/trpc` is unavailable:
+- `/api/secrets`
+- `/api/api-keys/create`
+- `/api/api-keys/delete`
+- `/api/secrets/set`
+- `/api/secrets/delete`
+
+This keeps the same migration strategy used in the previous dashboard slices:
+- prefer existing/native Go HTTP truth where possible
+- reduce dashboard dependence on TS-only mutation contracts
+- keep the shared compat route as the single place where degraded-mode UI behavior becomes truthful
+
+### Validation
+Executed truthfully without killing any processes:
+- `cd go && gofmt -w internal/httpapi/server.go internal/httpapi/server_test.go`
+- `cd go && go test ./internal/httpapi -run 'TestSecretsSetAndDeleteFallBackToLocalDB|TestAPIKeysCreateAndDeleteFallBackToLocalDB|TestSecretsListFallsBackToLocalDB|TestAPIKeysGetFallsBackToLocalDB' -count=1`
+- `pnpm exec vitest run apps/web/src/app/api/trpc/[trpc]/route.test.ts`
+- `pnpm -C apps/web run build`
+
+### Why this matters
+This pass extends Go-primary dashboard usability beyond sessions and MCP runtime control into operator governance/admin actions:
+- the API Keys page is now closer to usable in degraded mode, not just readable
+- the Secrets Vault can now read and mutate local secret metadata/state through Go-backed fallback paths
+- the shared web compat layer now covers another high-value operator cluster without inventing fake success or forcing `/trpc` uptime
+
+The next best slices are still the same category of work:
+- continue finding operator-critical dashboard mutations that already have plausible Go `/api/*` ownership
+- wire them through the shared compat layer
+- and only add new Go backend ownership where that native surface does not yet exist
+
 ## Latest stabilization pass — Go-backed MCP dashboard mutation compatibility in web fallback mode
 
 ### Context

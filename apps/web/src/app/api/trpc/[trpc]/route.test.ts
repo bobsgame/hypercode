@@ -711,6 +711,38 @@ describe('legacy MCP dashboard compatibility bridge', () => {
           headers: { 'content-type': 'application/json' },
         });
       }
+      if (url === 'http://127.0.0.1:4200/api/cli/harnesses') {
+        return new Response(JSON.stringify({
+          success: true,
+          data: [
+            {
+              id: 'hypercode',
+              description: 'HyperCode Go CLI harness',
+              runtime: 'Go / Cobra / TUI',
+              launchCommand: 'go run .',
+              parityNotes: 'Source-backed harness',
+              installed: true,
+              maturity: 'Experimental',
+              primary: true,
+              upstream: 'https://github.com/hypercodehq/hypercode',
+            },
+            {
+              id: 'claude-code',
+              description: 'Claude Code CLI harness',
+              runtime: 'External CLI',
+              launchCommand: 'claude',
+              parityNotes: 'External CLI metadata only',
+              installed: false,
+              maturity: 'Beta',
+              primary: false,
+              upstream: 'https://claude.ai/code',
+            },
+          ],
+        }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        });
+      }
       if (url === 'http://127.0.0.1:4200/api/mcp/status' || url === 'http://127.0.0.1:4200/api/startup/status' || url === 'http://127.0.0.1:4200/api/runtime/status') {
         return new Response(JSON.stringify({ success: false }), {
           status: 503,
@@ -722,17 +754,17 @@ describe('legacy MCP dashboard compatibility bridge', () => {
     }) as typeof fetch;
 
     const response = await POST(new Request(
-      'http://localhost:3010/api/trpc/billing.getProviderQuotas,billing.getFallbackChain?batch=1',
+      'http://localhost:3010/api/trpc/billing.getProviderQuotas,billing.getFallbackChain,tools.detectCliHarnesses?batch=1',
       {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ 0: { json: null }, 1: { json: null } }),
+        body: JSON.stringify({ 0: { json: null }, 1: { json: null }, 2: { json: null } }),
       },
     ));
     const payload = await response.json();
 
     expect(response.status).toBe(200);
-    expect(response.headers.get('x-hypercode-trpc-compat')).toBe('legacy-mcp-dashboard-bridge');
+    expect(response.headers.get('x-hypercode-trpc-compat')).toBe('local-dashboard-fallback');
     expect(payload?.[0]?.result?.data).toEqual([
       expect.objectContaining({
         provider: 'anthropic',
@@ -760,8 +792,22 @@ describe('legacy MCP dashboard compatibility bridge', () => {
         },
       ],
     });
+    expect(payload?.[2]?.result?.data).toEqual([
+      expect.objectContaining({
+        id: 'hypercode',
+        name: 'hypercode',
+        installed: true,
+        command: 'go run .',
+      }),
+      expect.objectContaining({
+        id: 'claude-code',
+        name: 'claude-code',
+        installed: false,
+      }),
+    ]);
     expect((global.fetch as ReturnType<typeof vi.fn>).mock.calls.some(([url]) => String(url) === 'http://127.0.0.1:4200/api/billing/provider-quotas')).toBe(true);
     expect((global.fetch as ReturnType<typeof vi.fn>).mock.calls.some(([url]) => String(url) === 'http://127.0.0.1:4200/api/billing/fallback-chain')).toBe(true);
+    expect((global.fetch as ReturnType<typeof vi.fn>).mock.calls.some(([url]) => String(url) === 'http://127.0.0.1:4200/api/cli/harnesses')).toBe(true);
   });
 
   it('normalizes batched bulk import payloads before proxying them upstream', async () => {

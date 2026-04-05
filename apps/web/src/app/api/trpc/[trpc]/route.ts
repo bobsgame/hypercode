@@ -712,6 +712,18 @@ type NativeFallbackChainPayload = {
   chain?: unknown;
 };
 
+type NativeHarnessPayload = {
+  id?: unknown;
+  description?: unknown;
+  runtime?: unknown;
+  launchCommand?: unknown;
+  parityNotes?: unknown;
+  installed?: unknown;
+  maturity?: unknown;
+  primary?: unknown;
+  upstream?: unknown;
+};
+
 function asObjectRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === 'object' && !Array.isArray(value)
     ? value as Record<string, unknown>
@@ -765,6 +777,64 @@ async function fetchNativeStatusPayload<T extends Record<string, unknown>>(endpo
   }
 
   return null;
+}
+
+async function buildPreferredCliHarnessDetections(): Promise<unknown[]> {
+  for (const base of resolveNativeStatusBases()) {
+    try {
+      const response = await fetch(`${base}/api/cli/harnesses`, { cache: 'no-store' });
+      if (!response.ok) {
+        continue;
+      }
+
+      const payload = await response.json() as { success?: unknown; data?: unknown };
+      if (payload.success !== true || !Array.isArray(payload.data)) {
+        continue;
+      }
+
+      return payload.data
+        .map((entry, index) => {
+          const record = asObjectRecord(entry);
+          if (!record) {
+            return null;
+          }
+
+          const id = readString(record.id);
+          if (!id) {
+            return null;
+          }
+
+          const runtime = readString(record.runtime);
+          const launchCommand = readString(record.launchCommand);
+          const description = readString(record.description);
+          const parityNotes = readString(record.parityNotes);
+          const maturity = readString(record.maturity);
+          const upstream = readString(record.upstream);
+          const installed = readBoolean(record.installed);
+          const primary = readBoolean(record.primary) === true;
+
+          return {
+            id,
+            name: id,
+            command: launchCommand ?? '',
+            homepage: upstream ?? '#',
+            docsUrl: upstream ?? '#',
+            installHint: parityNotes ?? description ?? runtime ?? 'CLI harness metadata available from native Go inventory.',
+            sessionCapable: true,
+            installed: installed ?? false,
+            resolvedPath: installed ? (launchCommand ?? null) : null,
+            version: maturity,
+            detectionError: installed ? null : 'Not detected in current environment',
+            primary,
+          };
+        })
+        .filter((entry): entry is NonNullable<typeof entry> => entry !== null);
+    } catch {
+      // Try the next native control-plane base.
+    }
+  }
+
+  return [];
 }
 
 async function buildPreferredProviderQuotas(): Promise<unknown[]> {
@@ -1219,6 +1289,7 @@ async function buildLocalCompatResponse(req: Request, body?: string): Promise<Re
   const localStatus = await buildPreferredMcpStatus(localServers);
   const localStartupStatus = await buildLocalStartupStatus(localServers);
   const providerQuotas = await buildPreferredProviderQuotas();
+  const cliHarnessDetections = await buildPreferredCliHarnessDetections();
 
   const dataByResponseKey: Record<LocalCompatResponseKey, unknown> = {
     'mcpServers.list': localServers,
@@ -1248,7 +1319,7 @@ async function buildLocalCompatResponse(req: Request, body?: string): Promise<Re
     },
     'mcpServers.get': undefined,
     'apiKeys.list': [],
-    'tools.detectCliHarnesses': [],
+    'tools.detectCliHarnesses': cliHarnessDetections,
     'tools.detectExecutionEnvironment': {
       os: 'unknown',
       summary: {

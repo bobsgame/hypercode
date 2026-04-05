@@ -44,6 +44,7 @@ import {
     Play,
     Plus,
     Power,
+    Radio,
     RefreshCw,
     Server,
     Square,
@@ -54,6 +55,8 @@ import {
     Zap,
 } from "lucide-react";
 import { PageStatusBanner } from "@/components/PageStatusBanner";
+import { trpc } from "@/utils/trpc";
+import type { DashboardStartupStatus } from "../dashboard-home-view";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -274,6 +277,36 @@ function fmtDuration(seconds: number): string {
     return `${Math.floor(seconds / 3600)}h ${Math.floor((seconds % 3600) / 60)}m`;
 }
 
+function getStartupModeRows(startupStatus?: DashboardStartupStatus): Array<{ label: string; value: string; detail?: string }> {
+    const startupMode = startupStatus?.startupMode;
+    if (!startupMode) {
+        return [];
+    }
+
+    return [
+        {
+            label: "Requested runtime",
+            value: startupMode.requestedRuntime?.trim() || "—",
+            detail: startupMode.activeRuntime ? `Active runtime: ${startupMode.activeRuntime}` : undefined,
+        },
+        {
+            label: "Launch mode",
+            value: startupMode.launchMode?.trim() || "—",
+            detail: startupMode.dashboardMode?.trim() ? `Dashboard: ${startupMode.dashboardMode}` : undefined,
+        },
+        {
+            label: "Install decision",
+            value: startupMode.installDecision?.trim() || "—",
+            detail: startupMode.installReason?.trim() || undefined,
+        },
+        {
+            label: "Build decision",
+            value: startupMode.buildDecision?.trim() || "—",
+            detail: startupMode.buildReason?.trim() || undefined,
+        },
+    ];
+}
+
 // ─── Hook: orchestrator API client ─────────────────────────────────────────
 
 const BASE = "/api/orchestrator";
@@ -353,6 +386,7 @@ function SectionCard({
 
 export default function HypercodeOrchestratorDashboardPage() {
     const isConfigured = Boolean(BASE);
+    const { data: startupStatus, refetch: refetchStartupStatus } = trpc.startupStatus.useQuery(undefined, { refetchInterval: 5000 });
     // ── state ──────────────────────────────────────────────────────────────
     const [online, setOnline] = useState<boolean | null>(null);
     const [council, setCouncil] = useState<CouncilStatus | null>(null);
@@ -604,6 +638,10 @@ export default function HypercodeOrchestratorDashboardPage() {
         () => cliTools.filter((t) => t.installed),
         [cliTools]
     );
+    const startupSnapshot = startupStatus as DashboardStartupStatus | undefined;
+    const startupModeRows = getStartupModeRows(startupSnapshot);
+    const startupModeUpdatedAt = startupSnapshot?.startupMode?.updatedAt ? Date.parse(startupSnapshot.startupMode.updatedAt) : Number.NaN;
+
     const statsCards = [
         {
             label: "Active Sessions",
@@ -653,7 +691,10 @@ export default function HypercodeOrchestratorDashboardPage() {
                         <span className="text-xs text-zinc-600">uptime {fmtDuration(health.uptime)}</span>
                     )}
                     <button
-                        onClick={() => void refresh()}
+                        onClick={() => {
+                            void refresh();
+                            void refetchStartupStatus();
+                        }}
                         className="p-1.5 rounded bg-zinc-800 hover:bg-zinc-700"
                         title="Refresh"
                     >
@@ -749,6 +790,32 @@ export default function HypercodeOrchestratorDashboardPage() {
                         </div>
                     ))}
                 </div>
+
+                {startupModeRows.length > 0 ? (
+                    <SectionCard title="Startup mode" icon={<Radio className="h-4 w-4" />}>
+                        <div className="space-y-4">
+                            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                                <p className="text-xs text-zinc-400 max-w-3xl">
+                                    Persisted HyperCode runtime provenance from the latest startup handoff. This reflects how the main control plane launched, separately from the live orchestrator proxy reachability shown above.
+                                </p>
+                                {Number.isFinite(startupModeUpdatedAt) ? (
+                                    <span className="rounded-full border border-zinc-700 bg-zinc-900 px-3 py-1 text-xs text-zinc-300 inline-flex">
+                                        Updated {Math.max(0, Math.floor((Date.now() - startupModeUpdatedAt) / 60000)) < 1 ? "just now" : `${Math.max(1, Math.floor((Date.now() - startupModeUpdatedAt) / 60000))}m ago`}
+                                    </span>
+                                ) : null}
+                            </div>
+                            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+                                {startupModeRows.map((row) => (
+                                    <div key={row.label} className="rounded-lg border border-zinc-800 bg-zinc-950/50 p-4">
+                                        <div className="text-[10px] uppercase tracking-wide text-zinc-500">{row.label}</div>
+                                        <div className="mt-2 text-sm font-medium text-white">{row.value}</div>
+                                        {row.detail ? <div className="mt-2 text-xs text-zinc-400">{row.detail}</div> : null}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </SectionCard>
+                ) : null}
 
                 {/* ── Council ── */}
                 <SectionCard title="Council" icon={<Users className="h-4 w-4" />}>

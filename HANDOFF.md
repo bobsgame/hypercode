@@ -1,3 +1,59 @@
+# Handoff — Startup Provenance & Go-Primary Dashboard Truth Session
+
+## Current status
+**Version:** `1.0.0-alpha.1`
+
+### What this session completed
+1. Propagated persisted startup/runtime provenance across the remaining high-signal dashboard system views:
+   - `/dashboard/system`
+   - `/dashboard/mcp/system`
+   - `/dashboard/orchestrator` (via `apps/web/src/app/dashboard/autopilot/page.tsx`, since `orchestrator/page.tsx` is only a re-export)
+2. Confirmed the startup-provenance dashboard propagation cluster is now complete across:
+   - dashboard home
+   - health
+   - integrations
+   - system
+   - mcp/system
+   - orchestrator/autopilot
+   - local web fallback status
+3. Updated planning/analysis docs to record the new coverage and narrowed the next recommendation to reducing remaining TypeScript compatibility dependence where Go-native status already exists.
+4. Committed and pushed:
+   - `7785a9a3` — `feat: surface startup provenance in system dashboards`
+   - `ec252efd` — `feat: surface startup provenance in orchestrator dashboard`
+
+### Files changed in this slice
+- `apps/web/src/app/dashboard/system/page.tsx`
+- `apps/web/src/app/dashboard/mcp/system/page.tsx`
+- `apps/web/src/app/dashboard/autopilot/page.tsx`
+- `docs/ai/planning/GO_PRIMARY_MIGRATION_PLAN.md`
+- `ANALYSIS.md`
+- `HANDOFF.md`
+
+### Validation performed
+- `pnpm -C apps/web run build`
+- `pnpm -C packages/core exec vitest run src/routers/startupStatus.test.ts`
+- `pnpm -C packages/cli exec vitest run src/commands/start.test.ts src/commands/status.test.ts`
+
+All of the above passed after the orchestrator-page patch.
+
+### Important truthful notes
+- `apps/web` still does not have a directly usable local `vitest` setup for standalone page tests in this workflow, so the dashboard page changes were validated through the successful production web build and the already-green startup provenance suites.
+- No long-running processes were killed.
+- Local runtime state such as `go/metamcp.db` remains intentionally uncommitted.
+- There are still unrelated dirty/untracked paths in the workspace/submodules (for example `apps/cloud-orchestrator`, `apps/maestro`, `packages/claude-mem`, JetBrains plugin files, and a VSIX artifact) that were not part of this slice and were not staged.
+
+### Recommended next steps
+1. Keep reducing dashboard dependence on TypeScript compatibility reads where Go-native runtime/status surfaces already exist.
+2. Deepen Go-native orchestration parity beyond current truthful fallbacks, especially:
+   - Darwin parity
+   - AutoDev director-loop parity
+   - richer swarm execution parity
+3. Resolve blocked native desktop items when dependencies are available:
+   - `apps/maestro-native` Qt tooling (`moc.exe`, Qt6Qml)
+   - `apps/maestro-go/go.mod` module/replace resolution
+
+---
+
 # Handoff — Stabilization Session
 
 ## Current status

@@ -16,8 +16,10 @@
    - mcp/system
    - orchestrator/autopilot
    - local web fallback status
-3. Updated planning/analysis docs to record the new coverage and narrowed the next recommendation to reducing remaining TypeScript compatibility dependence where Go-native status already exists.
-4. Committed and pushed:
+3. Upgraded the web tRPC compatibility layer so `startupStatus` now prefers the Go-native `/api/startup/status` and `/api/runtime/status` surfaces when the TypeScript startup-status procedure is unavailable. This means dashboard fallback mode now preserves native Go startup readiness, blocking reasons, uptime, memory/import counts, supervisor-bridge readiness, runtime version, and startup provenance instead of only local lock/config guesses.
+4. Added focused regression coverage for that compat-path upgrade in `apps/web/src/app/api/trpc/[trpc]/route.test.ts`, and validated it through the root Vitest runner plus a full `apps/web` production build.
+5. Updated planning/analysis docs to record the new coverage and narrowed the next recommendation to reducing remaining TypeScript compatibility dependence where Go-native status already exists.
+6. Committed and pushed:
    - `7785a9a3` — `feat: surface startup provenance in system dashboards`
    - `38b10684` — `feat: surface startup provenance in orchestrator dashboard`
 
@@ -25,19 +27,22 @@
 - `apps/web/src/app/dashboard/system/page.tsx`
 - `apps/web/src/app/dashboard/mcp/system/page.tsx`
 - `apps/web/src/app/dashboard/autopilot/page.tsx`
+- `apps/web/src/app/api/trpc/[trpc]/route.ts`
+- `apps/web/src/app/api/trpc/[trpc]/route.test.ts`
 - `docs/ai/planning/GO_PRIMARY_MIGRATION_PLAN.md`
 - `ANALYSIS.md`
 - `HANDOFF.md`
 
 ### Validation performed
+- `pnpm exec vitest run apps/web/src/app/api/trpc/[trpc]/route.test.ts`
 - `pnpm -C apps/web run build`
 - `pnpm -C packages/core exec vitest run src/routers/startupStatus.test.ts`
 - `pnpm -C packages/cli exec vitest run src/commands/start.test.ts src/commands/status.test.ts`
 
-All of the above passed after the orchestrator-page patch.
+All of the above passed after the Go-enriched compat-fallback patch.
 
 ### Important truthful notes
-- `apps/web` still does not have a directly usable local `vitest` setup for standalone page tests in this workflow, so the dashboard page changes were validated through the successful production web build and the already-green startup provenance suites.
+- `apps/web` still does not have a directly usable workspace-local `vitest` command for standalone page tests in this workflow, so page/UI slices were still validated through the successful production web build; however, route-level regressions can be executed truthfully through the root Vitest runner, and that path was used for `apps/web/src/app/api/trpc/[trpc]/route.test.ts` in this slice.
 - No long-running processes were killed.
 - Local runtime state such as `go/metamcp.db` remains intentionally uncommitted.
 - There are still unrelated dirty/untracked paths in the workspace/submodules (for example `apps/cloud-orchestrator`, `apps/maestro`, `packages/claude-mem`, JetBrains plugin files, and a VSIX artifact) that were not part of this slice and were not staged.

@@ -360,6 +360,149 @@ describe('legacy MCP dashboard compatibility bridge', () => {
     });
   });
 
+  it('prefers go-native startup and runtime status when local dashboard fallback is active', async () => {
+    process.env.HYPERCODE_TRPC_UPSTREAM = 'http://127.0.0.1:4000/trpc';
+    global.fetch = vi.fn(async (input) => {
+      const url = String(input);
+
+      if (url.includes('/trpc/')) {
+        throw new Error('connect ECONNREFUSED');
+      }
+
+      if (url === 'http://127.0.0.1:4000/api/startup/status') {
+        return new Response(JSON.stringify({
+          success: true,
+          data: {
+            status: 'running',
+            ready: true,
+            summary: 'All Go startup checks passed.',
+            blockingReasons: [],
+            checks: {
+              config: {
+                workspaceRootAvailable: true,
+                goConfigDirAvailable: true,
+                mainConfigDirAvailable: true,
+                repoConfigAvailable: true,
+                mcpConfigAvailable: true,
+              },
+              memory: {
+                ready: true,
+                storePath: 'C:/Users/hyper/.hypercode/sectioned_memory.json',
+                totalEntries: 12,
+                presentDefaultSections: 5,
+                expectedDefaultSections: 5,
+                missingSections: [],
+              },
+              mainControlPlane: {
+                ready: false,
+                baseUrl: '',
+              },
+              sessionSupervisorBridge: {
+                ready: true,
+                baseUrl: 'http://127.0.0.1:4000/trpc',
+              },
+              mesh: {
+                nodeId: 'go-node-1',
+                peersCount: 2,
+              },
+              importedSessions: {
+                totalSessions: 7,
+                inlineTranscriptCount: 2,
+                archivedTranscriptCount: 5,
+                missingRetentionSummaryCount: 1,
+              },
+            },
+          },
+        }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        });
+      }
+
+      if (url === 'http://127.0.0.1:4000/api/runtime/status') {
+        return new Response(JSON.stringify({
+          success: true,
+          data: {
+            uptimeSec: 123,
+            version: '1.0.0-alpha.1',
+            startupMode: {
+              requestedRuntime: 'auto',
+              activeRuntime: 'go',
+              launchMode: 'prebuilt Go binary',
+              source: 'main-lock',
+              updatedAt: '2026-04-04T00:00:00.000Z',
+            },
+          },
+        }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        });
+      }
+
+      throw new Error(`Unexpected fetch: ${url}`);
+    }) as typeof fetch;
+
+    const response = await POST(new Request(
+      'http://localhost:3010/api/trpc/startupStatus?batch=1',
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ 0: { json: null } }),
+      },
+    ));
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('x-hypercode-trpc-compat')).toBe('local-dashboard-fallback');
+    expect(payload?.[0]?.result?.data).toEqual(expect.objectContaining({
+      status: 'running',
+      ready: true,
+      uptime: 123,
+      summary: expect.stringContaining('Using Go-native startup status in local dashboard compatibility mode'),
+      startupMode: expect.objectContaining({
+        requestedRuntime: 'auto',
+        activeRuntime: 'go',
+        launchMode: 'prebuilt Go binary',
+        source: 'main-lock',
+      }),
+      runtime: expect.objectContaining({
+        version: '1.0.0-alpha.1',
+      }),
+      checks: expect.objectContaining({
+        memory: expect.objectContaining({
+          ready: true,
+          initialized: true,
+          agentMemory: true,
+          sectionedMemory: expect.objectContaining({
+            totalEntries: 12,
+            defaultSectionCount: 5,
+            presentDefaultSectionCount: 5,
+          }),
+        }),
+        sessionSupervisor: expect.objectContaining({
+          ready: true,
+        }),
+        importedSessions: {
+          totalSessions: 7,
+          inlineTranscriptCount: 2,
+          archivedTranscriptCount: 5,
+          missingRetentionSummaryCount: 1,
+        },
+        mainControlPlane: {
+          ready: false,
+          baseUrl: null,
+        },
+        mesh: {
+          nodeId: 'go-node-1',
+          peersCount: 2,
+        },
+      }),
+    }));
+
+    expect((global.fetch as ReturnType<typeof vi.fn>).mock.calls.some(([url]) => String(url) === 'http://127.0.0.1:4000/api/startup/status')).toBe(true);
+    expect((global.fetch as ReturnType<typeof vi.fn>).mock.calls.some(([url]) => String(url) === 'http://127.0.0.1:4000/api/runtime/status')).toBe(true);
+  });
+
   it('normalizes batched bulk import payloads before proxying them upstream', async () => {
     process.env.HYPERCODE_TRPC_UPSTREAM = 'http://127.0.0.1:3100/trpc';
     const upstreamResponse = [

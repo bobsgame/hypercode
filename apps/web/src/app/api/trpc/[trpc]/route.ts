@@ -536,77 +536,7 @@ function mapConfigToServerList(config: LocalMcpConfig): unknown[] {
   });
 }
 
-function buildLocalStartupStatus(servers: unknown[]): {
-  status: 'starting' | 'degraded';
-  ready: false;
-  summary: string;
-  startupMode: ReturnType<typeof readLocalStartupProvenance>;
-  checks: {
-    mcpAggregator: {
-      ready: boolean;
-      initialization: 'compat-fallback';
-      serverCount: number;
-      connectedCount: number;
-      persistedServerCount: number;
-      persistedToolCount: number;
-      configuredServerCount: number;
-      liveReady: boolean;
-      advertisedServerCount: number;
-      advertisedToolCount: number;
-      advertisedAlwaysOnServerCount: number;
-      advertisedAlwaysOnToolCount: number;
-      inventoryReady: false;
-      warmupInProgress: true;
-    };
-    configSync: {
-      ready: boolean;
-      status: {
-        inProgress: false;
-        lastCompletedAt: null;
-        lastServerCount: number;
-        lastToolCount: number;
-      };
-    };
-    sessionSupervisor: {
-      ready: false;
-      sessionCount: number;
-      restore: null;
-    };
-    browser: {
-      ready: false;
-      active: false;
-      pageCount: number;
-    };
-    memory: {
-      ready: false;
-      initialized: false;
-      agentMemory: false;
-    };
-    extensionBridge: {
-      ready: false;
-      acceptingConnections: false;
-      clientCount: number;
-      hasConnectedClients: false;
-      clients: never[];
-      supportedCapabilities: never[];
-      supportedHookPhases: never[];
-    };
-    executionEnvironment: {
-      ready: false;
-      preferredShellId: null;
-      preferredShellLabel: null;
-      shellCount: number;
-      verifiedShellCount: number;
-      toolCount: number;
-      verifiedToolCount: number;
-      harnessCount: number;
-      verifiedHarnessCount: number;
-      supportsPowerShell: false;
-      supportsPosixShell: false;
-      notes: never[];
-    };
-  };
-} {
+function buildLocalCompatStartupStatusBase(servers: unknown[]) {
   const status = buildStatusFromServers(servers);
   const serverCount = status.serverCount;
   const connectedCount = status.connectedCount;
@@ -615,10 +545,16 @@ function buildLocalStartupStatus(servers: unknown[]): {
   return {
     status: serverCount > 0 ? 'degraded' : 'starting',
     ready: false,
+    uptime: 0,
     summary: serverCount > 0
       ? `Using local MCP config fallback for ${serverCount} configured server(s); live startup telemetry is unavailable.`
       : 'No live HyperCode core upstream is available yet; showing local compatibility fallback.',
     startupMode,
+    runtime: {
+      nodeEnv: process.env.NODE_ENV ?? null,
+      platform: process.platform,
+      version: null,
+    },
     checks: {
       mcpAggregator: {
         ready: serverCount > 0,
@@ -685,6 +621,277 @@ function buildLocalStartupStatus(servers: unknown[]): {
       },
     },
   };
+}
+
+type LocalCompatStartupStatus = Omit<ReturnType<typeof buildLocalCompatStartupStatusBase>, 'checks'> & {
+  blockingReasons?: Array<{ code: string; detail: string }>;
+  checks: ReturnType<typeof buildLocalCompatStartupStatusBase>['checks'] & {
+    memory: ReturnType<typeof buildLocalCompatStartupStatusBase>['checks']['memory'] & {
+      sectionedMemory?: {
+        ready?: boolean;
+        enabled?: boolean;
+        storeExists?: boolean;
+        storePath?: string | null;
+        totalEntries?: number;
+        defaultSectionCount?: number;
+        presentDefaultSectionCount?: number;
+        missingSections?: string[];
+      };
+    };
+    importedSessions?: {
+      totalSessions: number;
+      inlineTranscriptCount: number;
+      archivedTranscriptCount: number;
+      missingRetentionSummaryCount: number;
+    };
+    mainControlPlane?: {
+      ready: boolean;
+      baseUrl: string | null;
+    };
+    config?: {
+      workspaceRootAvailable: boolean;
+      goConfigDirAvailable: boolean;
+      mainConfigDirAvailable: boolean;
+      repoConfigAvailable: boolean;
+      mcpConfigAvailable: boolean;
+    };
+    mesh?: {
+      nodeId: string | null;
+      peersCount: number;
+    };
+  } & Record<string, unknown>;
+};
+
+type NativeStartupStatusPayload = {
+  status?: unknown;
+  ready?: unknown;
+  summary?: unknown;
+  blockingReasons?: unknown;
+  checks?: unknown;
+};
+
+type NativeRuntimeStatusPayload = {
+  uptimeSec?: unknown;
+  version?: unknown;
+  startupMode?: unknown;
+};
+
+function asObjectRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : null;
+}
+
+function readString(value: unknown): string | null {
+  return typeof value === 'string' && value.trim().length > 0 ? value : null;
+}
+
+function readBoolean(value: unknown): boolean | null {
+  return typeof value === 'boolean' ? value : null;
+}
+
+function readNumber(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+function readStringArray(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === 'string' && entry.trim().length > 0) : [];
+}
+
+function resolveNativeStatusBases(): string[] {
+  return Array.from(new Set(
+    resolveUpstreamBases()
+      .map((base) => base.replace(/\/trpc\/?$/i, '').trim())
+      .filter(Boolean),
+  ));
+}
+
+async function fetchNativeStatusPayload<T extends Record<string, unknown>>(endpointPath: string): Promise<T | null> {
+  for (const base of resolveNativeStatusBases()) {
+    try {
+      const response = await fetch(`${base}${endpointPath}`, { cache: 'no-store' });
+      if (!response.ok) {
+        continue;
+      }
+
+      const payload = await response.json() as { success?: unknown; data?: unknown };
+      if (payload.success !== true) {
+        continue;
+      }
+
+      const data = asObjectRecord(payload.data);
+      if (data) {
+        return data as T;
+      }
+    } catch {
+      // Try the next native control-plane base.
+    }
+  }
+
+  return null;
+}
+
+async function buildLocalStartupStatus(servers: unknown[]): Promise<LocalCompatStartupStatus> {
+  const baseStatus = buildLocalCompatStartupStatusBase(servers);
+  const [nativeStartupStatus, nativeRuntimeStatus] = await Promise.all([
+    fetchNativeStatusPayload<NativeStartupStatusPayload>('/api/startup/status'),
+    fetchNativeStatusPayload<NativeRuntimeStatusPayload>('/api/runtime/status'),
+  ]);
+
+  if (!nativeStartupStatus && !nativeRuntimeStatus) {
+    return baseStatus;
+  }
+
+  const mergedStatus: LocalCompatStartupStatus = {
+    ...baseStatus,
+    runtime: {
+      ...baseStatus.runtime,
+    },
+    checks: {
+      ...baseStatus.checks,
+    },
+  };
+
+  if (nativeStartupStatus) {
+    const nativeStatus = readString(nativeStartupStatus.status);
+    const nativeReady = readBoolean(nativeStartupStatus.ready);
+    const nativeSummary = readString(nativeStartupStatus.summary);
+    const nativeBlockingReasons = Array.isArray(nativeStartupStatus.blockingReasons)
+      ? nativeStartupStatus.blockingReasons
+        .map((reason) => {
+          const record = asObjectRecord(reason);
+          if (!record) {
+            return null;
+          }
+
+          const code = readString(record.code);
+          const detail = readString(record.detail);
+          return code && detail ? { code, detail } : null;
+        })
+        .filter((reason): reason is { code: string; detail: string } => reason !== null)
+      : [];
+    const nativeChecks = asObjectRecord(nativeStartupStatus.checks);
+    const nativeMemory = asObjectRecord(nativeChecks?.memory);
+    const nativeImportedSessions = asObjectRecord(nativeChecks?.importedSessions);
+    const nativeSessionSupervisorBridge = asObjectRecord(nativeChecks?.sessionSupervisorBridge);
+    const nativeMainControlPlane = asObjectRecord(nativeChecks?.mainControlPlane);
+    const nativeConfig = asObjectRecord(nativeChecks?.config);
+    const nativeMesh = asObjectRecord(nativeChecks?.mesh);
+
+    if (nativeStatus) {
+      mergedStatus.status = nativeStatus;
+    }
+    if (nativeReady !== null) {
+      mergedStatus.ready = nativeReady;
+    }
+    if (nativeSummary) {
+      mergedStatus.summary = `${nativeSummary} Using Go-native startup status in local dashboard compatibility mode because the TypeScript startupStatus procedure is unavailable.`;
+    }
+    if (nativeBlockingReasons.length > 0 || nativeStartupStatus.blockingReasons !== undefined) {
+      mergedStatus.blockingReasons = nativeBlockingReasons;
+    }
+    if (nativeMemory) {
+      const memoryReady = readBoolean(nativeMemory.ready);
+      const storePath = readString(nativeMemory.storePath);
+      const totalEntries = readNumber(nativeMemory.totalEntries);
+      const presentDefaultSections = readNumber(nativeMemory.presentDefaultSections);
+      const expectedDefaultSections = readNumber(nativeMemory.expectedDefaultSections);
+      const missingSections = readStringArray(nativeMemory.missingSections);
+
+      if (memoryReady !== null) {
+        mergedStatus.checks = {
+          ...mergedStatus.checks,
+          memory: {
+            ...mergedStatus.checks.memory,
+            ready: memoryReady,
+            initialized: memoryReady,
+            agentMemory: memoryReady,
+            sectionedMemory: {
+              ready: memoryReady,
+              enabled: true,
+              storeExists: memoryReady,
+              storePath,
+              totalEntries: totalEntries ?? 0,
+              defaultSectionCount: expectedDefaultSections ?? 0,
+              presentDefaultSectionCount: presentDefaultSections ?? 0,
+              missingSections,
+            },
+          },
+        };
+      }
+    }
+    if (nativeImportedSessions) {
+      mergedStatus.checks.importedSessions = {
+        totalSessions: readNumber(nativeImportedSessions.totalSessions) ?? 0,
+        inlineTranscriptCount: readNumber(nativeImportedSessions.inlineTranscriptCount) ?? 0,
+        archivedTranscriptCount: readNumber(nativeImportedSessions.archivedTranscriptCount) ?? 0,
+        missingRetentionSummaryCount: readNumber(nativeImportedSessions.missingRetentionSummaryCount) ?? 0,
+      };
+    }
+    if (nativeSessionSupervisorBridge) {
+      const bridgeReady = readBoolean(nativeSessionSupervisorBridge.ready);
+      if (bridgeReady !== null) {
+        mergedStatus.checks.sessionSupervisor = {
+          ...mergedStatus.checks.sessionSupervisor,
+          ready: bridgeReady,
+        };
+      }
+    }
+    if (nativeMainControlPlane) {
+      mergedStatus.checks = {
+        ...mergedStatus.checks,
+        mainControlPlane: {
+          ready: readBoolean(nativeMainControlPlane.ready) ?? false,
+          baseUrl: readString(nativeMainControlPlane.baseUrl),
+        },
+      };
+    }
+    if (nativeConfig) {
+      mergedStatus.checks = {
+        ...mergedStatus.checks,
+        config: {
+          workspaceRootAvailable: readBoolean(nativeConfig.workspaceRootAvailable) ?? false,
+          goConfigDirAvailable: readBoolean(nativeConfig.goConfigDirAvailable) ?? false,
+          mainConfigDirAvailable: readBoolean(nativeConfig.mainConfigDirAvailable) ?? false,
+          repoConfigAvailable: readBoolean(nativeConfig.repoConfigAvailable) ?? false,
+          mcpConfigAvailable: readBoolean(nativeConfig.mcpConfigAvailable) ?? false,
+        },
+      };
+    }
+    if (nativeMesh) {
+      mergedStatus.checks = {
+        ...mergedStatus.checks,
+        mesh: {
+          nodeId: readString(nativeMesh.nodeId),
+          peersCount: readNumber(nativeMesh.peersCount) ?? 0,
+        },
+      };
+    }
+  }
+
+  if (nativeRuntimeStatus) {
+    const nativeUptime = readNumber(nativeRuntimeStatus.uptimeSec);
+    const nativeVersion = readString(nativeRuntimeStatus.version);
+    const nativeStartupMode = asObjectRecord(nativeRuntimeStatus.startupMode);
+
+    if (nativeUptime !== null) {
+      mergedStatus.uptime = nativeUptime;
+    }
+    if (nativeVersion) {
+      mergedStatus.runtime = {
+        ...mergedStatus.runtime,
+        version: nativeVersion,
+      };
+    }
+    if (nativeStartupMode) {
+      mergedStatus.startupMode = {
+        ...(asObjectRecord(mergedStatus.startupMode) ?? {}),
+        ...nativeStartupMode,
+      };
+    }
+  }
+
+  return mergedStatus;
 }
 
 async function fetchProcedureData(
@@ -782,7 +989,7 @@ async function buildLocalCompatResponse(req: Request, body?: string): Promise<Re
   const localConfigSource = await readLocalMcpSource();
   const localServers = mapConfigToServerList(localConfig);
   const localStatus = buildStatusFromServers(localServers);
-  const localStartupStatus = buildLocalStartupStatus(localServers);
+  const localStartupStatus = await buildLocalStartupStatus(localServers);
 
   const dataByResponseKey: Record<LocalCompatResponseKey, unknown> = {
     'mcpServers.list': localServers,

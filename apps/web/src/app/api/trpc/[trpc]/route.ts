@@ -1446,6 +1446,21 @@ async function buildPreferredServerHealth(
   };
 }
 
+async function buildPreferredSessionState(): Promise<Record<string, unknown>> {
+  const nativeSessionState = await fetchNativeStatusPayload<Record<string, unknown>>('/api/sessions/supervisor/state');
+  if (!nativeSessionState) {
+    return {
+      isAutoDriveActive: false,
+      activeGoal: null,
+    };
+  }
+
+  return {
+    isAutoDriveActive: readBoolean(nativeSessionState.isAutoDriveActive) ?? false,
+    activeGoal: readString(nativeSessionState.activeGoal),
+  };
+}
+
 async function buildPreferredImportedMaintenanceStats(): Promise<ImportedMaintenanceStats> {
   for (const base of resolveNativeStatusBases()) {
     try {
@@ -2125,6 +2140,7 @@ async function buildLocalCompatResponse(req: Request, body?: string): Promise<Re
   const toolSelectionTelemetry = await buildPreferredToolSelectionTelemetry();
   const toolPreferences = await buildPreferredToolPreferences();
   const expertStatus = await buildPreferredExpertStatus();
+  const sessionState = await buildPreferredSessionState();
   const agentMemoryStats = await buildPreferredAgentMemoryStats();
   const importedMaintenanceStats = await buildPreferredImportedMaintenanceStats();
   const installSurfaces = await buildPreferredInstallSurfaces();
@@ -2157,10 +2173,7 @@ async function buildLocalCompatResponse(req: Request, body?: string): Promise<Re
     'expert.getStatus': expertStatus,
     'session.catalog': sessionCatalog,
     'session.importedMaintenanceStats': importedMaintenanceStats,
-    'session.getState': {
-      isAutoDriveActive: false,
-      activeGoal: null,
-    },
+    'session.getState': sessionState,
     'agentMemory.stats': agentMemoryStats,
     'shell.getSystemHistory': [],
     'serverHealth.check': {

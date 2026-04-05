@@ -919,7 +919,7 @@ describe('legacy MCP dashboard compatibility bridge', () => {
     expect((global.fetch as ReturnType<typeof vi.fn>).mock.calls.some(([url]) => String(url) === 'http://127.0.0.1:4100/api/billing/fallback-chain?taskType=coding')).toBe(true);
   });
 
-  it('prefers go-native operator reads, imported maintenance stats, install surfaces, execution environment, provider quotas, fallback chain, cli harnesses, session catalog, and sessions in local dashboard fallback mode', async () => {
+  it('prefers go-native operator reads, session state, imported maintenance stats, install surfaces, execution environment, provider quotas, fallback chain, cli harnesses, session catalog, and sessions in local dashboard fallback mode', async () => {
     process.env.HYPERCODE_TRPC_UPSTREAM = 'http://127.0.0.1:4200/trpc';
     global.fetch = vi.fn(async (input) => {
       const url = String(input);
@@ -989,6 +989,18 @@ describe('legacy MCP dashboard compatibility bridge', () => {
             working: 4,
             longTerm: 9,
             total: 16,
+          },
+        }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        });
+      }
+      if (url === 'http://127.0.0.1:4200/api/sessions/supervisor/state') {
+        return new Response(JSON.stringify({
+          success: true,
+          data: {
+            isAutoDriveActive: true,
+            activeGoal: 'ship go parity',
           },
         }), {
           status: 200,
@@ -1219,11 +1231,11 @@ describe('legacy MCP dashboard compatibility bridge', () => {
     }) as typeof fetch;
 
     const response = await POST(new Request(
-      'http://localhost:3010/api/trpc/startupStatus,billing.getProviderQuotas,billing.getFallbackChain,apiKeys.list,tools.detectCliHarnesses,tools.detectExecutionEnvironment,tools.detectInstallSurfaces,expert.getStatus,agentMemory.stats,shell.getSystemHistory,session.catalog,session.importedMaintenanceStats,session.list?batch=1',
+      'http://localhost:3010/api/trpc/startupStatus,billing.getProviderQuotas,billing.getFallbackChain,apiKeys.list,tools.detectCliHarnesses,tools.detectExecutionEnvironment,tools.detectInstallSurfaces,expert.getStatus,session.getState,agentMemory.stats,shell.getSystemHistory,session.catalog,session.importedMaintenanceStats,session.list?batch=1',
       {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ 0: { json: null }, 1: { json: null }, 2: { json: null }, 3: { json: null }, 4: { json: null }, 5: { json: null }, 6: { json: null }, 7: { json: null }, 8: { json: null }, 9: { json: { limit: 8 } }, 10: { json: null }, 11: { json: null }, 12: { json: null } }),
+        body: JSON.stringify({ 0: { json: null }, 1: { json: null }, 2: { json: null }, 3: { json: null }, 4: { json: null }, 5: { json: null }, 6: { json: null }, 7: { json: null }, 8: { json: null }, 9: { json: null }, 10: { json: { limit: 8 } }, 11: { json: null }, 12: { json: null }, 13: { json: null } }),
       },
     ));
     const payload = await response.json();
@@ -1356,16 +1368,20 @@ describe('legacy MCP dashboard compatibility bridge', () => {
       coder: 'offline',
     });
     expect(payload?.[8]?.result?.data).toEqual({
+      isAutoDriveActive: true,
+      activeGoal: 'ship go parity',
+    });
+    expect(payload?.[9]?.result?.data).toEqual({
       session: 3,
       working: 4,
       longTerm: 9,
       total: 16,
     });
-    expect(payload?.[9]?.result?.data).toEqual([
+    expect(payload?.[10]?.result?.data).toEqual([
       'git status',
       'pnpm exec vitest run apps/web/src/app/api/trpc/[trpc]/route.test.ts',
     ]);
-    expect(payload?.[10]?.result?.data).toEqual([
+    expect(payload?.[11]?.result?.data).toEqual([
       expect.objectContaining({
         id: 'hypercode',
         name: 'hypercode',
@@ -1381,13 +1397,13 @@ describe('legacy MCP dashboard compatibility bridge', () => {
         category: 'cli',
       }),
     ]);
-    expect(payload?.[11]?.result?.data).toEqual({
+    expect(payload?.[12]?.result?.data).toEqual({
       totalSessions: 11,
       inlineTranscriptCount: 4,
       archivedTranscriptCount: 7,
       missingRetentionSummaryCount: 2,
     });
-    expect(payload?.[12]?.result?.data).toEqual([
+    expect(payload?.[13]?.result?.data).toEqual([
       expect.objectContaining({
         id: 'sess-1',
         name: 'Refactor startup fallback',
@@ -1402,6 +1418,7 @@ describe('legacy MCP dashboard compatibility bridge', () => {
     expect((global.fetch as ReturnType<typeof vi.fn>).mock.calls.some(([url]) => String(url) === 'http://127.0.0.1:4200/api/billing/provider-quotas')).toBe(true);
     expect((global.fetch as ReturnType<typeof vi.fn>).mock.calls.some(([url]) => String(url) === 'http://127.0.0.1:4200/api/api-keys')).toBe(true);
     expect((global.fetch as ReturnType<typeof vi.fn>).mock.calls.some(([url]) => String(url) === 'http://127.0.0.1:4200/api/expert/status')).toBe(true);
+    expect((global.fetch as ReturnType<typeof vi.fn>).mock.calls.some(([url]) => String(url) === 'http://127.0.0.1:4200/api/sessions/supervisor/state')).toBe(true);
     expect((global.fetch as ReturnType<typeof vi.fn>).mock.calls.some(([url]) => String(url) === 'http://127.0.0.1:4200/api/memory/agent-stats')).toBe(true);
     expect((global.fetch as ReturnType<typeof vi.fn>).mock.calls.some(([url]) => String(url) === 'http://127.0.0.1:4200/api/shell/history/system?limit=8')).toBe(true);
     expect((global.fetch as ReturnType<typeof vi.fn>).mock.calls.some(([url]) => String(url) === 'http://127.0.0.1:4200/api/billing/fallback-chain')).toBe(true);

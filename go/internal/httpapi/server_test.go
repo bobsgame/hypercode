@@ -5852,6 +5852,70 @@ func TestSupervisorSessionRoutesFallBackToLocalGoSupervisor(t *testing.T) {
 	}
 }
 
+func TestSupervisorSessionRoutesPersistAcrossServerRestart(t *testing.T) {
+	t.Setenv("HYPERCODE_TRPC_UPSTREAM", "http://127.0.0.1:1/trpc")
+	workspaceRoot := t.TempDir()
+	cfg := config.Default()
+	cfg.WorkspaceRoot = workspaceRoot
+	cfg.ConfigDir = filepath.Join(workspaceRoot, ".hypercode-go")
+	cfg.MainConfigDir = filepath.Join(workspaceRoot, ".hypercode")
+	if err := os.MkdirAll(cfg.ConfigDir, 0o755); err != nil {
+		t.Fatalf("failed to create go config dir: %v", err)
+	}
+	if err := os.MkdirAll(cfg.MainConfigDir, 0o755); err != nil {
+		t.Fatalf("failed to create main config dir: %v", err)
+	}
+
+	firstServer := New(cfg, stubDetector{})
+	workingDirectory, err := os.Getwd()
+	if err != nil || strings.TrimSpace(workingDirectory) == "" {
+		workingDirectory = workspaceRoot
+	}
+
+	createReq := httptest.NewRequest(http.MethodPost, "/api/sessions/supervisor/create", strings.NewReader(`{"id":"persisted-http-session","name":"Persisted HTTP Session","cliType":"custom","workingDirectory":"`+strings.ReplaceAll(workingDirectory, `\`, `\\`)+`","command":"go","args":["version"],"autoRestart":false,"maxRestartAttempts":0}`))
+	createReq.Header.Set("content-type", "application/json")
+	createRecorder := httptest.NewRecorder()
+	firstServer.Handler().ServeHTTP(createRecorder, createReq)
+	if createRecorder.Code != http.StatusOK {
+		t.Fatalf("expected status 200 from local create fallback, got %d %s", createRecorder.Code, createRecorder.Body.String())
+	}
+	if !strings.Contains(createRecorder.Body.String(), `"persisted-http-session"`) {
+		t.Fatalf("expected persisted session id in create payload, got %s", createRecorder.Body.String())
+	}
+
+	persistedPath := filepath.Join(cfg.ConfigDir, "session-supervisor.json")
+	persistedRaw, err := os.ReadFile(persistedPath)
+	if err != nil {
+		t.Fatalf("expected persisted supervisor state at %s: %v", persistedPath, err)
+	}
+	if !strings.Contains(string(persistedRaw), `"persisted-http-session"`) {
+		t.Fatalf("expected persisted supervisor state to contain session id, got %s", string(persistedRaw))
+	}
+
+	secondServer := New(cfg, stubDetector{})
+	listRecorder := httptest.NewRecorder()
+	secondServer.Handler().ServeHTTP(listRecorder, httptest.NewRequest(http.MethodGet, "/api/sessions/supervisor/list", nil))
+	if listRecorder.Code != http.StatusOK {
+		t.Fatalf("expected status 200 from restored local list fallback, got %d %s", listRecorder.Code, listRecorder.Body.String())
+	}
+	for _, needle := range []string{`"fallback":"go-local-supervisor"`, `"procedure":"session.list"`, `"persisted-http-session"`, `"Persisted HTTP Session"`} {
+		if !strings.Contains(listRecorder.Body.String(), needle) {
+			t.Fatalf("expected restored local list payload to contain %s, got %s", needle, listRecorder.Body.String())
+		}
+	}
+
+	getRecorder := httptest.NewRecorder()
+	secondServer.Handler().ServeHTTP(getRecorder, httptest.NewRequest(http.MethodGet, "/api/sessions/supervisor/get?id=persisted-http-session", nil))
+	if getRecorder.Code != http.StatusOK {
+		t.Fatalf("expected status 200 from restored local get fallback, got %d %s", getRecorder.Code, getRecorder.Body.String())
+	}
+	for _, needle := range []string{`"fallback":"go-local-supervisor"`, `"procedure":"session.get"`, `"persisted-http-session"`, `"status":"created"`} {
+		if !strings.Contains(getRecorder.Body.String(), needle) {
+			t.Fatalf("expected restored local get payload to contain %s, got %s", needle, getRecorder.Body.String())
+		}
+	}
+}
+
 func TestMCPBridgeRoutes(t *testing.T) {
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("content-type", "application/json")

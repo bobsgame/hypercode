@@ -368,7 +368,10 @@ type SummaryBucket struct {
 
 func New(cfg config.Config, detector controlplane.ToolProvider) *Server {
 	// Create supervisor manager
-	supMgr := supervisor.NewManager()
+	supMgr := supervisor.NewManager(supervisor.ManagerOptions{
+		PersistencePath:   filepath.Join(cfg.ConfigDir, "session-supervisor.json"),
+		AutoResumeOnStart: true,
+	})
 
 	// Create workflow engine with built-in workflows
 	wfEngine := workflow.NewEngine()
@@ -1080,9 +1083,9 @@ func (s *Server) handleAPIIndex(w http.ResponseWriter, _ *http.Request) {
 				{Path: "/api/sessions/summary", Category: "sessions", Description: "Compact summary of discovered sessions by tool, format, task, and model hint."},
 				{Path: "/api/sessions/context", Category: "sessions", Description: "Go-owned session context summary combining startup readiness, memory bootstrap, and tool advertisements."},
 				{Path: "/api/sessions/supervisor/catalog", Category: "sessions", Description: "Bridge to the TypeScript session harness catalog."},
-				{Path: "/api/sessions/supervisor/list", Category: "sessions", Description: "List supervised sessions through the TypeScript control plane when available, with native Go in-memory supervisor fallback when unavailable."},
-				{Path: "/api/sessions/supervisor/get", Category: "sessions", Description: "Read a supervised session snapshot through TypeScript when available, with native Go supervisor fallback when unavailable."},
-				{Path: "/api/sessions/supervisor/create", Category: "sessions", Description: "Create a supervised session through the TypeScript control plane when available, with native Go in-memory supervisor fallback when unavailable."},
+				{Path: "/api/sessions/supervisor/list", Category: "sessions", Description: "List supervised sessions through the TypeScript control plane when available, with native Go persisted supervisor fallback when unavailable."},
+				{Path: "/api/sessions/supervisor/get", Category: "sessions", Description: "Read a supervised session snapshot through TypeScript when available, with native Go persisted supervisor fallback when unavailable."},
+				{Path: "/api/sessions/supervisor/create", Category: "sessions", Description: "Create a supervised session through the TypeScript control plane when available, with native Go persisted supervisor fallback when unavailable."},
 				{Path: "/api/sessions/supervisor/start", Category: "sessions", Description: "Start a supervised session through TypeScript when available, with native Go supervised runtime fallback when unavailable."},
 				{Path: "/api/sessions/supervisor/stop", Category: "sessions", Description: "Stop a supervised session through TypeScript when available, with native Go supervised runtime fallback when unavailable."},
 				{Path: "/api/sessions/supervisor/restart", Category: "sessions", Description: "Restart a supervised session through TypeScript when available, with native Go supervised runtime fallback when unavailable."},

@@ -1,5 +1,76 @@
 # HyperCode Stabilization Analysis — 2026-04-03
 
+## Latest stabilization pass — durable Go supervisor lifecycle persistence across runtime restarts
+
+### Context
+The previous Go supervisor pass made the public supervised-session route family usable during a TypeScript outage, but it still had one major truth gap: the new native Go supervisor lifecycle fallback was **in-memory only**. A Go runtime restart would erase the fallback-created session inventory even though the operator-facing routes already behaved like a real local supervisor.
+
+That made the next step obvious: persist the Go-owned supervised-session fallback so it survives Go runtime restarts and can truthfully restore local session inventory after the control plane comes back.
+
+### What changed
+#### 1. Added durable persistence to the Go supervisor manager
+Updated:
+- `go/internal/supervisor/supervisor.go`
+- `go/internal/supervisor/supervisor_test.go`
+
+The Go supervisor manager now supports:
+- a configured persistence path
+- persisted session snapshots with logs/metadata/history
+- restore-time normalization of transient states
+- restore-status tracking
+
+The durable store now lives in the Go config dir as:
+- `.hypercode-go/session-supervisor.json`
+
+This is intentionally Go-owned state, not an attempted silent takeover of the TypeScript supervisor persistence file.
+
+#### 2. Restored sessions now survive Go runtime restart and normalize transient process states honestly
+Restore semantics now mirror the same basic truthfulness pattern used in the TypeScript supervisor:
+- persisted sessions are reloaded on manager startup
+- transient process states are normalized on restore rather than blindly trusted
+- when auto-resume is disabled, transient running/starting/stopping states restore as `stopped`
+- when auto-resume is enabled, transient states restore as `restarting` and Go may attempt to resume them
+- runtime-only values like live PID and active restart timer are not persisted as if they survived restart
+
+This matters because it keeps the restored state credible instead of pretending the original process handle still exists after the runtime restarted.
+
+#### 3. Wired the Go HTTP server to use the durable supervisor manager
+Updated:
+- `go/internal/httpapi/server.go`
+
+The server now constructs the native Go supervisor manager with a real persistence path in the Go config dir, which means the public fallback routes now preserve local supervisor inventory across Go server recreation/restart.
+
+#### 4. Added focused durability regression coverage
+Updated:
+- `go/internal/supervisor/supervisor_test.go`
+- `go/internal/httpapi/server_test.go`
+
+Added coverage for:
+- manager-level persistence and restore of a created session
+- restore normalization of a persisted transient running session when auto-resume is disabled
+- HTTP-level durability across server restart: create a native fallback supervised session, recreate the Go server with the same config dir, then verify `list/get` still surface the restored session
+
+### Validation
+Executed truthfully without killing any processes:
+- `cd go && gofmt -w internal/supervisor/supervisor.go internal/supervisor/supervisor_test.go internal/httpapi/server.go internal/httpapi/server_test.go`
+- `cd go && go test ./internal/supervisor ./internal/httpapi -run 'TestManagerPersistsAndRestoresCreatedSessions|TestManagerRestoreNormalizesTransientRunningStateToStoppedWithoutAutoResume|TestSupervisorSessionRoutesPersistAcrossServerRestart|TestSupervisorSessionRoutesFallBackToLocalGoSupervisor|TestSupervisorSessionStateFallsBackToLocalGoState|TestSupervisorSessionBridgeRoutes' -count=1`
+- `cd go && go test ./internal/httpapi ./internal/supervisor ./internal/git -count=1`
+
+### Why this matters
+This upgrades the Go supervisor fallback from:
+- "operator-useful, but ephemeral"
+
+into:
+- "operator-useful, and durable across Go runtime restart"
+
+That still does **not** mean full TypeScript parity. The main remaining gaps are still:
+- execution-policy parity
+- worktree isolation parity
+- TypeScript memory-bootstrap integration
+- broader restore/control-plane parity beyond the Go-owned fallback surface
+
+But the native Go supervisor fallback is now much closer to being a credible authoritative local runtime instead of just a temporary emergency lane.
+
 ## Latest stabilization pass — native Go fallback for public supervised session lifecycle routes
 
 ### Context

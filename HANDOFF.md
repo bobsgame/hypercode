@@ -3,6 +3,36 @@
 ## Current status
 **Version:** `1.0.0-alpha.1`
 
+### Latest incremental pass — durable Go supervised-session lifecycle persistence
+This follow-up made the new native Go supervised-session fallback durable across Go runtime restarts instead of leaving it as an in-memory-only rescue path.
+
+#### What changed
+- Upgraded `go/internal/supervisor/supervisor.go` to persist and restore the Go-owned supervised-session fallback inventory
+- Added restore-status tracking and transient-state normalization during restore
+- Wired `go/internal/httpapi/server.go` to construct the Go supervisor manager with a real persistence path in the Go config dir:
+  - `.hypercode-go/session-supervisor.json`
+- Added focused persistence coverage in:
+  - `go/internal/supervisor/supervisor_test.go`
+  - `go/internal/httpapi/server_test.go`
+
+#### Fallback semantics
+When TS is unavailable, the Go supervised-session lifecycle fallback now remains durable across Go server recreation/restart:
+- sessions created through the Go fallback are persisted to the Go config dir
+- restored sessions survive control-plane restart
+- transient runtime-only states are normalized honestly on restore instead of pretending the original process handle still exists
+
+Important limitation is explicit in the current architecture:
+- persistence is now durable for the Go-owned fallback inventory, but this still does **not** claim full TypeScript execution-policy/worktree/memory-bootstrap parity
+- the Go fallback state is stored in the Go config dir, not yet as shared TS/Go supervisor authority
+
+#### Validation performed
+- `cd go && gofmt -w internal/supervisor/supervisor.go internal/supervisor/supervisor_test.go internal/httpapi/server.go internal/httpapi/server_test.go`
+- `cd go && go test ./internal/supervisor ./internal/httpapi -run 'TestManagerPersistsAndRestoresCreatedSessions|TestManagerRestoreNormalizesTransientRunningStateToStoppedWithoutAutoResume|TestSupervisorSessionRoutesPersistAcrossServerRestart|TestSupervisorSessionRoutesFallBackToLocalGoSupervisor|TestSupervisorSessionStateFallsBackToLocalGoState|TestSupervisorSessionBridgeRoutes' -count=1`
+- `cd go && go test ./internal/httpapi ./internal/supervisor ./internal/git -count=1`
+
+#### Recommended next step after this pass
+Continue deeper Go-native supervisor parity by closing higher-value remaining gaps around execution-policy/worktree ownership and any remaining TS-only restore/control semantics.
+
 ### Latest incremental pass — native Go supervised-session lifecycle fallback ownership
 This follow-up moved the public supervised-session lifecycle routes from bridge-only behavior into truthful upstream-first / native-Go-fallback ownership.
 

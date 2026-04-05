@@ -2,6 +2,7 @@ package supervisor
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -106,6 +107,100 @@ func TestCreateSessionCapturesMetadata(t *testing.T) {
 	}
 	if session.State != StateCreated {
 		t.Fatalf("expected initial created state, got %#v", session)
+	}
+}
+
+func TestManagerPersistsAndRestoresCreatedSessions(t *testing.T) {
+	persistencePath := filepath.Join(t.TempDir(), "session-supervisor.json")
+	manager := NewManager(ManagerOptions{PersistencePath: persistencePath})
+	session, err := manager.CreateSessionWithOptions(CreateSessionOptions{
+		ID:                  "persisted-1",
+		Name:                "Persisted Session",
+		CliType:             "custom",
+		Command:             "go",
+		Args:                []string{"version"},
+		Env:                 map[string]string{"HYPERCODE_TEST": "1"},
+		RequestedWorkingDir: "C:/workspace/project",
+		WorkingDirectory:    "C:/workspace/project",
+		ExecutionProfile:    "auto",
+		AutoRestart:         false,
+		Metadata:            map[string]any{"source": "unit-test"},
+		MaxRestarts:         0,
+	})
+	if err != nil {
+		t.Fatalf("CreateSessionWithOptions failed: %v", err)
+	}
+	if session.State != StateCreated {
+		t.Fatalf("expected created state, got %#v", session)
+	}
+
+	raw, err := os.ReadFile(persistencePath)
+	if err != nil {
+		t.Fatalf("expected persistence file at %s: %v", persistencePath, err)
+	}
+	var persisted persistedState
+	if err := json.Unmarshal(raw, &persisted); err != nil {
+		t.Fatalf("failed to decode persisted state: %v", err)
+	}
+	if len(persisted.Sessions) != 1 || persisted.Sessions[0].ID != "persisted-1" {
+		t.Fatalf("unexpected persisted sessions: %#v", persisted.Sessions)
+	}
+
+	restored := NewManager(ManagerOptions{PersistencePath: persistencePath})
+	restoredSession, ok := restored.GetSession("persisted-1")
+	if !ok || restoredSession == nil {
+		t.Fatalf("expected restored session")
+	}
+	if restoredSession.Name != "Persisted Session" || restoredSession.CliType != "custom" || restoredSession.Metadata["source"] != "unit-test" {
+		t.Fatalf("unexpected restored session: %#v", restoredSession)
+	}
+	if restoredSession.State != StateCreated {
+		t.Fatalf("expected restored created state, got %#v", restoredSession)
+	}
+	status := restored.GetRestoreStatus()
+	if status.RestoredSessionCount != 1 {
+		t.Fatalf("expected restore count 1, got %#v", status)
+	}
+}
+
+func TestManagerRestoreNormalizesTransientRunningStateToStoppedWithoutAutoResume(t *testing.T) {
+	persistencePath := filepath.Join(t.TempDir(), "session-supervisor.json")
+	state := persistedState{
+		Sessions: []SupervisedSession{{
+			ID:                        "running-1",
+			Name:                      "Running Session",
+			CliType:                   "custom",
+			Command:                   "go",
+			Args:                      []string{"version"},
+			ExecutionProfile:          "auto",
+			RequestedWorkingDirectory: "C:/workspace/project",
+			WorkingDirectory:          "C:/workspace/project",
+			State:                     StateRunning,
+			CreatedAt:                 time.Now().UTC().UnixMilli(),
+			LastActivityAt:            time.Now().UTC().UnixMilli(),
+			Logs:                      []SessionLogEntry{{Timestamp: time.Now().UTC().UnixMilli(), Stream: "system", Message: "restored"}},
+			Metadata:                  map[string]any{},
+		}},
+		SavedAt: time.Now().UTC().UnixMilli(),
+	}
+	raw, err := json.Marshal(state)
+	if err != nil {
+		t.Fatalf("marshal persisted state: %v", err)
+	}
+	if err := os.WriteFile(persistencePath, raw, 0o644); err != nil {
+		t.Fatalf("write persisted state: %v", err)
+	}
+
+	restored := NewManager(ManagerOptions{PersistencePath: persistencePath, AutoResumeOnStart: false})
+	session, ok := restored.GetSession("running-1")
+	if !ok || session == nil {
+		t.Fatalf("expected restored session")
+	}
+	if session.State != StateStopped {
+		t.Fatalf("expected transient running state to restore as stopped, got %#v", session)
+	}
+	if session.ScheduledRestartAt != 0 {
+		t.Fatalf("expected cleared scheduled restart time, got %#v", session)
 	}
 }
 

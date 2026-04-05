@@ -3,9 +3,11 @@ package supervisor
 import (
 	"bufio"
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
@@ -75,6 +77,25 @@ type CreateSessionOptions struct {
 	MaxRestarts         int
 }
 
+type ManagerOptions struct {
+	PersistencePath   string
+	MaxPersisted      int
+	MaxLogEntries     int
+	AutoResumeOnStart bool
+	RestartDelay      time.Duration
+}
+
+type RestoreStatus struct {
+	LastRestoreAt        *int64 `json:"lastRestoreAt,omitempty"`
+	RestoredSessionCount int    `json:"restoredSessionCount"`
+	AutoResumeCount      int    `json:"autoResumeCount"`
+}
+
+type persistedState struct {
+	Sessions []SupervisedSession `json:"sessions"`
+	SavedAt  int64               `json:"savedAt"`
+}
+
 type SupervisedSession struct {
 	ID                        string            `json:"id"`
 	Name                      string            `json:"name"`
@@ -112,14 +133,44 @@ type SupervisedSession struct {
 }
 
 type Manager struct {
-	sessions map[string]*SupervisedSession
-	mu       sync.RWMutex
+	sessions          map[string]*SupervisedSession
+	mu                sync.RWMutex
+	persistencePath   string
+	maxPersisted      int
+	maxLogEntries     int
+	autoResumeOnStart bool
+	restartDelay      time.Duration
+	restoreStatus     RestoreStatus
 }
 
-func NewManager() *Manager {
-	return &Manager{
-		sessions: make(map[string]*SupervisedSession),
+func NewManager(options ...ManagerOptions) *Manager {
+	cfg := ManagerOptions{}
+	if len(options) > 0 {
+		cfg = options[0]
 	}
+	if cfg.MaxPersisted <= 0 {
+		cfg.MaxPersisted = 100
+	}
+	if cfg.MaxLogEntries <= 0 {
+		cfg.MaxLogEntries = defaultMaxLogEntries
+	}
+	if cfg.RestartDelay <= 0 {
+		cfg.RestartDelay = defaultRestartDelay
+	}
+	manager := &Manager{
+		sessions:          make(map[string]*SupervisedSession),
+		persistencePath:   strings.TrimSpace(cfg.PersistencePath),
+		maxPersisted:      cfg.MaxPersisted,
+		maxLogEntries:     cfg.MaxLogEntries,
+		autoResumeOnStart: cfg.AutoResumeOnStart,
+		restartDelay:      cfg.RestartDelay,
+		restoreStatus: RestoreStatus{
+			RestoredSessionCount: 0,
+			AutoResumeCount:      0,
+		},
+	}
+	manager.restoreSessions()
+	return manager
 }
 
 func (m *Manager) CreateSession(id, command string, args []string, env map[string]string, cwd string, maxRestarts int) (*SupervisedSession, error) {
@@ -183,15 +234,13 @@ func (m *Manager) CreateSessionWithOptions(input CreateSessionOptions) (*Supervi
 	if executionProfile == "" {
 		executionProfile = "auto"
 	}
-	metadata := cloneMetadata(input.Metadata)
-	now := nowMillis()
 	autoRestart := input.AutoRestart
 	if !input.AutoRestart && input.MaxRestarts == 0 {
 		autoRestart = false
 	} else if input.AutoRestart || input.MaxRestarts > 0 {
 		autoRestart = true
 	}
-
+	now := nowMillis()
 	session := &SupervisedSession{
 		ID:                        id,
 		Name:                      name,
@@ -209,7 +258,7 @@ func (m *Manager) CreateSessionWithOptions(input CreateSessionOptions) (*Supervi
 		MaxRestarts:               maxRestarts,
 		CreatedAt:                 now,
 		LastActivityAt:            now,
-		Metadata:                  metadata,
+		Metadata:                  cloneMetadata(input.Metadata),
 		Logs:                      []SessionLogEntry{},
 		health: SessionHealth{
 			Status:              "degraded",
@@ -218,10 +267,11 @@ func (m *Manager) CreateSessionWithOptions(input CreateSessionOptions) (*Supervi
 			RestartCount:        0,
 		},
 	}
-
 	m.sessions[id] = session
 	m.appendLogLocked(session, "system", fmt.Sprintf("Session created for %s in %s", session.CliType, session.WorkingDirectory))
-	return m.cloneSession(session), nil
+	clone := m.cloneSessionLocked(session)
+	m.persistLocked()
+	return clone, nil
 }
 
 func (m *Manager) GetSession(id string) (*SupervisedSession, bool) {
@@ -231,7 +281,7 @@ func (m *Manager) GetSession(id string) (*SupervisedSession, bool) {
 	if !ok {
 		return nil, false
 	}
-	return m.cloneSession(session), true
+	return m.cloneSessionLocked(session), true
 }
 
 func (m *Manager) StartSession(ctx context.Context, id string) error {
@@ -241,7 +291,6 @@ func (m *Manager) StartSession(ctx context.Context, id string) error {
 		m.mu.Unlock()
 		return fmt.Errorf("session %s not found", id)
 	}
-
 	if session.State == StateRunning || session.State == StateStarting {
 		m.mu.Unlock()
 		return nil
@@ -253,10 +302,7 @@ func (m *Manager) StartSession(ctx context.Context, id string) error {
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	if session.restartContext == nil {
-		session.restartContext = ctx
-	}
-
+	session.restartContext = ctx
 	session.manualStop = false
 	session.restartAfterStop = false
 	session.State = StateStarting
@@ -267,9 +313,10 @@ func (m *Manager) StartSession(ctx context.Context, id string) error {
 	session.health.NextRestartAt = nil
 	session.LastActivityAt = nowMillis()
 	m.appendLogLocked(session, "system", fmt.Sprintf("Starting %s %s", session.Command, strings.Join(session.Args, " ")))
+	m.persistLocked()
+	clone := m.cloneSessionLocked(session)
 	m.mu.Unlock()
-
-	return m.runSession(ctx, session)
+	return m.runSession(ctx, clone)
 }
 
 func (m *Manager) runSession(ctx context.Context, session *SupervisedSession) error {
@@ -290,7 +337,6 @@ func (m *Manager) runSession(ctx context.Context, session *SupervisedSession) er
 		m.markStartFailure(session.ID, fmt.Errorf("stderr pipe: %w", err))
 		return err
 	}
-
 	if err := cmd.Start(); err != nil {
 		m.markStartFailure(session.ID, err)
 		return err
@@ -313,6 +359,7 @@ func (m *Manager) runSession(ctx context.Context, session *SupervisedSession) er
 	live.health.ConsecutiveFailures = 0
 	live.health.ErrorMessage = nil
 	m.appendLogLocked(live, "system", fmt.Sprintf("Spawned process %d", live.PID))
+	m.persistLocked()
 	m.mu.Unlock()
 
 	go m.streamOutput(session.ID, "stdout", stdout)
@@ -327,13 +374,11 @@ func (m *Manager) StopSession(id string) error {
 
 func (m *Manager) StopSessionWithOptions(id string, force bool) error {
 	m.mu.Lock()
-	defer m.mu.Unlock()
-
 	session, exists := m.sessions[id]
 	if !exists {
+		m.mu.Unlock()
 		return fmt.Errorf("session %s not found", id)
 	}
-
 	session.manualStop = true
 	session.restartAfterStop = false
 	if session.restartTimer != nil {
@@ -344,21 +389,27 @@ func (m *Manager) StopSessionWithOptions(id string, force bool) error {
 	session.health.NextRestartAt = nil
 	session.health.Status = "degraded"
 	session.health.LastCheck = nowMillis()
-
 	if session.cmd == nil || session.cmd.Process == nil {
 		session.State = StateStopped
 		session.StoppedAt = nowMillis()
 		m.appendLogLocked(session, "system", "Stop requested while no process was running.")
+		m.persistLocked()
+		m.mu.Unlock()
 		return nil
 	}
-
 	session.State = StateStopping
 	if force {
 		m.appendLogLocked(session, "system", "Stopping process forcefully.")
-		return session.cmd.Process.Kill()
+	} else {
+		m.appendLogLocked(session, "system", "Stopping process.")
 	}
-	m.appendLogLocked(session, "system", "Stopping process.")
-	return session.cmd.Process.Signal(os.Interrupt)
+	process := session.cmd.Process
+	m.persistLocked()
+	m.mu.Unlock()
+	if force {
+		return process.Kill()
+	}
+	return process.Signal(os.Interrupt)
 }
 
 func (m *Manager) RestartSession(ctx context.Context, id string) error {
@@ -375,15 +426,16 @@ func (m *Manager) RestartSession(ctx context.Context, id string) error {
 	if session.cmd == nil || session.cmd.Process == nil {
 		session.State = StateRestarting
 		m.appendLogLocked(session, "system", "Restart requested while idle; starting session.")
+		m.persistLocked()
 		m.mu.Unlock()
 		return m.StartSession(ctx, id)
 	}
-
 	session.manualStop = true
 	session.restartAfterStop = true
 	session.State = StateRestarting
 	m.appendLogLocked(session, "system", "Manual restart requested.")
 	process := session.cmd.Process
+	m.persistLocked()
 	m.mu.Unlock()
 	return process.Signal(os.Interrupt)
 }
@@ -429,18 +481,135 @@ func (m *Manager) GetSessionHealth(id string) (*SessionHealth, error) {
 func (m *Manager) ListSessions() []SupervisedSession {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
+	return m.listSessionsLocked()
+}
 
-	list := make([]SupervisedSession, 0, len(m.sessions))
+func (m *Manager) GetRestoreStatus() RestoreStatus {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	status := m.restoreStatus
+	return status
+}
+
+func (m *Manager) Shutdown() error {
+	m.mu.Lock()
 	for _, session := range m.sessions {
-		list = append(list, *m.cloneSession(session))
-	}
-	sort.Slice(list, func(i, j int) bool {
-		if list[i].CreatedAt == list[j].CreatedAt {
-			return list[i].ID < list[j].ID
+		if session.restartTimer != nil {
+			session.restartTimer.Stop()
+			session.restartTimer = nil
 		}
-		return list[i].CreatedAt < list[j].CreatedAt
-	})
-	return list
+		if session.cmd != nil && session.cmd.Process != nil {
+			session.manualStop = true
+			_ = session.cmd.Process.Signal(os.Interrupt)
+		}
+	}
+	m.persistLocked()
+	m.mu.Unlock()
+	return nil
+}
+
+func (m *Manager) restoreSessions() {
+	state := m.readPersistedState()
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.sessions = make(map[string]*SupervisedSession)
+	autoResumeIDs := make([]string, 0)
+	for _, persisted := range state.Sessions {
+		normalized, shouldAutoResume := m.normalizeRestoredSession(persisted)
+		m.sessions[normalized.ID] = normalized
+		if shouldAutoResume {
+			autoResumeIDs = append(autoResumeIDs, normalized.ID)
+		}
+	}
+	lastRestoreAt := nowMillis()
+	m.restoreStatus = RestoreStatus{
+		LastRestoreAt:        &lastRestoreAt,
+		RestoredSessionCount: len(m.sessions),
+		AutoResumeCount:      len(autoResumeIDs),
+	}
+	for _, sessionID := range autoResumeIDs {
+		go func(id string) {
+			_ = m.StartSession(context.Background(), id)
+		}(sessionID)
+	}
+}
+
+func (m *Manager) normalizeRestoredSession(session SupervisedSession) (*SupervisedSession, bool) {
+	status := session.State
+	shouldAutoResume := false
+	switch session.State {
+	case StateRunning, StateStarting, StateStopping:
+		if m.autoResumeOnStart {
+			status = StateRestarting
+			shouldAutoResume = true
+		} else {
+			status = StateStopped
+		}
+	case StateRestarting:
+		if m.autoResumeOnStart {
+			status = StateRestarting
+			shouldAutoResume = true
+		} else {
+			status = StateStopped
+		}
+	}
+	now := nowMillis()
+	restored := &SupervisedSession{
+		ID:                        strings.TrimSpace(session.ID),
+		Name:                      strings.TrimSpace(session.Name),
+		CliType:                   strings.TrimSpace(session.CliType),
+		Command:                   strings.TrimSpace(session.Command),
+		Args:                      append([]string(nil), session.Args...),
+		Env:                       cloneEnv(session.Env),
+		ExecutionProfile:          defaultString(session.ExecutionProfile, "auto"),
+		RequestedWorkingDirectory: defaultString(session.RequestedWorkingDirectory, session.WorkingDirectory),
+		WorkingDirectory:          defaultString(session.WorkingDirectory, session.RequestedWorkingDirectory),
+		WorktreePath:              strings.TrimSpace(session.WorktreePath),
+		AutoRestart:               session.AutoRestart,
+		IsolateWorktree:           session.IsolateWorktree,
+		State:                     status,
+		PID:                       0,
+		RestartCount:              maxInt(session.RestartCount, 0),
+		MaxRestarts:               maxInt(session.MaxRestarts, 0),
+		CreatedAt:                 defaultInt64(session.CreatedAt, now),
+		StartedAt:                 session.StartedAt,
+		StoppedAt:                 session.StoppedAt,
+		ScheduledRestartAt:        0,
+		LastActivityAt:            defaultInt64(session.LastActivityAt, now),
+		LastError:                 strings.TrimSpace(session.LastError),
+		LastExitCode:              session.LastExitCode,
+		LastExitSignal:            strings.TrimSpace(session.LastExitSignal),
+		Metadata:                  cloneMetadata(session.Metadata),
+		Logs:                      append([]SessionLogEntry(nil), session.Logs...),
+		health: SessionHealth{
+			Status:              defaultRestoredHealthStatus(status),
+			LastCheck:           now,
+			ConsecutiveFailures: 0,
+			RestartCount:        maxInt(session.RestartCount, 0),
+			LastExitCode:        optionalIntPointer(session.LastExitCode),
+			LastExitSignal:      stringPointer(session.LastExitSignal),
+			ErrorMessage:        stringPointer(session.LastError),
+		},
+	}
+	if restored.Name == "" {
+		restored.Name = fmt.Sprintf("%s-%s", defaultString(restored.CliType, restored.Command), shortenID(restored.ID))
+	}
+	if restored.CliType == "" {
+		restored.CliType = restored.Command
+	}
+	if restored.WorkingDirectory == "" {
+		restored.WorkingDirectory = "."
+	}
+	if restored.RequestedWorkingDirectory == "" {
+		restored.RequestedWorkingDirectory = restored.WorkingDirectory
+	}
+	if len(restored.Logs) > m.maxLogEntries {
+		restored.Logs = append([]SessionLogEntry(nil), restored.Logs[len(restored.Logs)-m.maxLogEntries:]...)
+	}
+	if restored.State == StateFailed {
+		restored.health.ConsecutiveFailures = 1
+	}
+	return restored, shouldAutoResume
 }
 
 func (m *Manager) markStartFailure(id string, err error) {
@@ -461,6 +630,7 @@ func (m *Manager) markStartFailure(id string, err error) {
 	session.health.ConsecutiveFailures++
 	session.health.ErrorMessage = stringPointer(message)
 	m.appendLogLocked(session, "system", "Start failed: "+message)
+	m.persistLocked()
 }
 
 func (m *Manager) streamOutput(id, stream string, reader interface{ Read([]byte) (int, error) }) {
@@ -476,8 +646,8 @@ func (m *Manager) streamOutput(id, stream string, reader interface{ Read([]byte)
 }
 
 func (m *Manager) recordOutput(id, stream, message string) {
-	trimmed := strings.TrimRight(message, "\r\n")
-	if strings.TrimSpace(trimmed) == "" {
+	trimmed := strings.TrimSpace(strings.ReplaceAll(message, "\r", ""))
+	if trimmed == "" {
 		return
 	}
 	m.mu.Lock()
@@ -486,7 +656,11 @@ func (m *Manager) recordOutput(id, stream, message string) {
 	if !ok {
 		return
 	}
+	session.LastActivityAt = nowMillis()
+	session.health.LastCheck = nowMillis()
+	session.health.Status = "healthy"
 	m.appendLogLocked(session, stream, trimmed)
+	m.persistLocked()
 }
 
 func (m *Manager) waitForExit(ctx context.Context, id string, cmd *exec.Cmd) {
@@ -502,7 +676,6 @@ func (m *Manager) waitForExit(ctx context.Context, id string, cmd *exec.Cmd) {
 	session.LastActivityAt = nowMillis()
 	session.StoppedAt = nowMillis()
 	session.health.LastCheck = nowMillis()
-	session.health.RestartCount = session.RestartCount
 	codePtr, signalPtr := exitDetails(err)
 	if codePtr != nil {
 		session.LastExitCode = *codePtr
@@ -512,15 +685,14 @@ func (m *Manager) waitForExit(ctx context.Context, id string, cmd *exec.Cmd) {
 		session.LastExitSignal = *signalPtr
 		session.health.LastExitSignal = signalPtr
 	}
-
 	if session.restartAfterStop {
 		session.restartAfterStop = false
 		session.manualStop = false
 		m.scheduleRestartLocked(session, ctx, "manual restart requested")
+		m.persistLocked()
 		m.mu.Unlock()
 		return
 	}
-
 	if session.manualStop {
 		session.manualStop = false
 		session.State = StateStopped
@@ -529,10 +701,10 @@ func (m *Manager) waitForExit(ctx context.Context, id string, cmd *exec.Cmd) {
 		session.health.NextRestartAt = nil
 		session.health.ErrorMessage = nil
 		m.appendLogLocked(session, "system", "Process stopped.")
+		m.persistLocked()
 		m.mu.Unlock()
 		return
 	}
-
 	if err != nil {
 		message := strings.TrimSpace(err.Error())
 		session.LastError = message
@@ -542,6 +714,7 @@ func (m *Manager) waitForExit(ctx context.Context, id string, cmd *exec.Cmd) {
 			session.RestartCount++
 			session.health.RestartCount = session.RestartCount
 			m.scheduleRestartLocked(session, ctx, message)
+			m.persistLocked()
 			m.mu.Unlock()
 			return
 		}
@@ -550,10 +723,10 @@ func (m *Manager) waitForExit(ctx context.Context, id string, cmd *exec.Cmd) {
 		session.health.NextRestartAt = nil
 		session.health.Status = "crashed"
 		m.appendLogLocked(session, "system", "Process exited with error: "+message)
+		m.persistLocked()
 		m.mu.Unlock()
 		return
 	}
-
 	session.State = StateStopped
 	session.ScheduledRestartAt = 0
 	session.LastError = ""
@@ -561,11 +734,12 @@ func (m *Manager) waitForExit(ctx context.Context, id string, cmd *exec.Cmd) {
 	session.health.NextRestartAt = nil
 	session.health.ErrorMessage = nil
 	m.appendLogLocked(session, "system", "Process exited cleanly.")
+	m.persistLocked()
 	m.mu.Unlock()
 }
 
 func (m *Manager) scheduleRestartLocked(session *SupervisedSession, ctx context.Context, reason string) {
-	restartAt := nowMillis() + defaultRestartDelay.Milliseconds()
+	restartAt := nowMillis() + m.restartDelay.Milliseconds()
 	session.State = StateRestarting
 	session.ScheduledRestartAt = restartAt
 	session.health.Status = "degraded"
@@ -585,7 +759,7 @@ func (m *Manager) scheduleRestartLocked(session *SupervisedSession, ctx context.
 		restartCtx = context.Background()
 	}
 	session.restartContext = restartCtx
-	session.restartTimer = time.AfterFunc(defaultRestartDelay, func() {
+	session.restartTimer = time.AfterFunc(m.restartDelay, func() {
 		_ = m.StartSession(restartCtx, session.ID)
 	})
 }
@@ -597,13 +771,27 @@ func (m *Manager) appendLogLocked(session *SupervisedSession, stream, message st
 		Message:   message,
 	}
 	session.Logs = append(session.Logs, entry)
-	if len(session.Logs) > defaultMaxLogEntries {
-		session.Logs = append([]SessionLogEntry(nil), session.Logs[len(session.Logs)-defaultMaxLogEntries:]...)
+	if len(session.Logs) > m.maxLogEntries {
+		session.Logs = append([]SessionLogEntry(nil), session.Logs[len(session.Logs)-m.maxLogEntries:]...)
 	}
 	session.LastActivityAt = entry.Timestamp
 }
 
-func (m *Manager) cloneSession(session *SupervisedSession) *SupervisedSession {
+func (m *Manager) listSessionsLocked() []SupervisedSession {
+	list := make([]SupervisedSession, 0, len(m.sessions))
+	for _, session := range m.sessions {
+		list = append(list, *m.cloneSessionLocked(session))
+	}
+	sort.Slice(list, func(i, j int) bool {
+		if list[i].CreatedAt == list[j].CreatedAt {
+			return list[i].ID < list[j].ID
+		}
+		return list[i].CreatedAt < list[j].CreatedAt
+	})
+	return list
+}
+
+func (m *Manager) cloneSessionLocked(session *SupervisedSession) *SupervisedSession {
 	clone := *session
 	clone.Args = append([]string(nil), session.Args...)
 	clone.Env = cloneEnv(session.Env)
@@ -611,7 +799,50 @@ func (m *Manager) cloneSession(session *SupervisedSession) *SupervisedSession {
 	clone.Logs = append([]SessionLogEntry(nil), session.Logs...)
 	clone.cmd = nil
 	clone.restartTimer = nil
+	clone.restartContext = nil
 	return &clone
+}
+
+func (m *Manager) readPersistedState() persistedState {
+	if strings.TrimSpace(m.persistencePath) == "" {
+		return persistedState{Sessions: []SupervisedSession{}, SavedAt: nowMillis()}
+	}
+	raw, err := os.ReadFile(m.persistencePath)
+	if err != nil {
+		return persistedState{Sessions: []SupervisedSession{}, SavedAt: nowMillis()}
+	}
+	var state persistedState
+	if err := json.Unmarshal(raw, &state); err != nil {
+		return persistedState{Sessions: []SupervisedSession{}, SavedAt: nowMillis()}
+	}
+	if state.Sessions == nil {
+		state.Sessions = []SupervisedSession{}
+	}
+	if state.SavedAt == 0 {
+		state.SavedAt = nowMillis()
+	}
+	return state
+}
+
+func (m *Manager) persistLocked() {
+	if strings.TrimSpace(m.persistencePath) == "" {
+		return
+	}
+	state := persistedState{
+		Sessions: m.listSessionsLocked(),
+		SavedAt:  nowMillis(),
+	}
+	if len(state.Sessions) > m.maxPersisted {
+		state.Sessions = append([]SupervisedSession(nil), state.Sessions[len(state.Sessions)-m.maxPersisted:]...)
+	}
+	raw, err := json.MarshalIndent(state, "", "  ")
+	if err != nil {
+		return
+	}
+	if err := os.MkdirAll(filepath.Dir(m.persistencePath), 0o755); err != nil {
+		return
+	}
+	_ = os.WriteFile(m.persistencePath, raw, 0o644)
 }
 
 func buildAttachInfo(session *SupervisedSession) *SessionAttachInfo {
@@ -637,10 +868,13 @@ func buildAttachInfo(session *SupervisedSession) *SessionAttachInfo {
 		attachReadiness = "pending"
 		attachReason = "stopping"
 	case StateStopped:
+		attachReadiness = "unavailable"
 		attachReason = "stopped"
 	case StateCreated:
+		attachReadiness = "unavailable"
 		attachReason = "created"
 	case StateFailed:
+		attachReadiness = "unavailable"
 		attachReason = "error"
 	}
 	return &SessionAttachInfo{
@@ -702,6 +936,13 @@ func int64Pointer(value int64) *int64 {
 	return &value
 }
 
+func optionalIntPointer(value int) *int {
+	if value == 0 {
+		return nil
+	}
+	return &value
+}
+
 func exitDetails(err error) (*int, *string) {
 	if err == nil {
 		zero := 0
@@ -726,4 +967,36 @@ func exitDetails(err error) (*int, *string) {
 		return codePtr, nil
 	}
 	return codePtr, &message
+}
+
+func defaultRestoredHealthStatus(state SessionState) string {
+	if state == StateFailed {
+		return "crashed"
+	}
+	if state == StateRunning {
+		return "healthy"
+	}
+	return "degraded"
+}
+
+func defaultString(value, fallback string) string {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return strings.TrimSpace(fallback)
+	}
+	return trimmed
+}
+
+func defaultInt64(value, fallback int64) int64 {
+	if value == 0 {
+		return fallback
+	}
+	return value
+}
+
+func maxInt(value, minimum int) int {
+	if value < minimum {
+		return minimum
+	}
+	return value
 }

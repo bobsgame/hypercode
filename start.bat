@@ -58,13 +58,26 @@ if /I "%HYPERCODE_SKIP_BUILD%"=="1" set SKIP_BUILD=1
 if "%SKIP_BUILD%"=="1" (
     echo Skipping build step ^(HYPERCODE_SKIP_BUILD=1^)...
 ) else (
-    if /I "%BUILD_TARGET%"=="build:startup-go" (
-        echo Go-primary startup build selected for runtime mode %RUNTIME_MODE%.
-        echo Set HYPERCODE_RUNTIME=node or HYPERCODE_FULL_BUILD=1 when you need full TS compatibility surfaces built before launch.
+    set BUILD_REQUIRED=1
+    if /I "%BUILD_TARGET%"=="build:startup-go" if /I not "%HYPERCODE_FORCE_BUILD%"=="1" (
+        echo Checking whether Go-primary startup build artifacts are already current...
+        call node scripts\check_startup_build.mjs --profile=go-primary
+        set BUILD_CHECK_EXIT=%ERRORLEVEL%
+        if "%BUILD_CHECK_EXIT%"=="0" (
+            set BUILD_REQUIRED=0
+            echo Skipping startup build because Go-primary build artifacts are already current.
+        )
     )
-    echo Building ^(%BUILD_TARGET%^)...
-    call pnpm run %BUILD_TARGET%
-    if errorlevel 1 exit /b 1
+
+    if "%BUILD_REQUIRED%"=="1" (
+        if /I "%BUILD_TARGET%"=="build:startup-go" (
+            echo Go-primary startup build selected for runtime mode %RUNTIME_MODE%.
+            echo Set HYPERCODE_RUNTIME=node or HYPERCODE_FULL_BUILD=1 when you need full TS compatibility surfaces built before launch.
+        )
+        echo Building ^(%BUILD_TARGET%^)...
+        call pnpm run %BUILD_TARGET%
+        if errorlevel 1 exit /b 1
+    )
 )
 
 echo Starting Hub...

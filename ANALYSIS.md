@@ -108,6 +108,38 @@ Why this matters:
 - it makes the actual launch phase match the already-validated built CLI artifact
 - it reduces dependence on root script indirection after install/build decisions are already complete
 
+#### Build-skip artifact freshness probe
+Added a build artifact freshness probe:
+- `scripts/check_startup_build.mjs`
+
+Updated `start.bat` so that in Go-primary startup mode it now:
+- checks whether the built CLI entrypoint is present and current relative to CLI source inputs
+- checks whether the built Go control-plane binary is present and current relative to Go source inputs
+- skips the Go-primary startup build when those artifacts are already current
+- still runs the startup build when artifacts are missing or stale
+- allows forcing the build with:
+  - `HYPERCODE_FORCE_BUILD=1`
+
+Current scope of artifact freshness checks:
+- CLI inputs:
+  - `packages/cli/src/**`
+  - `packages/cli/package.json`
+  - `packages/cli/tsconfig.json`
+- CLI output:
+  - `packages/cli/dist/cli/src/index.js`
+- Go inputs:
+  - `go/cmd/**`
+  - `go/internal/**`
+  - `go/go.mod`
+  - `go/go.sum`
+- Go output:
+  - `go/hypercode(.exe)`
+
+Why this matters:
+- repeat Go-primary startup can now avoid both install and build when the workspace is already ready
+- it reduces startup latency and TS coupling further without pretending stale artifacts are acceptable
+- it moves repeat startup behavior closer to a real binary-first operational model
+
 #### Prebuilt Go binary runtime launch preference
 Updated `packages/cli/src/commands/start.ts` so the Go runtime launcher now:
 - prefers the already-built `go/hypercode(.exe)` binary when it exists
@@ -148,6 +180,7 @@ pnpm -C packages/cli run build
 cd go && go build -buildvcs=false ./cmd/hypercode
 node scripts/build_startup.mjs --profile=go-primary
 node scripts/check_startup_install.mjs --profile=go-primary
+node scripts/check_startup_build.mjs --profile=go-primary
 node packages/cli/dist/cli/src/index.js start --help
 ```
 
@@ -157,6 +190,7 @@ Results:
 - Go control-plane build passed
 - new Go-primary startup build profile passed
 - install-skip readiness probe correctly reported the current workspace as already ready for Go-primary startup
+- build-skip artifact freshness probe correctly reported the current workspace artifacts as already current for Go-primary startup
 - direct built-CLI launch path resolved and printed `hypercode start --help` successfully
 - runtime provenance helper coverage passed in the CLI regression suite
 
@@ -179,11 +213,13 @@ Result:
 - `pnpm run build:workspace` now succeeds again
 - the new Go-primary startup build path succeeds
 - the new install-skip readiness probe succeeds for the current workspace state
+- the new build-skip artifact freshness probe succeeds for the current workspace state
 - the direct built-CLI launch path succeeds
 - the CLI Go runtime launcher now prefers the prebuilt Go binary when available
 - startup output now truthfully reports runtime provenance for Go and Node compatibility paths
 - `start.bat` now validates Go-first startup surfaces by default for `auto`/`go` runtime modes instead of always requiring a full workspace build first
 - `start.bat` can now skip `pnpm install` in Go-primary mode when the workspace is already ready
+- `start.bat` can now also skip the Go-primary startup build when the built CLI and Go binary artifacts are already current
 - `start.bat` now launches directly through the built CLI when available instead of depending on `pnpm start` for the final handoff
 - the main monorepo (excluding archived content and external harness submodules) no longer contains textual legacy-name references
 

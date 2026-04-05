@@ -13445,7 +13445,7 @@ func TestSavedScriptsCreateDeleteAndExecuteFallBackToLocalConfig(t *testing.T) {
 	}
 	var created struct {
 		Success bool `json:"success"`
-		Data struct {
+		Data    struct {
 			UUID string `json:"uuid"`
 		} `json:"data"`
 	}

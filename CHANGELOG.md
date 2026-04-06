@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **Go-Native Memory Fallback Ownership**: Go now persists and serves truthful local fallback behavior for memory fact/observation/user-prompt/session-summary capture plus direct agent-memory search/recent/filter/export/stats/mutation routes through `.hypercode/agent_memory/memories.json` when `/trpc` is unavailable.
+- **Startup Workspace Exclusion for Drifted Extension Path**: The root workspace now excludes `apps/borg-extension` alongside `apps/hypercode-extension`, preventing the drifted browser-extension mini-workspace from re-entering normal root pnpm/turbo startup planning and triggering duplicate `hypercode-extension` workspace collisions.
 - **MCP Settings Sync Result Panel**: The MCP Settings dashboard now renders the latest client-config sync result inline, showing the target client and written config path instead of only using toasts.
 - **Registry Detail Action Result Panel**: The MCP Registry detail page now renders the latest validate/install result inline, showing summary state and key identifiers instead of only using transient toasts.
 - **Registry Action Summary Panel**: The MCP Registry dashboard now renders the latest sync and batch-validation summary inline, showing aggregate counts and per-source details instead of only using transient toasts.

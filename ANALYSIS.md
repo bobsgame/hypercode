@@ -4683,3 +4683,40 @@ This is a real Go-primary backend migration slice, not just dashboard polish:
 - public memory APIs are less placeholder-driven and more durable
 - direct agent-memory APIs now expose truthful persisted local state instead of pretending the runtime is absent
 - persisted local observations/prompts/session summaries can now participate in more fallback search/read flows instead of only recent-list surfaces
+
+## Latest stabilization pass — startup workspace exclusion for drifted browser-extension path (2026-04-06)
+
+### Operator evidence
+A fresh `start.bat` run showed two separate issues:
+1. the known non-blocking `apps/maestro` Electron rebuild failure on Node 24/Windows during install
+2. a new blocking workspace-build failure later in the startup flow:
+   - `Failed to add workspace "hypercode-extension" from "apps\borg-extension\package.json", it already exists at "packages\claude-mem\package.json"`
+
+The second issue was the actual build blocker for this pass.
+
+### Root cause
+`pnpm-workspace.yaml` still excluded `apps/hypercode-extension`, but the real drifted directory present in this workspace was `apps/borg-extension`.
+
+That meant the root workspace accidentally re-included the browser-extension mini-workspace during install/build planning, which caused:
+- extension `postinstall` execution during root install
+- Turbo workspace-name collision during `build:workspace`
+
+### What changed
+Updated:
+- `pnpm-workspace.yaml`
+
+Added the missing exclusion:
+- `!apps/borg-extension`
+
+### Validation
+Executed in the primary workspace:
+- `pnpm exec turbo run build --filter=!@repo/* --dry`
+
+Result:
+- passed
+- `apps/borg-extension` no longer appears as a root workspace package in the Turbo planning graph
+- the prior duplicate-workspace failure from `start.bat` no longer reproduces in the validated planning step
+
+### Important boundary
+This does **not** resolve the separate known `apps/maestro` postinstall/electron-rebuild failure on Node 24/Windows.
+It only removes the browser-extension workspace collision that was blocking the later workspace build stage.

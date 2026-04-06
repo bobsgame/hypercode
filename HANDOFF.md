@@ -742,3 +742,25 @@ This follow-up converted another bridge-heavy backend cluster into truthful Go-o
 
 #### Recommended next step after this pass
 Continue the same Go-primary backend migration pattern on remaining bridge-heavy local-first data surfaces, especially where Go already has durable on-disk state but some routes still return synthetic empties or explicit "runtime unavailable" placeholders.
+
+### Latest incremental pass — startup workspace exclusion for drifted browser-extension path
+This follow-up addressed the concrete startup/build failure shown in fresh `start.bat` operator logs.
+
+#### What changed
+- Updated `pnpm-workspace.yaml` to exclude `apps/borg-extension` in addition to the existing `apps/hypercode-extension` exclusion.
+- This prevents the drifted browser-extension mini-workspace from being pulled into root pnpm/turbo planning during normal HyperCode startup.
+
+#### Why it mattered
+Fresh `start.bat` logs showed the workspace build failing with:
+- `Failed to add workspace "hypercode-extension" from "apps\borg-extension\package.json", it already exists at "packages\claude-mem\package.json"`
+
+That failure was separate from the already-known Maestro Electron rebuild issue.
+
+#### Validation performed
+Executed in the primary workspace:
+- `pnpm exec turbo run build --filter=!@repo/* --dry`
+
+Result: passed.
+
+#### Recommended next step after this pass
+Keep working through startup/build drift revealed by real operator logs, especially package-identity drift and remaining Node-24/Windows non-blocking install noise.

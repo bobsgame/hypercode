@@ -620,3 +620,14 @@ This follow-up closed the navigation gap between the Resource Library prompt car
 #### What changed
 - Added `apps/web/src/app/dashboard/prompts/page.tsx` as a thin wrapper around `PromptLibrary`.
 - The `/dashboard/prompts` route now resolves inside the dashboard shell, matching the Library card link.
+
+
+### Latest incremental pass — Library nav description truthfulness
+This follow-up aligned the shared navigation copy with the actual Library dashboard contents.
+
+#### What changed
+- Updated `apps/web/src/components/mcp/nav-config.ts`.
+- The `Library` nav item now describes prompts alongside scripts, skills, tool sets, memory, plans, and documentation.
+
+#### Validation performed
+- `pnpm -C apps/web run build` (executed in the primary workspace)

@@ -306,7 +306,7 @@ export const LABS_DASHBOARD_NAV: NavItem[] = [
     { title: "Traffic Inspector", href: "/dashboard/inspector", icon: FileSearch, variant: "ghost" },
     { title: "Workflows", href: "/dashboard/workflows", icon: Workflow, variant: "ghost", badge: "beta" },
     { title: "Swarm", href: "/dashboard/swarm", icon: Users, description: "Horizontal multi-model delegation, adversarial debates, and consensus voting.", variant: "ghost", badge: "experimental" },
-    { title: "Library", href: "/dashboard/library", icon: Library, description: "Resource hub for scripts, skills, tool sets, memory, plans, and documentation.", variant: "ghost" },
+    { title: "Library", href: "/dashboard/library", icon: Library, description: "Resource hub for scripts, prompts, skills, tool sets, memory, plans, and documentation.", variant: "ghost" },
     { title: "Manual", href: "/dashboard/manual", icon: BookOpenText, variant: "ghost" },
     { title: "Plans", href: "/dashboard/plans", icon: Lightbulb, variant: "ghost" },
     { title: "Metrics", href: "/dashboard/metrics", icon: BarChart3, variant: "ghost" },

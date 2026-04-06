@@ -4441,3 +4441,21 @@ The new dashboard route is a thin wrapper around the existing `PromptLibrary` UI
 
 ### Validation
 This file was forward-ported from the already-working primary workspace shape where the dashboard prompt route existed and built successfully.
+
+
+## Latest stabilization pass — Library navigation description truthfulness (2026-04-05)
+
+### Problem
+The Library dashboard itself now included prompts/templates, but the shared MCP navigation metadata still described Library as covering only scripts, skills, tool sets, memory, plans, and documentation.
+
+### What changed
+Updated:
+- `apps/web/src/components/mcp/nav-config.ts`
+
+The `Library` nav description now mentions prompts as part of the resource hub, matching the actual dashboard contents.
+
+### Validation
+Executed in the primary workspace:
+- `pnpm -C apps/web run build`
+
+Result: passed.

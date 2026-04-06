@@ -4480,3 +4480,24 @@ Executed in the primary workspace:
 - `pnpm -C apps/web run build`
 
 Result: passed.
+
+
+## Latest stabilization pass — link backlog sync result visibility (2026-04-05)
+
+### Problem
+The Link Backlog page's `Sync BobbyBookmarks` action returned useful counts, but the page only emitted a toast. Operators could not inspect the most recent sync result inline.
+
+### What changed
+Updated:
+- `apps/web/src/app/dashboard/links/page.tsx`
+
+The page now stores and renders the latest BobbyBookmarks sync summary directly in the UI:
+- links upserted
+- pages scanned
+- source base URL used for the sync
+
+### Validation
+Executed in the primary workspace:
+- `pnpm -C apps/web run build`
+
+Result: passed.

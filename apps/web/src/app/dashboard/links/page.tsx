@@ -15,6 +15,12 @@ type LinkItem = RouterOutput["linksBacklog"]["list"]["items"][number];
 const PAGE_SIZE = 50;
 const RESEARCH_FILTERS = ["", "pending", "running", "done", "failed", "skipped"] as const;
 
+type LinksSyncResult = {
+    upserted: number;
+    pages: number;
+    baseUrl?: string;
+};
+
 function isLinkItem(value: unknown): value is LinkItem {
     return typeof value === "object"
         && value !== null
@@ -67,6 +73,7 @@ function LinksBacklogPageContent() {
     const [showDuplicates, setShowDuplicates] = useState(false);
     const [syncBaseUrl, setSyncBaseUrl] = useState("http://localhost:5000");
     const [page, setPage] = useState(0);
+    const [lastSyncResult, setLastSyncResult] = useState<LinksSyncResult | null>(null);
 
     const querySearch = searchParams.get("search")?.trim() ?? "";
     const querySource = searchParams.get("source")?.trim() ?? "";
@@ -99,6 +106,11 @@ function LinksBacklogPageContent() {
 
     const syncMutation = trpc.linksBacklog.syncFromBobbyBookmarks.useMutation({
         onSuccess: async (result) => {
+            setLastSyncResult({
+                upserted: result.upserted,
+                pages: result.pages,
+                baseUrl: syncBaseUrl.trim(),
+            });
             toast.success(`Synced ${result.upserted} backlog links from BobbyBookmarks (${result.pages} pages).`);
             await Promise.all([
                 utils.linksBacklog.list.invalidate(),
@@ -174,6 +186,17 @@ function LinksBacklogPageContent() {
                     </button>
                 </div>
             </div>
+
+            {lastSyncResult && (
+                <div className="rounded-lg border border-cyan-900/30 bg-cyan-950/10 p-4 text-sm text-cyan-100">
+                    <div className="font-medium text-cyan-300">Last BobbyBookmarks Sync</div>
+                    <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-cyan-100/90">
+                        <span>{lastSyncResult.upserted} links upserted</span>
+                        <span>{lastSyncResult.pages} pages scanned</span>
+                        {lastSyncResult.baseUrl ? <span>Source: {lastSyncResult.baseUrl}</span> : null}
+                    </div>
+                </div>
+            )}
 
             {statsUnavailable ? (
                 <div className="rounded-lg border border-red-900/30 bg-red-950/10 p-4 text-sm text-red-300">

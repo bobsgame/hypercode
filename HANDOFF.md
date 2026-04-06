@@ -642,3 +642,14 @@ This follow-up made the existing infrastructure doctor result operator-visible i
 
 #### Validation performed
 - `pnpm -C apps/web run build` (executed in the primary workspace)
+
+
+### Latest incremental pass — link backlog sync result visibility
+This follow-up made the existing BobbyBookmarks sync result operator-visible in the page itself.
+
+#### What changed
+- Updated `apps/web/src/app/dashboard/links/page.tsx`.
+- Successful syncs now populate an inline summary with upserted links, pages scanned, and the source base URL.
+
+#### Validation performed
+- `pnpm -C apps/web run build` (executed in the primary workspace)

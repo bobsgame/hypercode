@@ -764,3 +764,25 @@ Result: passed.
 
 #### Recommended next step after this pass
 Keep working through startup/build drift revealed by real operator logs, especially package-identity drift and remaining Node-24/Windows non-blocking install noise.
+
+### Latest incremental pass — claude-mem workspace-name-aware build exclusion
+This follow-up fixed a real startup/build guardrail bug in `scripts/build_all.mjs`.
+
+#### What changed
+- Updated `scripts/build_all.mjs` so the claude-mem merge-marker exclusion path now reads the actual workspace package name from `packages/claude-mem/package.json`.
+- When that safety path triggers, it now excludes both:
+  - `claude-mem`
+  - the real workspace package name (currently `hypercode-extension`)
+- Preserved the existing `HYPERCODE_REQUIRE_CLAUDE_MEM_BUILD=true` override path.
+
+#### Why it mattered
+The previous safety path assumed the workspace package name was `claude-mem`, but the actual package name is `hypercode-extension`.
+That meant the intended Turbo exclusion could silently miss the real workspace package during a broken/merge-conflicted claude-mem state.
+
+#### Validation performed
+Executed in the primary workspace:
+- `node -e "const fs=require('fs');console.log(JSON.parse(fs.readFileSync('packages/claude-mem/package.json','utf8')).name)"`
+- `pnpm exec turbo run build --filter=!@repo/* --filter=!hypercode-extension --dry`
+
+#### Recommended next step after this pass
+Continue tightening startup/build truth around real workspace/package identities surfaced by operator logs, especially where old logical labels no longer match current pnpm/Turbo reality.

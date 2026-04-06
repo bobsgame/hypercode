@@ -4720,3 +4720,44 @@ Result:
 ### Important boundary
 This does **not** resolve the separate known `apps/maestro` postinstall/electron-rebuild failure on Node 24/Windows.
 It only removes the browser-extension workspace collision that was blocking the later workspace build stage.
+
+## Latest stabilization pass — claude-mem workspace-name-aware build exclusion (2026-04-06)
+
+### Problem
+`scripts/build_all.mjs` already had a safety path intended to exclude `packages/claude-mem` from the Turbo workspace build if unresolved merge markers were detected.
+
+However, the exclusion used the logical label:
+- `--filter=!claude-mem`
+
+In reality, the workspace package name at `packages/claude-mem/package.json` is:
+- `hypercode-extension`
+
+That meant the safety path could silently miss the actual workspace package and fail to exclude the intended project.
+
+### What changed
+Updated:
+- `scripts/build_all.mjs`
+
+Added package-name-aware exclusion logic:
+- reads the actual workspace package name from `packages/claude-mem/package.json`
+- excludes both the logical label `claude-mem` and the real workspace package name when merge markers are detected
+- keeps the existing `HYPERCODE_REQUIRE_CLAUDE_MEM_BUILD=true` override behavior intact
+
+### Why this matters
+This is a startup/build truthfulness fix, not cosmetic cleanup:
+- the fallback path now targets the real Turbo workspace identity instead of an assumed one
+- root workspace builds are less likely to fail in confusing ways when `packages/claude-mem` is in a temporary broken/merge-conflicted state
+- the operator-facing logging now reflects the actual exclusion targets more honestly
+
+### Validation
+Executed in the primary workspace:
+- `node -e "const fs=require('fs');console.log(JSON.parse(fs.readFileSync('packages/claude-mem/package.json','utf8')).name)"`
+- `pnpm exec turbo run build --filter=!@repo/* --filter=!hypercode-extension --dry`
+
+Observed result:
+- `packages/claude-mem` reports the real workspace package name `hypercode-extension`
+- Turbo dry planning succeeds with that real exclusion target applied
+
+### Boundary
+This pass tightens the claude-mem exclusion escape hatch in `build_all.mjs`.
+It does not rename the upstream claude-mem package or alter its external publish identity.

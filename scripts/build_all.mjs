@@ -206,6 +206,24 @@ function directoryHasMergeMarkers(rootDir) {
   return false;
 }
 
+function getWorkspacePackageName(packageRoot, fallbackName) {
+  const packageJsonPath = path.join(packageRoot, "package.json");
+  if (!existsSync(packageJsonPath)) {
+    return fallbackName;
+  }
+
+  try {
+    const parsed = JSON.parse(readFileSync(packageJsonPath, "utf-8"));
+    if (typeof parsed.name === "string" && parsed.name.trim()) {
+      return parsed.name.trim();
+    }
+  } catch {
+    // Fall back to the caller-provided logical label when package.json is malformed.
+  }
+
+  return fallbackName;
+}
+
 function runWorkspaceBuild() {
   printStep("Running Turbo workspace build (includes VS Code and browser-extension package workspaces)...");
   clearStaleNextBuildLock("apps/web");
@@ -219,13 +237,17 @@ function runWorkspaceBuild() {
   ];
 
   const claudeMemRoot = path.join(repoRoot, "packages", "claude-mem");
+  const claudeMemPackageName = getWorkspacePackageName(claudeMemRoot, "claude-mem");
   const shouldRequireClaudeMem = process.env.HYPERCODE_REQUIRE_CLAUDE_MEM_BUILD === "true";
   const claudeMemHasMergeMarkers = directoryHasMergeMarkers(path.join(claudeMemRoot, "src"))
     || directoryHasMergeMarkers(path.join(claudeMemRoot, "scripts"));
 
   if (claudeMemHasMergeMarkers && !shouldRequireClaudeMem) {
-    printStep("Detected unresolved merge markers in packages/claude-mem; excluding claude-mem from the workspace build so Hypercode can still start.");
-    turboArgs.push("--filter=!claude-mem");
+    const exclusionTargets = Array.from(new Set(["claude-mem", claudeMemPackageName]));
+    printStep(`Detected unresolved merge markers in packages/claude-mem; excluding ${exclusionTargets.join(", ")} from the workspace build so HyperCode can still start.`);
+    for (const target of exclusionTargets) {
+      turboArgs.push(`--filter=!${target}`);
+    }
   }
 
   const result = runPnpm(

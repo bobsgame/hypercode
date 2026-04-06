@@ -4544,3 +4544,29 @@ Executed in the primary workspace:
 - `pnpm -C apps/web run build`
 
 Result: passed.
+
+
+## Latest stabilization pass — registry action result visibility (2026-04-05)
+
+### Problem
+The MCP Registry page's top-level sync and batch-validation actions returned useful aggregate summaries, but the page only surfaced them through transient toasts.
+
+### What changed
+Updated:
+- `apps/web/src/app/dashboard/registry/page.tsx`
+
+The page now stores and renders the latest registry action summary directly in the UI for:
+- registry sync / ingestion
+- batch validation
+
+Surfaced details include:
+- action title
+- success/warning tone
+- summary counts
+- per-source sync details when available
+
+### Validation
+Executed in the primary workspace:
+- `pnpm -C apps/web run build`
+
+Result: passed.

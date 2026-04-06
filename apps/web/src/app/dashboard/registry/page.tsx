@@ -108,6 +108,13 @@ function InstallBadge({ method }: { method: string }) {
 
 const PAGE_SIZE = 50;
 
+type RegistryActionResult = {
+    title: string;
+    tone: 'success' | 'warning' | 'error';
+    summary: string;
+    details?: string[];
+};
+
 export default function RegistryPage() {
     const router = useRouter();
     const [search, setSearch] = useState("");
@@ -118,6 +125,7 @@ export default function RegistryPage() {
     const [installName, setInstallName] = useState("");
     const [installEnv, setInstallEnv] = useState<Record<string, string>>({});
     const [showSecrets, setShowSecrets] = useState(false);
+    const [lastRegistryAction, setLastRegistryAction] = useState<RegistryActionResult | null>(null);
 
     const utils = trpc.useContext();
 
@@ -153,6 +161,18 @@ export default function RegistryPage() {
     // Ingestion trigger
     const ingestMutation = trpc.catalog.triggerIngestion.useMutation({
         onSuccess: (report) => {
+            setLastRegistryAction({
+                title: 'Registry Sync Complete',
+                tone: 'success',
+                summary: `${report.total_upserted} servers synced from ${report.results.length} sources.`,
+                details: (report.results ?? []).map((entry: { source_name?: string; upserted?: number; skipped?: number; error?: string | null }) => {
+                    const sourceName = entry.source_name ?? 'unknown-source';
+                    const upserted = entry.upserted ?? 0;
+                    const skipped = entry.skipped ?? 0;
+                    const error = entry.error ? ` error=${entry.error}` : '';
+                    return `${sourceName}: upserted=${upserted}, skipped=${skipped}${error}`;
+                }),
+            });
             toast.success(
                 `Ingestion complete: ${report.total_upserted} servers synced from ${report.results.length} sources.`
             );
@@ -197,6 +217,11 @@ export default function RegistryPage() {
     // Batch validate — runs validation on all normalized/probeable servers
     const batchValidateMutation = trpc.catalog.triggerBatchValidation.useMutation({
         onSuccess: (result) => {
+            setLastRegistryAction({
+                title: 'Batch Validation Result',
+                tone: (result.failed ?? 0) > 0 ? 'warning' : 'success',
+                summary: `${result.passed ?? 0} passed, ${result.failed ?? 0} failed, ${result.skipped ?? 0} skipped (${result.queued} queued)`,
+            });
             toast.success(
                 `Batch validation: ${result.passed ?? 0} passed, ${result.failed ?? 0} failed, ${result.skipped ?? 0} skipped (${result.queued} queued)`
             );
@@ -267,6 +292,20 @@ export default function RegistryPage() {
                     </button>
                 </div>
             </div>
+
+            {lastRegistryAction ? (
+                <div className={`rounded-lg border px-4 py-3 text-sm ${lastRegistryAction.tone === 'success' ? 'border-emerald-900/40 bg-emerald-950/10 text-emerald-100' : lastRegistryAction.tone === 'warning' ? 'border-amber-900/40 bg-amber-950/10 text-amber-100' : 'border-red-900/40 bg-red-950/10 text-red-100'}`}>
+                    <div className="font-medium">{lastRegistryAction.title}</div>
+                    <div className="mt-1">{lastRegistryAction.summary}</div>
+                    {lastRegistryAction.details && lastRegistryAction.details.length > 0 ? (
+                        <ul className="mt-2 space-y-1 text-xs text-current/80">
+                            {lastRegistryAction.details.map((detail) => (
+                                <li key={detail} className="font-mono">{detail}</li>
+                            ))}
+                        </ul>
+                    ) : null}
+                </div>
+            ) : null}
 
             {registryListUnavailable ? (
                 <div className="rounded-lg border border-red-900/40 bg-red-950/20 px-4 py-3 text-sm text-red-300">

@@ -675,3 +675,14 @@ This follow-up made the existing provider connection test result operator-visibl
 
 #### Validation performed
 - `pnpm -C apps/web run build` (executed in the primary workspace)
+
+
+### Latest incremental pass — registry action result visibility
+This follow-up made the MCP Registry page's top-level action summaries operator-visible in the page itself.
+
+#### What changed
+- Updated `apps/web/src/app/dashboard/registry/page.tsx`.
+- Registry sync and batch validation now populate an inline summary panel with counts and available details.
+
+#### Validation performed
+- `pnpm -C apps/web run build` (executed in the primary workspace)
